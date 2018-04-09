@@ -1,10 +1,11 @@
 FROM python:2.7.14-alpine3.7
 
-RUN pip install pympler
 RUN apk update
 RUN apk add build-base
 RUN apk add libffi-dev
-RUN pip install csiphash
+
+ADD requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
 
 ADD * /app/
 

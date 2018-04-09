@@ -7,18 +7,27 @@ dependencies and isolating a python environment for you on any machine. The
 first time you run, it will take a while to build. Subsequently, it should be
 nearly instantaneous.
 
-## Running
+## Dev: running locally
 
-    dev/run
+    dev/run -h
 
+This is just a dockerized version of main.py, so equivalent:
 
-The server reads its configuration from `config.cfg`. This file is currently a
+    cd src/client
+    python main.py -h
+
+The dockerized version takes care of installing dependencies from
+requirements.txt. If you really hate docker, you can install them yourself.
+In this case, you have to set your machine up for python dev and then run:
+
+    pip install -r src/client/requirements.txt
+
+## How the client works
+
+The client reads its configuration from `config.cfg`. This file is currently a
 sample. You can specify a section of the config to read using `-c`
 
-    docker run -t -p 3001:3001 bloxroute-server -c [yourhostname]
-
-Note that port 3001 in this case corresponds to the port that was opened in the
-config.cfg for localhost.
+    dev/run -c [yourhostname]
 
 ### Overriding config.cfg with named params
 
@@ -26,17 +35,8 @@ If you don't want to use config.cfg at all you can override the peering string
 which is a comma separated list of "[nodeip] [port] [index]"
 And other parameters
 
-    docker run -t bloxroute-server -p "google.com 80 12345" -P 1906 -i 12345
+    dev/run -p "google.com 80 1234"
 
-The full list of args that can be overridden to avoid reading config.cfg:
+Use the help to see the ful llist
 
-    -I network ip of node to be used for connecting to other nodes
-    -p peering string
-    -P port
-    -i index of node
-    -m index of manager
-    -h help
-
-Run the help to get more info
-
-    docker run -t bloxroute-server -h
+    dev/run -h
