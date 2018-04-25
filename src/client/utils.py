@@ -381,11 +381,11 @@ _log = None
 
 # An enum that stores the different log levels
 class LogLevel:
-    CRASH = 4
-    ERROR = 3
-    WARNING = 2
     DEBUG = 0
-    VERBOSE = 1
+    VERBOSE = 10
+    WARNING = 20
+    ERROR = 30
+    CRASH = 40
 
 # Logging helper functions
 
