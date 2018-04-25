@@ -277,7 +277,7 @@ class Alarm:
 ############################
 
 _hostname = '[Unassigned]'
-_log_level = 0
+_log_level = 1
 _default_log = None
 # The time (in seconds) to cycle through to another log.
 LOG_ROTATION_INTERVAL = 24*3600
@@ -381,11 +381,11 @@ _log = None
 
 # An enum that stores the different log levels
 class LogLevel:
-    CRASH = 0
-    ERROR = 1
-    WARNING = 2
-    DEBUG = 3
-    VERBOSE = 4
+    DEBUG = 0
+    VERBOSE = 10
+    WARNING = 20
+    ERROR = 30
+    CRASH = 40
 
 # Logging helper functions
 
@@ -414,7 +414,7 @@ def log(level, logtype, loc, msg, log_time):
     logmsg = "{0}: {1} [{2}]: {3}\n".format(_hostname, logtype, log_time.strftime("%Y-%m-%d-%H:%M:%S+%f"), msg)
 
     # Store all error messages to be sent to the frontend
-    if level < LogLevel.WARNING:
+    if level > LogLevel.WARNING:
         error_msgs.append(logmsg)
 
     if len(error_msgs) > MAX_ERR_QUEUE_SIZE:
