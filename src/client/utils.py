@@ -277,7 +277,7 @@ class Alarm:
 ############################
 
 _hostname = '[Unassigned]'
-_log_level = 1
+_log_level = 0
 _default_log = None
 # The time (in seconds) to cycle through to another log.
 LOG_ROTATION_INTERVAL = 24*3600
