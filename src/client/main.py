@@ -81,6 +81,7 @@ def parse_peers(peers_string):
         for line in peers_string.split(","):
             tokens = line.strip().split()
 
+            peer_ip = None
             while peer_ip == None:
                 try:
                     peer_ip = socket.gethostbyname(tokens[0])
