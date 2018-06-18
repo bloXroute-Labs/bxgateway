@@ -10,9 +10,6 @@ jobs:
       - attach_workspace:
           at: ~/client
       - run:
-          name: ls
-          command: ls
-      - run:
           name: Python Unit
           command: python -m unittest discover src
       - store_artifacts:
@@ -31,7 +28,6 @@ jobs:
       - run:
           name: Package
           command: 'echo "Yay develop build!"'
-
 
   build-prod:
     docker:
