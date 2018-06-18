@@ -1,0 +1,63 @@
+version: 2
+jobs:
+
+  test-unit:
+    docker:
+      - image: circleci/python:2.7
+    working_directory: ~/client
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/client
+      - run:
+          name: Python Unit
+          command: python -m unittest discover src
+      - store_artifacts:
+          path: test-reports
+          destination: test-reports
+
+  build:
+    docker:
+      - image: circleci/python:2.7
+    working_directory: ~/client
+
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/client
+      - run:
+          name: Package
+          command: 'echo "Yay develop build!"'
+
+  build-prod:
+    docker:
+      - image: circleci/python:2.7
+    working_directory: ~/client
+
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/client
+      - run:
+          name: Package
+          command: 'echo "Yay master build!"'
+
+workflows:
+  version: 2
+
+  test-build:
+    jobs:
+      - test-unit
+      - build:
+          requires:
+            - test-unit
+          filters:
+            branches:
+              only: develop
+
+      - build-prod:
+          requires:
+            - test-unit
+          filters:
+            branches:
+              only: master
