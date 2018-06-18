@@ -12,6 +12,9 @@ jobs:
       - run:
           name: Python Unit
           command: python -m unittest discover bloxroute-client/src
+      - store_artifacts:
+          path: test-reports
+          destination: test-reports
 
   build:
     docker:
