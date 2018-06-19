@@ -24,11 +24,13 @@ import argparse
 from pympler import asizeof
 
 # All parameters that are parsed from the config file.
-ALL_PARAMS = ['my_ip', 'my_port', 'peers', 'my_idx', 'is_client', 'manager_idx', 'node_params', 'node_addr', 'log_path', 'log_stdout']
+ALL_PARAMS = ['my_ip', 'my_port', 'peers', 'my_idx', 'is_client', 'manager_idx', 'node_params', 'node_addr', 'log_path',
+              'log_stdout']
 MAX_NUM_CONN = 8192
 
 # Some websites are blocked in certain jurisdictions, so we try multiple websites to see whichever one works.
 WEBSITES_TO_TRY = ['www.google.com', 'www.alibaba.com']
+
 
 # Returns the local internal IP address of the node.
 # If the node is behind a NAT or proxy, then this is not the externally visible IP address.
@@ -44,16 +46,18 @@ def getmyip():
 
     raise Exception("Could not find any local name!")
 
+
 # Parse the config filename and return a params dictionary with the params from ALL_PARAMS
 def parse_config_file(filename, localname):
     config = ConfigParser.ConfigParser()
     config.read(filename)
 
-    params={}
+    params = {}
     for pname in ALL_PARAMS:
         params[pname] = getparam(config, localname, pname)
 
     return config, params
+
 
 # Gets the param "pname" from the config file.
 # If the param exists under the localname, we use that one. Otherwise, we use
@@ -69,13 +73,14 @@ def getparam(config, localname, pname):
     else:
         return None
 
+
 # Parse the peers file and returns a dictionary of {cls : list of ip, port pairs}
 # to tell the node which connection types to instantiate.
 # Parse the peers string and return two lists:
 #   1) A list of relays that are internal nodes in our network
 #   2) A list of trusted peers that we will connect to.
 def parse_peers(peers_string):
-    nodes = { }
+    nodes = {}
 
     if peers_string is not None:
         for line in peers_string.split(","):
@@ -96,6 +101,7 @@ def parse_peers(peers_string):
 
     return nodes
 
+
 if __name__ == '__main__':
     # Log our pid to a file.
     with open("relay.pid", "w") as f:
@@ -103,13 +109,15 @@ if __name__ == '__main__':
 
     # Local name:
     parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config-name", help="Name of section to read from config.cfg. By default will read a section using this node's local ip. Not needed if you specify the other options.")
+    parser.add_argument("-c", "--config-name",
+                        help="Name of section to read from config.cfg. By default will read a section using this node's local ip. Not needed if you specify the other options.")
     parser.add_argument("-n", "--network-ip", help="Network ip of this node")
     parser.add_argument("-p", "--peers", help="Peering string to override peers of config.cfg")
     parser.add_argument("-P", "--port", help="What port to listen on")
     parser.add_argument("-l", "--log-path", help="Path to store logfiles in")
     parser.add_argument("-o", "--to-stdout", help="Log to stdout. Doesn't generate logfiles in this mode")
-    parser.add_argument("-b", "--blockchain-node", help="Blockchain node ip and port to connect to, space delimited, typically localhost")
+    parser.add_argument("-b", "--blockchain-node",
+                        help="Blockchain node ip and port to connect to, space delimited, typically localhost")
     parser.add_argument("--blockchain-net-magic", help="Blockchain net.magic parameter")
     parser.add_argument("--blockchain-services", help="Blockchain services parameter")
     parser.add_argument("--bloxroute-version", help="Bloxroute version number")
@@ -122,14 +130,14 @@ if __name__ == '__main__':
     mylocalname = opts.config_name or getmyip()
 
     # Parse the config file.
-    configFileName = "config.cfg" 
+    configFileName = "config.cfg"
     config, params = parse_config_file(configFileName, mylocalname)
 
     # XXX: The client is always the client. All references to is_client should be removed
-    is_client = True #params['is_client'] == 'True'
+    is_client = True  # params['is_client'] == 'True'
 
     if not is_client:
-        resource.setrlimit(resource.RLIMIT_NOFILE, (MAX_NUM_CONN, 2*MAX_NUM_CONN))
+        resource.setrlimit(resource.RLIMIT_NOFILE, (MAX_NUM_CONN, 2 * MAX_NUM_CONN))
         resource.setrlimit(resource.RLIMIT_CORE, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
     # Set basic variables.
@@ -147,12 +155,12 @@ if __name__ == '__main__':
     # Initialize the node and register the peerfile update signal to USR2 signal.
     relay_nodes = parse_peers(opts.peers or params['peers'])
 
-    node_param_list = { }
+    node_param_list = {}
     if params['node_params']:
         node_param_list = [x.strip() for x in params['node_params'].split(",")]
 
     if is_client:
-        node_params = { }
+        node_params = {}
 
         if node_param_list:
             for param in node_param_list:
@@ -184,10 +192,9 @@ if __name__ == '__main__':
 
     # Start main loop
     try:
-    	log_debug ("main", "running node")
-    	node.run()
+        log_debug("main", "running node")
+        node.run()
     finally:
-        log_crash ("main", "node run method returned")
-        log_crash ("main", "Log closed")
+        log_crash("main", "node run method returned")
+        log_crash("main", "Log closed")
         log_close()
-

@@ -12,7 +12,7 @@ import os
 from time import strftime, gmtime
 from datetime import datetime
 from heapq import *
-from pympler import tracker,muppy,summary
+from pympler import tracker, muppy, summary
 from threading import Lock, Condition, Thread
 from collections import deque
 import options
@@ -20,6 +20,7 @@ import options
 DUMP_LOG = False
 MAX_ERR_QUEUE_SIZE = 30
 error_msgs = deque()
+
 
 ###############################
 ## The Inputbuffer Interface ##
@@ -40,7 +41,7 @@ class InputBuffer:
             first_len = len(self.input_list[-1])
 
             return self.suffix[-first_len:] == self.input_list[-1] and \
-                    self.input_list[-2].endswith(self.suffix[:-first_len])
+                   self.input_list[-2].endswith(self.suffix[:-first_len])
 
         return False
 
@@ -100,6 +101,7 @@ class InputBuffer:
 
         return self.input_list[0][start:end]
 
+
 ################################
 ## The Outputbuffer Interface ##
 ################################
@@ -110,7 +112,7 @@ class InputBuffer:
 #   - get_buffer(): some bytes to send in the outputbuffer
 #   - advance_buffer(): Advances the buffer by some number of bytes
 class OutputBuffer:
-    EMPTY = bytearray(0) # The empty outputbuffer
+    EMPTY = bytearray(0)  # The empty outputbuffer
 
     def __init__(self):
         # A deque of memoryview objects representing the raw memoryviews of the messages
@@ -160,6 +162,7 @@ class OutputBuffer:
     def has_more_bytes(self):
         return self.length != 0
 
+
 #########################
 ## The Alarm Interface ##
 #########################
@@ -167,20 +170,21 @@ class OutputBuffer:
 # Queue for events that take place at some time in the future.
 class AlarmQueue:
     REMOVED = -1
+
     def __init__(self):
         # A list of alarm_ids, which contain three things:
         # [fire_time, unique_count, alarm]
         self.alarms = []
-        self.uniq_count = 0 # Used for tiebreakers for heap comparison
+        self.uniq_count = 0  # Used for tiebreakers for heap comparison
 
         # dictionary from fn to a min-heap of scheduled alarms with that function.
-        self.approx_alarms_scheduled = { }
+        self.approx_alarms_scheduled = {}
 
     # fn(args) must return 0 if it was successful or a positive integer,
     # WAIT_TIME, to be rescheduled at a delay of WAIT_TIME in the future.
     def register_alarm(self, fire_delay, fn, *args):
         alarm = Alarm(fn, *args)
-        alarm_id = [ time.time()+fire_delay, self.uniq_count, alarm ]
+        alarm_id = [time.time() + fire_delay, self.uniq_count, alarm]
         heappush(self.alarms, alarm_id)
         self.uniq_count += 1
         return alarm_id
@@ -196,7 +200,7 @@ class AlarmQueue:
             now = time.time()
             late_time, early_time = fire_delay + now + slop, fire_delay + now - slop
             for alarm_id in self.approx_alarms_scheduled[fn]:
-                if early_time <= alarm_id[0]  and alarm_id[0] <= late_time:
+                if early_time <= alarm_id[0] and alarm_id[0] <= late_time:
                     return
 
             heappush(self.approx_alarms_scheduled[fn], self.register_alarm(fire_delay, fn, *args))
@@ -209,7 +213,7 @@ class AlarmQueue:
             alarm_id = heappop(self.alarms)
 
     def fire_alarms(self):
-        if len(self.alarms) == 0: # Nothing to do
+        if len(self.alarms) == 0:  # Nothing to do
             return
 
         curr_time = time.time()
@@ -246,7 +250,7 @@ class AlarmQueue:
     # Return tuple indicating <alarm queue empty, timeout>
     def time_to_next_alarm(self):
         if len(self.alarms) == 0:
-            return True, -1 # Nothing to do
+            return True, -1  # Nothing to do
         return False, self.alarms[0][0] - time.time()
 
     # Fires all alarms that have timed out on alarm_queue.
@@ -262,6 +266,7 @@ class AlarmQueue:
 
         return time_to_next_alarm
 
+
 # An alarm object
 class Alarm:
     def __init__(self, fn, *args):
@@ -272,6 +277,7 @@ class Alarm:
         log_debug("Alarm.fire", "Firing function {0} with args {1}".format(self.fn, self.args))
         return self.fn(*self.args)
 
+
 ############################
 ### The Logging Interface ##
 ############################
@@ -280,17 +286,18 @@ _hostname = '[Unassigned]'
 _log_level = 0
 _default_log = None
 # The time (in seconds) to cycle through to another log.
-LOG_ROTATION_INTERVAL = 24*3600
+LOG_ROTATION_INTERVAL = 24 * 3600
+
 
 # Log class that you can write to which asynchronously dumps the log to the background
 class Log:
-    LOG_SIZE = 4096 # We flush every 4 KiB
+    LOG_SIZE = 4096  # We flush every 4 KiB
 
     # No log should be bigger than 10 GB
-    MAX_LOG_SIZE = 1024*1024*1024*10
+    MAX_LOG_SIZE = 1024 * 1024 * 1024 * 10
 
     def __init__(self, path, use_stdout=False):
-        self.log = [ ]
+        self.log = []
         self.log_size = 0
 
         self.lock = Lock()
@@ -300,7 +307,8 @@ class Log:
         if not self.use_stdout:
             if path == None or len(path) == 0:
                 path = "."
-            self.filename = os.path.join(path, strftime("%Y-%m-%d-%H:%M:%S+0000-", gmtime()) + str(os.getpid()) + ".log")
+            self.filename = os.path.join(path,
+                                         strftime("%Y-%m-%d-%H:%M:%S+0000-", gmtime()) + str(os.getpid()) + ".log")
         self.bytes_written = 0
         self.dumper = Thread(target=self.log_dumper)
         self.is_alive = True
@@ -315,7 +323,7 @@ class Log:
     def write(self, msg):
         if options.ENABLE_LOGGING:
             with self.lock:
-                #sys.stdout.write(msg)
+                # sys.stdout.write(msg)
                 self.log.append(msg)
                 self.log_size += len(msg)
 
@@ -346,7 +354,7 @@ class Log:
 
                     oldlog = self.log
                     oldsize = self.log_size
-                    self.log = [ ]
+                    self.log = []
                     self.log_size = 0
 
                 for msg in oldlog:
@@ -377,7 +385,9 @@ class Log:
             f.flush()
             f.close()
 
+
 _log = None
+
 
 # An enum that stores the different log levels
 class LogLevel:
@@ -387,6 +397,7 @@ class LogLevel:
     ERROR = 30
     CRASH = 40
 
+
 # Logging helper functions
 
 def log_init(path, use_stdout):
@@ -394,23 +405,26 @@ def log_init(path, use_stdout):
     print("initializing log")
     _log = Log(path, use_stdout)
 
+
 # Cleanly closes the log and flushes all contents to disk.
 def log_close():
     _log.close()
+
 
 def log_setmyname(name):
     global _hostname
 
     _hostname = '[' + name + ']'
 
+
 def log(level, logtype, loc, msg, log_time):
     global _hostname
 
     if level < _log_level:
-        return # No logging if it's not a high enough priority message.
+        return  # No logging if it's not a high enough priority message.
 
     # loc is kept for debugging purposes. Uncomment the following line if you need to see the execution path.
-#    msg = loc + ": " + msg
+    #    msg = loc + ": " + msg
     logmsg = "{0}: {1} [{2}]: {3}\n".format(_hostname, logtype, log_time.strftime("%Y-%m-%d-%H:%M:%S+%f"), msg)
 
     # Store all error messages to be sent to the frontend
@@ -426,20 +440,26 @@ def log(level, logtype, loc, msg, log_time):
     if DUMP_LOG or level == LogLevel.CRASH:
         sys.stdout.write(logmsg)
 
+
 def log_debug(loc, msg):
     log(LogLevel.DEBUG, "DEBUG  ", loc, msg, datetime.utcnow())
+
 
 def log_err(loc, msg):
     log(LogLevel.ERROR, "ERROR  ", loc, msg, datetime.utcnow())
 
+
 def log_warning(loc, msg):
     log(LogLevel.WARNING, "WARNING", loc, msg, datetime.utcnow())
+
 
 def log_crash(loc, msg):
     log(LogLevel.CRASH, "CRASH  ", loc, msg, datetime.utcnow())
 
+
 def log_verbose(loc, msg):
     log(LogLevel.VERBOSE, "VERBOSE", loc, msg, datetime.utcnow())
+
 
 ####################################
 ### Transaction to ID Management ###
@@ -451,7 +471,7 @@ class TransactionManager:
     # Size of a short id
     # If this is changed, make sure to change it in the TxAssignMessage
     SHORT_ID_SIZE = 4
-    MAX_ID = 2**32
+    MAX_ID = 2 ** 32
 
     # The maximum amount of time that an ID is valid
     MAX_VALID_TIME = 600
@@ -468,16 +488,16 @@ class TransactionManager:
         self.node = node
 
         # txhash is the longhash of the transaction, sid is the short ID for the transaction
-        self.txhash_to_sid = { }
+        self.txhash_to_sid = {}
         # txid is the (unique) list of [time assigned, txhash]
-        self.sid_to_txid = { }
-        self.hash_to_contents = { }
+        self.sid_to_txid = {}
+        self.hash_to_contents = {}
         self.unassigned_hashes = set()
         self.tx_assignment_times = []
         self.tx_assign_alarm_scheduled = False
 
         self.relayed_txns = set()
-        self.tx_relay_times = [ ]
+        self.tx_relay_times = []
 
         self.prev_id = -1
 
@@ -507,7 +527,8 @@ class TransactionManager:
 
     def expire_old_ids(self):
         now = time.time()
-        while len(self.tx_assignment_times) > 0 and now - self.tx_assignment_times[0][0] > TransactionManager.MAX_VALID_TIME:
+        while len(self.tx_assignment_times) > 0 and now - self.tx_assignment_times[0][
+            0] > TransactionManager.MAX_VALID_TIME:
             txid = heappop(self.tx_assignment_times)
             txhash = txid[1]
 
@@ -573,7 +594,8 @@ class TransactionManager:
         else:
             self.relayed_txns.add(tx_hash)
             heappush(self.tx_relay_times, [time.time(), tx_hash])
-            self.node.alarm_queue.register_approx_alarm(2*TransactionManager.MAX_VALID_TIME, TransactionManager.MAX_VALID_TIME, self.cleanup_relayed)
+            self.node.alarm_queue.register_approx_alarm(2 * TransactionManager.MAX_VALID_TIME,
+                                                        TransactionManager.MAX_VALID_TIME, self.cleanup_relayed)
             return False
 
     def cleanup_relayed(self):
@@ -585,12 +607,13 @@ class TransactionManager:
 
         return 0
 
+
 ####################################
 ## The Memory Profiling Interface ##
 ####################################
 class HeapProfiler:
-    PROFILE_START = 0 # Time to start profiling
-    PROFILE_INTERVAL = 300 # Profiling interval (in seconds)
+    PROFILE_START = 0  # Time to start profiling
+    PROFILE_INTERVAL = 300  # Profiling interval (in seconds)
 
     def __init__(self):
         print("options.PROFILING:")
@@ -638,4 +661,3 @@ class HeapProfiler:
         sys.stdout = old_stdout
 
         return self.PROFILE_INTERVAL
-

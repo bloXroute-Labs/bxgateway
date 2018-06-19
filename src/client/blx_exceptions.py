@@ -7,19 +7,22 @@
 # Authors: Soumya Basu, Emin Gun Sirer
 #
 
-class ParseError (Exception):
-    def __init__ (self, msg):
+
+class ParseError(Exception):
+    def __init__(self, msg):
         self.msg = msg
 
+
 class UnrecognizedCommandError(ParseError):
-    def __init__ (self, msg, raw_data):
+    def __init__(self, msg, raw_data):
         self.msg = msg
         self.raw_data = raw_data
 
-class PayloadLenError (ParseError):
-    def __init__ (self, msg):
+
+class PayloadLenError(ParseError):
+    def __init__(self, msg):
         ParseError.__init__(self, msg)
 
-class TerminationError (Exception):
-    pass
 
+class TerminationError(Exception):
+    pass

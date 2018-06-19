@@ -22,6 +22,7 @@ HDR_COMMON_OFF = 16
 # Length of a sha256 hash
 HASH_LEN = 32
 
+
 class Message:
     def __init__(self, msg_type=None, payload_len=None, buf=None):
         self.buf = buf
@@ -69,11 +70,15 @@ class Message:
         _msg_type = _msg_type.rstrip('\x00')
 
         if _payload_len != len(buf) - HDR_COMMON_OFF:
-            log_err("Message.parse", "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (_payload_len, len(buf)))
-            raise PayloadLenError("Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (_payload_len, len(buf)))
+            log_err("Message.parse",
+                    "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
+                    _payload_len, len(buf)))
+            raise PayloadLenError(
+                "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
+                _payload_len, len(buf)))
 
         if _msg_type not in message_types:
-            raise UnrecognizedCommandError("%s message not recognized!" % (_msg_type, ),  "Raw data: %s" % (repr(buf),))
+            raise UnrecognizedCommandError("%s message not recognized!" % (_msg_type,), "Raw data: %s" % (repr(buf),))
 
         cls = message_types[_msg_type]
         msg = cls(buf=buf)
@@ -93,8 +98,9 @@ class Message:
 
     def payload(self):
         if self._payload == None:
-            self._payload = self.buf[HDR_COMMON_OFF:self.payload_len()+HDR_COMMON_OFF]
+            self._payload = self.buf[HDR_COMMON_OFF:self.payload_len() + HDR_COMMON_OFF]
         return self._payload
+
 
 class HelloMessage(Message):
     # idx is the index of the peer. Clients will use 0 for the index and will not be connected back to.
@@ -102,7 +108,7 @@ class HelloMessage(Message):
     def __init__(self, idx=None, buf=None):
 
         if buf == None:
-            buf = bytearray(HDR_COMMON_OFF+4)
+            buf = bytearray(HDR_COMMON_OFF + 4)
             self.buf = buf
             struct.pack_into('<L', buf, HDR_COMMON_OFF, idx)
 
@@ -120,10 +126,11 @@ class HelloMessage(Message):
             self._idx, = struct.unpack_from('<L', self.buf, off)
         return self._idx
 
+
 class PingMessage(Message):
     def __init__(self, nonce=None, buf=None):
         if buf == None:
-            buf = bytearray(HDR_COMMON_OFF+8)
+            buf = bytearray(HDR_COMMON_OFF + 8)
             off = HDR_COMMON_OFF
             struct.pack_into('<Q', buf, off, nonce)
             off += 8
@@ -140,11 +147,12 @@ class PingMessage(Message):
             self._nonce, = struct.unpack_from('<Q', self.buf, off)
         return self._nonce
 
+
 # XXX: Duplicated from Ping
 class PongMessage(Message):
     def __init__(self, nonce=None, buf=None):
         if buf == None:
-            buf = bytearray(HDR_COMMON_OFF+8)
+            buf = bytearray(HDR_COMMON_OFF + 8)
             off = HDR_COMMON_OFF
             struct.pack_into('<Q', buf, off, nonce)
             off += 8
@@ -161,6 +169,7 @@ class PongMessage(Message):
             self._nonce, = struct.unpack_from('<Q', self.buf, off)
         return self._nonce
 
+
 class AckMessage(Message):
     def __init__(self, buf=None):
         if buf == None:
@@ -174,6 +183,7 @@ class AckMessage(Message):
             self._command = self._payload_len = None
             self._payload = None
 
+
 class BlobMessage(Message):
     def __init__(self, command=None, msg_hash=None, blob=None, buf=None):
         if buf == None:
@@ -181,9 +191,9 @@ class BlobMessage(Message):
             self.buf = buf
 
             off = HDR_COMMON_OFF
-            self.buf[off:off+32] = msg_hash.binary
+            self.buf[off:off + 32] = msg_hash.binary
             off += 32
-            self.buf[off:off+len(blob)] = blob
+            self.buf[off:off + len(blob)] = blob
             off += len(blob)
 
             Message.__init__(self, command, off - HDR_COMMON_OFF, buf)
@@ -197,41 +207,44 @@ class BlobMessage(Message):
     def msg_hash(self):
         if self._msg_hash == None:
             off = HDR_COMMON_OFF
-            self._msg_hash = ObjectHash(self._memoryview[off:off+32])
+            self._msg_hash = ObjectHash(self._memoryview[off:off + 32])
         return self._msg_hash
 
     def blob(self):
         if self._blob == None:
             off = HDR_COMMON_OFF + 32
-            self._blob = self._memoryview[off:off+self.payload_len()]
+            self._blob = self._memoryview[off:off + self.payload_len()]
 
         return self._blob
 
     @staticmethod
     def peek_message(inputbuf):
-        buf = inputbuf.peek_message(HDR_COMMON_OFF+32)
+        buf = inputbuf.peek_message(HDR_COMMON_OFF + 32)
         if len(buf) < HDR_COMMON_OFF + 32:
             False, None, None
         _, length = struct.unpack_from('<12sL', buf, 0)
-        msg_hash = ObjectHash(buf[HDR_COMMON_OFF:HDR_COMMON_OFF+32])
+        msg_hash = ObjectHash(buf[HDR_COMMON_OFF:HDR_COMMON_OFF + 32])
         return True, msg_hash, length
+
 
 class BroadcastMessage(BlobMessage):
     def __init__(self, msg_hash=None, blob=None, buf=None):
         BlobMessage.__init__(self, 'broadcast', msg_hash, blob, buf)
 
+
 class TxMessage(BlobMessage):
     def __init__(self, msg_hash=None, blob=None, buf=None):
         BlobMessage.__init__(self, 'tx', msg_hash, blob, buf)
+
 
 # Assign a transaction an id
 class TxAssignMessage(Message):
     def __init__(self, tx_hash=None, short_id=None, buf=None):
         if buf == None:
             # 32 for tx_hash, 4 for short_id
-            buf = bytearray(HDR_COMMON_OFF+36)
+            buf = bytearray(HDR_COMMON_OFF + 36)
             off = HDR_COMMON_OFF
-            buf[off:off+32] = tx_hash.binary
+            buf[off:off + 32] = tx_hash.binary
             off += 32
             struct.pack_into('<L', buf, off, short_id)
             off += 4
@@ -246,13 +259,14 @@ class TxAssignMessage(Message):
     def tx_hash(self):
         if self._tx_hash == None:
             off = HDR_COMMON_OFF
-            self._tx_hash = ObjectHash(self.buf[off:off+32])
+            self._tx_hash = ObjectHash(self.buf[off:off + 32])
         return self._tx_hash
 
     def short_id(self):
         if self._short_id == None:
             self._short_id, = struct.unpack_from('<L', self.buf, HDR_COMMON_OFF + 32)
         return self._short_id
+
 
 class ObjectHash:
     # binary is a memoryview or a bytearray
@@ -281,12 +295,12 @@ class ObjectHash:
     def __getitem__(self, arg):
         return self.binary.__getitem__(arg)
 
-message_types = { 'hello'     : HelloMessage     ,
-                  'ack'       : AckMessage       ,
-                  'ping'      : PingMessage       ,
-                  'pong'      : PongMessage       ,
-                  'broadcast' : BroadcastMessage ,
-                  'tx'        : TxMessage,
-                  'txassign'  : TxAssignMessage,
-                  }
 
+message_types = {'hello': HelloMessage,
+                 'ack': AckMessage,
+                 'ping': PingMessage,
+                 'pong': PongMessage,
+                 'broadcast': BroadcastMessage,
+                 'tx': TxMessage,
+                 'txassign': TxAssignMessage,
+                 }

@@ -10,14 +10,16 @@ import time
 import struct
 from csiphash import siphash24
 
-magic_dict = { 'main'     : 0xD9B4BEF9,
-               'testnet'  : 0xDAB5BFFA,
-               'testnet3' : 0x0709110B,
-               'regtest'  : 0xDAB5BFFA,
-               'namecoin' : 0xFEB4BEF9 }
+magic_dict = {'main': 0xD9B4BEF9,
+              'testnet': 0xDAB5BFFA,
+              'testnet3': 0x0709110B,
+              'regtest': 0xDAB5BFFA,
+              'namecoin': 0xFEB4BEF9}
+
 
 def get_magic_number(networkname):
     return magic_dict[networkname]
+
 
 sha256 = hashlib.sha256
 
@@ -31,7 +33,7 @@ HASH_LEN = 32
 # The services that we provide
 # 1: can ask for full blocks.
 # 0x20: Node that is compatible with the hard fork.
-NODE_CASH = 0x20 # Bitcoin cash service bit
+NODE_CASH = 0x20  # Bitcoin cash service bit
 NODE_SERVICES = 1
 NODE_CASH_SERVICES = 33
 
@@ -39,18 +41,20 @@ OBJTYPE_TX = 1
 OBJTYPE_BLOCK = 2
 OBJTYPE_FILTERED_BLOCK = 3
 
+
 class BTCMessage:
     def __init__(self, magic=None, command=None, payload_len=None, buf=None):
         self.buf = buf
         self._memoryview = memoryview(buf)
 
         magic_num = magic if magic not in magic_dict else magic_dict[magic]
-        checksum = sha256(sha256(self._memoryview[BCH_HDR_COMMON_OFF:payload_len+BCH_HDR_COMMON_OFF]).digest()).digest()
+        checksum = sha256(
+            sha256(self._memoryview[BCH_HDR_COMMON_OFF:payload_len + BCH_HDR_COMMON_OFF]).digest()).digest()
 
         off = 0
         struct.pack_into('<L12sL', buf, off, magic_num, command, payload_len)
         off += 20
-        buf[off:off+4] = checksum[0:4]
+        buf[off:off + 4] = checksum[0:4]
 
         self._magic = magic_num
         self._command = command
@@ -92,15 +96,20 @@ class BTCMessage:
         _checksum = buf[20:24]
 
         if _payload_len != len(buf) - 24:
-            log_err("BTCMessage.parse", "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (_payload_len, len(buf)))
-            raise PayloadLenError("Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (_payload_len, len(buf)))
+            log_err("BTCMessage.parse",
+                    "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
+                    _payload_len, len(buf)))
+            raise PayloadLenError(
+                "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
+                _payload_len, len(buf)))
 
-        if _checksum != sha256(sha256(buf[BCH_HDR_COMMON_OFF:_payload_len+BCH_HDR_COMMON_OFF]).digest()).digest()[0:4]:
+        if _checksum != sha256(sha256(buf[BCH_HDR_COMMON_OFF:_payload_len + BCH_HDR_COMMON_OFF]).digest()).digest()[
+                        0:4]:
             log_err("BTCMessage.parse", "Checksum for packet doesn't match!")
             raise ChecksumError("Checksum for packet doesn't match! ", "Raw data: %s" % repr(buf))
 
         if _command not in message_types:
-            raise UnrecognizedCommandError("%s message not recognized!" % (_command, ),  "Raw data: %s" % (repr(buf),))
+            raise UnrecognizedCommandError("%s message not recognized!" % (_command,), "Raw data: %s" % (repr(buf),))
 
         cls = message_types[_command]
         msg = cls(buf=buf)
@@ -123,18 +132,19 @@ class BTCMessage:
 
     def payload(self):
         if self._payload == None:
-            self._payload = self.buf[BCH_HDR_COMMON_OFF:self.payload_len()+BCH_HDR_COMMON_OFF]
+            self._payload = self.buf[BCH_HDR_COMMON_OFF:self.payload_len() + BCH_HDR_COMMON_OFF]
         return self._payload
 
     @staticmethod
     def get_header_from_partial_buf(buf):
         return struct.unpack_from('Q12s<I', buf, 0)
 
+
 def ipaddrport_to_btcbytearray(ip_addr, ip_port):
     try:
         buf = bytearray(18)
         buf[10] = 0xff
-        buf[11] = 0xff                                    
+        buf[11] = 0xff
         buf[12:16] = socket.inet_pton(socket.AF_INET, ip_addr)
         buf[16] = ((ip_port >> 8) & 0xFF)
         buf[17] = (ip_port & 0xFF)
@@ -148,13 +158,16 @@ def ipaddrport_to_btcbytearray(ip_addr, ip_port):
             return None
     return buf
 
+
 ipv4prefix = bytearray(b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff\xff')
+
 
 def btcbytearray_to_ipaddrport(btcbytearray):
     if btcbytearray[0:12] == ipv4prefix[0:12]:
         return socket.inet_ntop(socket.AF_INET, buffer(btcbytearray[12:16])), (btcbytearray[16] << 8) | btcbytearray[17]
     else:
         return socket.inet_ntop(socket.AF_INET6, buffer(btcbytearray[:16])), (btcbytearray[16] << 8) | btcbytearray[17]
+
 
 # pack the value into a varint, return how many bytes it took
 def pack_int_to_btcvarint(val, buf, off):
@@ -171,6 +184,7 @@ def pack_int_to_btcvarint(val, buf, off):
         struct.pack_into('<BQ', buf, off, 0xff, val)
         return 9
 
+
 def get_sizeof_btcvarint(val):
     if val < 253:
         return 1
@@ -181,22 +195,25 @@ def get_sizeof_btcvarint(val):
     else:
         return 9
 
+
 # Buf must be a bytearray
 def btcvarint_to_int(buf, off):
     assert type(buf) == bytearray
 
     if buf[off] == 0xff:
-        return struct.unpack_from('<Q', buf, off+1)[0], 9
+        return struct.unpack_from('<Q', buf, off + 1)[0], 9
     elif buf[off] == 0xfe:
-        return struct.unpack_from('<I', buf, off+1)[0], 5
+        return struct.unpack_from('<I', buf, off + 1)[0], 5
     elif buf[off] == 0xfd:
-        return struct.unpack_from('<H', buf, off+1)[0], 3
+        return struct.unpack_from('<H', buf, off + 1)[0], 3
     else:
         return struct.unpack_from('B', buf, off)[0], 1
 
+
 class VersionBTCMessage(BTCMessage):
     def __init__(self, magic=None, version=None, dst_ip=None, dst_port=None, \
-            src_ip=None, src_port=None, nonce=None, start_height=None, user_agent=None, services=NODE_SERVICES, buf=None):
+                 src_ip=None, src_port=None, nonce=None, start_height=None, user_agent=None, services=NODE_SERVICES,
+                 buf=None):
 
         if buf == None:
             buf = bytearray(109 + len(user_agent))
@@ -205,18 +222,18 @@ class VersionBTCMessage(BTCMessage):
             off = BCH_HDR_COMMON_OFF
             struct.pack_into('<IQQQ', buf, off, version, services, int(time.time()), 1);
             off += 28
-            buf[off:off+18] = ipaddrport_to_btcbytearray(dst_ip, dst_port)
+            buf[off:off + 18] = ipaddrport_to_btcbytearray(dst_ip, dst_port)
             off += 18
             struct.pack_into('<Q', buf, off, 1)
             off += 8
-            buf[off:off+18] = ipaddrport_to_btcbytearray(src_ip, src_port)
+            buf[off:off + 18] = ipaddrport_to_btcbytearray(src_ip, src_port)
             off += 18
             struct.pack_into('<Q%dpL' % (len(user_agent) + 1,), buf, off, nonce, user_agent, start_height)
             off += 8 + len(user_agent) + 1 + 4
             # we do not send or parse the relay boolean. if present, we benignly ignore it.
 
             BTCMessage.__init__(self, magic, 'version', off - BCH_HDR_COMMON_OFF, buf)
-        
+
         else:
             self.buf = buf
             self._magic = self._command = self._payload_len = self._checksum = None
@@ -241,13 +258,13 @@ class VersionBTCMessage(BTCMessage):
 
     def timestamp(self):
         if self._version is None:
-	        self.version()
+            self.version()
         return self._timestamp
 
     def dst_ip(self):
         if self._dst_ip is None:
             dst_ip_off = BCH_HDR_COMMON_OFF + 28
-            self._dst_ip, self._dst_port  = btcbytearray_to_ipaddrport(self.buf[dst_ip_off:dst_ip_off+18])
+            self._dst_ip, self._dst_port = btcbytearray_to_ipaddrport(self.buf[dst_ip_off:dst_ip_off + 18])
         return self._dst_ip
 
     def dst_port(self):
@@ -258,7 +275,7 @@ class VersionBTCMessage(BTCMessage):
     def src_ip(self):
         if self._src_ip is None:
             src_ip_off = BCH_HDR_COMMON_OFF + 54
-            self._src_ip, self._src_port = btcbytearray_to_ipaddrport(self.buf[src_ip_off:src_ip_off+18])
+            self._src_ip, self._src_port = btcbytearray_to_ipaddrport(self.buf[src_ip_off:src_ip_off + 18])
         return self._src_ip
 
     def src_port(self):
@@ -275,7 +292,8 @@ class VersionBTCMessage(BTCMessage):
     def user_agent(self):
         if self._user_agent is None:
             user_agent_off = BCH_HDR_COMMON_OFF + 80
-            self._user_agent = struct.unpack_from('%dp' % (len(self.buf) - user_agent_off,), self.buf, user_agent_off)[0]
+            self._user_agent = struct.unpack_from('%dp' % (len(self.buf) - user_agent_off,), self.buf, user_agent_off)[
+                0]
             height_off = user_agent_off + len(self._user_agent) + 1
             self._start_height = struct.unpack_from('<L', self.buf, height_off)[0]
         return self._user_agent
@@ -284,6 +302,7 @@ class VersionBTCMessage(BTCMessage):
         if self._user_agent is None:
             self.user_agent()
         return self._start_height
+
 
 class VerAckBTCMessage(BTCMessage):
     def __init__(self, magic=None, buf=None):
@@ -297,6 +316,7 @@ class VerAckBTCMessage(BTCMessage):
             self._memoryview = memoryview(buf)
             self._magic = self._command = self._payload_len = self._checksum = None
             self._payload = None
+
 
 class PingBTCMessage(BTCMessage):
     def __init__(self, magic=None, buf=None):
@@ -327,6 +347,7 @@ class PingBTCMessage(BTCMessage):
                 self._nonce = struct.unpack_from('<Q', self.buf, BCH_HDR_COMMON_OFF)[0]
         return self._nonce
 
+
 class PongBTCMessage(BTCMessage):
     def __init__(self, magic=None, nonce=None, buf=None):
         if buf == None:
@@ -348,7 +369,7 @@ class PongBTCMessage(BTCMessage):
             self._payload = None
 
         self._nonce = None
-        
+
     def nonce(self):
         if self._nonce is None:
             if len(self.buf) == BCH_HDR_COMMON_OFF:
@@ -356,6 +377,7 @@ class PongBTCMessage(BTCMessage):
             else:
                 self._nonce = struct.unpack_from('<Q', self.buf, BCH_HDR_COMMON_OFF)[0]
         return self._nonce
+
 
 class GetAddrBTCMessage(BTCMessage):
     def __init__(self, magic=None, buf=None):
@@ -371,25 +393,26 @@ class GetAddrBTCMessage(BTCMessage):
             self._magic = self._command = self._payload_len = self._checksum = None
             self._payload = None
 
+
 # the addr argument should be an array of (timestamp, ipaddr, port) triples
 class AddrBTCMessage(BTCMessage):
     def __init__(self, magic=None, addrs=[], buf=None):
         if buf == None:
             buf = bytearray(BCH_HDR_COMMON_OFF + 9 + len(addrs) * (4 + 18))
             self.buf = buf
-            
+
             off = BCH_HDR_COMMON_OFF
             off += pack_int_to_btcvarint(len(addrs), buf, off)
 
             for triplet in addrs:
                 # pack the timestamp
-                struct.pack_into('<L', buf, off, triplet[0]) 
+                struct.pack_into('<L', buf, off, triplet[0])
                 off += 4
                 # pack the host ip and port pair
-                buf[off:off+18] = ipaddrport_to_btcbytearray(triplet[1], triplet[2])
+                buf[off:off + 18] = ipaddrport_to_btcbytearray(triplet[1], triplet[2])
                 off += 18
-                
-            BTCMessage.__init__(self, magic, 'addr', off-BCH_HDR_COMMON_OFF, buf)
+
+            BTCMessage.__init__(self, magic, 'addr', off - BCH_HDR_COMMON_OFF, buf)
         else:
             self.buf = buf
             self._memoryview = memoryview(buf)
@@ -399,20 +422,22 @@ class AddrBTCMessage(BTCMessage):
     def __iter__(self):
         off = BCH_HDR_COMMON_OFF
         count, size = btcvarint_to_int(buf, off)
-        off += size 
+        off += size
 
         for i in xrange(count):
             timestamp = struct.unpack_from('<L', self.buf, off)
             off += 4
-            host, port = btcbytearray_to_ipaddrport(buf[off:off+18])
+            host, port = btcbytearray_to_ipaddrport(buf[off:off + 18])
             off += 18
             yield (timestamp, host, port)
 
+
 # an inv_vect is an array of (type, hash) tuples
 class InventoryBTCMessages(BTCMessage):
-    def __init__(self, magic = None, inv_vect=None, command=None, buf=None):
+    def __init__(self, magic=None, inv_vect=None, command=None, buf=None):
         if buf == None:
-            buf = bytearray(BCH_HDR_COMMON_OFF + 9 + 36*len(inv_vect)) # we conservatively allocate the max space for varint
+            buf = bytearray(
+                BCH_HDR_COMMON_OFF + 9 + 36 * len(inv_vect))  # we conservatively allocate the max space for varint
             self.buf = buf
 
             off = BCH_HDR_COMMON_OFF
@@ -421,10 +446,10 @@ class InventoryBTCMessages(BTCMessage):
             for item in inv_vect:
                 struct.pack_into('<L', buf, off, item[0])
                 off += 4
-                buf[off:off+32] = item[1].get_big_endian()
+                buf[off:off + 32] = item[1].get_big_endian()
                 off += 32
-        
-            BTCMessage.__init__(self, magic, command, off-BCH_HDR_COMMON_OFF, buf)
+
+            BTCMessage.__init__(self, magic, command, off - BCH_HDR_COMMON_OFF, buf)
         else:
             self.buf = buf
             self._memoryview = memoryview(buf)
@@ -449,24 +474,28 @@ class InventoryBTCMessages(BTCMessage):
             yield (invtype, BTCObjectHash(buf=self.buf, offset=off, length=HASH_LEN))
             off += 32
 
+
 class InvBTCMessage(InventoryBTCMessages):
     def __init__(self, magic=None, inv_vects=None, buf=None):
         InventoryBTCMessages.__init__(self, magic, inv_vects, 'inv', buf)
+
 
 class GetDataBTCMessage(InventoryBTCMessages):
     def __init__(self, magic=None, inv_vects=None, buf=None):
         InventoryBTCMessages.__init__(self, magic, inv_vects, 'getdata', buf)
 
+
 class NotFoundBTCMessage(InventoryBTCMessages):
     def __init__(self, magic=None, inv_vects=None, buf=None):
         InventoryBTCMessages.__init__(self, magic, inv_vects, 'notfound', buf)
 
+
 class DataBTCMessage(BTCMessage):
     def __init__(self, magic=None, version=None, hashes=[], \
-                    hash_stop=None, command=None, buf=None):
+                 hash_stop=None, command=None, buf=None):
 
         if buf == None:
-            buf = bytearray(BCH_HDR_COMMON_OFF + 9 + (len(hashes)+1)*32)
+            buf = bytearray(BCH_HDR_COMMON_OFF + 9 + (len(hashes) + 1) * 32)
             self.buf = buf
 
             off = BCH_HDR_COMMON_OFF
@@ -475,13 +504,13 @@ class DataBTCMessage(BTCMessage):
             off += pack_int_to_btcvarint(len(hashes), buf, off)
 
             for hash_val in hashes:
-                buf[off:off+32] = hash_val.get_big_endian()
+                buf[off:off + 32] = hash_val.get_big_endian()
                 off += 32
 
-            buf[off:off+32] = hash_stop.get_big_endian()
+            buf[off:off + 32] = hash_stop.get_big_endian()
             off += 32
 
-            BTCMessage.__init__(self, magic, command, off-BCH_HDR_COMMON_OFF, buf)
+            BTCMessage.__init__(self, magic, command, off - BCH_HDR_COMMON_OFF, buf)
         else:
             self.buf = buf
             self._memoryview = memoryview(buf)
@@ -503,9 +532,9 @@ class DataBTCMessage(BTCMessage):
         return self._hash_count
 
     def __iter__(self):
-        off = BCH_HDR_COMMON_OFF + 4 # For the version field.
+        off = BCH_HDR_COMMON_OFF + 4  # For the version field.
         count, size = btcvarint_to_int(self.buf, off)
-        off += size 
+        off += size
 
         for i in xrange(count):
             yield BTCObjectHash(buf=self.buf, offset=off, length=HASH_LEN)
@@ -514,21 +543,26 @@ class DataBTCMessage(BTCMessage):
     def hash_stop(self):
         return BTCObjectHash(buf=self.buf, offset=BCH_HDR_COMMON_OFF + self.payload_len() - 32, length=HASH_LEN)
 
+
 class GetHeadersBTCMessage(DataBTCMessage):
     def __init__(self, magic=None, version=None, hashes=[], hash_stop=None, buf=None):
         DataBTCMessage.__init__(self, magic, version, hashes, hash_stop, 'getheaders', buf)
+
 
 class GetBlocksBTCMessage(DataBTCMessage):
     def __init__(self, magic=None, version=None, hashes=[], hash_stop=None, buf=None):
         DataBTCMessage.__init__(self, magic, version, hashes, hash_stop, 'getblocks', buf)
 
+
 def pack_outpoint(hash_val, index, buf, off):
     return struct.pack_into('<32cI', buf, off, hash_val, index)
+
 
 # A transaction input.
 # This class cannot parse a transaction input from rawbytes, but can construct one.
 class TxIn:
-    def __init__(self, prev_outpoint_hash=None, prev_out_index=None, sig_script=None, sequence=None, buf=None, off=None, length=None):
+    def __init__(self, prev_outpoint_hash=None, prev_out_index=None, sig_script=None, sequence=None, buf=None, off=None,
+                 length=None):
         if buf == None:
             buf = bytearray(36 + 9 + len(sig_script) + 4)
             self.buf = buf
@@ -537,7 +571,7 @@ class TxIn:
             pack_outpoint(prev_outpoint_hash, prev_out_index, buf, off)
             off += 36
             off += pack_int_to_btcvarint(len(sig_script), buf, off)
-            buf[off:off+len(sig_script)] = sig_script
+            buf[off:off + len(sig_script)] = sig_script
             off += len(sig_script)
             struct.pack('<I', buf, off, sequence)
             off += 4
@@ -553,7 +587,8 @@ class TxIn:
         if self.size == len(self.buf) and self.off == 0:
             return self.buf
         else:
-            return self._memoryview[self.off:self.off+self.size]
+            return self._memoryview[self.off:self.off + self.size]
+
 
 # A transaction output.
 # This class cannot parse a transaction output from rawbytes, but can construct one.
@@ -567,7 +602,7 @@ class TxOut:
             struct.pack("<Q", buf, off, value)
             off += 8
             off += pack_int_to_btcvarint(len(pk_script), buf, off)
-            buf[off:off+len(pk_script)] = pk_script
+            buf[off:off + len(pk_script)] = pk_script
         else:
             self.buf = buf
             self._memoryview = memoryview(buf)
@@ -578,7 +613,8 @@ class TxOut:
         if self.size == len(self.buf) and self.off == 0:
             return self.buf
         else:
-            return self._memoryview[self.off:self.off+self.size]
+            return self._memoryview[self.off:self.off + self.size]
+
 
 # A transaction message.
 # This class cannot fully parse a transaction message from the message bytes, but can construct one.
@@ -588,7 +624,7 @@ class TxBTCMessage(BTCMessage):
     #    - tx_out: A list of TxOut instances.
     def __init__(self, version=None, tx_in=None, tx_out=None, lock_time=None, buf=None):
         if buf == None:
-            buf = bytearray(BCH_HDR_COMMON_OFF + 2*9 + 8)
+            buf = bytearray(BCH_HDR_COMMON_OFF + 2 * 9 + 8)
             self.buf = buf
 
             off = BCH_HDR_COMMON_OFF
@@ -599,7 +635,7 @@ class TxBTCMessage(BTCMessage):
             for inp in tx_in:
                 rawbytes = inp.rawbytes()
                 size = len(rawbytes)
-                buf[off:off+size] = rawbytes
+                buf[off:off + size] = rawbytes
                 off += size
 
             off += pack_int_to_btcvarint(len(tx_out), buf, off)
@@ -607,13 +643,13 @@ class TxBTCMessage(BTCMessage):
             for out in tx_out:
                 rawbytes = out.rawbytes()
                 size = len(rawbytes)
-                buf[off:off+size] = rawbytes
+                buf[off:off + size] = rawbytes
                 off += size
 
             struct.pack_into('<I', buf, off, lock_time)
             off += 4
 
-            BTCMessage.__init__(self, magic, 'tx', off-BCH_HDR_COMMON_OFF, buf)
+            BTCMessage.__init__(self, magic, 'tx', off - BCH_HDR_COMMON_OFF, buf)
         else:
             self.buf = buf
             self._memoryview = memoryview(buf)
@@ -682,6 +718,7 @@ class TxBTCMessage(BTCMessage):
     def tx(self):
         return self.payload()
 
+
 # Any object with an already hashed value. binary[offset:offset_length] must be the little endian representation
 # of the object hash. buf[offset:offset+len] must be the big endian representation.
 # The key invariant is that the last 4 bytes (binary[offset_lengh-4:offset_length]) must be uniformly randomly distributed.
@@ -689,9 +726,9 @@ class BTCObjectHash():
     def __init__(self, buf=None, offset=0, length=0, binary=None):
         if buf != None:
             if type(buf) == bytearray:
-                self.binary = buf[offset:offset+length]
-            else: # In case this is a memoryview.
-                self.binary = bytearray(buf[offset:offset+length])
+                self.binary = buf[offset:offset + length]
+            else:  # In case this is a memoryview.
+                self.binary = bytearray(buf[offset:offset + length])
             self.binary = self.binary[::-1]
         else:
             self.binary = binary
@@ -730,23 +767,25 @@ class BTCObjectHash():
             self._buf = self.binary[::-1]
         return self._buf
 
+
 def pack_block_message(buf, magic, block_header, txns):
     off = BCH_HDR_COMMON_OFF
-    buf[off:off+80] = block_header
+    buf[off:off + 80] = block_header
     off += 80
     num_txns = len(txns)
     off += pack_int_to_btcvarint(num_txns, buf, off)
 
     for i in xrange(num_txns):
         tx_buf = txns[i]
-        buf[off:off+len(tx_buf)] = tx_buf
+        buf[off:off + len(tx_buf)] = tx_buf
         off += len(tx_buf)
 
     return BTCMessage(magic, 'block', off - BCH_HDR_COMMON_OFF, buf)
 
+
 class BlockBTCMessage(BTCMessage):
     def __init__(self, magic=None, version=None, prev_block=None, merkle_root=None, \
-                  timestamp=None, bits=None, nonce=None, txns=None, buf=None):
+                 timestamp=None, bits=None, nonce=None, txns=None, buf=None):
         if buf == None:
             total_tx_size = sum(len(tx) for tx in txns)
             buf = bytearray(BCH_HDR_COMMON_OFF + 80 + 9 + total_tx_size)
@@ -755,16 +794,16 @@ class BlockBTCMessage(BTCMessage):
             off = BCH_HDR_COMMON_OFF
             struct.pack_into('<I', buf, off, version)
             off += 4
-            buf[off:off+32] = prev_block.get_little_endian()
+            buf[off:off + 32] = prev_block.get_little_endian()
             off += 32
-            buf[off:off+32] = merkle_root.get_little_endian()
+            buf[off:off + 32] = merkle_root.get_little_endian()
             off += 32
             struct.pack_into('<III', buf, off, timestamp, bits, nonce)
             off += 12
             off += pack_int_to_btcvarint(len(txns), buf, off)
 
             for tx in txns:
-                buf[off:off+len(tx)] = tx
+                buf[off:off + len(tx)] = tx
                 off += len(tx)
 
             BTCMessage.__init__(self, magic, 'block', off - BCH_HDR_COMMON_OFF, buf)
@@ -786,7 +825,7 @@ class BlockBTCMessage(BTCMessage):
             off += 4
             self._prev_block = BTCObjectHash(self.buf, off, 32)
             off += 32
-            self._merkle_root = self._memoryview[off:off+32]
+            self._merkle_root = self._memoryview[off:off + 32]
             off += 32
             self._timestamp, self._bits, self._nonce = struct.unpack_from('<III', self.buf, off)
             off += 12
@@ -837,51 +876,52 @@ class BlockBTCMessage(BTCMessage):
         if self._txns == None:
             if self._tx_offset == None:
                 self.version()
-        
+
             self._txns = list()
 
             start = self._tx_offset
             for _ in xrange(self.txn_count()):
                 size = get_next_tx_size(self.buf, start)
-                self._txns.append(self._memoryview[start:start+size])
+                self._txns.append(self._memoryview[start:start + size])
                 start += size
 
         return self._txns
 
     def block_hash(self):
         if self._hash_val == None:
-            header = self._memoryview[BCH_HDR_COMMON_OFF:BCH_HDR_COMMON_OFF+BLOCK_HDR_SIZE-1]
+            header = self._memoryview[BCH_HDR_COMMON_OFF:BCH_HDR_COMMON_OFF + BLOCK_HDR_SIZE - 1]
             raw_hash = sha256(sha256(header).digest()).digest()
             self._hash_val = BTCObjectHash(buf=raw_hash, length=HASH_LEN)
         return self._hash_val
 
     @staticmethod
     def peek_block(input_buffer):
-        buf = input_buffer.peek_message(BCH_HDR_COMMON_OFF+BLOCK_HDR_SIZE - 1)
+        buf = input_buffer.peek_message(BCH_HDR_COMMON_OFF + BLOCK_HDR_SIZE - 1)
         is_here = False
-        if input_buffer.length < BCH_HDR_COMMON_OFF+BLOCK_HDR_SIZE-1:
+        if input_buffer.length < BCH_HDR_COMMON_OFF + BLOCK_HDR_SIZE - 1:
             return is_here, None, None
 
-        header = buf[BCH_HDR_COMMON_OFF:BCH_HDR_COMMON_OFF+BLOCK_HDR_SIZE-1]
+        header = buf[BCH_HDR_COMMON_OFF:BCH_HDR_COMMON_OFF + BLOCK_HDR_SIZE - 1]
         raw_hash = sha256(sha256(header).digest()).digest()
         payload_len = struct.unpack_from('<L', buf, 16)[0]
         is_here = True
         return is_here, BTCObjectHash(buf=raw_hash, length=HASH_LEN), payload_len
 
+
 # A BlockHeader is the first 80 bytes of the corresponding block message payload
 # terminated by a null byte (\x00) to signify that there are no transactions.
 class BlockHeader:
     def __init__(self, buf=None, version=None, prev_block=None, merkle_root=None,
-                       timestamp=None, bits=None, nonce=None):
+                 timestamp=None, bits=None, nonce=None):
         if buf == None:
             buf = bytearray(81)
             self.buf = buf
             off = 0
             struct.pack_into('<I', buf, off, version)
             off += 4
-            buf[off:off+32] = prev_block.get_little_endian()
+            buf[off:off + 32] = prev_block.get_little_endian()
             off += 32
-            buf[off:off+32] = merkle_root.get_little_endian()
+            buf[off:off + 32] = merkle_root.get_little_endian()
             off += 32
             struct.pack_into('<III', buf, off, timestamp, bits, nonce)
         else:
@@ -899,7 +939,7 @@ class BlockHeader:
             off += 4
             self._prev_block = BTCObjectHash(self.buf, off, 32)
             off += 32
-            self._merkle_root = self._memoryview[off:off+32]
+            self._merkle_root = self._memoryview[off:off + 32]
             off += 32
             self._timestamp, self._bits, self._nonce = struct.unpack_from('<III', self.buf, off)
             self._txn_count, size = btcvarint_to_int(self.buf, off)
@@ -932,13 +972,14 @@ class BlockHeader:
 
     def block_hash(self):
         if self._block_hash == None:
-            header = self._memoryview[:BLOCK_HDR_SIZE-1] # remove the tx count at the end
+            header = self._memoryview[:BLOCK_HDR_SIZE - 1]  # remove the tx count at the end
             raw_hash = sha256(sha256(header).digest()).digest()
             self._hash_val = BTCObjectHash(buf=raw_hash, length=HASH_LEN)
         return self._hash_val
 
+
 class HeadersBTCMessage(BTCMessage):
-    def __init__(self, magic = None, headers=None, buf=None):
+    def __init__(self, magic=None, headers=None, buf=None):
         if buf == None:
             buf = bytearray(BCH_HDR_COMMON_OFF + 9 + len(headers) * 81)
             self.buf = buf
@@ -946,7 +987,7 @@ class HeadersBTCMessage(BTCMessage):
             off = BCH_HDR_COMMON_OFF
             off += pack_int_to_btcvarint(len(headers), buf, off)
             for header in headers:
-                buf[off:off+81] = header
+                buf[off:off + 81] = header
                 off += 81
 
             BTCMessage.__init__(self, magic, 'headers', off - BCH_HDR_COMMON_OFF, buf)
@@ -970,19 +1011,20 @@ class HeadersBTCMessage(BTCMessage):
         self._header_count, size = btcvarint_to_int(buf, off)
         off += size
         for _ in xrange(self._header_count):
-            yield self._memoryview[off:off+81]
+            yield self._memoryview[off:off + 81]
             off += 81
+
 
 class RejectBTCMessage(BTCMessage):
     # ccodes
-    REJECT_MALFORMED       = 0x01
-    REJECT_INVALID         = 0x10
-    REJECT_OBSOLETE        = 0x11
-    REJECT_DUPLICATE       = 0x12	
-    REJECT_NONSTANDARD     = 0x40
-    REJECT_DUST            = 0x41
+    REJECT_MALFORMED = 0x01
+    REJECT_INVALID = 0x10
+    REJECT_OBSOLETE = 0x11
+    REJECT_DUPLICATE = 0x12
+    REJECT_NONSTANDARD = 0x40
+    REJECT_DUST = 0x41
     REJECT_INSUFFICIENTFEE = 0x42
-    REJECT_CHECKPOINT      = 0x43
+    REJECT_CHECKPOINT = 0x43
 
     def __init__(self, magic=None, message=None, ccode=None, reason=None, data=None, buf=None):
         if buf == None:
@@ -994,9 +1036,9 @@ class RejectBTCMessage(BTCMessage):
             off += len(message) + 1 + 1
             struct.pack_into('<%dp' % (len(reason) + 1,), buf, off, reason)
             off += len(reason) + 1
-            buf[off:off+len(data)] = data
+            buf[off:off + len(data)] = data
             off += len(data)
-    
+
             BTCMessage.__init__(self, magic, 'reject', off - BCH_HDR_COMMON_OFF, buf)
         else:
             self.buf = buf
@@ -1015,7 +1057,7 @@ class RejectBTCMessage(BTCMessage):
             off += 1
             self._reason = struct.unpack_from('%dp' % (len(self.buf) - off,), self.buf, off)[0]
             off += len(self._reason) + 1
-            self._data = self.buf[off:] 
+            self._data = self.buf[off:]
         return self._message
 
     def ccode(self):
@@ -1033,6 +1075,7 @@ class RejectBTCMessage(BTCMessage):
             self.message()
         return self._data
 
+
 class SendHeadersBTCMessage(BTCMessage):
     def __init__(self, magic=None, buf=None):
         if buf == None:
@@ -1046,30 +1089,31 @@ class SendHeadersBTCMessage(BTCMessage):
             self._magic = self._command = self._payload_len = self._checksum = None
             self._payload = None
 
+
 # Returns a the size of the next transaction in the buffer.
 # Returns -1 if there's a parsing error (or the end goes beyond the tail).
 # Input must be a bytearray object.
 def get_next_tx_size(buf, off, tail=-1):
     end = off + 4
-    txin_c, size = btcvarint_to_int(buf, end) 
-    end += size 
+    txin_c, size = btcvarint_to_int(buf, end)
+    end += size
 
-    if end > tail and tail > 0: 
+    if end > tail and tail > 0:
         return -1
 
     for k in xrange(txin_c):
         end += 36
-        script_len, size = btcvarint_to_int(buf, end) 
+        script_len, size = btcvarint_to_int(buf, end)
         end += size + script_len + 4
 
-        if end > tail and tail > 0: 
+        if end > tail and tail > 0:
             return -1
 
-    txout_c, size = btcvarint_to_int(buf, end) 
-    end += size 
+    txout_c, size = btcvarint_to_int(buf, end)
+    end += size
     for _ in xrange(txout_c):
-        end += 8 
-        script_len, size = btcvarint_to_int(buf, end) 
+        end += 8
+        script_len, size = btcvarint_to_int(buf, end)
         end += size + script_len
 
         if end > tail and tail > 0:
@@ -1082,22 +1126,21 @@ def get_next_tx_size(buf, off, tail=-1):
 
     return end - off
 
-message_types = { 'version'    : VersionBTCMessage      ,
-                  'verack'     : VerAckBTCMessage       ,
-                  'ping'       : PingBTCMessage         ,
-                  'pong'       : PongBTCMessage         ,
-                  'getaddr'    : GetAddrBTCMessage      ,
-                  'addr'       : AddrBTCMessage         ,
-                  'inv'        : InvBTCMessage          ,
-                  'getdata'    : GetDataBTCMessage      ,
-                  'notfound'   : NotFoundBTCMessage     ,
-                  'getheaders' : GetHeadersBTCMessage   ,
-                  'getblocks'  : GetBlocksBTCMessage    ,
-                  'tx'         : TxBTCMessage           ,
-                  'block'      : BlockBTCMessage        ,
-                  'headers'    : HeadersBTCMessage      ,
-                  'reject'     : RejectBTCMessage       ,
-                  'sendheaders': SendHeadersBTCMessage  ,
-                  }
 
-
+message_types = {'version': VersionBTCMessage,
+                 'verack': VerAckBTCMessage,
+                 'ping': PingBTCMessage,
+                 'pong': PongBTCMessage,
+                 'getaddr': GetAddrBTCMessage,
+                 'addr': AddrBTCMessage,
+                 'inv': InvBTCMessage,
+                 'getdata': GetDataBTCMessage,
+                 'notfound': NotFoundBTCMessage,
+                 'getheaders': GetHeadersBTCMessage,
+                 'getblocks': GetBlocksBTCMessage,
+                 'tx': TxBTCMessage,
+                 'block': BlockBTCMessage,
+                 'headers': HeadersBTCMessage,
+                 'reject': RejectBTCMessage,
+                 'sendheaders': SendHeadersBTCMessage,
+                 }
