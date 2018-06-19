@@ -4,8 +4,6 @@
 #
 # Exceptions
 #
-# Authors: Soumya Basu, Emin Gun Sirer
-#
 
 
 class ParseError(Exception):

@@ -4,8 +4,6 @@
 #
 # Options for debugging
 #
-# Authors: Soumya Basu, Emin Gun Sirer
-#
 
 ## Options for Falcon network for debugging purposes only.
 

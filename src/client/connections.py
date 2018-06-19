@@ -4,8 +4,6 @@
 #
 # Client node code
 #
-# Authors: Soumya Basu, Emin Gun Sirer
-#
 
 import errno
 import select

@@ -3,13 +3,11 @@
 #
 # Different types of messages for the bloXroute wire protocol.
 #
-# Authors: Soumya Basu, Emin Gun Sirer
-#
+import hashlib
+import struct
+
 from blx_exceptions import *
 from utils import *
-import hashlib
-import time
-import struct
 
 sha256 = hashlib.sha256
 
@@ -72,10 +70,10 @@ class Message:
         if _payload_len != len(buf) - HDR_COMMON_OFF:
             log_err("Message.parse",
                     "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
-                    _payload_len, len(buf)))
+                        _payload_len, len(buf)))
             raise PayloadLenError(
                 "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
-                _payload_len, len(buf)))
+                    _payload_len, len(buf)))
 
         if _msg_type not in message_types:
             raise UnrecognizedCommandError("%s message not recognized!" % (_msg_type,), "Raw data: %s" % (repr(buf),))
