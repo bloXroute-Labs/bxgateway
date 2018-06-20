@@ -54,7 +54,7 @@ class Client:
         self.serversocket = self.create_server_socket('0.0.0.0', self.server_port)
         self.serversocketfd = self.serversocket.fileno()
 
-        # Handle termination gracefully 
+        # Handle termination gracefully
         signal.signal(signal.SIGTERM, self.kill_node)
         signal.signal(signal.SIGINT, self.kill_node)
 
@@ -165,7 +165,7 @@ class Client:
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             sock.setblocking(0)
 
-        # Make a connection object and set its state 
+        # Make a connection object and set its state
         conn_obj = conn_cls(sock, (ip, port), self, setup=setup)
         conn_obj.state |= Connection.CONNECTING if initialized else Connection.INITIALIZED
 
@@ -517,8 +517,6 @@ class Connection:
     def _recv(self, msg_cls, hello_msgs):
         self.collect_input()
 
-        msg = None
-
         while True:
             if self.state & Connection.MARK_FOR_CLOSE:
                 return 0
@@ -531,27 +529,26 @@ class Connection:
                 break
 
             # Full messages must be a version or verack if the connection isn't established yet.
-            if is_full_msg:
-                msg = self.pop_next_message(payload_len)
-                # If there was some error in parsing this message, then continue the loop.
-                if msg is None:
-                    if self.num_bad_messages == Connection.MAX_BAD_MESSAGES:
-                        log_debug("",
-                                  "Got enough bad messages! Marking connection from {0} closed".format(self.peer_desc))
-                        self.state |= Connection.MARK_FOR_CLOSE
-                        return 0  # I have MAX_BAD_MESSAGES messages that failed to parse in a row.
-
-                    self.num_bad_messages += 1
-                    continue
-
-                self.num_bad_messages = 0
-
-                if not (self.state & Connection.ESTABLISHED) and msg_type not in hello_msgs:
-                    log_err("Connection.recv",
-                            "Connection to {0} not established and got {1} message!  Closing.".format(self.peer_desc,
-                                                                                                      msg_type))
+            msg = self.pop_next_message(payload_len)
+            # If there was some error in parsing this message, then continue the loop.
+            if msg is None:
+                if self.num_bad_messages == Connection.MAX_BAD_MESSAGES:
+                    log_debug("",
+                              "Got enough bad messages! Marking connection from {0} closed".format(self.peer_desc))
                     self.state |= Connection.MARK_FOR_CLOSE
-                    return 0
+                    return 0  # I have MAX_BAD_MESSAGES messages that failed to parse in a row.
+
+                self.num_bad_messages += 1
+                continue
+
+            self.num_bad_messages = 0
+
+            if not (self.state & Connection.ESTABLISHED) and msg_type not in hello_msgs:
+                log_err("Connection.recv",
+                        "Connection to {0} not established and got {1} message!  Closing.".format(self.peer_desc,
+                                                                                                  msg_type))
+                self.state |= Connection.MARK_FOR_CLOSE
+                return 0
 
             log_debug("Connection.recv", "Received message of type {0} from {1}".format(msg_type, self.peer_desc))
 
