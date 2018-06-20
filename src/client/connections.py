@@ -6,7 +6,6 @@
 #
 
 import errno
-import random
 import select
 import signal
 from collections import defaultdict
