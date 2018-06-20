@@ -11,9 +11,9 @@ from utils import *
 
 sha256 = hashlib.sha256
 
-#####################
-## MESSAGE CLASSES ##
-#####################
+##
+# MESSAGE CLASSES
+##
 
 # The length of everything in the header minus the checksum
 HDR_COMMON_OFF = 16
@@ -142,7 +142,7 @@ class PingMessage(Message):
             self._nonce = self._command = self._payload_len = None
 
     def nonce(self):
-        if self._nonce == None:
+        if self._nonce is None:
             off = HDR_COMMON_OFF
             self._nonce, = struct.unpack_from('<Q', self.buf, off)
         return self._nonce
