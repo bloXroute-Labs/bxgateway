@@ -21,7 +21,7 @@ HDR_COMMON_OFF = 16
 HASH_LEN = 32
 
 
-class Message:
+class Message(object):
     def __init__(self, msg_type=None, payload_len=None, buf=None):
         self.buf = buf
         self._memoryview = memoryview(buf)
@@ -198,7 +198,7 @@ class BlobMessage(Message):
 
             Message.__init__(self, command, off - HDR_COMMON_OFF, buf)
         else:
-            assert type(buf) != "str"
+            assert not isinstance(buf, str)
             self.buf = buf
             self._memoryview = memoryview(self.buf)
 
@@ -218,8 +218,8 @@ class BlobMessage(Message):
         return self._blob
 
     @staticmethod
-    def peek_message(inputbuf):
-        buf = inputbuf.peek_message(HDR_COMMON_OFF + 32)
+    def peek_message(input_buffer):
+        buf = input_buffer.peek_message(HDR_COMMON_OFF + 32)
         if len(buf) < HDR_COMMON_OFF + 32:
             return False, None, None
         _, length = struct.unpack_from('<12sL', buf, 0)
@@ -251,7 +251,7 @@ class TxAssignMessage(Message):
 
             Message.__init__(self, 'txassign', off - HDR_COMMON_OFF, buf)
         else:
-            assert type(buf) != 'str'
+            assert not isinstance(buf, str)
             self.buf = buf
             self._memoryview = memoryview(self.buf)
             self._tx_hash = self._short_id = None
@@ -268,13 +268,13 @@ class TxAssignMessage(Message):
         return self._short_id
 
 
-class ObjectHash:
+class ObjectHash(object):
     # binary is a memoryview or a bytearray
     def __init__(self, binary):
         assert len(binary) == 32
 
         self.binary = binary
-        if type(self.binary) == memoryview:
+        if isinstance(self.binary, memoryview):
             self.binary = bytearray(binary)
 
         self._hash = struct.unpack("<L", self.binary[-4:])[0]
@@ -296,11 +296,12 @@ class ObjectHash:
         return self.binary.__getitem__(arg)
 
 
-message_types = {'hello': HelloMessage,
-                 'ack': AckMessage,
-                 'ping': PingMessage,
-                 'pong': PongMessage,
-                 'broadcast': BroadcastMessage,
-                 'tx': TxMessage,
-                 'txassign': TxAssignMessage,
-                 }
+message_types = {
+    'hello': HelloMessage,
+    'ack': AckMessage,
+    'ping': PingMessage,
+    'pong': PongMessage,
+    'broadcast': BroadcastMessage,
+    'tx': TxMessage,
+    'txassign': TxAssignMessage,
+}

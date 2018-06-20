@@ -77,7 +77,7 @@ def parse_peers(peers_string):
                 try:
                     peer_ip = socket.gethostbyname(hosts[0])
                 except socket.error:
-                    print("Caught socket error while resolving name! Retrying...")
+                    print "Caught socket error while resolving name! Retrying..."
                     time.sleep(0.1)
                     peer_ip = None
 

@@ -116,7 +116,19 @@ disable=
     hex-method,
     nonzero-method,
     map-builtin-not-iterating,
-
+    wildcard-import,
+    relative-import,
+    undefined-variable,
+    unused-variable,
+    no-self-use,
+    no-else-return,
+    too-many-instance-attributes,
+    too-many-instance-arguments,
+    too-many-arguments,
+    attribute-defined-outside-init,
+    too-few-public-methods,
+    unused-wildcard-import,
+    too-many-locals
 
 
 [REPORTS]
@@ -208,7 +220,7 @@ logging-modules=logging
 bad-functions=map,filter,input
 
 # Good variable names which should always be accepted, separated by a comma
-good-names=i,e,s,_,fd,fp,ip,tx
+good-names=i,e,s,_,fd,fp,ip,tx,fn
 
 # Bad variable names which should always be refused, separated by a comma
 bad-names=foo,bar,baz,toto,tutu,tata

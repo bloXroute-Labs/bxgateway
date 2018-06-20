@@ -6,7 +6,6 @@
 #
 import os
 import sys
-import time
 from collections import deque
 from datetime import datetime
 from heapq import *
@@ -26,13 +25,13 @@ error_msgs = deque()
 # The Inputbuffer Interface
 ##
 
-class InputBuffer:
+class InputBuffer(object):
     def __init__(self):
         self.input_list = deque()
         self.length = 0
 
     def endswith(self, suffix):
-        if len(self.input_list) == 0:
+        if self.input_list:
             return False
 
         if len(self.input_list[-1]) >= len(suffix):
@@ -50,7 +49,7 @@ class InputBuffer:
 
     # Adds a bytearray to the end of the input buffer.
     def add_bytes(self, piece):
-        assert type(piece) == bytearray
+        assert isinstance(piece, bytearray)
         self.input_list.append(piece)
         self.length += len(piece)
 
@@ -59,15 +58,15 @@ class InputBuffer:
         assert self.length >= num_bytes > 0
 
         to_return = bytearray(0)
-        while len(self.input_list) > 0 and num_bytes >= len(self.input_list[0]):
+        while self.input_list and num_bytes >= len(self.input_list[0]):
             next_piece = self.input_list.popleft()
             to_return.extend(next_piece)
             num_bytes -= len(next_piece)
             self.length -= len(next_piece)
 
-        assert len(self.input_list) > 0 or num_bytes == 0
+        assert self.input_list or num_bytes == 0
 
-        if len(self.input_list) > 0:
+        if self.input_list:
             to_return.extend(self.input_list[0][:num_bytes])
             self.input_list[0] = self.input_list[0][num_bytes:]
             self.length -= num_bytes
@@ -114,7 +113,7 @@ class InputBuffer:
 #   - has_more_bytes(): Whether or not there are more bytes in this buffer.
 #   - get_buffer(): some bytes to send in the outputbuffer
 #   - advance_buffer(): Advances the buffer by some number of bytes
-class OutputBuffer:
+class OutputBuffer(object):
     EMPTY = bytearray(0)  # The empty outputbuffer
 
     def __init__(self):
@@ -130,7 +129,7 @@ class OutputBuffer:
 
     # Gets a non-empty memoryview buffer
     def get_buffer(self):
-        if len(self.output_msgs) == 0:
+        if not self.output_msgs:
             raise RuntimeError("FIXME")
             # FIXME Output buffer is undefined
             # return OutputBufffer.EMPTY
@@ -173,7 +172,7 @@ class OutputBuffer:
 ##
 
 # Queue for events that take place at some time in the future.
-class AlarmQueue:
+class AlarmQueue(object):
     REMOVED = -1
 
     def __init__(self):
@@ -218,11 +217,11 @@ class AlarmQueue:
             heappop(self.alarms)
 
     def fire_alarms(self):
-        if len(self.alarms) == 0:  # Nothing to do
+        if not self.alarms:  # Nothing to do
             return
 
         curr_time = time.time()
-        while len(self.alarms) > 0 and self.alarms[0][0] <= curr_time:
+        while self.alarms and self.alarms[0][0] <= curr_time:
             alarm_id = heappop(self.alarms)
             alarm = alarm_id[-1]
 
@@ -241,7 +240,7 @@ class AlarmQueue:
                     assert alarm_heap[0][1] == alarm_id[1]
                     heappop(alarm_heap)
 
-                    if len(alarm_heap) == 0:
+                    if not alarm_heap:
                         del self.approx_alarms_scheduled[alarm.fn]
 
             elif alarm != AlarmQueue.REMOVED and alarm.fn in self.approx_alarms_scheduled:
@@ -254,7 +253,7 @@ class AlarmQueue:
 
     # Return tuple indicating <alarm queue empty, timeout>
     def time_to_next_alarm(self):
-        if len(self.alarms) == 0:
+        if not self.alarms:
             return True, -1  # Nothing to do
         return False, self.alarms[0][0] - time.time()
 
@@ -273,7 +272,7 @@ class AlarmQueue:
 
 
 # An alarm object
-class Alarm:
+class Alarm(object):
     def __init__(self, fn, *args):
         self.fn = fn
         self.args = args
@@ -295,7 +294,7 @@ LOG_ROTATION_INTERVAL = 24 * 3600
 
 
 # Log class that you can write to which asynchronously dumps the log to the background
-class Log:
+class Log(object):
     LOG_SIZE = 4096  # We flush every 4 KiB
 
     # No log should be bigger than 10 GB
@@ -310,7 +309,7 @@ class Log:
         self.last_rotation_time = time.time()
         self.use_stdout = use_stdout
         if not self.use_stdout:
-            if path is None or len(path) == 0:
+            if path is None or not path:
                 path = "."
             self.filename = os.path.join(path,
                                          strftime("%Y-%m-%d-%H:%M:%S+0000-", gmtime()) + str(os.getpid()) + ".log")
@@ -319,8 +318,8 @@ class Log:
         self.is_alive = True
 
         if not self.use_stdout:
-            with open("current.log", "w") as f:
-                f.write(self.filename)
+            with open("current.log", "w") as log_file:
+                log_file.write(self.filename)
 
         if options.ENABLE_LOGGING:
             self.dumper.start()
@@ -344,9 +343,9 @@ class Log:
 
     def log_dumper(self):
         if self.use_stdout:
-            f = sys.stdout
+            output_dest = sys.stdout
         else:
-            f = open(self.filename, "a+")
+            output_dest = open(self.filename, "a+")
 
         alive = True
 
@@ -363,40 +362,40 @@ class Log:
                     self.log_size = 0
 
                 for msg in oldlog:
-                    f.write(msg)
+                    output_dest.write(msg)
 
                 self.bytes_written += oldsize
 
                 if options.FLUSH_LOG:
-                    f.flush()
+                    output_dest.flush()
 
                 # Checks whether we've been dumping to this logfile for a while
                 # and opens up a new file.
                 now = time.time()
                 if not self.use_stdout and now - self.last_rotation_time > LOG_ROTATION_INTERVAL \
-                        or self.bytes_written > Log.MAX_LOG_SIZE:
+                or self.bytes_written > Log.MAX_LOG_SIZE:
                     self.last_rotation_time = now
                     self.filename = strftime("%Y-%m-%d-%H:%M:%S+0000-", gmtime()) + str(os.getpid()) + ".log"
 
-                    f.flush()
-                    f.close()
+                    output_dest.flush()
+                    output_dest.close()
 
-                    with open("current.log", "w") as of:
-                        of.write(self.filename)
+                    with open("current.log", "w") as current_log:
+                        current_log.write(self.filename)
 
-                    f = open(self.filename, "a+")
+                    output_dest = open(self.filename, "a+")
                     self.bytes_written = 0
 
         finally:
-            f.flush()
-            f.close()
+            output_dest.flush()
+            output_dest.close()
 
 
 _log = None
 
 
 # An enum that stores the different log levels
-class LogLevel:
+class LogLevel(object):
     def __init__(self):
         pass
 
@@ -411,7 +410,7 @@ class LogLevel:
 
 def log_init(path, use_stdout):
     global _log
-    print("initializing log")
+    print "initializing log"
     _log = Log(path, use_stdout)
 
 
@@ -477,7 +476,7 @@ def log_verbose(msg):
 
 # A manager for the transaction mappings
 # We assume in this class that no more than MAX_ID unassigned transactions exist at a time
-class TransactionManager:
+class TransactionManager(object):
     # Size of a short id
     # If this is changed, make sure to change it in the TxAssignMessage
     SHORT_ID_SIZE = 4
@@ -524,7 +523,7 @@ class TransactionManager:
             #     sid, tx_time = self.get_and_increment_id()
             #     self._assign_tx_to_sid(tx_hash, sid, tx_time)
 
-        if len(self.tx_assignment_times) > 0:
+        if self.tx_assignment_times:
             self.node.alarm_queue.register_alarm(TransactionManager.MAX_VALID_TIME, self.expire_old_ids)
             self.tx_assign_alarm_scheduled = True
         self.unassigned_hashes = None
@@ -541,8 +540,8 @@ class TransactionManager:
 
     def expire_old_ids(self):
         now = time.time()
-        while len(self.tx_assignment_times) > 0 and \
-                now - self.tx_assignment_times[0][0] > TransactionManager.MAX_VALID_TIME:
+        while self.tx_assignment_times and \
+        now - self.tx_assignment_times[0][0] > TransactionManager.MAX_VALID_TIME:
             tx_id = heappop(self.tx_assignment_times)
             tx_hash = tx_id[1]
 
@@ -551,7 +550,7 @@ class TransactionManager:
                 del self.txhash_to_sid[tx_hash]
                 del self.sid_to_txid[sid]
 
-        if len(self.tx_assignment_times) > 0:
+        if self.tx_assignment_times:
             # Reschedule this function to be fired again after MAX_VALID_TIME seconds
             return TransactionManager.MAX_VALID_TIME
         else:
@@ -588,6 +587,7 @@ class TransactionManager:
         if tx_hash in self.txhash_to_sid:
             log_debug("XXX: Found the tx_hash in my mappings!")
             return self.txhash_to_sid[tx_hash]
+
         return -1
 
     def get_tx_from_sid(self, sid):
@@ -614,8 +614,8 @@ class TransactionManager:
 
     def cleanup_relayed(self):
         now = time.time()
-        while len(self.tx_relay_times) > 0 and \
-                now - self.tx_relay_times[0][0] > TransactionManager.MAX_VALID_TIME:
+        while self.tx_relay_times and \
+        now - self.tx_relay_times[0][0] > TransactionManager.MAX_VALID_TIME:
             _, txhash = heappop(self.tx_relay_times)
             self.relayed_txns.remove(txhash)
 
@@ -625,25 +625,25 @@ class TransactionManager:
 ##
 # The Memory Profiling Interface
 ##
-class HeapProfiler:
+class HeapProfiler(object):
     PROFILE_START = 0  # Time to start profiling
     PROFILE_INTERVAL = 300  # Profiling interval (in seconds)
 
     def __init__(self):
-        print("options.PROFILING:")
-        print(options.PROFILING)
+        print "options.PROFILING:"
+        print options.PROFILING
 
         if not options.PROFILING:
             self.profiling = False
             return
 
-        print("options.PROFILING:")
-        print(options.PROFILING)
+        print "options.PROFILING:"
+        print options.PROFILING
         self.profiling = True
         self.filename = ""
         self.last_rotation_time = time.time()
 
-        self.tr = tracker.SummaryTracker()
+        tracker.SummaryTracker()
 
     def dump_profile(self):
         log_debug("Dumping heap profile!")
@@ -653,25 +653,25 @@ class HeapProfiler:
 
         old_stdout = sys.stdout
         sys.stdout = open(self.filename, "a+")
-        print("################# BEGIN NEW HEAP SNAPSHOT #################")
+        print "################# BEGIN NEW HEAP SNAPSHOT #################"
         all_objects = muppy.get_objects()
-        print("Printing diff at time: " + strftime("%Y-%m-%d-%H:%M:%S+0000", gmtime()))
+        print "Printing diff at time: " + strftime("%Y-%m-%d-%H:%M:%S+0000", gmtime())
         sum1 = summary.summarize(all_objects)
         summary.print_(sum1)
-        print("Printing out all objects: ")
-        print("Index,Type, size")
+        print "Printing out all objects: "
+        print "Index,Type, size"
         i = 0
         for obj in all_objects:
-            print("{0},{1},{2}".format(i, type(obj), sys.getsizeof(obj)))
+            print "{0},{1},{2}".format(i, type(obj), sys.getsizeof(obj))
             i += 1
 
         i = 0
-        print("Index,Object")
+        print "Index,Object"
         for obj in all_objects:
-            print("{0},{1}".format(i, repr(obj)))
+            print "{0},{1}".format(i, repr(obj))
             i += 1
 
-        print("################## END NEW HEAP SNAPSHOT ##################")
+        print "################## END NEW HEAP SNAPSHOT ##################"
         sys.stdout = old_stdout
 
         return self.PROFILE_INTERVAL

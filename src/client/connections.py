@@ -6,6 +6,7 @@
 #
 
 import errno
+import random
 import select
 import signal
 from collections import defaultdict
@@ -31,7 +32,7 @@ HEIGHT_DIFFERENCE = 50
 
 
 # A bloXroute client
-class Client:
+class Client(object):
     def __init__(self, server_ip, server_port, servers, node_addr, node_params):
         self.server_ip = server_ip
         self.server_port = server_port
@@ -216,8 +217,8 @@ class Client:
         self.epoll.close()
 
     # Kills the node immediately
-    def kill_node(self, signum, stack):
-        raise TerminationError()
+    def kill_node(self, _signum, _stack):
+        raise TerminationError("Node killed.")
 
     # Broadcasts message msg to every connection except requester.
     def broadcast(self, msg, sender):
@@ -328,9 +329,9 @@ class Client:
                         if event & select.EPOLLHUP:
                             conn.state |= Connection.MARK_FOR_CLOSE
 
-                        if event & select.EPOLLOUT and not (conn.state & Connection.MARK_FOR_CLOSE):
+                        if event & select.EPOLLOUT and not conn.state & Connection.MARK_FOR_CLOSE:
                             # If connect received EINPROGRESS, we will receive an EPOLLOUT if connect succeeded
-                            if not (conn.state & Connection.INITIALIZED):
+                            if not conn.state & Connection.INITIALIZED:
                                 conn.state = conn.state | Connection.INITIALIZED
 
                             # Mark the connection as sendable and send as much as we can from the outputbuffer.
@@ -350,7 +351,7 @@ class Client:
                     if fileno != self.serversocketfd:
                         conn = self.connection_pool.get_byfileno(fileno)
 
-                        if event & select.EPOLLIN and not (conn.state & Connection.MARK_FOR_CLOSE):
+                        if event & select.EPOLLIN and not conn.state & Connection.MARK_FOR_CLOSE:
                             conn.recv()
 
                         # Done processing. Close socket if it was marked for close.
@@ -368,7 +369,7 @@ class Client:
             self.cleanup_node()
 
 
-class Connection:
+class Connection(object):
     # States for the Connection
     CONNECTING = 0b000000000  # Received EINPROGRESS when calling socket.connect
     INITIALIZED = 0b000000001
@@ -514,6 +515,7 @@ class Connection:
             if not is_full_msg:
                 break
 
+            # FIXME pop_next_message is undefined
             # Full messages must be a version or verack if the connection isn't established yet.
             msg = self.pop_next_message(payload_len)
             # If there was some error in parsing this message, then continue the loop.
@@ -536,6 +538,7 @@ class Connection:
 
             log_debug("Received message of type {0} from {1}".format(msg_type, self.peer_desc))
 
+            # FIXME self.message_handlers is always none for this class
             if msg_type in self.message_handlers:
                 msg_handler = self.message_handlers[msg_type]
                 msg_handler(msg)
@@ -577,7 +580,7 @@ class Connection:
 
         # Send on the socket until either the socket is full or we have nothing else to send.
         while self.sendable and buf.has_more_bytes() > 0 \
-                and (not send_one_msg or buf.at_msg_boundary()):
+        and (not send_one_msg or buf.at_msg_boundary()):
             try:
                 byteswritten = self.sock.send(buf.get_buffer())
                 total_bytes_written += byteswritten
@@ -669,7 +672,7 @@ class ServerConnection(Connection):
     ###
 
     # Handle a Hello Message
-    def msg_hello(self, msg):
+    def msg_hello(self):
         self.enqueue_msg(AckMessage())
         self.state |= Connection.HELLO_RECVD
 
@@ -714,7 +717,7 @@ class ServerConnection(Connection):
 
 # XXX: flesh out this class a bit more to handle transactions as well.
 # Utils for message parsing for Bitcoin utils
-class BCHMessageParsing:
+class BCHMessageParsing(object):
     # Convert a block message to a broadcast message
     @staticmethod
     def block_to_broadcastmsg(msg, tx_manager):
@@ -773,7 +776,7 @@ class BCHMessageParsing:
                 tx = tx_manager.get_tx_from_sid(sid)
                 if tx is None:
                     log_err("XXX: Failed to decode transaction with short id {0} received from bloXroute".format(sid))
-                    return
+                    return None
                 off += 5
             else:
                 txsize = get_next_tx_size(blob, off)
@@ -803,7 +806,7 @@ class BTCNodeConnection(Connection):
     def __init__(self, sock, address, node, setup=False):
         Connection.__init__(self, sock, address, node, setup)
 
-        self.BTCstate = 0
+        self.btc_state = 0
         self.is_persistent = True
         magic_net = node.node_params['magic']
         self.magic = magic_dict[magic_net] if magic_net in magic_dict else int(magic_net)
@@ -854,7 +857,7 @@ class BTCNodeConnection(Connection):
     # Process incoming version message.
     # We are the node that initiated this connection, so we do not check for misbehavior.
     # Record that we received the version message, send a verack and synchronize chains if need be.
-    def msg_version(self, msg):
+    def msg_version(self):
         self.state |= BTCNodeConnection.ESTABLISHED
         reply = VerAckBTCMessage(self.magic)
         self.enqueue_msg(reply)
@@ -863,13 +866,13 @@ class BTCNodeConnection(Connection):
             for msg in self.node.node_msg_queue:
                 self.enqueue_msg(msg)
 
-            if len(self.node.node_msg_queue) > 0:
+            if self.node.node_msg_queue:
                 self.node.node_msg_queue = deque()
 
             self.node.node_conn = self
 
     # Reply to GetAddr message with a blank Addr message to preserve privacy.
-    def msg_getaddr(self, msg):
+    def msg_getaddr(self):
         reply = AddrBTCMessage(self.magic)
         self.enqueue_msg(reply)
 
@@ -898,7 +901,7 @@ class BTCNodeConnection(Connection):
 
 
 # A group of connections with active sockets
-class ConnectionPool:
+class ConnectionPool(object):
     INITIAL_FILENO = 5000
 
     def __init__(self):
