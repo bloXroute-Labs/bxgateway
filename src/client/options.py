@@ -5,7 +5,9 @@
 # Options for debugging
 #
 
-## Options for Falcon network for debugging purposes only.
+##
+#  Options for Falcon network for debugging purposes only.
+##
 
 # True if we want to avoid doing the database puts
 FAKE_DB = False

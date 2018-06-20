@@ -95,16 +95,15 @@ class BTCMessage:
         _checksum = buf[20:24]
 
         if _payload_len != len(buf) - 24:
-            log_err("BTCMessage.parse",
-                    "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
-                        _payload_len, len(buf)))
+            log_err("Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
+                _payload_len, len(buf)))
             raise PayloadLenError(
                 "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
                     _payload_len, len(buf)))
 
         if _checksum != sha256(sha256(buf[BCH_HDR_COMMON_OFF:_payload_len + BCH_HDR_COMMON_OFF]).digest()).digest()[
                         0:4]:
-            log_err("BTCMessage.parse", "Checksum for packet doesn't match!")
+            log_err("Checksum for packet doesn't match!")
             raise ChecksumError("Checksum for packet doesn't match! ", "Raw data: %s" % repr(buf))
 
         if _command not in message_types:
@@ -125,6 +124,12 @@ class BTCMessage:
         if self._payload_len is None:
             self._payload_len = struct.unpack_from('<L', self.buf, 16)[0]
         return self._payload_len
+
+    def checksum(self):
+        raise RuntimeError('FIXME')
+
+        # FIXME checksum is undefined
+        # return self._checksum
 
     def payload(self):
         if self._payload is None:
@@ -392,10 +397,8 @@ class GetAddrBTCMessage(BTCMessage):
 
 # the addr argument should be an array of (timestamp, ipaddr, port) triples
 class AddrBTCMessage(BTCMessage):
-    def __init__(self, magic=None, addrs=None, buf=None):
-        if addrs is None:
-            addrs = []
-
+    # FIXME addrs arg is sharing global state
+    def __init__(self, magic=None, addrs=[], buf=None):
         if buf is None:
             buf = bytearray(BCH_HDR_COMMON_OFF + 9 + len(addrs) * (4 + 18))
             self.buf = buf
@@ -419,16 +422,18 @@ class AddrBTCMessage(BTCMessage):
             self._payload = None
 
     def __iter__(self):
-        off = BCH_HDR_COMMON_OFF
-        count, size = btcvarint_to_int(self.buf, off)
-        off += size
-
-        for i in xrange(count):
-            timestamp = struct.unpack_from('<L', self.buf, off)
-            off += 4
-            host, port = btcbytearray_to_ipaddrport(self.buf[off:off + 18])
-            off += 18
-            yield (timestamp, host, port)
+        raise RuntimeError('FIXME')
+        # FIXME buf is not defined
+        # off = BCH_HDR_COMMON_OFF
+        # count, size = btcvarint_to_int(buf, off)
+        # off += size
+        #
+        # for i in xrange(count):
+        #     timestamp = struct.unpack_from('<L', self.buf, off)
+        #     off += 4
+        #     host, port = btcbytearray_to_ipaddrport(buf[off:off+18])
+        #     off += 18
+        #     yield (timestamp, host, port)
 
 
 # an inv_vect is an array of (type, hash) tuples
@@ -490,11 +495,9 @@ class NotFoundBTCMessage(InventoryBTCMessages):
 
 
 class DataBTCMessage(BTCMessage):
-    def __init__(self, magic=None, version=None, hashes=None,
+    # FIXME hashes is sharing global state
+    def __init__(self, magic=None, version=None, hashes=[],
                  hash_stop=None, command=None, buf=None):
-        if hashes is None:
-            hashes = []
-
         if buf is None:
             buf = bytearray(BCH_HDR_COMMON_OFF + 9 + (len(hashes) + 1) * 32)
             self.buf = buf
@@ -527,8 +530,10 @@ class DataBTCMessage(BTCMessage):
 
     def hash_count(self):
         if self._hash_count is None:
-            off = BCH_HDR_COMMON_OFF + 4
-            self._hash_count, size = btcvarint_to_int(self.buf, off)
+            raise RuntimeError('FIXME')
+            # FIXME buf is not defined
+            # off = BCH_HDR_COMMON_OFF + 4
+            # self._hash_count, size = btcvarint_to_int(buf, off)
 
         return self._hash_count
 
@@ -546,17 +551,14 @@ class DataBTCMessage(BTCMessage):
 
 
 class GetHeadersBTCMessage(DataBTCMessage):
-    def __init__(self, magic=None, version=None, hashes=None, hash_stop=None, buf=None):
-        if hashes is None:
-            hashes = []
+    # FIXME hashes is sharing global state
+    def __init__(self, magic=None, version=None, hashes=[], hash_stop=None, buf=None):
         DataBTCMessage.__init__(self, magic, version, hashes, hash_stop, 'getheaders', buf)
 
 
 class GetBlocksBTCMessage(DataBTCMessage):
-    def __init__(self, magic=None, version=None, hashes=None, hash_stop=None, buf=None):
-        if hashes is None:
-            hashes = []
-
+    # FIXME hashes is sharing global state
+    def __init__(self, magic=None, version=None, hashes=[], hash_stop=None, buf=None):
         DataBTCMessage.__init__(self, magic, version, hashes, hash_stop, 'getblocks', buf)
 
 
@@ -628,6 +630,8 @@ class TxBTCMessage(BTCMessage):
     # Params:
     #    - tx_in: A list of TxIn instances.
     #    - tx_out: A list of TxOut instances.
+
+    # FIXME this constructor should call init of super class or diverge from inheritance model
     def __init__(self, version=None, tx_in=None, tx_out=None, lock_time=None, buf=None):
         if buf is None:
             buf = bytearray(BCH_HDR_COMMON_OFF + 2 * 9 + 8)
@@ -655,7 +659,9 @@ class TxBTCMessage(BTCMessage):
             struct.pack_into('<I', buf, off, lock_time)
             off += 4
 
-            BTCMessage.__init__(self, self._magic, 'tx', off - BCH_HDR_COMMON_OFF, buf)
+            # FIXME magic is undefined
+            # BTCMessage.__init__(self, magic, 'tx', off-BCH_HDR_COMMON_OFF, buf)
+            raise RuntimeError('FIXME')
         else:
             self.buf = buf
             self._memoryview = memoryview(buf)
@@ -1016,18 +1022,22 @@ class HeadersBTCMessage(BTCMessage):
 
     def hash_count(self):
         if self._header_count is None:
-            off = BCH_HDR_COMMON_OFF
-            self._header_count, size = btcvarint_to_int(self.buf, off)
+            raise RuntimeError('FIXME')
+            # FIXME buf is undefined
+            # off = BCH_HDR_COMMON_OFF
+            # self._header_count, size = btcvarint_to_int(buf, off)
 
         return self._header_count
 
     def __iter__(self):
-        off = BCH_HDR_COMMON_OFF
-        self._header_count, size = btcvarint_to_int(self.buf, off)
-        off += size
-        for _ in xrange(self._header_count):
-            yield self._memoryview[off:off + 81]
-            off += 81
+        raise RuntimeError('FIXME')
+        # FIXME buf is undefined
+        # off = BCH_HDR_COMMON_OFF
+        # self._header_count, size = btcvarint_to_int(buf, off)
+        # off += size
+        # for _ in xrange(self._header_count):
+        #     yield self._memoryview[off:off + 81]
+        #     off += 81
 
 
 class RejectBTCMessage(BTCMessage):

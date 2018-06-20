@@ -68,9 +68,8 @@ class Message:
         _msg_type = _msg_type.rstrip('\x00')
 
         if _payload_len != len(buf) - HDR_COMMON_OFF:
-            log_err("Message.parse",
-                    "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
-                        _payload_len, len(buf)))
+            log_err("Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
+                _payload_len, len(buf)))
             raise PayloadLenError(
                 "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
                     _payload_len, len(buf)))
@@ -92,10 +91,13 @@ class Message:
         return self._payload_len
 
     def checksum(self):
-        return self._checksum
+        # FIXME _checksum does not exist
+
+        raise AttributeError("FIXME")
+        # return self._checksum
 
     def payload(self):
-        if self._payload == None:
+        if self._payload is None:
             self._payload = self.buf[HDR_COMMON_OFF:self.payload_len() + HDR_COMMON_OFF]
         return self._payload
 
@@ -105,7 +107,7 @@ class HelloMessage(Message):
     # Other bloXroute servers will send a positive identity specified in the config file
     def __init__(self, idx=None, buf=None):
 
-        if buf == None:
+        if buf is None:
             buf = bytearray(HDR_COMMON_OFF + 4)
             self.buf = buf
             struct.pack_into('<L', buf, HDR_COMMON_OFF, idx)
@@ -119,7 +121,7 @@ class HelloMessage(Message):
         self._memoryview = memoryview(buf)
 
     def idx(self):
-        if self._idx == None:
+        if self._idx is None:
             off = HDR_COMMON_OFF
             self._idx, = struct.unpack_from('<L', self.buf, off)
         return self._idx
@@ -127,7 +129,7 @@ class HelloMessage(Message):
 
 class PingMessage(Message):
     def __init__(self, nonce=None, buf=None):
-        if buf == None:
+        if buf is None:
             buf = bytearray(HDR_COMMON_OFF + 8)
             off = HDR_COMMON_OFF
             struct.pack_into('<Q', buf, off, nonce)
@@ -149,7 +151,7 @@ class PingMessage(Message):
 # XXX: Duplicated from Ping
 class PongMessage(Message):
     def __init__(self, nonce=None, buf=None):
-        if buf == None:
+        if buf is None:
             buf = bytearray(HDR_COMMON_OFF + 8)
             off = HDR_COMMON_OFF
             struct.pack_into('<Q', buf, off, nonce)
@@ -162,7 +164,7 @@ class PongMessage(Message):
             self._nonce = self._command = self._payload_len = None
 
     def nonce(self):
-        if self._nonce == None:
+        if self._nonce is None:
             off = HDR_COMMON_OFF
             self._nonce, = struct.unpack_from('<Q', self.buf, off)
         return self._nonce
@@ -170,7 +172,7 @@ class PongMessage(Message):
 
 class AckMessage(Message):
     def __init__(self, buf=None):
-        if buf == None:
+        if buf is None:
             buf = bytearray(HDR_COMMON_OFF)
             self.buf = buf
 
@@ -184,7 +186,7 @@ class AckMessage(Message):
 
 class BlobMessage(Message):
     def __init__(self, command=None, msg_hash=None, blob=None, buf=None):
-        if buf == None:
+        if buf is None:
             buf = bytearray(HDR_COMMON_OFF + len(blob))
             self.buf = buf
 
@@ -203,13 +205,13 @@ class BlobMessage(Message):
         self._blob = self._msg_hash = None
 
     def msg_hash(self):
-        if self._msg_hash == None:
+        if self._msg_hash is None:
             off = HDR_COMMON_OFF
             self._msg_hash = ObjectHash(self._memoryview[off:off + 32])
         return self._msg_hash
 
     def blob(self):
-        if self._blob == None:
+        if self._blob is None:
             off = HDR_COMMON_OFF + 32
             self._blob = self._memoryview[off:off + self.payload_len()]
 
@@ -219,7 +221,7 @@ class BlobMessage(Message):
     def peek_message(inputbuf):
         buf = inputbuf.peek_message(HDR_COMMON_OFF + 32)
         if len(buf) < HDR_COMMON_OFF + 32:
-            False, None, None
+            return False, None, None
         _, length = struct.unpack_from('<12sL', buf, 0)
         msg_hash = ObjectHash(buf[HDR_COMMON_OFF:HDR_COMMON_OFF + 32])
         return True, msg_hash, length
@@ -238,7 +240,7 @@ class TxMessage(BlobMessage):
 # Assign a transaction an id
 class TxAssignMessage(Message):
     def __init__(self, tx_hash=None, short_id=None, buf=None):
-        if buf == None:
+        if buf is None:
             # 32 for tx_hash, 4 for short_id
             buf = bytearray(HDR_COMMON_OFF + 36)
             off = HDR_COMMON_OFF
@@ -255,13 +257,13 @@ class TxAssignMessage(Message):
             self._tx_hash = self._short_id = None
 
     def tx_hash(self):
-        if self._tx_hash == None:
+        if self._tx_hash is None:
             off = HDR_COMMON_OFF
             self._tx_hash = ObjectHash(self.buf[off:off + 32])
         return self._tx_hash
 
     def short_id(self):
-        if self._short_id == None:
+        if self._short_id is None:
             self._short_id, = struct.unpack_from('<L', self.buf, HDR_COMMON_OFF + 32)
         return self._short_id
 
@@ -281,7 +283,7 @@ class ObjectHash:
         return self._hash
 
     def __cmp__(self, id1):
-        if id1 == None or self.binary > id1.binary:
+        if id1 is None or self.binary > id1.binary:
             return -1
         elif self.binary < id1.binary:
             return 1

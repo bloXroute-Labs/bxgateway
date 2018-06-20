@@ -130,7 +130,7 @@ if __name__ == '__main__':
     log_path = opts.log_path or params['log_path']
     use_stdout = opts.to_stdout or params['log_stdout']
     log_init(log_path, use_stdout)
-    log_debug("main", "My own IP for config purposes is {0}".format(mylocalname))
+    log_debug("My own IP for config purposes is {0}".format(mylocalname))
 
     # Initialize the node and register the peerfile update signal to USR2 signal.
     relay_nodes = parse_peers(opts.peers or params['peers'])
@@ -167,9 +167,9 @@ if __name__ == '__main__':
 
     # Start main loop
     try:
-        log_debug("main", "running node")
+        log_debug("running node")
         node.run()
     finally:
-        log_crash("main", "node run method returned")
-        log_crash("main", "Log closed")
+        log_crash("node run method returned")
+        log_crash("Log closed")
         log_close()
