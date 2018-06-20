@@ -177,7 +177,7 @@ class AckMessage(Message):
 class BlobMessage(Message):
     def __init__(self, command=None, msg_hash=None, blob=None, buf=None):
         if buf == None:
-            buf = bytearray(HDR_COMMON_OFF + len(blob))
+            buf = bytearray(HDR_COMMON_OFF + 32 + len(blob))
             self.buf = buf
 
             off = HDR_COMMON_OFF
