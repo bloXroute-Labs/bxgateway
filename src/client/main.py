@@ -51,6 +51,9 @@ def parse_config_file(filename, localname):
 # If the param exists under the localname, we use that one. Otherwise, we use
 # the param under default.
 def getparam(client_config, local_name, param_name):
+    if not client_config:
+        return None
+
     try:
         return client_config.get(local_name, param_name)
     except (ConfigParser.NoOptionError, ConfigParser.NoSectionError):
