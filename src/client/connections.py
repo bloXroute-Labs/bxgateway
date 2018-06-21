@@ -671,12 +671,12 @@ class ServerConnection(Connection):
     ###
 
     # Handle a Hello Message
-    def msg_hello(self):
+    def msg_hello(self, _msg):
         self.enqueue_msg(AckMessage())
         self.state |= Connection.HELLO_RECVD
 
     # Handle an Ack Message
-    def msg_ack(self):
+    def msg_ack(self, _msg):
         self.state |= Connection.HELLO_ACKD
 
     # Handle a broadcast message
