@@ -9,7 +9,6 @@ import errno
 import random
 import select
 import signal
-import socket
 from collections import defaultdict
 
 from btc_messages import *

@@ -6,6 +6,7 @@
 # Different types of messages for the Bitcoin wire protocol.
 #
 import hashlib
+import socket
 import struct
 
 from btc_exceptions import *
