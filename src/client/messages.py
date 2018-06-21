@@ -49,8 +49,10 @@ class Message(object):
     @staticmethod
     def peek_message(input_buffer):
         buf = input_buffer.peek_message(HDR_COMMON_OFF)
-        if len(buf) < HDR_COMMON_OFF:
-            return False, None, None
+
+        # FIXME this statement doesn't do anyting and adding `return` breaks integration
+        # if len(buf) < HDR_COMMON_OFF:
+        #     False, None, None
 
         _msg_type, _payload_len = struct.unpack_from('<12sL', buf, 0)
         _msg_type = _msg_type.rstrip('\x00')
