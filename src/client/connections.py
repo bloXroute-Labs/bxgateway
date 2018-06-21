@@ -6,6 +6,7 @@
 #
 
 import errno
+import random
 import select
 import signal
 from collections import defaultdict
@@ -855,7 +856,7 @@ class BTCNodeConnection(Connection):
     # Process incoming version message.
     # We are the node that initiated this connection, so we do not check for misbehavior.
     # Record that we received the version message, send a verack and synchronize chains if need be.
-    def msg_version(self):
+    def msg_version(self, _msg):
         self.state |= BTCNodeConnection.ESTABLISHED
         reply = VerAckBTCMessage(self.magic)
         self.enqueue_msg(reply)
@@ -870,7 +871,7 @@ class BTCNodeConnection(Connection):
             self.node.node_conn = self
 
     # Reply to GetAddr message with a blank Addr message to preserve privacy.
-    def msg_getaddr(self):
+    def msg_getaddr(self, _msg):
         reply = AddrBTCMessage(self.magic)
         self.enqueue_msg(reply)
 
