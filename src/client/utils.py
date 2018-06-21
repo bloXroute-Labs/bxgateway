@@ -10,7 +10,7 @@ from collections import deque
 from datetime import datetime
 from heapq import *
 from threading import Lock, Condition, Thread
-from time import strftime, gmtime
+import time
 
 from pympler import tracker, muppy, summary
 
@@ -312,7 +312,8 @@ class Log(object):
             if path is None or not path:
                 path = "."
             self.filename = os.path.join(path,
-                                         strftime("%Y-%m-%d-%H:%M:%S+0000-", gmtime()) + str(os.getpid()) + ".log")
+                                         time.strftime("%Y-%m-%d-%H:%M:%S+0000-", time.gmtime()) + str(os.getpid()) +
+                                         ".log")
         self.bytes_written = 0
         self.dumper = Thread(target=self.log_dumper)
         self.is_alive = True
@@ -375,7 +376,7 @@ class Log(object):
                 if not self.use_stdout and now - self.last_rotation_time > LOG_ROTATION_INTERVAL \
                 or self.bytes_written > Log.MAX_LOG_SIZE:
                     self.last_rotation_time = now
-                    self.filename = strftime("%Y-%m-%d-%H:%M:%S+0000-", gmtime()) + str(os.getpid()) + ".log"
+                    self.filename = time.strftime("%Y-%m-%d-%H:%M:%S+0000-", time.gmtime()) + str(os.getpid()) + ".log"
 
                     output_dest.flush()
                     output_dest.close()
@@ -649,13 +650,13 @@ class HeapProfiler(object):
         log_debug("Dumping heap profile!")
 
         # Assumption is that no one else will be printing while profiling is happening
-        self.filename = "profiler-" + strftime("%Y-%m-%d-%H:%M:%S+0000", gmtime()) + ".prof"
+        self.filename = "profiler-" + time.strftime("%Y-%m-%d-%H:%M:%S+0000", time.gmtime()) + ".prof"
 
         old_stdout = sys.stdout
         sys.stdout = open(self.filename, "a+")
         print "################# BEGIN NEW HEAP SNAPSHOT #################"
         all_objects = muppy.get_objects()
-        print "Printing diff at time: " + strftime("%Y-%m-%d-%H:%M:%S+0000", gmtime())
+        print "Printing diff at time: " + time.strftime("%Y-%m-%d-%H:%M:%S+0000", time.gmtime())
         sum1 = summary.summarize(all_objects)
         summary.print_(sum1)
         print "Printing out all objects: "
