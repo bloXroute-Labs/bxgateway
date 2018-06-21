@@ -104,8 +104,8 @@ class BTCMessage(object):
                 "Payload length does not match buffer size! Payload is %d. Buffer is %d bytes long" % (
                     _payload_len, len(buf)))
 
-        if _checksum != sha256(sha256(buf[BCH_HDR_COMMON_OFF:_payload_len + BCH_HDR_COMMON_OFF])
-                               .digest()).digest()[0:4]:
+        if _checksum != sha256(sha256(
+                buf[BCH_HDR_COMMON_OFF:_payload_len + BCH_HDR_COMMON_OFF]).digest()).digest()[0:4]:
             log_err("Checksum for packet doesn't match!")
             raise ChecksumError("Checksum for packet doesn't match! ", "Raw data: %s" % repr(buf))
 

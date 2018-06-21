@@ -374,7 +374,7 @@ class Log(object):
                 # and opens up a new file.
                 now = time.time()
                 if not self.use_stdout and now - self.last_rotation_time > LOG_ROTATION_INTERVAL \
-                or self.bytes_written > Log.MAX_LOG_SIZE:
+                        or self.bytes_written > Log.MAX_LOG_SIZE:
                     self.last_rotation_time = now
                     self.filename = time.strftime("%Y-%m-%d-%H:%M:%S+0000-", time.gmtime()) + str(os.getpid()) + ".log"
 
@@ -542,7 +542,7 @@ class TransactionManager(object):
     def expire_old_ids(self):
         now = time.time()
         while self.tx_assignment_times and \
-        now - self.tx_assignment_times[0][0] > TransactionManager.MAX_VALID_TIME:
+                now - self.tx_assignment_times[0][0] > TransactionManager.MAX_VALID_TIME:
             tx_id = heappop(self.tx_assignment_times)
             tx_hash = tx_id[1]
 
@@ -616,7 +616,7 @@ class TransactionManager(object):
     def cleanup_relayed(self):
         now = time.time()
         while self.tx_relay_times and \
-        now - self.tx_relay_times[0][0] > TransactionManager.MAX_VALID_TIME:
+                now - self.tx_relay_times[0][0] > TransactionManager.MAX_VALID_TIME:
             _, txhash = heappop(self.tx_relay_times)
             self.relayed_txns.remove(txhash)
 

@@ -580,7 +580,7 @@ class Connection(object):
 
         # Send on the socket until either the socket is full or we have nothing else to send.
         while self.sendable and buf.has_more_bytes() > 0 \
-        and (not send_one_msg or buf.at_msg_boundary()):
+                and (not send_one_msg or buf.at_msg_boundary()):
             try:
                 byteswritten = self.sock.send(buf.get_buffer())
                 total_bytes_written += byteswritten
