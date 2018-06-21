@@ -805,7 +805,6 @@ class BTCNodeConnection(Connection):
     def __init__(self, sock, address, node, setup=False):
         Connection.__init__(self, sock, address, node, setup)
 
-        self.btc_state = 0
         self.is_persistent = True
         magic_net = node.node_params['magic']
         self.magic = magic_dict[magic_net] if magic_net in magic_dict else int(magic_net)
