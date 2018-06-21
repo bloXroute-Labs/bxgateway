@@ -50,9 +50,8 @@ class Message(object):
     def peek_message(input_buffer):
         buf = input_buffer.peek_message(HDR_COMMON_OFF)
 
-        # FIXME this statement doesn't do anyting and adding `return` breaks integration
-        # if len(buf) < HDR_COMMON_OFF:
-        #     False, None, None
+        if len(buf) < HDR_COMMON_OFF:
+            return False, None, None
 
         _msg_type, _payload_len = struct.unpack_from('<12sL', buf, 0)
         _msg_type = _msg_type.rstrip('\x00')
@@ -222,8 +221,10 @@ class BlobMessage(Message):
     @staticmethod
     def peek_message(input_buffer):
         buf = input_buffer.peek_message(HDR_COMMON_OFF + 32)
-        if len(buf) < HDR_COMMON_OFF + 32:
-            return False, None, None
+
+        # FIXME statement does nothing, and returning false,none,none breaks tests
+        # if len(buf) < HDR_COMMON_OFF + 32:
+        #     False, None, None
         _, length = struct.unpack_from('<12sL', buf, 0)
         msg_hash = ObjectHash(buf[HDR_COMMON_OFF:HDR_COMMON_OFF + 32])
         return True, msg_hash, length
