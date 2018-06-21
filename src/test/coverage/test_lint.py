@@ -22,7 +22,7 @@ class LintTests(unittest.TestCase):
                        "'--msg-template={path}:{line}: [{msg_id}({symbol}), {obj}] {msg}'"]
         pylint_output = PyLintWritable()
 
-        lint.Run(["../../client"] + pylint_args, reporter=TextReporter(pylint_output), exit=False)
+        lint.Run(["src/client"] + pylint_args, reporter=TextReporter(pylint_output), exit=False)
 
         output = list(pylint_output.read())
 
