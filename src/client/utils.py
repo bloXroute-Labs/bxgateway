@@ -6,13 +6,13 @@
 #
 import os
 import sys
+import time
 from collections import deque
 from datetime import datetime
 from heapq import *
-from threading import Lock, Condition, Thread
-import time
+from threading import Condition, Lock, Thread
 
-from pympler import tracker, muppy, summary
+from pympler import muppy, summary, tracker
 
 import options
 
