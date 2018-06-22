@@ -6,7 +6,6 @@
 #
 
 import errno
-import random
 import select
 import signal
 from collections import defaultdict
@@ -135,14 +134,14 @@ class Client(object):
                 sock.connect((ip, port))
             except socket.error as e:
                 if e.errno in [errno.EPERM, errno.EADDRINUSE]:
-                    log_err("Connection to {0}:{1} failed! Got errno {2} with msg {3}.".format(ip, port, e.errno,
-                                                                                               e.strerror))
+                    log_err("Connection to {0}:{1} failed! Got errno {2} with msg {3}."
+                            .format(ip, port, e.errno, e.strerror))
                     return
                 elif e.errno in [errno.EAGAIN, errno.ECONNREFUSED, errno.EINTR, errno.EISCONN, errno.ENETUNREACH,
                                  errno.ETIMEDOUT]:
                     raise RuntimeError('FIXME')
 
-                    # FIXME conn_obj and trusted are not defined
+                    # FIXME conn_obj and trusted are not defined, delete trust, alarm register call and test
                     # log_err("Node.init_client_socket",
                     #         "Connection to {0}:{1} failed. Got errno {2} with msg {3}. Retry?: {4}"
                     #         .format(ip, port, e.errno, e.strerror, conn_obj.trusted))
@@ -175,8 +174,8 @@ class Client(object):
         self.epoll.register(sock.fileno(),
                             select.EPOLLOUT | select.EPOLLIN | select.EPOLLERR | select.EPOLLHUP | select.EPOLLET)
 
-        log_debug("Connected {0}:{1} on file descriptor {2} with state {3}".format(ip, port, sock.fileno(),
-                                                                                   conn_obj.state))
+        log_debug("Connected {0}:{1} on file descriptor {2} with state {3}"
+                  .format(ip, port, sock.fileno(), conn_obj.state))
         return
 
     # Handles incoming connections on the server socket
@@ -186,16 +185,16 @@ class Client(object):
         try:
             while True:
                 new_socket, address = self.serversocket.accept()
-                log_debug("new connection from " + str(address))
+                log_debug("new connection from {0}".format(address))
                 ip = address[0]
 
                 # If we have too many connections, then we close this new socket and move on.
                 if self.connection_pool.get_num_conn_by_ip(ip) >= MAX_CONN_BY_IP:
-                    log_err("The IP " + ip + " has too many connections! Closing...")
+                    log_err("The IP {0} has too many connections! Closing...".format(ip))
                     new_socket.close()
                 else:
-                    log_debug("Establishing connection number {0} from {1}".format(
-                        self.connection_pool.get_num_conn_by_ip(ip), ip))
+                    log_debug("Establishing connection number {0} from {1}"
+                              .format(self.connection_pool.get_num_conn_by_ip(ip), ip))
                     conn_cls = BTCNodeConnection if self.node_addr[0] == ip else ServerConnection
                     self.init_client_socket(conn_cls, address[0], address[1], new_socket, setup=False)
 
@@ -253,9 +252,6 @@ class Client(object):
         # retry_relay is true if either the connection is not a relay node
         # or is a relay node, but we are a lower ranked node.
 
-        # FIXME these variables are not used
-        # ip, port = conn.peer_ip, conn.peer_port
-
         # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
         if not teardown and conn.is_server:
             log_debug("Retrying connection to {0}".format(conn.peer_desc))
@@ -272,8 +268,8 @@ class Client(object):
             return 0
 
         if conn.state & Connection.MARK_FOR_CLOSE:
-            log_debug("We're already closing the connection to {0} (or have closed it). Ignoring timeout.".format(
-                conn.peer_desc))
+            log_debug("We're already closing the connection to {0} (or have closed it). Ignoring timeout."
+                      .format(conn.peer_desc))
             return 0
 
         # Clean up the old connection and retry it if it is trusted
@@ -465,8 +461,8 @@ class Connection(object):
                     return
                 elif e.errno in [errno.EFAULT, errno.EINVAL, errno.ENOTCONN, errno.ENOMEM]:
                     # Should never happen errors
-                    log_err("Received errno {0} with msg {1}, recv on {2} failed. This should never happen...".format(
-                        e.errno, e.strerror, self.peer_desc))
+                    log_err("Received errno {0} with msg {1}, recv on {2} failed. This should never happen..."
+                            .format(e.errno, e.strerror, self.peer_desc))
                     return
                 else:
                     raise e
@@ -531,14 +527,13 @@ class Connection(object):
             self.num_bad_messages = 0
 
             if not (self.state & Connection.ESTABLISHED) and msg_type not in hello_msgs:
-                log_err("Connection to {0} not established and got {1} message!  Closing.".format(self.peer_desc,
-                                                                                                  msg_type))
+                log_err("Connection to {0} not established and got {1} message!  Closing."
+                        .format(self.peer_desc, msg_type))
                 self.state |= Connection.MARK_FOR_CLOSE
                 return 0
 
             log_debug("Received message of type {0} from {1}".format(msg_type, self.peer_desc))
 
-            # FIXME self.message_handlers is always none for this class
             if msg_type in self.message_handlers:
                 msg_handler = self.message_handlers[msg_type]
                 msg_handler(msg)
@@ -587,8 +582,8 @@ class Connection(object):
             except socket.error as e:
                 if e.errno in [errno.EAGAIN, errno.EWOULDBLOCK, errno.ENOBUFS]:
                     # Normal operation
-                    log_debug("Got {0}. Done sending to {1}. Marking as not sendable.".format(e.strerror,
-                                                                                              self.peer_desc))
+                    log_debug("Got {0}. Done sending to {1}. Marking as not sendable."
+                              .format(e.strerror, self.peer_desc))
                     self.sendable = False
                 elif e.errno in [errno.EINTR]:
                     # Try again later errors
@@ -606,13 +601,13 @@ class Connection(object):
                 elif e.errno in [errno.EDESTADDRREQ, errno.EFAULT, errno.EINVAL,
                                  errno.EISCONN, errno.EMSGSIZE, errno.ENOTCONN, errno.ENOTSOCK]:
                     # Should never happen errors
-                    log_debug("Got {0}, send to {1} failed. Should not have happened...".format(e.strerror,
-                                                                                                self.peer_desc))
+                    log_debug("Got {0}, send to {1} failed. Should not have happened..."
+                              .format(e.strerror, self.peer_desc))
                     exit(1)
                 elif e.errno in [errno.ENOMEM]:
                     # Fatal errors for the node
-                    log_debug("Got {0}, send to {1} failed. Fatal error! Shutting down node.".format(e.strerror,
-                                                                                                     self.peer_desc))
+                    log_debug("Got {0}, send to {1} failed. Fatal error! Shutting down node."
+                              .format(e.strerror, self.peer_desc))
                     exit(1)
                 else:
                     raise e
@@ -893,9 +888,8 @@ class BTCNodeConnection(Connection):
     # Handle a block message.
     def msg_block(self, msg):
         blx_blockmsg = BCHMessageParsing.block_to_broadcastmsg(msg, self.node.tx_manager)
-        log_debug("Compressed block with hash {0} to size {1} from size {2}".format(msg.block_hash(),
-                                                                                    len(blx_blockmsg.rawbytes()),
-                                                                                    len(msg.rawbytes())))
+        log_debug("Compressed block with hash {0} to size {1} from size {2}"
+                  .format(msg.block_hash(), len(blx_blockmsg.rawbytes()), len(msg.rawbytes())))
         self.node.broadcast(blx_blockmsg, self)
 
 

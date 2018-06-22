@@ -1,4 +1,4 @@
-# Copyright (C) 2017, Cornell University, All rights reserved.
+# Copyright (C) 2018, Bloxroute Labs, All rights reserved.
 # See the file COPYING for details.
 #
 # Different types of messages for the bloXroute wire protocol.

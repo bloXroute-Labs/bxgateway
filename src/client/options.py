@@ -6,7 +6,7 @@
 #
 
 ##
-#  Options for Falcon network for debugging purposes only.
+#  Options for bloxroute network for debugging purposes only.
 ##
 
 # True if we want to avoid doing the database puts
@@ -21,7 +21,7 @@ def crash():
 
 
 # negative if we are never going to crash
-# Otherwise, it's the number of seconds until this Falcon node
+# Otherwise, it's the number of seconds until this bloxroute node
 # will crash.
 CRASH_INTERVAL = -1
 

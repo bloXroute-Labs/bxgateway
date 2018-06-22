@@ -1,22 +1,25 @@
 # pylint: disable=C0302
 # FIXME ^^^ this file is too long
-# Copyright (C) 2016, Cornell University, All rights reserved.
+# Copyright (C) 2018, Bloxroute Labs, All rights reserved.
 # See the file COPYING for details.
 #
 # Different types of messages for the Bitcoin wire protocol.
 #
 import hashlib
+import random
 import socket
 import struct
 
 from btc_exceptions import *
 from utils import *
 
-magic_dict = {'main': 0xD9B4BEF9,
-              'testnet': 0xDAB5BFFA,
-              'testnet3': 0x0709110B,
-              'regtest': 0xDAB5BFFA,
-              'namecoin': 0xFEB4BEF9}
+magic_dict = {
+    'main': 0xD9B4BEF9,
+    'testnet': 0xDAB5BFFA,
+    'testnet3': 0x0709110B,
+    'regtest': 0xDAB5BFFA,
+    'namecoin': 0xFEB4BEF9
+}
 
 
 def get_magic_number(networkname):
@@ -426,7 +429,7 @@ class AddrBTCMessage(BTCMessage):
 
     def __iter__(self):
         raise RuntimeError('FIXME')
-        # FIXME buf is not defined
+        # FIXME buf is not defined, change to self.buf and test
         # off = BCH_HDR_COMMON_OFF
         # count, size = btcvarint_to_int(buf, off)
         # off += size
@@ -534,7 +537,7 @@ class DataBTCMessage(BTCMessage):
     def hash_count(self):
         if self._hash_count is None:
             raise RuntimeError('FIXME')
-            # FIXME buf is not defined
+            # FIXME buf is not defined, should be self.buf, fix and test
             # off = BCH_HDR_COMMON_OFF + 4
             # self._hash_count, size = btcvarint_to_int(buf, off)
 
@@ -635,6 +638,7 @@ class TxBTCMessage(BTCMessage):
     #    - tx_out: A list of TxOut instances.
 
     # FIXME this constructor should call init of super class or diverge from inheritance model
+    #   add magic as argument and test
     def __init__(self, version=None, tx_in=None, tx_out=None, lock_time=None, buf=None):
         if buf is None:
             buf = bytearray(BCH_HDR_COMMON_OFF + 2 * 9 + 8)
@@ -1026,7 +1030,7 @@ class HeadersBTCMessage(BTCMessage):
     def hash_count(self):
         if self._header_count is None:
             raise RuntimeError('FIXME')
-            # FIXME buf is undefined
+            # FIXME buf is undefined, change to self.buf and test
             # off = BCH_HDR_COMMON_OFF
             # self._header_count, size = btcvarint_to_int(buf, off)
 
@@ -1034,7 +1038,7 @@ class HeadersBTCMessage(BTCMessage):
 
     def __iter__(self):
         raise RuntimeError('FIXME')
-        # FIXME buf is undefined
+        # FIXME buf is undefined, change to self.buf and test
         # off = BCH_HDR_COMMON_OFF
         # self._header_count, size = btcvarint_to_int(buf, off)
         # off += size

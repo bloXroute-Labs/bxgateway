@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2016, Cornell University, All rights reserved.
+# Copyright (C) 2018, Bloxroute Labs, All rights reserved.
 # See the file COPYING for details.
 #
 # Utility classes
@@ -37,7 +37,8 @@ class InputBuffer(object):
         if len(self.input_list[-1]) >= len(suffix):
             return self.input_list[-1].endswith(suffix)
         else:
-            # FIXME self_input_list, self.suffix are undefined
+            # FIXME self_input_list, self.suffix are undefined, change
+            #   to self.input_list, suffix and test
             raise RuntimeError("FIXME")
 
         # elif len(self_input_list) > 1:
@@ -131,7 +132,7 @@ class OutputBuffer(object):
     def get_buffer(self):
         if not self.output_msgs:
             raise RuntimeError("FIXME")
-            # FIXME Output buffer is undefined
+            # FIXME Output buffer is undefined, change to outbuffer, test
             # return OutputBufffer.EMPTY
 
         return self.output_msgs[0][self.index:]
@@ -328,7 +329,6 @@ class Log(object):
     def write(self, msg):
         if options.ENABLE_LOGGING:
             with self.lock:
-                # sys.stdout.write(msg)
                 self.log.append(msg)
                 self.log_size += len(msg)
 
@@ -344,9 +344,9 @@ class Log(object):
 
     def log_dumper(self):
         if self.use_stdout:
-            output_dest = sys.stdout
+            log_output = sys.stdout
         else:
-            output_dest = open(self.filename, "a+")
+            log_output = open(self.filename, "a+")
 
         alive = True
 
@@ -363,12 +363,12 @@ class Log(object):
                     self.log_size = 0
 
                 for msg in oldlog:
-                    output_dest.write(msg)
+                    log_output.write(msg)
 
                 self.bytes_written += oldsize
 
                 if options.FLUSH_LOG:
-                    output_dest.flush()
+                    log_output.flush()
 
                 # Checks whether we've been dumping to this logfile for a while
                 # and opens up a new file.
@@ -378,18 +378,18 @@ class Log(object):
                     self.last_rotation_time = now
                     self.filename = time.strftime("%Y-%m-%d-%H:%M:%S+0000-", time.gmtime()) + str(os.getpid()) + ".log"
 
-                    output_dest.flush()
-                    output_dest.close()
+                    log_output.flush()
+                    log_output.close()
 
                     with open("current.log", "w") as current_log:
                         current_log.write(self.filename)
 
-                    output_dest = open(self.filename, "a+")
+                    log_output = open(self.filename, "a+")
                     self.bytes_written = 0
 
         finally:
-            output_dest.flush()
-            output_dest.close()
+            log_output.flush()
+            log_output.close()
 
 
 _log = None
@@ -517,7 +517,7 @@ class TransactionManager(object):
         assert self.prev_id == -1
 
         if self.unassigned_hashes:
-            # FIXME there is no method _assign_tx_to_sid
+            # FIXME there is no method _assign_tx_to_sid, change to assign_tx_to_sid and test
             raise RuntimeError("FIXME")
 
             # for tx_hash in self.unassigned_hashes:
