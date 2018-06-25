@@ -9,7 +9,7 @@ import ConfigParser
 import argparse
 
 from connections import *
-from utils import *
+from bxcommon.utils import *
 
 # All parameters that are parsed from the config file.
 ALL_PARAMS = ['my_ip', 'my_port', 'peers', 'my_idx', 'manager_idx', 'node_params', 'node_addr', 'log_path',
