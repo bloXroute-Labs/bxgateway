@@ -24,7 +24,7 @@ jobs:
           name: Tests
           command: |
             . venv/bin/activate
-            python -m unittest discover src/test
+            python -m unittest discover test
       - store_artifacts: # special step to store test reports as artifacts
           path: test-reports/
           destination: tr1
