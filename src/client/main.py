@@ -73,19 +73,19 @@ def parse_peers(peers_string):
 
     if peers_string is not None:
         for line in peers_string.split(","):
-            hosts = line.strip().split()
+            peers = line.strip().split()
 
             peer_ip = None
             while peer_ip is None:
                 try:
-                    peer_ip = socket.gethostbyname(hosts[0])
+                    peer_ip = socket.gethostbyname(peers[0])
                 except socket.error:
                     print "Caught socket error while resolving name! Retrying..."
                     time.sleep(0.1)
                     peer_ip = None
 
-            peer_port = int(hosts[1])
-            peer_idx = int(hosts[2])
+            peer_port = int(peers[1])
+            peer_idx = int(peers[2])
             nodes[peer_idx] = (peer_ip, peer_port)
 
     return nodes

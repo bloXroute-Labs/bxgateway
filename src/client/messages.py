@@ -91,12 +91,6 @@ class Message(object):
             self._payload_len = struct.unpack_from('<L', self.buf, 12)[0]
         return self._payload_len
 
-    def checksum(self):
-        # FIXME _checksum does not exist
-
-        raise AttributeError("FIXME")
-        # return self._checksum
-
     def payload(self):
         if self._payload is None:
             self._payload = self.buf[HDR_COMMON_OFF:self.payload_len() + HDR_COMMON_OFF]

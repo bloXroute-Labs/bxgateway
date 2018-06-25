@@ -65,6 +65,7 @@ class BTCMessage(object):
         self._command = command
         self._payload_len = payload_len
         self._payload = None
+        self._checksum = None
 
     # Returns a memoryview of the message.
     def rawbytes(self):
@@ -132,10 +133,7 @@ class BTCMessage(object):
         return self._payload_len
 
     def checksum(self):
-        raise RuntimeError('FIXME')
-
-        # FIXME checksum is undefined
-        # return self._checksum
+        return self._checksum
 
     def payload(self):
         if self._payload is None:

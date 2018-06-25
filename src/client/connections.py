@@ -426,6 +426,10 @@ class Connection(object):
     def mark_sendable(self):
         self.sendable = True
 
+    # Stub for subclass to implement
+    def pop_next_message(self, payload_len):
+        pass
+
     #########################
     # Receiving bytes logic #
     #########################
@@ -511,7 +515,6 @@ class Connection(object):
             if not is_full_msg:
                 break
 
-            # FIXME pop_next_message is undefined
             # Full messages must be a version or verack if the connection isn't established yet.
             msg = self.pop_next_message(payload_len)
             # If there was some error in parsing this message, then continue the loop.
@@ -667,12 +670,12 @@ class ServerConnection(Connection):
     ###
 
     # Handle a Hello Message
-    def msg_hello(self, _msg):
+    def msg_hello(self, msg):
         self.enqueue_msg(AckMessage())
         self.state |= Connection.HELLO_RECVD
 
     # Handle an Ack Message
-    def msg_ack(self, _msg):
+    def msg_ack(self, msg):
         self.state |= Connection.HELLO_ACKD
 
     # Handle a broadcast message
@@ -851,7 +854,7 @@ class BTCNodeConnection(Connection):
     # Process incoming version message.
     # We are the node that initiated this connection, so we do not check for misbehavior.
     # Record that we received the version message, send a verack and synchronize chains if need be.
-    def msg_version(self, _msg):
+    def msg_version(self, msg):
         self.state |= BTCNodeConnection.ESTABLISHED
         reply = VerAckBTCMessage(self.magic)
         self.enqueue_msg(reply)
@@ -866,7 +869,7 @@ class BTCNodeConnection(Connection):
             self.node.node_conn = self
 
     # Reply to GetAddr message with a blank Addr message to preserve privacy.
-    def msg_getaddr(self, _msg):
+    def msg_getaddr(self, msg):
         reply = AddrBTCMessage(self.magic)
         self.enqueue_msg(reply)
 
