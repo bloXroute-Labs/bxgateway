@@ -1,69 +1,73 @@
 #
-# Copyright (C) 2016, Cornell University, All rights reserved.
+# Copyright (C) 2018, Bloxroute Labs, All rights reserved.
 # See the file COPYING for details.
 #
 # Utility classes
 #
-import random
-import socket
+import os
 import sys
 import time
-import os
-from time import strftime, gmtime
+from collections import deque
 from datetime import datetime
 from heapq import *
-from pympler import tracker,muppy,summary
-from threading import Lock, Condition, Thread
-from collections import deque
+from threading import Condition, Lock, Thread
+
+from pympler import muppy, summary, tracker
+
 import options
 
 DUMP_LOG = False
 MAX_ERR_QUEUE_SIZE = 30
 error_msgs = deque()
 
-###############################
-## The Inputbuffer Interface ##
-###############################
 
-class InputBuffer:
+##
+# The Inputbuffer Interface
+##
+
+class InputBuffer(object):
     def __init__(self):
         self.input_list = deque()
         self.length = 0
 
     def endswith(self, suffix):
-        if len(self.input_list) == 0:
+        if self.input_list:
             return False
 
         if len(self.input_list[-1]) >= len(suffix):
             return self.input_list[-1].endswith(suffix)
-        elif len(self_input_list) > 1:
-            first_len = len(self.input_list[-1])
+        else:
+            # FIXME self_input_list, self.suffix are undefined, change
+            #   to self.input_list, suffix and test
+            raise RuntimeError("FIXME")
 
-            return self.suffix[-first_len:] == self.input_list[-1] and \
-                    self.input_list[-2].endswith(self.suffix[:-first_len])
-
-        return False
+        # elif len(self_input_list) > 1:
+        #     first_len = len(self.input_list[-1])
+        #
+        #     return self.suffix[-first_len:] == self.input_list[-1] and \
+        #            self.input_list[-2].endswith(self.suffix[:-first_len])
+        # return False
 
     # Adds a bytearray to the end of the input buffer.
     def add_bytes(self, piece):
-        assert type(piece) == bytearray
+        assert isinstance(piece, bytearray)
         self.input_list.append(piece)
         self.length += len(piece)
 
     # Removes the first num_bytes bytes in the input buffer and returns them.
     def remove_bytes(self, num_bytes):
-        assert num_bytes <= self.length and num_bytes > 0
+        assert self.length >= num_bytes > 0
 
         to_return = bytearray(0)
-        while len(self.input_list) > 0 and num_bytes >= len(self.input_list[0]):
+        while self.input_list and num_bytes >= len(self.input_list[0]):
             next_piece = self.input_list.popleft()
             to_return.extend(next_piece)
             num_bytes -= len(next_piece)
             self.length -= len(next_piece)
 
-        assert len(self.input_list) > 0 or num_bytes == 0
+        assert self.input_list or num_bytes == 0
 
-        if len(self.input_list) > 0:
+        if self.input_list:
             to_return.extend(self.input_list[0][:num_bytes])
             self.input_list[0] = self.input_list[0][num_bytes:]
             self.length -= num_bytes
@@ -100,17 +104,18 @@ class InputBuffer:
 
         return self.input_list[0][start:end]
 
-################################
-## The Outputbuffer Interface ##
-################################
+
+##
+# The Outputbuffer Interface ##
+##
 
 # There are three key functions on the outputbuffer read interface. This should also
 # be implemented by the cut through sink interface.
 #   - has_more_bytes(): Whether or not there are more bytes in this buffer.
 #   - get_buffer(): some bytes to send in the outputbuffer
 #   - advance_buffer(): Advances the buffer by some number of bytes
-class OutputBuffer:
-    EMPTY = bytearray(0) # The empty outputbuffer
+class OutputBuffer(object):
+    EMPTY = bytearray(0)  # The empty outputbuffer
 
     def __init__(self):
         # A deque of memoryview objects representing the raw memoryviews of the messages
@@ -125,8 +130,10 @@ class OutputBuffer:
 
     # Gets a non-empty memoryview buffer
     def get_buffer(self):
-        if len(self.output_msgs) == 0:
-            return OutputBufffer.EMPTY
+        if not self.output_msgs:
+            raise RuntimeError("FIXME")
+            # FIXME Output buffer is undefined, change to outbuffer, test
+            # return OutputBufffer.EMPTY
 
         return self.output_msgs[0][self.index:]
 
@@ -143,44 +150,46 @@ class OutputBuffer:
     def at_msg_boundary(self):
         return self.index == 0
 
-    def enqueue_msgbytes(self, msgbytes):
-        self.output_msgs.append(msgbytes)
-        self.length += len(msgbytes)
+    def enqueue_msgbytes(self, msg_bytes):
+        self.output_msgs.append(msg_bytes)
+        self.length += len(msg_bytes)
 
-    def prepend_msg(self, msgbytes):
+    def prepend_msg(self, msg_bytes):
         if self.index == 0:
-            self.output_msgs.appendleft(msgbytes)
+            self.output_msgs.appendleft(msg_bytes)
         else:
             prev_msg = self.output_msgs.popleft()
-            self.output_msgs.appendleft(msgbytes)
+            self.output_msgs.appendleft(msg_bytes)
             self.output_msgs.appendleft(prev_msg)
 
-        self.length += len(msgbytes)
+        self.length += len(msg_bytes)
 
     def has_more_bytes(self):
         return self.length != 0
 
-#########################
-## The Alarm Interface ##
-#########################
+
+##
+# The Alarm Interface
+##
 
 # Queue for events that take place at some time in the future.
-class AlarmQueue:
+class AlarmQueue(object):
     REMOVED = -1
+
     def __init__(self):
         # A list of alarm_ids, which contain three things:
         # [fire_time, unique_count, alarm]
         self.alarms = []
-        self.uniq_count = 0 # Used for tiebreakers for heap comparison
+        self.uniq_count = 0  # Used for tiebreakers for heap comparison
 
         # dictionary from fn to a min-heap of scheduled alarms with that function.
-        self.approx_alarms_scheduled = { }
+        self.approx_alarms_scheduled = {}
 
     # fn(args) must return 0 if it was successful or a positive integer,
     # WAIT_TIME, to be rescheduled at a delay of WAIT_TIME in the future.
     def register_alarm(self, fire_delay, fn, *args):
         alarm = Alarm(fn, *args)
-        alarm_id = [ time.time()+fire_delay, self.uniq_count, alarm ]
+        alarm_id = [time.time() + fire_delay, self.uniq_count, alarm]
         heappush(self.alarms, alarm_id)
         self.uniq_count += 1
         return alarm_id
@@ -196,7 +205,7 @@ class AlarmQueue:
             now = time.time()
             late_time, early_time = fire_delay + now + slop, fire_delay + now - slop
             for alarm_id in self.approx_alarms_scheduled[fn]:
-                if early_time <= alarm_id[0]  and alarm_id[0] <= late_time:
+                if early_time <= alarm_id[0] <= late_time:
                     return
 
             heappush(self.approx_alarms_scheduled[fn], self.register_alarm(fire_delay, fn, *args))
@@ -206,14 +215,14 @@ class AlarmQueue:
 
         # Remove unnecessary alarms from the queue.
         while self.alarms[0][-1] == AlarmQueue.REMOVED:
-            alarm_id = heappop(self.alarms)
+            heappop(self.alarms)
 
     def fire_alarms(self):
-        if len(self.alarms) == 0: # Nothing to do
+        if not self.alarms:  # Nothing to do
             return
 
         curr_time = time.time()
-        while len(self.alarms) > 0 and self.alarms[0][0] <= curr_time:
+        while self.alarms and self.alarms[0][0] <= curr_time:
             alarm_id = heappop(self.alarms)
             alarm = alarm_id[-1]
 
@@ -232,7 +241,7 @@ class AlarmQueue:
                     assert alarm_heap[0][1] == alarm_id[1]
                     heappop(alarm_heap)
 
-                    if len(alarm_heap) == 0:
+                    if not alarm_heap:
                         del self.approx_alarms_scheduled[alarm.fn]
 
             elif alarm != AlarmQueue.REMOVED and alarm.fn in self.approx_alarms_scheduled:
@@ -245,8 +254,8 @@ class AlarmQueue:
 
     # Return tuple indicating <alarm queue empty, timeout>
     def time_to_next_alarm(self):
-        if len(self.alarms) == 0:
-            return True, -1 # Nothing to do
+        if not self.alarms:
+            return True, -1  # Nothing to do
         return False, self.alarms[0][0] - time.time()
 
     # Fires all alarms that have timed out on alarm_queue.
@@ -262,35 +271,38 @@ class AlarmQueue:
 
         return time_to_next_alarm
 
+
 # An alarm object
-class Alarm:
+class Alarm(object):
     def __init__(self, fn, *args):
         self.fn = fn
         self.args = args
 
     def fire(self):
-        log_debug("Alarm.fire", "Firing function {0} with args {1}".format(self.fn, self.args))
+        log_debug("Firing function {0} with args {1}".format(self.fn, self.args))
         return self.fn(*self.args)
 
-############################
-### The Logging Interface ##
-############################
+
+##
+# The Logging Interface
+##
 
 _hostname = '[Unassigned]'
 _log_level = 0
 _default_log = None
 # The time (in seconds) to cycle through to another log.
-LOG_ROTATION_INTERVAL = 24*3600
+LOG_ROTATION_INTERVAL = 24 * 3600
+
 
 # Log class that you can write to which asynchronously dumps the log to the background
-class Log:
-    LOG_SIZE = 4096 # We flush every 4 KiB
+class Log(object):
+    LOG_SIZE = 4096  # We flush every 4 KiB
 
     # No log should be bigger than 10 GB
-    MAX_LOG_SIZE = 1024*1024*1024*10
+    MAX_LOG_SIZE = 1024 * 1024 * 1024 * 10
 
     def __init__(self, path, use_stdout=False):
-        self.log = [ ]
+        self.log = []
         self.log_size = 0
 
         self.lock = Lock()
@@ -298,16 +310,18 @@ class Log:
         self.last_rotation_time = time.time()
         self.use_stdout = use_stdout
         if not self.use_stdout:
-            if path == None or len(path) == 0:
+            if path is None or not path:
                 path = "."
-            self.filename = os.path.join(path, strftime("%Y-%m-%d-%H:%M:%S+0000-", gmtime()) + str(os.getpid()) + ".log")
+            self.filename = os.path.join(path,
+                                         time.strftime("%Y-%m-%d-%H:%M:%S+0000-", time.gmtime()) + str(os.getpid()) +
+                                         ".log")
         self.bytes_written = 0
         self.dumper = Thread(target=self.log_dumper)
         self.is_alive = True
 
         if not self.use_stdout:
-            with open("current.log", "w") as f:
-                f.write(self.filename)
+            with open("current.log", "w") as log_file:
+                log_file.write(self.filename)
 
         if options.ENABLE_LOGGING:
             self.dumper.start()
@@ -315,7 +329,6 @@ class Log:
     def write(self, msg):
         if options.ENABLE_LOGGING:
             with self.lock:
-                #sys.stdout.write(msg)
                 self.log.append(msg)
                 self.log_size += len(msg)
 
@@ -331,9 +344,9 @@ class Log:
 
     def log_dumper(self):
         if self.use_stdout:
-            f = sys.stdout
+            log_output = sys.stdout
         else:
-            f = open(self.filename, "a+")
+            log_output = open(self.filename, "a+")
 
         alive = True
 
@@ -346,72 +359,83 @@ class Log:
 
                     oldlog = self.log
                     oldsize = self.log_size
-                    self.log = [ ]
+                    self.log = []
                     self.log_size = 0
 
                 for msg in oldlog:
-                    f.write(msg)
+                    log_output.write(msg)
 
                 self.bytes_written += oldsize
 
                 if options.FLUSH_LOG:
-                    f.flush()
+                    log_output.flush()
 
                 # Checks whether we've been dumping to this logfile for a while
                 # and opens up a new file.
                 now = time.time()
-                if not self.use_stdout and now - self.last_rotation_time > LOG_ROTATION_INTERVAL or self.bytes_written > Log.MAX_LOG_SIZE:
+                if not self.use_stdout and now - self.last_rotation_time > LOG_ROTATION_INTERVAL \
+                        or self.bytes_written > Log.MAX_LOG_SIZE:
                     self.last_rotation_time = now
-                    self.filename = strftime("%Y-%m-%d-%H:%M:%S+0000-", gmtime()) + str(os.getpid()) + ".log"
+                    self.filename = time.strftime("%Y-%m-%d-%H:%M:%S+0000-", time.gmtime()) + str(os.getpid()) + ".log"
 
-                    f.flush()
-                    f.close()
+                    log_output.flush()
+                    log_output.close()
 
-                    with open("current.log", "w") as of:
-                        of.write(self.filename)
+                    with open("current.log", "w") as current_log:
+                        current_log.write(self.filename)
 
-                    f = open(self.filename, "a+")
+                    log_output = open(self.filename, "a+")
                     self.bytes_written = 0
 
         finally:
-            f.flush()
-            f.close()
+            log_output.flush()
+            log_output.close()
+
 
 _log = None
 
+
 # An enum that stores the different log levels
-class LogLevel:
+class LogLevel(object):
+    def __init__(self):
+        pass
+
     DEBUG = 0
     VERBOSE = 10
     WARNING = 20
     ERROR = 30
     CRASH = 40
 
+
 # Logging helper functions
 
 def log_init(path, use_stdout):
     global _log
-    print("initializing log")
+    print "initializing log"
     _log = Log(path, use_stdout)
+
 
 # Cleanly closes the log and flushes all contents to disk.
 def log_close():
     _log.close()
+
 
 def log_setmyname(name):
     global _hostname
 
     _hostname = '[' + name + ']'
 
-def log(level, logtype, loc, msg, log_time):
+
+def log(level, logtype, msg, log_time):
     global _hostname
 
     if level < _log_level:
-        return # No logging if it's not a high enough priority message.
+        return  # No logging if it's not a high enough priority message.
 
     # loc is kept for debugging purposes. Uncomment the following line if you need to see the execution path.
-#    msg = loc + ": " + msg
-    logmsg = "{0}: {1} [{2}]: {3}\n".format(_hostname, logtype, log_time.strftime("%Y-%m-%d-%H:%M:%S+%f"), msg)
+    #    msg = loc + ": " + msg
+    logmsg = "{0}: {1} [{2}]: {3}\n".format(
+        _hostname, logtype, log_time.strftime("%Y-%m-%d-%H:%M:%S+%f"), msg)
 
     # Store all error messages to be sent to the frontend
     if level > LogLevel.WARNING:
@@ -426,32 +450,38 @@ def log(level, logtype, loc, msg, log_time):
     if DUMP_LOG or level == LogLevel.CRASH:
         sys.stdout.write(logmsg)
 
-def log_debug(loc, msg):
-    log(LogLevel.DEBUG, "DEBUG  ", loc, msg, datetime.utcnow())
 
-def log_err(loc, msg):
-    log(LogLevel.ERROR, "ERROR  ", loc, msg, datetime.utcnow())
+def log_debug(msg):
+    log(LogLevel.DEBUG, "DEBUG  ", msg, datetime.utcnow())
 
-def log_warning(loc, msg):
-    log(LogLevel.WARNING, "WARNING", loc, msg, datetime.utcnow())
 
-def log_crash(loc, msg):
-    log(LogLevel.CRASH, "CRASH  ", loc, msg, datetime.utcnow())
+def log_err(msg):
+    log(LogLevel.ERROR, "ERROR  ", msg, datetime.utcnow())
 
-def log_verbose(loc, msg):
-    log(LogLevel.VERBOSE, "VERBOSE", loc, msg, datetime.utcnow())
 
-####################################
-### Transaction to ID Management ###
-####################################
+def log_warning(msg):
+    log(LogLevel.WARNING, "WARNING", msg, datetime.utcnow())
+
+
+def log_crash(msg):
+    log(LogLevel.CRASH, "CRASH  ", msg, datetime.utcnow())
+
+
+def log_verbose(msg):
+    log(LogLevel.VERBOSE, "VERBOSE", msg, datetime.utcnow())
+
+
+##
+# Transaction to ID Management
+##
 
 # A manager for the transaction mappings
 # We assume in this class that no more than MAX_ID unassigned transactions exist at a time
-class TransactionManager:
+class TransactionManager(object):
     # Size of a short id
     # If this is changed, make sure to change it in the TxAssignMessage
     SHORT_ID_SIZE = 4
-    MAX_ID = 2**32
+    MAX_ID = 2 ** 32
 
     # The maximum amount of time that an ID is valid
     MAX_VALID_TIME = 600
@@ -468,16 +498,16 @@ class TransactionManager:
         self.node = node
 
         # txhash is the longhash of the transaction, sid is the short ID for the transaction
-        self.txhash_to_sid = { }
+        self.txhash_to_sid = {}
         # txid is the (unique) list of [time assigned, txhash]
-        self.sid_to_txid = { }
-        self.hash_to_contents = { }
+        self.sid_to_txid = {}
+        self.hash_to_contents = {}
         self.unassigned_hashes = set()
         self.tx_assignment_times = []
         self.tx_assign_alarm_scheduled = False
 
         self.relayed_txns = set()
-        self.tx_relay_times = [ ]
+        self.tx_relay_times = []
 
         self.prev_id = -1
 
@@ -486,11 +516,15 @@ class TransactionManager:
     def assign_initial_ids(self):
         assert self.prev_id == -1
 
-        for tx_hash in self.unassigned_hashes:
-            sid, tx_time = self.get_and_increment_id()
-            self._assign_tx_to_sid(tx_hash, sid, tx_time)
+        if self.unassigned_hashes:
+            # FIXME there is no method _assign_tx_to_sid, change to assign_tx_to_sid and test
+            raise RuntimeError("FIXME")
 
-        if len(self.tx_assignment_times) > 0:
+            # for tx_hash in self.unassigned_hashes:
+            #     sid, tx_time = self.get_and_increment_id()
+            #     self._assign_tx_to_sid(tx_hash, sid, tx_time)
+
+        if self.tx_assignment_times:
             self.node.alarm_queue.register_alarm(TransactionManager.MAX_VALID_TIME, self.expire_old_ids)
             self.tx_assign_alarm_scheduled = True
         self.unassigned_hashes = None
@@ -507,16 +541,17 @@ class TransactionManager:
 
     def expire_old_ids(self):
         now = time.time()
-        while len(self.tx_assignment_times) > 0 and now - self.tx_assignment_times[0][0] > TransactionManager.MAX_VALID_TIME:
-            txid = heappop(self.tx_assignment_times)
-            txhash = txid[1]
+        while self.tx_assignment_times and \
+                now - self.tx_assignment_times[0][0] > TransactionManager.MAX_VALID_TIME:
+            tx_id = heappop(self.tx_assignment_times)
+            tx_hash = tx_id[1]
 
-            if txhash != TransactionManager.NULL_TX:
-                sid = self.txhash_to_sid[txhash]
-                del self.txhash_to_sid[txhash]
+            if tx_hash != TransactionManager.NULL_TX:
+                sid = self.txhash_to_sid[tx_hash]
+                del self.txhash_to_sid[tx_hash]
                 del self.sid_to_txid[sid]
 
-        if len(self.tx_assignment_times) > 0:
+        if self.tx_assignment_times:
             # Reschedule this function to be fired again after MAX_VALID_TIME seconds
             return TransactionManager.MAX_VALID_TIME
         else:
@@ -539,20 +574,21 @@ class TransactionManager:
         assert self.node.is_manager
 
         # Not done waiting for the initial transactions to come through
-        if self.unassigned_hashes != None:
+        if self.unassigned_hashes is not None:
             if tx_hash not in self.unassigned_hashes:
                 self.unassigned_hashes.add(tx_hash)
             return -1
         elif tx_hash not in self.txhash_to_sid:
-            log_debug("", "XXX: Adding {0} to tx_hash mapping".format(tx_hash))
+            log_debug("XXX: Adding {0} to tx_hash mapping".format(tx_hash))
             sid, tx_time = self.get_and_increment_id()
             self.assign_tx_to_sid(tx_hash, sid, tx_time)
             return sid
 
     def get_txid(self, tx_hash):
         if tx_hash in self.txhash_to_sid:
-            log_debug("", "XXX: Found the tx_hash in my mappings!")
+            log_debug("XXX: Found the tx_hash in my mappings!")
             return self.txhash_to_sid[tx_hash]
+
         return -1
 
     def get_tx_from_sid(self, sid):
@@ -561,8 +597,8 @@ class TransactionManager:
 
             if tx_hash in self.hash_to_contents:
                 return self.hash_to_contents[tx_hash]
-            log_debug("", "Looking for hash: " + repr(tx_hash))
-            log_debug("", "Could not find hash: " + repr(self.hash_to_contents.keys()[0:10]))
+            log_debug("Looking for hash: " + repr(tx_hash))
+            log_debug("Could not find hash: " + repr(self.hash_to_contents.keys()[0:10]))
 
         return None
 
@@ -573,69 +609,70 @@ class TransactionManager:
         else:
             self.relayed_txns.add(tx_hash)
             heappush(self.tx_relay_times, [time.time(), tx_hash])
-            self.node.alarm_queue.register_approx_alarm(2*TransactionManager.MAX_VALID_TIME, TransactionManager.MAX_VALID_TIME, self.cleanup_relayed)
+            self.node.alarm_queue.register_approx_alarm(2 * TransactionManager.MAX_VALID_TIME,
+                                                        TransactionManager.MAX_VALID_TIME, self.cleanup_relayed)
             return False
 
     def cleanup_relayed(self):
         now = time.time()
-        while len(self.tx_relay_times) > 0 and \
+        while self.tx_relay_times and \
                 now - self.tx_relay_times[0][0] > TransactionManager.MAX_VALID_TIME:
             _, txhash = heappop(self.tx_relay_times)
             self.relayed_txns.remove(txhash)
 
         return 0
 
-####################################
-## The Memory Profiling Interface ##
-####################################
-class HeapProfiler:
-    PROFILE_START = 0 # Time to start profiling
-    PROFILE_INTERVAL = 300 # Profiling interval (in seconds)
+
+##
+# The Memory Profiling Interface
+##
+class HeapProfiler(object):
+    PROFILE_START = 0  # Time to start profiling
+    PROFILE_INTERVAL = 300  # Profiling interval (in seconds)
 
     def __init__(self):
-        print("options.PROFILING:")
-        print(options.PROFILING)
+        print "options.PROFILING:"
+        print options.PROFILING
 
         if not options.PROFILING:
             self.profiling = False
             return
 
-        print("options.PROFILING:")
-        print(options.PROFILING)
+        print "options.PROFILING:"
+        print options.PROFILING
         self.profiling = True
         self.filename = ""
         self.last_rotation_time = time.time()
 
-        self.tr = tracker.SummaryTracker()
+        tracker.SummaryTracker()
 
     def dump_profile(self):
-        log_debug("HeapProfiler.dump_profile", "Dumping heap profile!")
+        log_debug("Dumping heap profile!")
 
         # Assumption is that no one else will be printing while profiling is happening
-        self.filename = "profiler-" + strftime("%Y-%m-%d-%H:%M:%S+0000", gmtime()) + ".prof"
+        self.filename = "profiler-" + time.strftime("%Y-%m-%d-%H:%M:%S+0000", time.gmtime()) + ".prof"
 
         old_stdout = sys.stdout
         sys.stdout = open(self.filename, "a+")
-        print("################# BEGIN NEW HEAP SNAPSHOT #################")
+        print "################# BEGIN NEW HEAP SNAPSHOT #################"
         all_objects = muppy.get_objects()
-        print("Printing diff at time: " + strftime("%Y-%m-%d-%H:%M:%S+0000", gmtime()))
+        print "Printing diff at time: " + time.strftime("%Y-%m-%d-%H:%M:%S+0000", time.gmtime())
         sum1 = summary.summarize(all_objects)
         summary.print_(sum1)
-        print("Printing out all objects: ")
-        print("Index,Type, size")
+        print "Printing out all objects: "
+        print "Index,Type, size"
         i = 0
         for obj in all_objects:
-            print("{0},{1},{2}".format(i, type(obj), sys.getsizeof(obj)))
+            print "{0},{1},{2}".format(i, type(obj), sys.getsizeof(obj))
             i += 1
 
         i = 0
-        print("Index,Object")
+        print "Index,Object"
         for obj in all_objects:
-            print("{0},{1}".format(i, repr(obj)))
+            print "{0},{1}".format(i, repr(obj))
             i += 1
 
-        print("################## END NEW HEAP SNAPSHOT ##################")
+        print "################## END NEW HEAP SNAPSHOT ##################"
         sys.stdout = old_stdout
 
         return self.PROFILE_INTERVAL
-

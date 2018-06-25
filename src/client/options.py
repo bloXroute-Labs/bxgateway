@@ -4,10 +4,10 @@
 #
 # Options for debugging
 #
-# Authors: Soumya Basu, Emin Gun Sirer
-#
 
-## Options for Falcon network for debugging purposes only.
+##
+#  Options for bloxroute network for debugging purposes only.
+##
 
 # True if we want to avoid doing the database puts
 FAKE_DB = False
@@ -15,13 +15,15 @@ FAKE_DB = False
 # True if we want to take heap profiles
 PROFILING = False
 
+
 def crash():
     exit(1)
 
+
 # negative if we are never going to crash
-# Otherwise, it's the number of seconds until this Falcon node
+# Otherwise, it's the number of seconds until this bloxroute node
 # will crash.
-CRASH_INTERVAL=-1
+CRASH_INTERVAL = -1
 
 LOG_FOR_WEB = True
 
@@ -32,4 +34,3 @@ ENABLE_LOGGING = True
 HEIGHT_DIFFERENCE = 100
 
 FLUSH_LOG = False
-

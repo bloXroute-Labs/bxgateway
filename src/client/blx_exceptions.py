@@ -4,22 +4,31 @@
 #
 # Exceptions
 #
-# Authors: Soumya Basu, Emin Gun Sirer
-#
 
-class ParseError (Exception):
-    def __init__ (self, msg):
+
+# FIXME Duplicate code between here and btc_exceptions
+class ParseError(Exception):
+    def __init__(self, msg):
+        super(ParseError).__init__(msg)
+
         self.msg = msg
 
+
 class UnrecognizedCommandError(ParseError):
-    def __init__ (self, msg, raw_data):
+    def __init__(self, msg, raw_data):
+        super(UnrecognizedCommandError).__init__(msg)
+
         self.msg = msg
         self.raw_data = raw_data
 
-class PayloadLenError (ParseError):
-    def __init__ (self, msg):
+
+class PayloadLenError(ParseError):
+    def __init__(self, msg):
+        super(PayloadLenError).__init__(msg)
+
         ParseError.__init__(self, msg)
 
-class TerminationError (Exception):
-    pass
 
+class TerminationError(Exception):
+    def __init__(self, msg):
+        super(TerminationError).__init__(msg)
