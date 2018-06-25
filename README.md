@@ -1,6 +1,6 @@
-# bloXroute client
+# bloXroute client gateway
 
-The implementation of the bloXroute client node.
+The implementation of the bloXroute client gateway.
 
 Note: we use docker for development, which takes care of installing all
 dependencies and isolating a python environment for you on any machine. The
@@ -13,14 +13,14 @@ nearly instantaneous.
 
 This is just a dockerized version of main.py, so equivalent:
 
-    cd src/client
+    cd src/bxgateway
     python main.py -h
 
 The dockerized version takes care of installing dependencies from
 requirements.txt. If you really hate docker, you can install them yourself.
 In this case, you have to set your machine up for python dev and then run:
 
-    pip install -r src/client/requirements.txt
+    pip install -r requirements.txt
 
 ## How the client works
 
