@@ -93,7 +93,7 @@ def parse_peers(peers_string):
 
 if __name__ == '__main__':
     # Log our pid to a file.
-    with open("relay.pid", "w") as f:
+    with open("../resources/relay.pid", "w") as f:
         f.write(str(os.getpid()))
 
     # Local name:
