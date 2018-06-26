@@ -5,40 +5,23 @@
 # Startup script for nodes
 #
 
-import argparse
-
 from bxcommon.util import startup_util
 from connections import *
 
-# All parameters that are parsed from the config file.
-ALL_PARAMS = [
-    'my_ip',
-    'my_port',
-    'peers',
-    'my_idx',
-    'manager_idx',
-    'log_path',
-    'log_stdout',
+# Extra parameters for gateway that are parsed from the config file.
+GATEWAY_PARAMS = [
     'node_params',
     'node_addr'
 ]
 MAX_NUM_CONN = 8192
+CONFIG_FILE_NAME = "config.cfg"
 
 if __name__ == '__main__':
     # Log our pid to a file.
     with open("relay.pid", "w") as f:
         f.write(str(os.getpid()))
 
-    # Returns a dictionary of args like "-n" to arrays of values
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--config-name",
-                        help="Name of section to read from config.cfg. By default will read a section using this node's"
-                             " local ip. Not needed if you specify the other options.")
-    parser.add_argument("-n", "--network-ip", help="Network ip of this node")
-    parser.add_argument("-p", "--peers", help="Peering string to override peers of config.cfg")
-    parser.add_argument("-P", "--port", help="What port to listen on")
-    parser.add_argument("-l", "--log-path", help="Path to store logfiles in")
-    parser.add_argument("-o", "--to-stdout", help="Log to stdout. Doesn't generate logfiles in this mode")
+    parser = startup_util.get_default_parser()
     parser.add_argument("-b", "--blockchain-node",
                         help="Blockchain node ip and port to connect to, space delimited, typically localhost")
     parser.add_argument("--blockchain-net-magic", help="Blockchain net.magic parameter")
@@ -53,8 +36,7 @@ if __name__ == '__main__':
     my_local_name = opts.config_name or startup_util.get_my_ip()
 
     # Parse the config file.
-    configFileName = "config.cfg"
-    config, params = startup_util.parse_config_file(configFileName, my_local_name, ALL_PARAMS)
+    config, params = startup_util.parse_config_file(CONFIG_FILE_NAME, my_local_name, GATEWAY_PARAMS)
 
     # Set basic variables.
     # XXX: Add assert statements to make sure these make sense.
