@@ -15,11 +15,10 @@ GATEWAY_PARAMS = [
 ]
 MAX_NUM_CONN = 8192
 CONFIG_FILE_NAME = "config.cfg"
+PID_FILE_NAME = "relay.pid"
 
 if __name__ == '__main__':
-    # Log our pid to a file.
-    with open("relay.pid", "w") as f:
-        f.write(str(os.getpid()))
+    startup_util.log_pid(PID_FILE_NAME)
 
     parser = startup_util.get_default_parser()
     parser.add_argument("-b", "--blockchain-node",
@@ -33,24 +32,14 @@ if __name__ == '__main__':
 
     # The local name is the section of the config.cfg we will read
     # It can be specified with -c or will be the local ip of the machine
-    my_local_name = opts.config_name or startup_util.get_my_ip()
+    my_ip = opts.config_name or startup_util.get_my_ip()
 
-    # Parse the config file.
-    config, params = startup_util.parse_config_file(CONFIG_FILE_NAME, my_local_name, GATEWAY_PARAMS)
+    # Parse the config corresponding to the ip in the config file.
+    config, params = startup_util.parse_config_file(CONFIG_FILE_NAME, my_ip, GATEWAY_PARAMS)
 
-    # Set basic variables.
-    # XXX: Add assert statements to make sure these make sense.
-    ip = opts.network_ip or params['my_ip']
-    assert ip is not None, "Your IP address is not specified in config.cfg or as --network-ip. Check that the '-n' " \
-                           "argument reflects the name of a section in config.cfg!"
+    ip, port = startup_util.parse_addr(opts, params)
 
-    port = int(opts.port or params['my_port'])
-
-    log_setmyname("%s:%d" % (ip, port))
-    log_path = opts.log_path or params['log_path']
-    use_stdout = opts.to_stdout or params['log_stdout']
-    log_init(log_path, use_stdout)
-    log_debug("My own IP for config purposes is {0}".format(my_local_name))
+    startup_util.init_logging(ip, port, opts, params)
 
     # Initialize the node and register the peerfile update signal to USR2 signal.
     relay_nodes = startup_util.parse_peers(opts.peers or params['peers'])
@@ -63,7 +52,7 @@ if __name__ == '__main__':
 
     if node_param_list:
         for param in node_param_list:
-            node_params[param] = startup_util.getparam(config, my_local_name, param)
+            node_params[param] = startup_util.getparam(config, my_ip, param)
 
     if opts.blockchain_node:
         params['node_addr'] = opts.blockchain_node
