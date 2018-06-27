@@ -27,7 +27,10 @@ jobs:
           name: Tests
           command: |
             . venv/bin/activate
-            PYTHONPATH=bxcommon/src/ PYLINTRC_PATH=bxcommon/pylintrc python -m unittest discover -s bxgateway/test -t bxgateway/test --verbose
+            cd bxgateway/test/
+            PYTHONPATH=../../bxcommon/src/ \
+            PYLINTRC_PATH=../../bxcommon/pylintrc \
+            python -m unittest discover --verbose
       - store_artifacts:
           path: test-reports/
           destination: tr1
