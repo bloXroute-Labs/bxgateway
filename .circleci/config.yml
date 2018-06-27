@@ -5,6 +5,8 @@ jobs:
     docker:
       - image: circleci/python:2.7
     steps:
+      - attach_workspace:
+          at: ~/ws
       - checkout:
           path:
             "bxgateway"
@@ -19,10 +21,15 @@ jobs:
             python -m virtualenv venv
             . venv/bin/activate
             pip install -r bxgateway/requirements.txt
+            pip install -r bxcommon/requirements.txt
       - save_cache: # special step to save dependency cache
           key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
           paths:
             - "venv"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - venv
       - run: # run tests
           name: Tests
           command: |
@@ -38,9 +45,12 @@ jobs:
   build:
     docker:
       - image: circleci/python:2.7
+    working_directory: ~/ws
 
     steps:
       - checkout
+      - attach_workspace:
+          at: ~/ws
       - run:
           name: Package
           command: 'echo "Yay develop build!"'
@@ -48,9 +58,12 @@ jobs:
   build-prod:
     docker:
       - image: circleci/python:2.7
+    working_directory: ~/ws
 
     steps:
       - checkout
+      - attach_workspace:
+          at: ~/ws
       - run:
           name: Package
           command: 'echo "Yay master build!"'
