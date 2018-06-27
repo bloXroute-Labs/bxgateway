@@ -29,6 +29,7 @@ jobs:
 
             ssh-add ~/.ssh/id_rsa_36c1e13ee9c6c64b8e54b134ae9aaead
 
+            git clone git@bxcommon.github.com:bloXroute-Labs/bxcommon.git
 #      - checkout:
 #          path:
 #            "bxgateway"
