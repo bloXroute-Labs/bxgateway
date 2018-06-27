@@ -7,4 +7,4 @@ BLOXROUTE_CLIENT_PORT=12345
 cd src/client
 ./build.sh
 cd -
-docker run -t -v $DIR/../src/client:/app -p $BLOXROUTE_CLIENT_PORT:$BLOXROUTE_CLIENT_PORT bloxroute-client $*
+docker run -t -v $DIR/../src/bxgateway:/app -p $BLOXROUTE_CLIENT_PORT:$BLOXROUTE_CLIENT_PORT bxgateway $*

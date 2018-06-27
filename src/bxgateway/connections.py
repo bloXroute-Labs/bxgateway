@@ -10,9 +10,9 @@ import select
 import signal
 from collections import defaultdict
 
-from btc_messages import *
-from messages import *
-from utils import *
+from bxcommon.btc_messages import *
+from bxcommon.messages import *
+from bxcommon.utils import *
 
 sha256 = hashlib.sha256
 

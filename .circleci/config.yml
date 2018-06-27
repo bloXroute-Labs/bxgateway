@@ -4,40 +4,53 @@ jobs:
   test-unit:
     docker:
       - image: circleci/python:2.7
-    working_directory: ~/client
     steps:
-      - checkout
       - attach_workspace:
-          at: ~/client
+          at: ~/ws
+      - checkout:
+          path:
+            "bxgateway"
+      - run:
+          name: Git clone bxcommon
+          command: |
+            git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
       - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
-          key: deps1-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
       - run: # install and activate virtual environment with pip
           command: |
             python -m virtualenv venv
             . venv/bin/activate
-            pip install -r requirements.txt
+            pip install -r bxgateway/requirements.txt
+            pip install -r bxcommon/requirements.txt
       - save_cache: # special step to save dependency cache
-          key: deps1-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
           paths:
             - "venv"
+      - persist_to_workspace:
+          root: .
+          paths:
+            - venv
       - run: # run tests
           name: Tests
           command: |
             . venv/bin/activate
-            python -m unittest discover src/test
-      - store_artifacts: # special step to store test reports as artifacts
+            cd bxgateway/test/
+            PYTHONPATH=../../bxcommon/src/ \
+            PYLINTRC_PATH=../../bxcommon/pylintrc \
+            python -m unittest discover --verbose
+      - store_artifacts:
           path: test-reports/
           destination: tr1
 
   build:
     docker:
       - image: circleci/python:2.7
-    working_directory: ~/client
+    working_directory: ~/ws
 
     steps:
       - checkout
       - attach_workspace:
-          at: ~/client
+          at: ~/ws
       - run:
           name: Package
           command: 'echo "Yay develop build!"'
@@ -45,12 +58,12 @@ jobs:
   build-prod:
     docker:
       - image: circleci/python:2.7
-    working_directory: ~/client
+    working_directory: ~/ws
 
     steps:
       - checkout
       - attach_workspace:
-          at: ~/client
+          at: ~/ws
       - run:
           name: Package
           command: 'echo "Yay master build!"'
@@ -74,3 +87,4 @@ workflows:
           filters:
             branches:
               only: master
+
