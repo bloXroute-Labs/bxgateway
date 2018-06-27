@@ -12,8 +12,8 @@ jobs:
           fingerprints:
             "36:c1:e1:3e:e9:c6:c6:4b:8e:54:b1:34:ae:9a:ae:ad"
       - run:
-        name: Keyscan Github (HACK)
-        command: ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+          name: Keyscan Github (HACK)
+          command: ssh-keyscan -H github.com >> ~/.ssh/known_hosts
       - run:
           name: Git clone bxcommon
           command: |
