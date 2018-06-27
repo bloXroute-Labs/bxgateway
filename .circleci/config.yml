@@ -13,14 +13,14 @@ jobs:
           command: |
             git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
       - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
-          key: deps1-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
       - run: # install and activate virtual environment with pip
           command: |
             python -m virtualenv venv
             . venv/bin/activate
-            pip install -r requirements.txt
+            pip install -r bxgateway/requirements.txt
       - save_cache: # special step to save dependency cache
-          key: deps1-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
           paths:
             - "venv"
       - run: # run tests
