@@ -53,9 +53,9 @@ jobs:
           at: ~/ws
       - run:
           name: Package
-          command: 'echo "Yay develop build!"'
+          command: 'echo "Yay build!"'
 
-  build-prod:
+  deploy:
     docker:
       - image: circleci/python:2.7
     working_directory: ~/ws
@@ -66,7 +66,7 @@ jobs:
           at: ~/ws
       - run:
           name: Package
-          command: 'echo "Yay master build!"'
+          command: 'echo "Yay deploy!"'
 
 workflows:
   version: 2
@@ -81,10 +81,9 @@ workflows:
             branches:
               only: develop
 
-      - build-prod:
-          requires:
-            - test-unit
+      - deploy:
           filters:
             branches:
-              only: master
-
+              only: develop
+          requires:
+            - build
