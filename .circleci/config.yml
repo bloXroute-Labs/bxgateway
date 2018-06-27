@@ -12,6 +12,8 @@ jobs:
           command: |
             ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 
+
+
             # Set up our ssh config so that we can use multiple github keys
             cat << EOF > ~/.ssh/config
             Host bxgateway.github.com
@@ -24,6 +26,9 @@ jobs:
             PreferredAuthentications publickey
             IdentityFile /home/circleci/.ssh/id_rsa_36c1e13ee9c6c64b8e54b134ae9aaead
             EOF
+
+            ssh-add ~/.ssh/id_rsa_36c1e13ee9c6c64b8e54b134ae9aaead
+
 #      - checkout:
 #          path:
 #            "bxgateway"
