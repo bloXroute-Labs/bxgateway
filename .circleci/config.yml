@@ -11,7 +11,6 @@ jobs:
       - run:
           name: Git clone bxcommon
           command: |
-            cd bxgateway
             git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
       - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
           key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
@@ -28,7 +27,7 @@ jobs:
           name: Tests
           command: |
             . venv/bin/activate
-            PYLINTRC_PATH=bxcommon/pylintrc python -m unittest discover -s bxgateway/test -t bxgateway/test --verbose
+            PYTHONPATH=bxcommon/src/ PYLINTRC_PATH=bxcommon/pylintrc python -m unittest discover -s bxgateway/test -t bxgateway/test --verbose
       - store_artifacts:
           path: test-reports/
           destination: tr1
