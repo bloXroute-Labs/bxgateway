@@ -7,10 +7,13 @@ jobs:
     steps:
       - checkout:
           path:
-            "bxrelay"
+            "bxgateway"
       - add_ssh_keys:
           fingerprints:
             "36:c1:e1:3e:e9:c6:c6:4b:8e:54:b1:34:ae:9a:ae:ad"
+      - run:
+        name: Keyscan Github (HACK)
+        command: ssh-keyscan -H github.com >> ~/.ssh/known_hosts
       - run:
           name: Git clone bxcommon
           command: |
@@ -30,7 +33,7 @@ jobs:
           name: Tests
           command: |
             . venv/bin/activate
-            PYLINTRC_PATH=bxcommon/pylintrc python -m unittest discover -s bxrelay/test -t bxrelay/test --verbose
+            PYLINTRC_PATH=bxcommon/pylintrc python -m unittest discover -s bxgateway/test -t bxgateway/test --verbose
       - store_artifacts: # special step to store test reports as artifacts
           path: test-reports/
           destination: tr1
