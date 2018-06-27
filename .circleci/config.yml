@@ -4,11 +4,12 @@ jobs:
   test-unit:
     docker:
       - image: circleci/python:2.7
-    working_directory: ~/client
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/client
+      - checkout bxrelay
+      - add_ssh_keys:
+        fingerprints:
+          "36:c1:e1:3e:e9:c6:c6:4b:8e:54:b1:34:ae:9a:ae:ad"
+      - git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
       - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
           key: deps1-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - run: # install and activate virtual environment with pip
@@ -24,7 +25,7 @@ jobs:
           name: Tests
           command: |
             . venv/bin/activate
-            python -m unittest discover test
+            PYLINTRC_PATH=bxcommon/pylintrc python -m unittest discover -s bxrelay/test -t bxrelay/test --verbose
       - store_artifacts: # special step to store test reports as artifacts
           path: test-reports/
           destination: tr1
@@ -32,12 +33,9 @@ jobs:
   build:
     docker:
       - image: circleci/python:2.7
-    working_directory: ~/client
 
     steps:
       - checkout
-      - attach_workspace:
-          at: ~/client
       - run:
           name: Package
           command: 'echo "Yay develop build!"'
@@ -45,12 +43,9 @@ jobs:
   build-prod:
     docker:
       - image: circleci/python:2.7
-    working_directory: ~/client
 
     steps:
       - checkout
-      - attach_workspace:
-          at: ~/client
       - run:
           name: Package
           command: 'echo "Yay master build!"'
