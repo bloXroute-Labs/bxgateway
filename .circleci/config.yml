@@ -34,7 +34,7 @@ jobs:
           command: |
             . venv/bin/activate
             PYLINTRC_PATH=bxcommon/pylintrc python -m unittest discover -s bxgateway/test -t bxgateway/test --verbose
-      - store_artifacts: # special step to store test reports as artifacts
+      - store_artifacts:
           path: test-reports/
           destination: tr1
 
