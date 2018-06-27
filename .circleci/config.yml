@@ -6,8 +6,8 @@ jobs:
       - image: circleci/python:2.7
     steps:
       - checkout:
-        path:
-          - "bxrelay"
+          path:
+            - "bxrelay"
       - add_ssh_keys:
         fingerprints:
           "36:c1:e1:3e:e9:c6:c6:4b:8e:54:b1:34:ae:9a:ae:ad"
