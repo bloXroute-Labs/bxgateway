@@ -5,33 +5,17 @@
 # Client node code
 #
 
-import errno
-import select
 import signal
 from collections import defaultdict
 
 from bxcommon.btc_messages import *
+from bxcommon.connections import *
 from bxcommon.messages import *
 from bxcommon.utils import *
 
-sha256 = hashlib.sha256
-
-EOL1 = b'\n\n'
-EOL2 = b'\n\r\n'
-
-MAX_CONN_BY_IP = 30  # Maximum number of connections that an IP address can have
-
-CONNECTION_TIMEOUT = 30  # Number of seconds that we wait to retry a connection.
-FAST_RETRY = 3  # Seconds before we retry in case of transient failure (e.g. EINTR thrown)
-RETRY_INTERVAL = 30  # Seconds before we retry in case of orderly shutdown
-MAX_RETRIES = 10
-
-# Only tell the peer about the last HEIGHT_DIFFERENCE blocks in the blockchain.
-HEIGHT_DIFFERENCE = 50
-
 
 # A bloXroute client
-class Client(object):
+class Client(AbstractClient):
     def __init__(self, server_ip, server_port, servers, node_addr, node_params):
         self.server_ip = server_ip
         self.server_port = server_port
@@ -62,33 +46,6 @@ class Client(object):
 
         log_verbose("initialized node state")
 
-    # Create and initialize a nonblocking server socket with at most 50 connections in its backlog,
-    #   bound to an interface and port
-    # Exit the program if there's an unrecoverable socket error (e.g. no more kernel memory)
-    # Reraise the exception if it's unexpected.
-    def create_server_socket(self, intf, serverport):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        log_debug("Creating a server socket on {0}:{1}".format(intf, serverport))
-
-        try:
-            s.bind((intf, serverport))
-            s.listen(50)
-            s.setblocking(0)
-            self.epoll.register(s.fileno(), select.EPOLLIN | select.EPOLLET)
-            log_debug("Finished creating a server socket on {0}:{1}".format(intf, serverport))
-            return s
-
-        except socket.error as e:
-            if e.errno in [errno.EACCES, errno.EADDRINUSE, errno.EADDRNOTAVAIL, errno.ENOMEM, errno.EOPNOTSUPP]:
-                log_crash("Fatal error: " + str(e.errno) + " " + e.strerror +
-                          " Occurred while setting up serversocket on {0}:{1}. Exiting...".format(intf, serverport))
-                exit(1)
-            else:
-                log_crash("Fatal error: " + str(e.errno) + " " + e.strerror +
-                          " Occurred while setting up serversocket on {0}:{1}. Reraising".format(intf, serverport))
-                raise e
-
     # Create a ServerConnection object from this Node to (ip, port)
     def create_server_conn(self, ip, port):
         ip = socket.gethostbyname(ip)
@@ -104,79 +61,6 @@ class Client(object):
 
         # init_client_socket will do all of the work given the ip address.
         self.init_client_socket(BTCNodeConnection, ip, port, setup=True)
-
-    # Make a new conn_cls instance who is connected to (ip, port) and schedule connection_timeout to check its status.
-    # If setup is False, then sock is an already established socket. Otherwise, we must initialize and set up socket.
-    # If trusted is True, the instance should be marked as a trusted connection.
-    def init_client_socket(self, conn_cls, ip, port, sock=None, setup=False):
-        log_debug("Initiating connection to {0}:{1}.".format(ip, port))
-
-        # If we're already connected to the remote peer, log the event and ignore it.
-        if self.connection_pool.has_connection(ip, port):
-            log_err("Connection to {0}:{1} already exists!".format(ip, port))
-            if sock is not None:
-                try:
-                    sock.close()
-                except socket.error:
-                    pass
-
-            return
-
-        initialized = True  # True if socket is connected. False otherwise.
-
-        # Create a socket and connect to (ip, port).
-        if setup:
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                sock.setblocking(0)
-                sock.connect((ip, port))
-            except socket.error as e:
-                if e.errno in [errno.EPERM, errno.EADDRINUSE]:
-                    log_err("Connection to {0}:{1} failed! Got errno {2} with msg {3}."
-                            .format(ip, port, e.errno, e.strerror))
-                    return
-                elif e.errno in [errno.EAGAIN, errno.ECONNREFUSED, errno.EINTR, errno.EISCONN, errno.ENETUNREACH,
-                                 errno.ETIMEDOUT]:
-                    raise RuntimeError('FIXME')
-
-                    # FIXME conn_obj and trusted are not defined, delete trust, alarm register call and test
-                    # log_err("Node.init_client_socket",
-                    #         "Connection to {0}:{1} failed. Got errno {2} with msg {3}. Retry?: {4}"
-                    #         .format(ip, port, e.errno, e.strerror, conn_obj.trusted))
-                    # if trusted:
-                    #     self.alarm_queue.register_alarm(FAST_RETRY, self.retry_init_client_socket, sock, conn_cls, ip,
-                    #                                     port, setup)
-                    # return
-                elif e.errno in [errno.EALREADY]:
-                    # Can never happen because this thread is the only one using the socket.
-                    log_err("Got EALREADY while connecting to {0}:{1}.".format(ip, port))
-                    exit(1)
-                elif e.errno in [errno.EINPROGRESS]:
-                    log_debug("Got EINPROGRESS on {0}:{1}. Will wait for ready outputbuf.".format(ip, port))
-                    initialized = False
-                else:
-                    raise e
-        else:
-            # Even if we didn't set up this socket, we still need to make it nonblocking.
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            sock.setblocking(0)
-
-        # Make a connection object and set its state
-        conn_obj = conn_cls(sock, (ip, port), self, setup=setup)
-        conn_obj.state |= Connection.CONNECTING if initialized else Connection.INITIALIZED
-
-        self.alarm_queue.register_alarm(CONNECTION_TIMEOUT, self.connection_timeout, conn_obj)
-
-        # Make the connection object publicly accessible
-        self.connection_pool.add(sock.fileno(), ip, port, conn_obj)
-        self.epoll.register(sock.fileno(),
-                            select.EPOLLOUT | select.EPOLLIN | select.EPOLLERR | select.EPOLLHUP | select.EPOLLET)
-
-        log_debug("Connected {0}:{1} on file descriptor {2} with state {3}"
-                  .format(ip, port, sock.fileno(), conn_obj.state))
-        return
 
     # Handles incoming connections on the server socket
     # Only allows MAX_CONN_BY_IP connections from each IP address to be initialized.
@@ -224,7 +108,7 @@ class Client(object):
         log_debug("Broadcasting message from sender {0}".format(sender))
 
         for conn in self.connection_pool:
-            if conn.state & Connection.ESTABLISHED and conn != sender:
+            if conn.state & ConnectionState.ESTABLISHED and conn != sender:
                 conn.enqueue_msg(msg)
 
     # Sends a message to the node that this is connected to
@@ -263,11 +147,11 @@ class Client(object):
     def connection_timeout(self, conn):
         log_debug("Connection timeout, on connection with {0}".format(conn.peer_desc))
 
-        if conn.state & Connection.ESTABLISHED:
+        if conn.state & ConnectionState.ESTABLISHED:
             log_debug("Turns out connection was initialized, carrying on with {0}".format(conn.peer_desc))
             return 0
 
-        if conn.state & Connection.MARK_FOR_CLOSE:
+        if conn.state & ConnectionState.MARK_FOR_CLOSE:
             log_debug("We're already closing the connection to {0} (or have closed it). Ignoring timeout."
                       .format(conn.peer_desc))
             return 0
@@ -323,12 +207,12 @@ class Client(object):
                         # Mark this connection for close if we received a POLLHUP. No other functions will be called on
                         #   this connection.
                         if event & select.EPOLLHUP:
-                            conn.state |= Connection.MARK_FOR_CLOSE
+                            conn.state |= ConnectionState.MARK_FOR_CLOSE
 
-                        if event & select.EPOLLOUT and not conn.state & Connection.MARK_FOR_CLOSE:
+                        if event & select.EPOLLOUT and not conn.state & ConnectionState.MARK_FOR_CLOSE:
                             # If connect received EINPROGRESS, we will receive an EPOLLOUT if connect succeeded
-                            if not conn.state & Connection.INITIALIZED:
-                                conn.state = conn.state | Connection.INITIALIZED
+                            if not conn.state & ConnectionState.INITIALIZED:
+                                conn.state = conn.state | ConnectionState.INITIALIZED
 
                             # Mark the connection as sendable and send as much as we can from the outputbuffer.
                             conn.mark_sendable()
@@ -347,11 +231,11 @@ class Client(object):
                     if fileno != self.serversocketfd:
                         conn = self.connection_pool.get_byfileno(fileno)
 
-                        if event & select.EPOLLIN and not conn.state & Connection.MARK_FOR_CLOSE:
+                        if event & select.EPOLLIN and not conn.state & ConnectionState.MARK_FOR_CLOSE:
                             conn.recv()
 
                         # Done processing. Close socket if it was marked for close.
-                        if conn.state & Connection.MARK_FOR_CLOSE:
+                        if conn.state & ConnectionState.MARK_FOR_CLOSE:
                             log_debug("Connection to {0} closing".format(conn.peer_desc))
                             self.destroy_conn(fileno)
                             if conn.is_persistent:
@@ -366,28 +250,7 @@ class Client(object):
 
 
 class Connection(object):
-    # States for the Connection
-    CONNECTING = 0b000000000  # Received EINPROGRESS when calling socket.connect
-    INITIALIZED = 0b000000001
-    HELLO_RECVD = 0b000000010  # Received version message from the remote end
-    HELLO_ACKD = 0b000000100  # Received verack message from the remote end
-    ESTABLISHED = 0b000000111  # Received version + verack message, is initialized
-    MARK_FOR_CLOSE = 0b001000000  # Connection is closed
-
-    # Interval to retry a socket send call in transient failure conditions
-    RETRY_SEND = 5
-
-    # Interval to retry a socket recv call in transient failure conditions
-    RETRY_RECV = 5
-
-    # Number of bad messages I'm willing to receive in a row before declaring the input stream
-    # corrupt beyond repair.
-    MAX_BAD_MESSAGES = 3
-
-    # The size of the recv buffer that we fill each time.
-    RECV_BUFSIZE = 8192
-
-    def __init__(self, sock, address, node, setup=False):
+    def __init__(self, sock, address, node, from_me=False, setup=False):
         self.sock = sock
         self.fileno = sock.fileno()
 
@@ -404,11 +267,11 @@ class Connection(object):
         self.peer_desc = "%s %d" % (self.peer_ip, self.peer_port)
 
         self.sendable = False  # Whether or not I can send more bytes on this socket.
-        self.state = Connection.CONNECTING
+        self.state = ConnectionState.CONNECTING
         self.is_server = False  # This isn't a server message
 
         # Temporary buffers to receive the contents of the recv call.
-        self.recv_buf = bytearray(Connection.RECV_BUFSIZE)
+        self.recv_buf = bytearray(RECV_BUFSIZE)
 
         # Number of bad messages I've received in a row.
         self.num_bad_messages = 0
@@ -442,7 +305,7 @@ class Connection(object):
         while collect_input:
             # Read from the socket and store it into the recv buffer.
             try:
-                bytes_read = self.sock.recv_into(self.recv_buf, Connection.RECV_BUFSIZE)
+                bytes_read = self.sock.recv_into(self.recv_buf, RECV_BUFSIZE)
             except socket.error as e:
                 if e.errno in [errno.EAGAIN, errno.EWOULDBLOCK]:
                     log_debug("Received errno {0} with msg {1} on connection {2}. Stop collecting input"
@@ -457,11 +320,11 @@ class Connection(object):
                     # Fatal errors for the connections
                     log_debug("Received errno {0} with msg {1}, recv on {2} failed. Closing connection and retrying..."
                               .format(e.errno, e.strerror, self.peer_desc))
-                    self.state |= Connection.MARK_FOR_CLOSE
+                    self.state |= ConnectionState.MARK_FOR_CLOSE
                     return
                 elif e.errno in [errno.ECONNRESET, errno.ETIMEDOUT, errno.EBADF]:
                     # Perform orderly shutdown
-                    self.state |= Connection.MARK_FOR_CLOSE
+                    self.state |= ConnectionState.MARK_FOR_CLOSE
                     return
                 elif e.errno in [errno.EFAULT, errno.EINVAL, errno.ENOTCONN, errno.ENOMEM]:
                     # Should never happen errors
@@ -476,7 +339,7 @@ class Connection(object):
 
             # A 0 length recv is an orderly shutdown.
             if bytes_read == 0:
-                self.state |= Connection.MARK_FOR_CLOSE
+                self.state |= ConnectionState.MARK_FOR_CLOSE
                 return
             else:
                 self.inputbuf.add_bytes(piece)
@@ -496,7 +359,7 @@ class Connection(object):
         except PayloadLenError as e:
             log_err("ParseError on connection {0}.".format(self.peer_desc))
             log_debug("ParseError message: {0}".format(e.msg))
-            self.state |= Connection.MARK_FOR_CLOSE  # Close, no retry.
+            self.state |= ConnectionState.MARK_FOR_CLOSE  # Close, no retry.
             return None
 
     # Receives and processes the next bytes on the socket's inputbuffer.
@@ -505,7 +368,7 @@ class Connection(object):
         self.collect_input()
 
         while True:
-            if self.state & Connection.MARK_FOR_CLOSE:
+            if self.state & ConnectionState.MARK_FOR_CLOSE:
                 return 0
 
             is_full_msg, msg_type, payload_len = msg_cls.peek_message(self.inputbuf)
@@ -519,9 +382,9 @@ class Connection(object):
             msg = self.pop_next_message(payload_len)
             # If there was some error in parsing this message, then continue the loop.
             if msg is None:
-                if self.num_bad_messages == Connection.MAX_BAD_MESSAGES:
+                if self.num_bad_messages == MAX_BAD_MESSAGES:
                     log_debug("Got enough bad messages! Marking connection from {0} closed".format(self.peer_desc))
-                    self.state |= Connection.MARK_FOR_CLOSE
+                    self.state |= ConnectionState.MARK_FOR_CLOSE
                     return 0  # I have MAX_BAD_MESSAGES messages that failed to parse in a row.
 
                 self.num_bad_messages += 1
@@ -529,10 +392,10 @@ class Connection(object):
 
             self.num_bad_messages = 0
 
-            if not (self.state & Connection.ESTABLISHED) and msg_type not in hello_msgs:
+            if not (self.state & ConnectionState.ESTABLISHED) and msg_type not in hello_msgs:
                 log_err("Connection to {0} not established and got {1} message!  Closing."
                         .format(self.peer_desc, msg_type))
-                self.state |= Connection.MARK_FOR_CLOSE
+                self.state |= ConnectionState.MARK_FOR_CLOSE
                 return 0
 
             log_debug("Received message of type {0} from {1}".format(msg_type, self.peer_desc))
@@ -551,7 +414,7 @@ class Connection(object):
     # Enqueues the contents of a Message instance, msg, to our outputbuf and attempts to send it if the underlying
     #   socket has room in the send buffer.
     def enqueue_msg(self, msg):
-        if self.state & Connection.MARK_FOR_CLOSE:
+        if self.state & ConnectionState.MARK_FOR_CLOSE:
             return
 
         self.outputbuf.enqueue_msgbytes(msg.rawbytes())
@@ -562,7 +425,7 @@ class Connection(object):
     # Enqueues the raw bytes of a message, msg_bytes, to our outputbuf and attempts to send it if the underlying socket
     #   has room in the send buffer.
     def enqueue_msg_bytes(self, msg_bytes):
-        if self.state & Connection.MARK_FOR_CLOSE:
+        if self.state & ConnectionState.MARK_FOR_CLOSE:
             return
 
         self.outputbuf.enqueue_msgbytes(msg_bytes)
@@ -595,11 +458,11 @@ class Connection(object):
                 elif e.errno in [errno.EACCES, errno.ECONNRESET, errno.EPIPE, errno.EHOSTUNREACH]:
                     # Fatal errors for the connection
                     log_debug("Got {0}, send to {1} failed, closing connection.".format(e.strerror, self.peer_desc))
-                    self.state |= Connection.MARK_FOR_CLOSE
+                    self.state |= ConnectionState.MARK_FOR_CLOSE
                     return 0
                 elif e.errno in [errno.ECONNRESET, errno.ETIMEDOUT, errno.EBADF]:
                     # Perform orderly shutdown
-                    self.state = Connection.MARK_FOR_CLOSE
+                    self.state = ConnectionState.MARK_FOR_CLOSE
                     return 0
                 elif e.errno in [errno.EDESTADDRREQ, errno.EFAULT, errno.EINVAL,
                                  errno.EISCONN, errno.EMSGSIZE, errno.ENOTCONN, errno.ENOTSOCK]:
@@ -622,7 +485,7 @@ class Connection(object):
 
     # Send some bytes to the peer of this connection from the next cut through message or from the outputbuffer.
     def send(self):
-        if self.state & Connection.MARK_FOR_CLOSE:
+        if self.state & ConnectionState.MARK_FOR_CLOSE:
             return
 
         byteswritten = self.send_bytes_on_buffer(self.outputbuf)
@@ -642,8 +505,8 @@ class Connection(object):
 
 
 class ServerConnection(Connection):
-    def __init__(self, sock, address, node, setup=False):
-        Connection.__init__(self, sock, address, node, setup)
+    def __init__(self, sock, address, node, from_me=False, setup=False):
+        Connection.__init__(self, sock, address, node, setup=setup)
         self.is_server = True
         self.is_persistent = True
 
@@ -672,11 +535,11 @@ class ServerConnection(Connection):
     # Handle a Hello Message
     def msg_hello(self, msg):
         self.enqueue_msg(AckMessage())
-        self.state |= Connection.HELLO_RECVD
+        self.state |= ConnectionState.HELLO_RECVD
 
     # Handle an Ack Message
     def msg_ack(self, msg):
-        self.state |= Connection.HELLO_ACKD
+        self.state |= ConnectionState.HELLO_ACKD
 
     # Handle a broadcast message
     def msg_broadcast(self, msg):
@@ -801,8 +664,8 @@ class BTCNodeConnection(Connection):
 
     NONCE = random.randint(0, sys.maxint)  # Used to detect connections to self.
 
-    def __init__(self, sock, address, node, setup=False):
-        Connection.__init__(self, sock, address, node, setup)
+    def __init__(self, sock, address, node, setup=False, from_me=False):
+        Connection.__init__(self, sock, address, node, setup=setup)
 
         self.is_persistent = True
         magic_net = node.node_params['magic']
@@ -855,11 +718,11 @@ class BTCNodeConnection(Connection):
     # We are the node that initiated this connection, so we do not check for misbehavior.
     # Record that we received the version message, send a verack and synchronize chains if need be.
     def msg_version(self, msg):
-        self.state |= BTCNodeConnection.ESTABLISHED
+        self.state |= ConnectionState.ESTABLISHED
         reply = VerAckBTCMessage(self.magic)
         self.enqueue_msg(reply)
 
-        if self.state & BTCNodeConnection.ESTABLISHED == BTCNodeConnection.ESTABLISHED:
+        if self.state & ConnectionState.ESTABLISHED == ConnectionState.ESTABLISHED:
             for msg in self.node.node_msg_queue:
                 self.enqueue_msg(msg)
 
