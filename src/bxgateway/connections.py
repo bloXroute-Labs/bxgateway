@@ -27,14 +27,6 @@ class Client(AbstractClient):
 
         log_verbose("initialized node state")
 
-    # Create a ServerConnection object from this Node to (ip, port)
-    def create_server_conn(self, ip, port):
-        ip = socket.gethostbyname(ip)
-        log_debug("Connecting to " + ip + ":" + str(port))
-
-        # init_client_socket will do all of the work given the ip address.
-        self.init_client_socket(ServerConnection, ip, port, setup=True)
-
     # Create a NodeConnection object from this Node to (ip, port)
     def create_node_conn(self, ip, port):
         ip = socket.gethostbyname(ip)
@@ -42,29 +34,6 @@ class Client(AbstractClient):
 
         # init_client_socket will do all of the work given the ip address.
         self.init_client_socket(BTCNodeConnection, ip, port, setup=True)
-
-
-
-    def get_connection_class(self, ip=None):
-        return BTCNodeConnection if self.node_addr[0] == ip else ServerConnection
-
-    # Cleans up system resources used by this node.
-    def cleanup_node(self):
-        log_err("Node is closing! Closing everything.")
-
-        # Clean up server sockets.
-        self.epoll.unregister(self.serversocket.fileno())
-        self.serversocket.close()
-
-        # Clean up client sockets.
-        for conn in self.connection_pool:
-            self.destroy_conn(conn.fileno, teardown=True)
-
-        self.epoll.close()
-
-    # Kills the node immediately
-    def kill_node(self, _signum, _stack):
-        raise TerminationError("Node killed.")
 
     # Broadcasts message msg to every connection except requester.
     def broadcast(self, msg, sender):
@@ -83,37 +52,23 @@ class Client(AbstractClient):
             log_debug("Adding things to node's message queue")
             self.node_msg_queue.append(msg)
 
-    # Clean up the associated connection and update all data structures tracking it.
-    # We also retry trusted connections since they can never be destroyed.
-    # If teardown is True, then we do not retry trusted connections and just tear everything down.
-    def destroy_conn(self, fileno, teardown=False):
-        conn = self.connection_pool.get_byfileno(fileno)
-        log_debug("Breaking connection to {0}".format(conn.peer_desc))
-
-        # Get rid of the connection from the epoll and the connection pool.
-        self.epoll.unregister(fileno)
-        self.connection_pool.delete(conn)
-
-        conn.close()
-
-        # retry_relay is true if either the connection is not a relay node
-        # or is a relay node, but we are a lower ranked node.
-
+    def can_retry_after_desroy(self, teardown, conn):
         # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
-        if not teardown and conn.is_server:
-            log_debug("Retrying connection to {0}".format(conn.peer_desc))
-            self.alarm_queue.register_alarm(FAST_RETRY, self.retry_init_client_socket, None, conn.__class__,
-                                            conn.peer_ip, conn.peer_port, True)
+        return not teardown and conn.is_server
+
+    def get_connection_class(self, ip=None):
+        if ip is None:
+            return ServerConnection
+        else:
+            return BTCNodeConnection if self.node_addr[0] == ip else ServerConnection
 
     def connect_to_peers(self):
         for idx in self.servers:
             ip, port = self.servers[idx]
             log_debug("connecting to relay node {0}:{1}".format(ip, port))
-            self.create_server_conn(ip, port)
+            self.create_conn(ip, port)
 
         self.create_node_conn(self.node_addr[0], self.node_addr[1])
-
-
 
 
 class Connection(AbstractConnection):
