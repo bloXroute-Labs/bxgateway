@@ -43,28 +43,10 @@ class Client(AbstractClient):
         # init_client_socket will do all of the work given the ip address.
         self.init_client_socket(BTCNodeConnection, ip, port, setup=True)
 
-    # Handles incoming connections on the server socket
-    # Only allows MAX_CONN_BY_IP connections from each IP address to be initialized.
-    def handle_serversocket_connections(self):
-        log_verbose("new connection establishment starting")
-        try:
-            while True:
-                new_socket, address = self.serversocket.accept()
-                log_debug("new connection from {0}".format(address))
-                ip = address[0]
 
-                # If we have too many connections, then we close this new socket and move on.
-                if self.connection_pool.get_num_conn_by_ip(ip) >= MAX_CONN_BY_IP:
-                    log_err("The IP {0} has too many connections! Closing...".format(ip))
-                    new_socket.close()
-                else:
-                    log_debug("Establishing connection number {0} from {1}"
-                              .format(self.connection_pool.get_num_conn_by_ip(ip), ip))
-                    conn_cls = BTCNodeConnection if self.node_addr[0] == ip else ServerConnection
-                    self.init_client_socket(conn_cls, address[0], address[1], new_socket, setup=False)
 
-        except socket.error:
-            pass
+    def get_connection_class(self, ip=None):
+        return BTCNodeConnection if self.node_addr[0] == ip else ServerConnection
 
     # Cleans up system resources used by this node.
     def cleanup_node(self):
@@ -123,11 +105,7 @@ class Client(AbstractClient):
             self.alarm_queue.register_alarm(FAST_RETRY, self.retry_init_client_socket, None, conn.__class__,
                                             conn.peer_ip, conn.peer_port, True)
 
-    # Main loop of this Node. Returns when Node crashes or is stopped.
-    # Connects to the relay_nodes
-    # Handles events as they get triggered by epoll.
-    # Fires alarms that get scheduled.
-    def run(self):
+    def connect_to_peers(self):
         for idx in self.servers:
             ip, port = self.servers[idx]
             log_debug("connecting to relay node {0}:{1}".format(ip, port))
@@ -135,66 +113,7 @@ class Client(AbstractClient):
 
         self.create_node_conn(self.node_addr[0], self.node_addr[1])
 
-        try:
-            _, timeout = self.alarm_queue.time_to_next_alarm()
-            while True:
-                # Grab all events.
-                try:
-                    events = self.epoll.poll(timeout)
-                except IOError as ioe:
-                    if ioe.errno == errno.EINTR:
-                        log_verbose("got interrupted in epoll")
-                        continue
-                    raise ioe
 
-                for fileno, event in events:
-                    conn = self.connection_pool.get_byfileno(fileno)
-
-                    if conn is not None:
-                        # Mark this connection for close if we received a POLLHUP. No other functions will be called
-                        #   on this connection.
-                        if event & select.EPOLLHUP:
-                            conn.state |= ConnectionState.MARK_FOR_CLOSE
-
-                        if event & select.EPOLLOUT and not conn.state & ConnectionState.MARK_FOR_CLOSE:
-                            # If connect received EINPROGRESS, we will receive an EPOLLOUT if connect succeeded
-                            if not conn.state & ConnectionState.INITIALIZED:
-                                conn.state = conn.state | ConnectionState.INITIALIZED
-
-                            # Mark the connection as sendable and send as much as we can from the outputbuffer.
-                            conn.mark_sendable()
-                            conn.send()
-
-                    # handle incoming connection on the server port
-                    elif fileno == self.serversocketfd:
-                        self.handle_serversocket_connections()
-
-                    else:
-                        assert False, "Connection not handled!"
-
-                # Handle EPOLLIN events.
-                for fileno, event in events:
-                    # we already handled the new connections above, no need to handle them again
-                    if fileno != self.serversocketfd:
-                        conn = self.connection_pool.get_byfileno(fileno)
-
-                        if event & select.EPOLLIN and not conn.state & ConnectionState.MARK_FOR_CLOSE:
-                            # log_debug("Node.run", "recv event on {0}".format(conn.peer_desc))
-                            conn.recv()
-
-                        # Done processing. Close socket if it got put on the blacklist or was marked for close.
-                        if conn.state & ConnectionState.MARK_FOR_CLOSE:
-                            log_debug("Connection to {0} closing".format(conn.peer_desc))
-                            self.destroy_conn(fileno)
-                            if conn.is_persistent:
-                                self.alarm_queue.register_alarm(RETRY_INTERVAL, self.retry_init_client_socket, None,
-                                                                conn.__class__, conn.peer_ip, conn.peer_port, True)
-
-                timeout = self.alarm_queue.fire_ready_alarms(not events)
-
-        # Handle shutdown of this node.
-        finally:
-            self.cleanup_node()
 
 
 class Connection(AbstractConnection):
@@ -212,8 +131,6 @@ class Connection(AbstractConnection):
     # Stub for subclass to implement
     def pop_next_message(self, payload_len):
         pass
-
-
 
     # Pop the next message off of the buffer given the message length.
     # Preserve invariant of self.inputbuf always containing the start of a valid message.
@@ -308,8 +225,6 @@ class Connection(AbstractConnection):
         if self.sendable:
             self.send()
 
-
-
     # Send some bytes to the peer of this connection from the next cut through message or from the outputbuffer.
     def send(self):
         if self.state & ConnectionState.MARK_FOR_CLOSE:
@@ -358,8 +273,6 @@ class ServerConnection(Connection):
     ###
     # Handlers for each message type
     ###
-
-
 
     # Handle a broadcast message
     def msg_broadcast(self, msg):
@@ -577,6 +490,3 @@ class BTCNodeConnection(Connection):
         log_debug("Compressed block with hash {0} to size {1} from size {2}"
                   .format(msg.block_hash(), len(blx_blockmsg.rawbytes()), len(msg.rawbytes())))
         self.node.broadcast(blx_blockmsg, self)
-
-
-
