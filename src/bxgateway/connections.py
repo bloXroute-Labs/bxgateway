@@ -83,28 +83,6 @@ class Connection(AbstractConnection):
         # Command to message handler for that function.
         self.message_handlers = None
 
-    # Stub for subclass to implement
-    def pop_next_message(self, payload_len):
-        pass
-
-    # Pop the next message off of the buffer given the message length.
-    # Preserve invariant of self.inputbuf always containing the start of a valid message.
-    def _pop_next_message(self, payload_len, msg_type, hdr_size):
-        try:
-            msg_len = hdr_size + payload_len
-            msg_contents = self.inputbuf.remove_bytes(msg_len)
-            return msg_type.parse(msg_contents)
-        except UnrecognizedCommandError as e:
-            log_err("Unrecognized command on {0}. Error Message: {1}".format(self.peer_desc, e.msg))
-            log_debug("Src: {0} Raw data: {1}".format(self.peer_desc, e.raw_data))
-            return None
-
-        except PayloadLenError as e:
-            log_err("ParseError on connection {0}.".format(self.peer_desc))
-            log_debug("ParseError message: {0}".format(e.msg))
-            self.state |= ConnectionState.MARK_FOR_CLOSE  # Close, no retry.
-            return None
-
     # Receives and processes the next bytes on the socket's inputbuffer.
     # Returns 0 in order to avoid being rescheduled if this was an alarm.
     def _recv(self, msg_cls, hello_msgs):
@@ -218,9 +196,6 @@ class ServerConnection(Connection):
             'txassign': self.msg_txassign,
             'tx': self.msg_tx
         }
-
-    def pop_next_message(self, payload_len):
-        return Connection._pop_next_message(self, payload_len, Message, HDR_COMMON_OFF)
 
     def recv(self):
         return Connection._recv(self, Message, ['hello', 'ack'])
@@ -383,8 +358,8 @@ class BTCNodeConnection(Connection):
             'inv': self.msg_inv,
         }
 
-    def pop_next_message(self, payload_len):
-        return Connection._pop_next_message(self, payload_len, BTCMessage, BCH_HDR_COMMON_OFF)
+    def pop_next_message(self, payload_len, msg_type=Message, hdr_size=HDR_COMMON_OFF):
+        return super(BTCNodeConnection, self).pop_next_message(payload_len, BTCMessage, BCH_HDR_COMMON_OFF)
 
     def recv(self):
         return Connection._recv(self, BTCMessage, ['version', 'verack'])
