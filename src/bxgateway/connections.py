@@ -30,7 +30,6 @@ class Client(AbstractClient):
         ip = socket.gethostbyname(ip)
         log_debug("Connecting to " + ip + ":" + str(port))
 
-        # init_client_socket will do all of the work given the ip address.
         self.init_client_socket(BTCNodeConnection, ip, port, setup=True)
 
     # Broadcasts message msg to every connection except requester.
@@ -145,8 +144,6 @@ class ServerConnection(Connection):
         if self.node.node_conn is not None:
             txmsg = BTCMessage(self.node.node_conn.magic, 'tx', len(msg.blob()), buf)
             self.node.send_bytes_to_node(txmsg.rawbytes())
-
-
 
 
 # XXX: flesh out this class a bit more to handle transactions as well.
