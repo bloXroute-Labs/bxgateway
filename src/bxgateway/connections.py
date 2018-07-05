@@ -71,7 +71,6 @@ class Client(AbstractClient):
 
 class Connection(AbstractConnection):
     def __init__(self, sock, address, node, from_me=False, setup=False):
-
         super(Connection, self).__init__(sock, address, node, from_me, setup)
 
         log_debug("initialized connection to {0}".format(self.peer_desc))
@@ -81,38 +80,6 @@ class Connection(AbstractConnection):
         # Command to message handler for that function.
         self.message_handlers = None
 
-
-
-    #################
-    # Sending Logic #
-    #################
-
-    # Enqueues the contents of a Message instance, msg, to our outputbuf and attempts to send it if the underlying
-    #   socket has room in the send buffer.
-    def enqueue_msg(self, msg):
-        if self.state & ConnectionState.MARK_FOR_CLOSE:
-            return
-
-        self.outputbuf.enqueue_msgbytes(msg.rawbytes())
-
-        if self.sendable:
-            self.send()
-
-    # Enqueues the raw bytes of a message, msg_bytes, to our outputbuf and attempts to send it if the underlying socket
-    #   has room in the send buffer.
-    def enqueue_msg_bytes(self, msg_bytes):
-        if self.state & ConnectionState.MARK_FOR_CLOSE:
-            return
-
-        size = len(msg_bytes)
-
-        log_debug("Adding message of length {0} to {1}'s outputbuf".format(size, self.peer_desc))
-
-        self.outputbuf.enqueue_msgbytes(msg_bytes)
-
-        if self.sendable:
-            self.send()
-
     # Send some bytes to the peer of this connection from the next cut through message or from the outputbuffer.
     def send(self):
         if self.state & ConnectionState.MARK_FOR_CLOSE:
@@ -120,10 +87,6 @@ class Connection(AbstractConnection):
 
         byteswritten = self.send_bytes_on_buffer(self.outputbuf)
         log_debug("{0} bytes sent to {1}. {2} bytes left.".format(byteswritten, self.peer_desc, self.outputbuf.length))
-
-    def close(self):
-        log_debug("Closing connection to {0}".format(self.peer_desc))
-        self.sock.close()
 
     # Dumps state using log_debug
     def dump_state(self):
@@ -183,12 +146,7 @@ class ServerConnection(Connection):
             txmsg = BTCMessage(self.node.node_conn.magic, 'tx', len(msg.blob()), buf)
             self.node.send_bytes_to_node(txmsg.rawbytes())
 
-    # Receive a transaction assignment from txhash -> shortid
-    def msg_txassign(self, msg):
-        log_debug("Processing txassign message")
-        if self.node.tx_manager.get_txid(msg.tx_hash()) == -1:
-            log_debug("Assigning {0} to sid {1}".format(msg.tx_hash(), msg.short_id()))
-            self.node.tx_manager.assign_tx_to_sid(msg.tx_hash(), msg.short_id(), time.time())
+
 
 
 # XXX: flesh out this class a bit more to handle transactions as well.
