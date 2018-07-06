@@ -7,7 +7,7 @@ from bxcommon.btc_messages import *
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.constants import sha256
+from bxcommon.constants import sha256, HASH_LEN
 from bxcommon.messages import *
 from bxcommon.utils import *
 
