@@ -72,7 +72,7 @@ if __name__ == '__main__':
     node_port = int(tokens[1])
     node_addr = (node_ip, node_port)
 
-    node = Client(ip, port, relay_nodes, node_addr, node_params)
+    node = GatewayNode(ip, port, relay_nodes, node_addr, node_params)
 
     # Start main loop
     try:

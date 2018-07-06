@@ -10,9 +10,9 @@ from bxcommon.utils import *
 
 
 # A bloXroute client
-class Client(AbstractClient):
+class GatewayNode(AbstractNode):
     def __init__(self, server_ip, server_port, servers, node_addr, node_params):
-        super(Client, self).__init__(server_ip, server_port)
+        super(GatewayNode, self).__init__(server_ip, server_port)
 
         self.servers = servers  # A list of (ip, port) pairs of other bloXroute servers
         self.idx = 0
@@ -25,7 +25,7 @@ class Client(AbstractClient):
 
         log_verbose("initialized node state")
 
-    def can_retry_after_desroy(self, teardown, conn):
+    def can_retry_after_destroy(self, teardown, conn):
         # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
         return not teardown and conn.is_server
 
