@@ -16,38 +16,26 @@ class GatewayNode(AbstractNode):
 
         self.servers = servers  # A list of (ip, port) pairs of other bloXroute servers
         self.idx = 0
-
         self.node_addr = node_addr  # The address of the blockchain node this client is connected to
         self.node_params = node_params
         self.node_conn = None  # Connection object for the blockchain node
-
         self.node_msg_queue = deque()
-
-        log_verbose("initialized node state")
 
     def can_retry_after_destroy(self, teardown, conn):
         # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
         return not teardown and conn.is_server
 
     def get_connection_class(self, ip=None):
-        return BTCNodeConnection if self.node_addr[0] == ip else ServerConnection
+        return BCHNodeConnection if self.node_addr[0] == ip else RelayConnection
 
     def connect_to_peers(self):
         for idx in self.servers:
             ip, port = self.servers[idx]
             log_debug("connecting to relay node {0}:{1}".format(ip, port))
-            self.connect_to_address(ServerConnection, socket.gethostbyname(ip), port, setup=True)
+            self.connect_to_address(RelayConnection, socket.gethostbyname(ip), port, setup=True)
 
-        self.connect_to_address(BTCNodeConnection, socket.gethostbyname(self.node_addr[0]), self.node_addr[1],
+        self.connect_to_address(BCHNodeConnection, socket.gethostbyname(self.node_addr[0]), self.node_addr[1],
                                 setup=True)
-
-    # Broadcasts message msg to every connection except requester.
-    def broadcast(self, msg, sender):
-        log_debug("Broadcasting message from sender {0}".format(sender))
-
-        for conn in self.connection_pool:
-            if conn.state & ConnectionState.ESTABLISHED and conn != sender:
-                conn.enqueue_msg(msg)
 
     # Sends a message to the node that this is connected to
     def send_bytes_to_node(self, msg):
@@ -59,9 +47,9 @@ class GatewayNode(AbstractNode):
             self.node_msg_queue.append(msg)
 
 
-class Connection(AbstractConnection):
+class GatewayConnection(AbstractConnection):
     def __init__(self, sock, address, node, from_me=False, setup=False):
-        super(Connection, self).__init__(sock, address, node, from_me, setup)
+        super(GatewayConnection, self).__init__(sock, address, node, from_me, setup)
 
         log_debug("initialized connection to {0}".format(self.peer_desc))
 
@@ -87,9 +75,10 @@ class Connection(AbstractConnection):
         log_debug("Outputbuf size: {0}".format(self.outputbuf.length))
 
 
-class ServerConnection(Connection):
+class RelayConnection(GatewayConnection):
     def __init__(self, sock, address, node, from_me=False, setup=False):
-        Connection.__init__(self, sock, address, node, setup=setup)
+        super(RelayConnection, self).__init__(sock, address, node, setup=setup)
+
         self.is_server = True
         self.is_persistent = True
 
@@ -218,15 +207,14 @@ class BCHMessageParsing(object):
         return blx_block
 
 
-# XXX: change BTC to BCH...
 # Connection from a bloXroute client to a BCH blockchain node
-class BTCNodeConnection(Connection):
+class BCHNodeConnection(GatewayConnection):
     ESTABLISHED = 0b1
 
     NONCE = random.randint(0, sys.maxint)  # Used to detect connections to self.
 
-    def __init__(self, sock, address, node, setup=False, from_me=False):
-        Connection.__init__(self, sock, address, node, setup=setup)
+    def __init__(self, sock, address, node, from_me=False, setup=False):
+        super(BCHNodeConnection, self).__init__(sock, address, node, setup=setup)
 
         self.is_persistent = True
         magic_net = node.node_params['magic']
@@ -257,10 +245,10 @@ class BTCNodeConnection(Connection):
         }
 
     def pop_next_message(self, payload_len, msg_type=Message, hdr_size=HDR_COMMON_OFF):
-        return super(BTCNodeConnection, self).pop_next_message(payload_len, BTCMessage, BCH_HDR_COMMON_OFF)
+        return super(BCHNodeConnection, self).pop_next_message(payload_len, BTCMessage, BCH_HDR_COMMON_OFF)
 
-    def recv(self):
-        return super(BTCNodeConnection, self).recv(BTCMessage, ['version', 'verack'])
+    def recv(self, msg_cls=Message, hello_msgs=['hello', 'ack']):
+        return super(BCHNodeConnection, self).recv(BTCMessage, ['version', 'verack'])
 
     ###
     # Handlers for each message type
