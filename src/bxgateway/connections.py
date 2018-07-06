@@ -25,12 +25,21 @@ class Client(AbstractClient):
 
         log_verbose("initialized node state")
 
-    # Create a NodeConnection object from this Node to (ip, port)
-    def create_node_conn(self, ip, port):
-        ip = socket.gethostbyname(ip)
-        log_debug("Connecting to " + ip + ":" + str(port))
+    def can_retry_after_desroy(self, teardown, conn):
+        # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
+        return not teardown and conn.is_server
 
-        self.init_client_socket(BTCNodeConnection, ip, port, setup=True)
+    def get_connection_class(self, ip=None):
+        return BTCNodeConnection if self.node_addr[0] == ip else ServerConnection
+
+    def connect_to_peers(self):
+        for idx in self.servers:
+            ip, port = self.servers[idx]
+            log_debug("connecting to relay node {0}:{1}".format(ip, port))
+            self.connect_to_address(ServerConnection, socket.gethostbyname(ip), port, setup=True)
+
+        self.connect_to_address(BTCNodeConnection, socket.gethostbyname(self.node_addr[0]), self.node_addr[1],
+                                setup=True)
 
     # Broadcasts message msg to every connection except requester.
     def broadcast(self, msg, sender):
@@ -48,24 +57,6 @@ class Client(AbstractClient):
         else:
             log_debug("Adding things to node's message queue")
             self.node_msg_queue.append(msg)
-
-    def can_retry_after_desroy(self, teardown, conn):
-        # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
-        return not teardown and conn.is_server
-
-    def get_connection_class(self, ip=None):
-        if ip is None:
-            return ServerConnection
-        else:
-            return BTCNodeConnection if self.node_addr[0] == ip else ServerConnection
-
-    def connect_to_peers(self):
-        for idx in self.servers:
-            ip, port = self.servers[idx]
-            log_debug("connecting to relay node {0}:{1}".format(ip, port))
-            self.create_conn(ip, port)
-
-        self.create_node_conn(self.node_addr[0], self.node_addr[1])
 
 
 class Connection(AbstractConnection):
