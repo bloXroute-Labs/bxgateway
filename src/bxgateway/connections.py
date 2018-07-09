@@ -7,12 +7,14 @@ from bxcommon.btc_messages import *
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.constants import sha256, HASH_LEN
+from bxcommon.constants import HASH_LEN
 from bxcommon.messages import *
 from bxcommon.utils import *
+from messages.bch_message_parser import broadcastmsg_to_block, block_to_broadcastmsg
+
+sha256 = hashlib.sha256
 
 
-# A bloXroute client
 class GatewayNode(AbstractNode):
     def __init__(self, server_ip, server_port, servers, node_addr, node_params):
         super(GatewayNode, self).__init__(server_ip, server_port)
@@ -103,7 +105,7 @@ class RelayConnection(GatewayConnection):
 
     # Handle a broadcast message
     def msg_broadcast(self, msg):
-        blx_block = BCHMessageParsing.broadcastmsg_to_block(msg, self.node.tx_manager)
+        blx_block = broadcastmsg_to_block(msg, self.node.tx_manager)
         if blx_block is not None:
             log_debug("Decoded block successfully- sending block to node")
             self.node.send_bytes_to_node(blx_block)
@@ -131,83 +133,6 @@ class RelayConnection(GatewayConnection):
 
 # XXX: flesh out this class a bit more to handle transactions as well.
 # Utils for message parsing for Bitcoin utils
-class BCHMessageParsing(object):
-    # Convert a block message to a broadcast message
-    @staticmethod
-    def block_to_broadcastmsg(msg, tx_manager):
-        # Do the block compression
-        size = 0
-        buf = deque()
-        header = msg.header()
-        size += len(header)
-        buf.append(header)
-
-        for tx in msg.txns():
-            tx_hash = BTCObjectHash(buf=sha256(sha256(tx).digest()).digest(), length=HASH_LEN)
-            shortid = tx_manager.get_txid(tx_hash)
-            if shortid == -1:
-                buf.append(tx)
-                size += len(tx)
-            else:
-                next_tx = bytearray(5)
-                log_debug("XXX: Packing transaction with shortid {0} into block".format(shortid))
-                struct.pack_into('<I', next_tx, 1, shortid)
-                buf.append(next_tx)
-                size += 5
-
-        # Parse it into the bloXroute message format and send it along
-        block = bytearray(size)
-        off = 0
-        for blob in buf:
-            next_off = off + len(blob)
-            block[off:next_off] = blob
-            off = next_off
-
-        return BroadcastMessage(msg.block_hash(), block)
-
-    # Convert a block message to a broadcast message
-    @staticmethod
-    def broadcastmsg_to_block(msg, tx_manager):
-        # XXX: make this not a copy
-        blob = bytearray(msg.blob())
-
-        size = 0
-        pieces = deque()
-
-        # get header size
-        headersize = 80 + BCH_HDR_COMMON_OFF
-        _, txn_count_size = btcvarint_to_int(blob, headersize)
-        headersize += txn_count_size
-
-        header = blob[:headersize]
-        pieces.append(header)
-        size += headersize
-
-        off = size
-        while off < len(blob):
-            if blob[off] == 0x00:
-                sid, = struct.unpack_from('<I', blob, off + 1)
-                tx = tx_manager.get_tx_from_sid(sid)
-                if tx is None:
-                    log_err("XXX: Failed to decode transaction with short id {0} received from bloXroute".format(sid))
-                    return None
-                off += 5
-            else:
-                txsize = get_next_tx_size(blob, off)
-                tx = blob[off:off + txsize]
-                off += txsize
-
-            pieces.append(tx)
-            size += len(tx)
-
-        blx_block = bytearray(size)
-        off = 0
-        for piece in pieces:
-            next_off = off + len(piece)
-            blx_block[off:next_off] = piece
-            off = next_off
-
-        return blx_block
 
 
 # Connection from a bloXroute client to a BCH blockchain node
@@ -305,7 +230,7 @@ class BCHNodeConnection(GatewayConnection):
 
     # Handle a block message.
     def msg_block(self, msg):
-        blx_blockmsg = BCHMessageParsing.block_to_broadcastmsg(msg, self.node.tx_manager)
+        blx_blockmsg = block_to_broadcastmsg(msg, self.node.tx_manager)
         log_debug("Compressed block with hash {0} to size {1} from size {2}"
                   .format(msg.block_hash(), len(blx_blockmsg.rawbytes()), len(msg.rawbytes())))
         self.node.broadcast(blx_blockmsg, self)
