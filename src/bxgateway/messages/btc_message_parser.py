@@ -2,7 +2,7 @@ import hashlib
 import struct
 from collections import deque
 
-from bxcommon.btc_messages import HASH_LEN, BCH_HDR_COMMON_OFF, btcvarint_to_int, \
+from bxcommon.btc_messages import HASH_LEN, BTC_HDR_COMMON_OFF, btcvarint_to_int, \
     get_next_tx_size
 from bxcommon.messages import BroadcastMessage
 from bxcommon.util.object_hash import BTCObjectHash
@@ -53,7 +53,7 @@ def broadcastmsg_to_block(msg, tx_manager):
     pieces = deque()
 
     # get header size
-    headersize = 80 + BCH_HDR_COMMON_OFF
+    headersize = 80 + BTC_HDR_COMMON_OFF
     _, txn_count_size = btcvarint_to_int(blob, headersize)
     headersize += txn_count_size
 

@@ -10,7 +10,7 @@ from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import HASH_LEN
 from bxcommon.messages import *
 from bxcommon.utils import *
-from messages.bch_message_parser import broadcastmsg_to_block, block_to_broadcastmsg
+from messages.btc_message_parser import broadcastmsg_to_block, block_to_broadcastmsg
 
 sha256 = hashlib.sha256
 
@@ -31,7 +31,7 @@ class GatewayNode(AbstractNode):
         return not teardown and conn.is_server
 
     def get_connection_class(self, ip=None):
-        return BCHNodeConnection if self.node_addr[0] == ip else RelayConnection
+        return BTCNodeConnection if self.node_addr[0] == ip else RelayConnection
 
     def connect_to_peers(self):
         for idx in self.servers:
@@ -39,7 +39,7 @@ class GatewayNode(AbstractNode):
             log_debug("connecting to relay node {0}:{1}".format(ip, port))
             self.connect_to_address(RelayConnection, socket.gethostbyname(ip), port, setup=True)
 
-        self.connect_to_address(BCHNodeConnection, socket.gethostbyname(self.node_addr[0]), self.node_addr[1],
+        self.connect_to_address(BTCNodeConnection, socket.gethostbyname(self.node_addr[0]), self.node_addr[1],
                                 setup=True)
 
     # Sends a message to the node that this is connected to
@@ -125,7 +125,7 @@ class RelayConnection(GatewayConnection):
         # XXX: making a copy here- should make this more efficient
         # XXX: maybe by sending the full tx message in a block...
         # XXX: this should eventually be moved into the parser.
-        buf = bytearray(BCH_HDR_COMMON_OFF) + msg.blob()
+        buf = bytearray(BTC_HDR_COMMON_OFF) + msg.blob()
         if self.node.node_conn is not None:
             txmsg = BTCMessage(self.node.node_conn.magic, 'tx', len(msg.blob()), buf)
             self.node.send_bytes_to_node(txmsg.rawbytes())
@@ -135,14 +135,14 @@ class RelayConnection(GatewayConnection):
 # Utils for message parsing for Bitcoin utils
 
 
-# Connection from a bloXroute client to a BCH blockchain node
-class BCHNodeConnection(GatewayConnection):
+# Connection from a bloXroute client to a BTC blockchain node
+class BTCNodeConnection(GatewayConnection):
     ESTABLISHED = 0b1
 
     NONCE = random.randint(0, sys.maxint)  # Used to detect connections to self.
 
     def __init__(self, sock, address, node, from_me=False, setup=False):
-        super(BCHNodeConnection, self).__init__(sock, address, node, setup=setup)
+        super(BTCNodeConnection, self).__init__(sock, address, node, setup=setup)
 
         self.is_persistent = True
         magic_net = node.node_params['magic']
@@ -173,10 +173,10 @@ class BCHNodeConnection(GatewayConnection):
         }
 
     def pop_next_message(self, payload_len, msg_type=Message, hdr_size=HDR_COMMON_OFF):
-        return super(BCHNodeConnection, self).pop_next_message(payload_len, BTCMessage, BCH_HDR_COMMON_OFF)
+        return super(BTCNodeConnection, self).pop_next_message(payload_len, BTCMessage, BTC_HDR_COMMON_OFF)
 
     def recv(self, msg_cls=Message, hello_msgs=['hello', 'ack']):
-        return super(BCHNodeConnection, self).recv(BTCMessage, ['version', 'verack'])
+        return super(BTCNodeConnection, self).recv(BTCMessage, ['version', 'verack'])
 
     ###
     # Handlers for each message type
