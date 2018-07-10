@@ -7,10 +7,9 @@
 import socket
 
 from bxcommon.utils import config, logger
-
-# Extra parameters for gateway that are parsed from the config file.
 from bxgateway.connections.gateway_node import GatewayNode
 
+# Extra parameters for gateway that are parsed from the config file.
 GATEWAY_PARAMS = [
     'node_params',
     'node_addr'

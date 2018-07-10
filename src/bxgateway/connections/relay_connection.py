@@ -30,10 +30,6 @@ class RelayConnection(GatewayConnection):
             'tx': self.msg_tx
         }
 
-    ###
-    # Handlers for each message type
-    ###
-
     # Handle a broadcast message
     def msg_broadcast(self, msg):
         blx_block = broadcastmsg_to_block(msg, self.node.tx_manager)

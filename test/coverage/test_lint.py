@@ -1,5 +1,6 @@
 import unittest
 
+from bxcommon.constants import MIN_PYLINT_SCORE
 from bxcommon.test_utils.pylint_reporter import *
 
 
