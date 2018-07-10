@@ -6,7 +6,7 @@ from bxcommon.btc_messages import HASH_LEN, BTC_HDR_COMMON_OFF, btcvarint_to_int
     get_next_tx_size
 from bxcommon.messages import BroadcastMessage
 from bxcommon.util.object_hash import BTCObjectHash
-from bxcommon.utils import log_debug, log_err
+from bxcommon.util.logger import log_debug, log_err
 
 sha256 = hashlib.sha256
 

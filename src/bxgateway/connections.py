@@ -2,6 +2,7 @@
 # Copyright (C) 2017, bloXroute Labs, All rights reserved.
 # See the file COPYING for details.
 #
+import sys
 
 from bxcommon.btc_messages import *
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -9,6 +10,7 @@ from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import HASH_LEN
 from bxcommon.messages import *
+from bxcommon.util.logger import log_err
 from bxcommon.utils import *
 from messages.btc_message_parser import broadcastmsg_to_block, block_to_broadcastmsg
 
