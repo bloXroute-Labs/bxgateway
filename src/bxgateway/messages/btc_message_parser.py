@@ -4,7 +4,7 @@ from collections import deque
 
 from bxcommon.btc_messages import HASH_LEN, BTC_HDR_COMMON_OFF, btcvarint_to_int, \
     get_next_tx_size
-from bxcommon.messages_new.broadcast_message import BroadcastMessage
+from bxcommon.messages.broadcast_message import BroadcastMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import BTCObjectHash
 

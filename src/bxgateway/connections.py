@@ -9,9 +9,9 @@ from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import HASH_LEN, HDR_COMMON_OFF
-from bxcommon.messages_new.hello_message import HelloMessage
-from bxcommon.messages_new.message import Message
-from bxcommon.messages_new.tx_message import TxMessage
+from bxcommon.messages.hello_message import HelloMessage
+from bxcommon.messages.message import Message
+from bxcommon.messages.tx_message import TxMessage
 from bxcommon.utils import logger
 from messages.btc_message_parser import broadcastmsg_to_block, block_to_broadcastmsg
 
