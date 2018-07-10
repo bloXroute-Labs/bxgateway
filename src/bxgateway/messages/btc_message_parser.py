@@ -2,8 +2,8 @@ import hashlib
 import struct
 from collections import deque
 
-from bxcommon.btc_messages import HASH_LEN, BTC_HDR_COMMON_OFF, btcvarint_to_int, \
-    get_next_tx_size
+from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
+from bxcommon.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
 from bxcommon.messages.broadcast_message import BroadcastMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import BTCObjectHash
@@ -21,7 +21,7 @@ def block_to_broadcastmsg(msg, tx_manager):
     buf.append(header)
 
     for tx in msg.txns():
-        tx_hash = BTCObjectHash(buf=sha256(sha256(tx).digest()).digest(), length=HASH_LEN)
+        tx_hash = BTCObjectHash(buf=sha256(sha256(tx).digest()).digest(), length=BTC_SHA_HASH_LEN)
         shortid = tx_manager.get_txid(tx_hash)
         if shortid == -1:
             buf.append(tx)

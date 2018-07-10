@@ -2,17 +2,27 @@
 # Copyright (C) 2017, bloXroute Labs, All rights reserved.
 # See the file COPYING for details.
 #
+import hashlib
+import random
+import socket
+import sys
 from collections import deque
 
-from bxcommon.btc_messages import *
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.constants import HASH_LEN, HDR_COMMON_OFF
+from bxcommon.constants import HDR_COMMON_OFF, btc_magic_numbers, BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
+from bxcommon.messages.btc.addr_btc_message import AddrBTCMessage
+from bxcommon.messages.btc.btc_message import BTCMessage
+from bxcommon.messages.btc.inventory_btc_message import GetDataBTCMessage
+from bxcommon.messages.btc.pong_btc_message import PongBTCMessage
+from bxcommon.messages.btc.ver_ack_btc_message import VerAckBTCMessage
+from bxcommon.messages.btc.version_btc_message import VersionBTCMessage
 from bxcommon.messages.hello_message import HelloMessage
 from bxcommon.messages.message import Message
 from bxcommon.messages.tx_message import TxMessage
 from bxcommon.utils import logger
+from bxcommon.utils.object_hash import BTCObjectHash
 from messages.btc_message_parser import broadcastmsg_to_block, block_to_broadcastmsg
 
 sha256 = hashlib.sha256
@@ -69,7 +79,8 @@ class GatewayConnection(AbstractConnection):
             return
 
         byteswritten = self.send_bytes_on_buffer(self.outputbuf)
-        logger.debug("{0} bytes sent to {1}. {2} bytes left.".format(byteswritten, self.peer_desc, self.outputbuf.length))
+        logger.debug(
+            "{0} bytes sent to {1}. {2} bytes left.".format(byteswritten, self.peer_desc, self.outputbuf.length))
 
     # Dumps state using debug
     def dump_state(self):
@@ -114,7 +125,7 @@ class RelayConnection(GatewayConnection):
 
     # Receive a transaction from the bloXroute network.
     def msg_tx(self, msg):
-        hash_val = BTCObjectHash(sha256(sha256(msg.blob()).digest()).digest(), length=HASH_LEN)
+        hash_val = BTCObjectHash(sha256(sha256(msg.blob()).digest()).digest(), length=BTC_SHA_HASH_LEN)
 
         if hash_val != msg.msg_hash():
             logger.error("Got ill formed tx message from the bloXroute network")
@@ -146,7 +157,7 @@ class BTCNodeConnection(GatewayConnection):
 
         self.is_persistent = True
         magic_net = node.node_params['magic']
-        self.magic = magic_dict[magic_net] if magic_net in magic_dict else int(magic_net)
+        self.magic = btc_magic_numbers[magic_net] if magic_net in btc_magic_numbers else int(magic_net)
         self.services = int(node.node_params['services'])
         self.version = node.node_params['version']
         self.protocol_version = int(node.node_params['protocol_version'])

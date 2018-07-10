@@ -4,6 +4,7 @@
 #
 # Startup script for nodes
 #
+import socket
 
 from bxcommon.utils import config
 from connections import *
