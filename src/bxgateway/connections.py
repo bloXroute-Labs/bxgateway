@@ -60,9 +60,6 @@ class GatewayConnection(AbstractConnection):
 
         self.is_server = False  # This isn't a server message
 
-        # Command to message handler for that function.
-        self.message_handlers = None
-
     # Send some bytes to the peer of this connection from the next cut through message or from the outputbuffer.
     def send(self):
         if self.state & ConnectionState.MARK_FOR_CLOSE:
