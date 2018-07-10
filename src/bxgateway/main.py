@@ -5,8 +5,8 @@
 # Startup script for nodes
 #
 
-from bxcommon.util import config
-from bxcommon.util.logger import log_close, log_crash
+from bxcommon.utils import config
+from bxcommon.utils.logger import log_close
 from connections import *
 
 # Extra parameters for gateway that are parsed from the config file.
@@ -77,9 +77,9 @@ if __name__ == '__main__':
 
     # Start main loop
     try:
-        log_debug("running node")
+        logger.debug("running node")
         node.run()
     finally:
-        log_crash("node run method returned")
-        log_crash("Log closed")
-        log_close()
+        logger.fatal("node run method returned")
+        logger.fatal("Log closed")
+        logger.log_close()

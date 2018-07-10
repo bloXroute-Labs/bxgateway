@@ -5,8 +5,8 @@ from collections import deque
 from bxcommon.btc_messages import HASH_LEN, BTC_HDR_COMMON_OFF, btcvarint_to_int, \
     get_next_tx_size
 from bxcommon.messages import BroadcastMessage
-from bxcommon.util.object_hash import BTCObjectHash
-from bxcommon.util.logger import log_debug, log_err
+from bxcommon.utils import logger
+from bxcommon.utils.object_hash import BTCObjectHash
 
 sha256 = hashlib.sha256
 
@@ -28,7 +28,7 @@ def block_to_broadcastmsg(msg, tx_manager):
             size += len(tx)
         else:
             next_tx = bytearray(5)
-            log_debug("XXX: Packing transaction with shortid {0} into block".format(shortid))
+            logger.debug("XXX: Packing transaction with shortid {0} into block".format(shortid))
             struct.pack_into('<I', next_tx, 1, shortid)
             buf.append(next_tx)
             size += 5
@@ -67,7 +67,8 @@ def broadcastmsg_to_block(msg, tx_manager):
             sid, = struct.unpack_from('<I', blob, off + 1)
             tx = tx_manager.get_tx_from_sid(sid)
             if tx is None:
-                log_err("XXX: Failed to decode transaction with short id {0} received from bloXroute".format(sid))
+                logger.error(
+                    "XXX: Failed to decode transaction with short id {0} received from bloXroute".format(sid))
                 return None
             off += 5
         else:

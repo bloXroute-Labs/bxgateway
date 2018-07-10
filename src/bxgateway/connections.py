@@ -3,6 +3,7 @@
 # See the file COPYING for details.
 #
 import sys
+from collections import deque
 
 from bxcommon.btc_messages import *
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -10,8 +11,7 @@ from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import HASH_LEN
 from bxcommon.messages import *
-from bxcommon.util.logger import log_err
-from bxcommon.utils import *
+from bxcommon.utils import logger
 from messages.btc_message_parser import broadcastmsg_to_block, block_to_broadcastmsg
 
 sha256 = hashlib.sha256
@@ -38,7 +38,7 @@ class GatewayNode(AbstractNode):
     def connect_to_peers(self):
         for idx in self.servers:
             ip, port = self.servers[idx]
-            log_debug("connecting to relay node {0}:{1}".format(ip, port))
+            logger.debug("connecting to relay node {0}:{1}".format(ip, port))
             self.connect_to_address(RelayConnection, socket.gethostbyname(ip), port, setup=True)
 
         self.connect_to_address(BTCNodeConnection, socket.gethostbyname(self.node_addr[0]), self.node_addr[1],
@@ -47,10 +47,10 @@ class GatewayNode(AbstractNode):
     # Sends a message to the node that this is connected to
     def send_bytes_to_node(self, msg):
         if self.node_conn is not None:
-            log_debug("Sending message to node: " + repr(msg))
+            logger.debug("Sending message to node: " + repr(msg))
             self.node_conn.enqueue_msg_bytes(msg)
         else:
-            log_debug("Adding things to node's message queue")
+            logger.debug("Adding things to node's message queue")
             self.node_msg_queue.append(msg)
 
 
@@ -58,7 +58,7 @@ class GatewayConnection(AbstractConnection):
     def __init__(self, sock, address, node, from_me=False, setup=False):
         super(GatewayConnection, self).__init__(sock, address, node, from_me, setup)
 
-        log_debug("initialized connection to {0}".format(self.peer_desc))
+        logger.debug("initialized connection to {0}".format(self.peer_desc))
 
         self.is_server = False  # This isn't a server message
 
@@ -68,15 +68,15 @@ class GatewayConnection(AbstractConnection):
             return
 
         byteswritten = self.send_bytes_on_buffer(self.outputbuf)
-        log_debug("{0} bytes sent to {1}. {2} bytes left.".format(byteswritten, self.peer_desc, self.outputbuf.length))
+        logger.debug("{0} bytes sent to {1}. {2} bytes left.".format(byteswritten, self.peer_desc, self.outputbuf.length))
 
-    # Dumps state using log_debug
+    # Dumps state using debug
     def dump_state(self):
-        log_debug("Connection {0} state dump".format(self.peer_desc))
-        log_debug("Connection state: {0}".format(self.state))
+        logger.debug("Connection {0} state dump".format(self.peer_desc))
+        logger.debug("Connection state: {0}".format(self.state))
 
-        log_debug("Inputbuf size: {0}".format(self.inputbuf.length))
-        log_debug("Outputbuf size: {0}".format(self.outputbuf.length))
+        logger.debug("Inputbuf size: {0}".format(self.inputbuf.length))
+        logger.debug("Outputbuf size: {0}".format(self.outputbuf.length))
 
 
 class RelayConnection(GatewayConnection):
@@ -106,20 +106,20 @@ class RelayConnection(GatewayConnection):
     def msg_broadcast(self, msg):
         blx_block = broadcastmsg_to_block(msg, self.node.tx_manager)
         if blx_block is not None:
-            log_debug("Decoded block successfully- sending block to node")
+            logger.debug("Decoded block successfully- sending block to node")
             self.node.send_bytes_to_node(blx_block)
         else:
-            log_debug("Failed to decode blx block. Dropping")
+            logger.debug("Failed to decode blx block. Dropping")
 
     # Receive a transaction from the bloXroute network.
     def msg_tx(self, msg):
         hash_val = BTCObjectHash(sha256(sha256(msg.blob()).digest()).digest(), length=HASH_LEN)
 
         if hash_val != msg.msg_hash():
-            log_err("Got ill formed tx message from the bloXroute network")
+            logger.error("Got ill formed tx message from the bloXroute network")
             return
 
-        log_debug("Adding hash value to tx manager and forwarding it to node")
+        logger.debug("Adding hash value to tx manager and forwarding it to node")
         self.node.tx_manager.hash_to_contents[hash_val] = msg.blob()
         # XXX: making a copy here- should make this more efficient
         # XXX: maybe by sending the full tx message in a block...
@@ -223,13 +223,13 @@ class BTCNodeConnection(GatewayConnection):
         blx_txmsg = TxMessage(msg.tx_hash(), msg.tx())
 
         # All connections outside of this one is a bloXroute server
-        log_debug("Broadcasting the transaction to peers")
+        logger.debug("Broadcasting the transaction to peers")
         self.node.broadcast(blx_txmsg, self)
         self.node.tx_manager.hash_to_contents[msg.tx_hash()] = msg.tx()
 
     # Handle a block message.
     def msg_block(self, msg):
         blx_blockmsg = block_to_broadcastmsg(msg, self.node.tx_manager)
-        log_debug("Compressed block with hash {0} to size {1} from size {2}"
-                  .format(msg.block_hash(), len(blx_blockmsg.rawbytes()), len(msg.rawbytes())))
+        logger.debug("Compressed block with hash {0} to size {1} from size {2}"
+                     .format(msg.block_hash(), len(blx_blockmsg.rawbytes()), len(msg.rawbytes())))
         self.node.broadcast(blx_blockmsg, self)
