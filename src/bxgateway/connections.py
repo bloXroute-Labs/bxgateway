@@ -2,15 +2,16 @@
 # Copyright (C) 2017, bloXroute Labs, All rights reserved.
 # See the file COPYING for details.
 #
-import sys
 from collections import deque
 
 from bxcommon.btc_messages import *
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.constants import HASH_LEN
-from bxcommon.messages import *
+from bxcommon.constants import HASH_LEN, HDR_COMMON_OFF
+from bxcommon.messages_new.hello_message import HelloMessage
+from bxcommon.messages_new.message import Message
+from bxcommon.messages_new.tx_message import TxMessage
 from bxcommon.utils import logger
 from messages.btc_message_parser import broadcastmsg_to_block, block_to_broadcastmsg
 

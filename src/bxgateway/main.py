@@ -6,7 +6,6 @@
 #
 
 from bxcommon.utils import config
-from bxcommon.utils.logger import log_close
 from connections import *
 
 # Extra parameters for gateway that are parsed from the config file.
