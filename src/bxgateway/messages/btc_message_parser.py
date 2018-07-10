@@ -3,8 +3,8 @@ import struct
 from collections import deque
 
 from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
-from bxcommon.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
 from bxcommon.messages.broadcast_message import BroadcastMessage
+from bxcommon.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import BTCObjectHash
 
@@ -44,7 +44,7 @@ def block_to_broadcastmsg(msg, tx_manager):
     return BroadcastMessage(msg.block_hash(), block)
 
 
-# Convert a block message to a broadcast message
+# Convert a broadcast message to a block message
 def broadcastmsg_to_block(msg, tx_manager):
     # XXX: make this not a copy
     blob = bytearray(msg.blob())
