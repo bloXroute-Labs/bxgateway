@@ -82,8 +82,8 @@ class BTCNodeConnection(GatewayConnection):
         self.enqueue_msg(reply)
 
         if self.state & ConnectionState.ESTABLISHED == ConnectionState.ESTABLISHED:
-            for msg in self.node.node_msg_queue:
-                self.enqueue_msg(msg)
+            for each_msg in self.node.node_msg_queue:
+                self.enqueue_msg(each_msg)
 
             if self.node.node_msg_queue:
                 self.node.node_msg_queue = deque()
