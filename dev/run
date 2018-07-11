@@ -4,7 +4,5 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 BLOXROUTE_CLIENT_PORT=12345
 
-cd src/client
 ./build.sh
-cd -
-docker run -t -v $DIR/../src/bxgateway:/app -p $BLOXROUTE_CLIENT_PORT:$BLOXROUTE_CLIENT_PORT bxgateway $*
+docker run -t -v $DIR/../../bxgateway:/app/bxgateway -v $DIR/../../bxcommon:/app/bxcommon -p $BLOXROUTE_CLIENT_PORT:$BLOXROUTE_CLIENT_PORT bxgateway $*

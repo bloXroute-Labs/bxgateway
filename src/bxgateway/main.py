@@ -16,7 +16,7 @@ GATEWAY_PARAMS = [
 ]
 MAX_NUM_CONN = 8192
 CONFIG_FILE_NAME = "config.cfg"
-PID_FILE_NAME = "relay.pid"
+PID_FILE_NAME = "bxgateway.pid"
 
 if __name__ == '__main__':
     config.log_pid(PID_FILE_NAME)
