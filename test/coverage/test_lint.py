@@ -1,6 +1,7 @@
 import unittest
 
-from bxcommon.test_util.pylint_reporter import *
+from bxcommon.constants import MIN_PYLINT_SCORE
+from bxcommon.test_utils.pylint_reporter import *
 
 
 class LintTests(unittest.TestCase):

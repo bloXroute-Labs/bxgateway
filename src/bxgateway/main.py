@@ -4,9 +4,10 @@
 #
 # Startup script for nodes
 #
+import socket
 
-from bxcommon.util import config
-from connections import *
+from bxcommon.utils import config, logger
+from bxgateway.connections.gateway_node import GatewayNode
 
 # Extra parameters for gateway that are parsed from the config file.
 GATEWAY_PARAMS = [
@@ -72,13 +73,13 @@ if __name__ == '__main__':
     node_port = int(tokens[1])
     node_addr = (node_ip, node_port)
 
-    node = Client(ip, port, relay_nodes, node_addr, node_params)
+    node = GatewayNode(ip, port, relay_nodes, node_addr, node_params)
 
     # Start main loop
     try:
-        log_debug("running node")
+        logger.debug("running node")
         node.run()
     finally:
-        log_crash("node run method returned")
-        log_crash("Log closed")
-        log_close()
+        logger.fatal("node run method returned")
+        logger.fatal("Log closed")
+        logger.log_close()

@@ -4,6 +4,7 @@ jobs:
   test-unit:
     docker:
       - image: circleci/python:2.7
+    working_directory: ~/ws
     steps:
       - attach_workspace:
           at: ~/ws
