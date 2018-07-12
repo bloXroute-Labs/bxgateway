@@ -8,7 +8,7 @@ from bxcommon.messages.get_txs_details_message import GetTxsDetailsMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import BTCObjectHash
 from bxgateway.connections.gateway_connection import GatewayConnection
-from bxgateway.messages.btc_message_parser import broadcastmsg_to_block
+from bxgateway.messages.btc_message_parser import broadcastmsg_to_block, tx_msg_to_btc_tx_msg
 
 sha256 = hashlib.sha256
 
@@ -67,13 +67,9 @@ class RelayConnection(GatewayConnection):
         self.node.missing_tx_manager.remove_tx_hash_if_missing(hash_val)
         self._msg_broadcast_retry()
 
-        # XXX: making a copy here- should make this more efficient
-        # XXX: maybe by sending the full tx message in a block...
-        # XXX: this should eventually be moved into the parser.
-        buf = bytearray(BTC_HDR_COMMON_OFF) + msg.blob()
         if self.node.node_conn is not None:
-            txmsg = BTCMessage(self.node.node_conn.magic, 'tx', len(msg.blob()), buf)
-            self.node.send_bytes_to_node(txmsg.rawbytes())
+            btc_tx_msg = tx_msg_to_btc_tx_msg(msg, self.node.node_conn.magic)
+            self.node.send_bytes_to_node(btc_tx_msg.rawbytes())
 
     def msg_txassign(self, msg):
         tx_hash = super(RelayConnection, self).msg_txassign(msg)

@@ -4,7 +4,10 @@ from collections import deque
 
 from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN, HASH_LEN
 from bxcommon.messages.broadcast_message import BroadcastMessage
+from bxcommon.messages.btc.btc_message import BTCMessage
 from bxcommon.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
+from bxcommon.messages.btc.tx_btc_message import TxBTCMessage
+from bxcommon.messages.tx_message import TxMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import BTCObjectHash, ObjectHash
 
@@ -104,3 +107,21 @@ def broadcastmsg_to_block(msg, tx_manager):
         logger.warn("Unknown tx: Unable to parse block message. {0} sids, {1} tx hashes missing. total txs: {2}"
                     .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
         return None, block_hash, unknown_tx_sids, unknown_tx_hashes
+    
+def tx_msg_to_btc_tx_msg(tx_msg, btc_magic):
+    if not isinstance(tx_msg, TxMessage):
+        raise TypeError("tx_msg is expected to be of type TxMessage")
+
+    buf = bytearray(BTC_HDR_COMMON_OFF) + tx_msg.blob()
+
+    btc_tx_msg = BTCMessage(btc_magic, 'tx', len(tx_msg.blob()), buf)
+
+    return btc_tx_msg
+
+def btc_tx_msg_to_tx_msg(btc_tx_msg):
+    if not isinstance(btc_tx_msg, TxBTCMessage):
+        raise TypeError("tx_msg is expected to be of type TxBTCMessage")
+
+    tx_msg = TxMessage(btc_tx_msg.tx_hash(), btc_tx_msg.tx())
+
+    return tx_msg
