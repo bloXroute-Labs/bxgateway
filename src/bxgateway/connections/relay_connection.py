@@ -1,8 +1,10 @@
 import hashlib
+import time
 
 from bxcommon.constants import BTC_SHA_HASH_LEN, BTC_HDR_COMMON_OFF
 from bxcommon.messages.btc.btc_message import BTCMessage
 from bxcommon.messages.hello_message import HelloMessage
+from bxcommon.messages.get_txs_details_message import GetTxsDetailsMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import BTCObjectHash
 from bxgateway.connections.gateway_connection import GatewayConnection
@@ -27,17 +29,29 @@ class RelayConnection(GatewayConnection):
             'ack': self.msg_ack,
             'broadcast': self.msg_broadcast,
             'txassign': self.msg_txassign,
-            'tx': self.msg_tx
+            'tx': self.msg_tx,
+            'txs': self.msg_unknown_txs
         }
 
     # Handle a broadcast message
     def msg_broadcast(self, msg):
-        blx_block = broadcastmsg_to_block(msg, self.node.tx_manager)
+        blx_block, block_hash, unknown_sids, unknown_hashes = broadcastmsg_to_block(msg, self.node.tx_manager)
         if blx_block is not None:
             logger.debug("Decoded block successfully- sending block to node")
             self.node.send_bytes_to_node(blx_block)
         else:
-            logger.debug("Failed to decode blx block. Dropping")
+            self.node.missing_tx_manager.on_broadcast_msg(msg, block_hash, unknown_sids, unknown_hashes)
+
+            all_unknown_sids = []
+            all_unknown_sids.extend(unknown_sids)
+
+            # retrieving sids of txs with unknown contents
+            for tx_hash in unknown_hashes:
+                tx_sid = self.node.tx_manager.get_txid(tx_hash)
+                all_unknown_sids.append(tx_sid)
+
+            get_unknown_txs_msg = GetTxsDetailsMessage(short_ids=all_unknown_sids)
+            self.enqueue_msg(get_unknown_txs_msg)
 
     # Receive a transaction from the bloXroute network.
     def msg_tx(self, msg):
@@ -49,6 +63,10 @@ class RelayConnection(GatewayConnection):
 
         logger.debug("Adding hash value to tx manager and forwarding it to node")
         self.node.tx_manager.hash_to_contents[hash_val] = msg.blob()
+
+        self.node.missing_tx_manager.remove_tx_hash_if_missing(hash_val)
+        self._msg_broadcast_retry()
+
         # XXX: making a copy here- should make this more efficient
         # XXX: maybe by sending the full tx message in a block...
         # XXX: this should eventually be moved into the parser.
@@ -56,3 +74,44 @@ class RelayConnection(GatewayConnection):
         if self.node.node_conn is not None:
             txmsg = BTCMessage(self.node.node_conn.magic, 'tx', len(msg.blob()), buf)
             self.node.send_bytes_to_node(txmsg.rawbytes())
+
+    def msg_txassign(self, msg):
+        tx_hash = super(RelayConnection, self).msg_txassign(msg)
+
+        if tx_hash is not None:
+            self.node.missing_tx_manager.remove_sid_if_missing(msg.short_id())
+            self._msg_broadcast_retry()
+
+        return tx_hash
+
+    def msg_unknown_txs(self, msg):
+
+        txs_info = msg.txs_info()
+
+        logger.debug("Unknown tx: Reply from server with unknown txs is received. Contains {0} txs."
+                     .format(len(txs_info)))
+
+        for tx_info in txs_info:
+
+            tx_sid = tx_info[0]
+            tx_hash = tx_info[1]
+            tx = tx_info[2]
+
+            if self.node.tx_manager.get_txid(tx_hash) == -1:
+                self.node.tx_manager.assign_tx_to_sid(tx_hash, tx_sid, time.time())
+                self.node.missing_tx_manager.remove_sid_if_missing(tx_sid)
+
+            if tx_hash not in self.node.tx_manager.hash_to_contents:
+                self.node.tx_manager.hash_to_contents[tx_hash] = tx
+                self.node.missing_tx_manager.remove_tx_hash_if_missing(tx_hash)
+
+        self._msg_broadcast_retry()
+
+    def _msg_broadcast_retry(self):
+        if self.node.missing_tx_manager.msgs_ready_for_retry:
+            for msg in self.node.missing_tx_manager.msgs_ready_for_retry:
+                logger.info("Unknown tx: Received all unknown txs for a block. Broadcasting block message.")
+                self.msg_broadcast(msg)
+
+            logger.debug("Unknown tx: Broadcasted all of the messages ready for retry.")
+            self.node.missing_tx_manager.clean_up_ready_for_retry_messages()

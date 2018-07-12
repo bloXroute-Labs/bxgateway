@@ -115,4 +115,5 @@ class BTCNodeConnection(GatewayConnection):
         blx_blockmsg = block_to_broadcastmsg(msg, self.node.tx_manager)
         logger.debug("Compressed block with hash {0} to size {1} from size {2}"
                      .format(msg.block_hash(), len(blx_blockmsg.rawbytes()), len(msg.rawbytes())))
+        self.node.missing_tx_manager.remove_block_if_missing(msg.block_hash())
         self.node.broadcast(blx_blockmsg, self)

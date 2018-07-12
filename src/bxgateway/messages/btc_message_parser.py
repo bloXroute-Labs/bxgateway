@@ -2,11 +2,11 @@ import hashlib
 import struct
 from collections import deque
 
-from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
+from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN, HASH_LEN
 from bxcommon.messages.broadcast_message import BroadcastMessage
 from bxcommon.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
 from bxcommon.utils import logger
-from bxcommon.utils.object_hash import BTCObjectHash
+from bxcommon.utils.object_hash import BTCObjectHash, ObjectHash
 
 sha256 = hashlib.sha256
 
@@ -43,8 +43,6 @@ def block_to_broadcastmsg(msg, tx_manager):
 
     return BroadcastMessage(msg.block_hash(), block)
 
-
-# Convert a broadcast message to a block message
 def broadcastmsg_to_block(msg, tx_manager):
     # XXX: make this not a copy
     blob = bytearray(msg.blob())
@@ -52,11 +50,18 @@ def broadcastmsg_to_block(msg, tx_manager):
     size = 0
     pieces = deque()
 
+    # parse statistics variables
+    all_txs_known = True
+    total_tx_count = 0
+    unknown_tx_sids = []
+    unknown_tx_hashes = []
+
     # get header size
     headersize = 80 + BTC_HDR_COMMON_OFF
     _, txn_count_size = btcvarint_to_int(blob, headersize)
     headersize += txn_count_size
 
+    block_hash = ObjectHash(blob[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + HASH_LEN])
     header = blob[:headersize]
     pieces.append(header)
     size += headersize
@@ -65,25 +70,37 @@ def broadcastmsg_to_block(msg, tx_manager):
     while off < len(blob):
         if blob[off] == 0x00:
             sid, = struct.unpack_from('<I', blob, off + 1)
-            tx = tx_manager.get_tx_from_sid(sid)
+            tx_hash, tx = tx_manager.get_tx_from_sid(sid)
             if tx is None:
-                logger.error(
-                    "XXX: Failed to decode transaction with short id {0} received from bloXroute".format(sid))
-                return None
+                if tx_hash is None:
+                    unknown_tx_sids.append(sid)
+                else:
+                    unknown_tx_hashes.append(tx_hash)
+
+                all_txs_known = False
             off += 5
         else:
             txsize = get_next_tx_size(blob, off)
             tx = blob[off:off + txsize]
             off += txsize
 
-        pieces.append(tx)
-        size += len(tx)
+        if all_txs_known: # stop appending pieces when at least on tx sid or content is unknown
+            pieces.append(tx)
+            size += len(tx)
 
-    blx_block = bytearray(size)
-    off = 0
-    for piece in pieces:
-        next_off = off + len(piece)
-        blx_block[off:next_off] = piece
-        off = next_off
+        total_tx_count += 1
 
-    return blx_block
+    if all_txs_known:
+        blx_block = bytearray(size)
+        off = 0
+        for piece in pieces:
+            next_off = off + len(piece)
+            blx_block[off:next_off] = piece
+            off = next_off
+
+        logger.debug("Successfully parsed block broadcast message. {0} transactions in block".format(total_tx_count))
+        return blx_block, block_hash, unknown_tx_sids, unknown_tx_hashes
+    else:
+        logger.warn("Unknown tx: Unable to parse block message. {0} sids, {1} tx hashes missing. total txs: {2}"
+                    .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
+        return None, block_hash, unknown_tx_sids, unknown_tx_hashes

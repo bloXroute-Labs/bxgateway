@@ -8,6 +8,7 @@ import socket
 
 from bxcommon.utils import config, logger
 from bxgateway.connections.gateway_node import GatewayNode
+from bxgateway.testing.test_modes import TestModes
 
 # Extra parameters for gateway that are parsed from the config file.
 GATEWAY_PARAMS = [
@@ -28,6 +29,8 @@ if __name__ == '__main__':
     arg_parser.add_argument("--blockchain-services", help="Blockchain services parameter")
     arg_parser.add_argument("--bloxroute-version", help="Bloxroute version number")
     arg_parser.add_argument("--blockchain-version", help="Blockchain protocol version")
+    arg_parser.add_argument("--test-mode", help="Test mode to run. Possible values: {0}"
+                            .format(TestModes.DROPPING_TXS_MODE))
 
     opts = arg_parser.parse_args()
 
@@ -67,6 +70,8 @@ if __name__ == '__main__':
         node_params['protocol_version'] = opts.blockchain_version
     if opts.bloxroute_version:
         node_params['version'] = opts.bloxroute_version
+    if opts.test_mode:
+        node_params[TestModes.TEST_MODES_PARAM_NAME] = opts.test_mode
 
     tokens = params['node_addr'].strip().split()
     node_ip = socket.gethostbyname(tokens[0])
