@@ -3,7 +3,7 @@ from bxgateway.connections.relay_connection import RelayConnection
 
 
 class RelayConnectionDroppingTxs(RelayConnection):
-    def __init__(self, sock, address, node, setup=False):
+    def __init__(self, sock, address, node, from_me=False, setup=False):
         super(RelayConnectionDroppingTxs, self).__init__(sock, address, node, setup)
 
         logger.debug("Test mode: Client is started in test mode. Simulating dropped transactions.")
@@ -34,7 +34,7 @@ class RelayConnectionDroppingTxs(RelayConnection):
         else:
             super(RelayConnectionDroppingTxs, self).msg_txassign(msg)
 
-    def msg_unknown_txs(self, msg):
+    def msg_txs_details(self, msg):
         self.tx_unknown_txs_drop_counter += 1
 
         # Drop every 3rd message
@@ -42,4 +42,4 @@ class RelayConnectionDroppingTxs(RelayConnection):
             self.tx_unknown_txs_drop_counter = 0
             logger.debug("Test mode: Dropping unknown txs message.")
         else:
-            super(RelayConnectionDroppingTxs, self).msg_unknown_txs(msg)
+            super(RelayConnectionDroppingTxs, self).msg_txs_details(msg)

@@ -35,7 +35,10 @@ class GatewayNode(AbstractNode):
         for idx in self.servers:
             ip, port = self.servers[idx]
             logger.debug("connecting to relay node {0}:{1}".format(ip, port))
-            self.connect_to_address(RelayConnection, socket.gethostbyname(ip), port, setup=True)
+
+            relay_connection_cls = self._get_relay_connection_cls()
+
+            self.connect_to_address(relay_connection_cls, socket.gethostbyname(ip), port, setup=True)
 
         self.connect_to_address(BTCNodeConnection, socket.gethostbyname(self.node_addr[0]), self.node_addr[1],
                                 setup=True)
@@ -50,6 +53,8 @@ class GatewayNode(AbstractNode):
             self.node_msg_queue.append(msg)
 
     def _get_relay_connection_cls(self):
+        logger.debug("Get Relay connection")
+
         return RelayConnectionDroppingTxs \
             if TestModes.TEST_MODES_PARAM_NAME in self.node_params and \
                self.node_params[TestModes.TEST_MODES_PARAM_NAME] == TestModes.DROPPING_TXS_MODE \

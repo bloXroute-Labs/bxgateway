@@ -30,7 +30,7 @@ class RelayConnection(GatewayConnection):
             'broadcast': self.msg_broadcast,
             'txassign': self.msg_txassign,
             'tx': self.msg_tx,
-            'txs': self.msg_unknown_txs
+            'txs': self.msg_txs_details
         }
 
     # Handle a broadcast message
@@ -40,7 +40,7 @@ class RelayConnection(GatewayConnection):
             logger.debug("Decoded block successfully- sending block to node")
             self.node.send_bytes_to_node(blx_block)
         else:
-            self.node.missing_tx_manager.on_broadcast_msg(msg, block_hash, unknown_sids, unknown_hashes)
+            self.node.missing_tx_manager.add_msg_with_missing_txs(msg, block_hash, unknown_sids, unknown_hashes)
 
             all_unknown_sids = []
             all_unknown_sids.extend(unknown_sids)
@@ -80,11 +80,11 @@ class RelayConnection(GatewayConnection):
 
         return tx_hash
 
-    def msg_unknown_txs(self, msg):
+    def msg_txs_details(self, msg):
 
         txs_info = msg.txs_info()
 
-        logger.debug("Unknown tx: Reply from server with unknown txs is received. Contains {0} txs."
+        logger.debug("Unknown tx: Txs details message received from server. Contains {0} txs."
                      .format(len(txs_info)))
 
         for tx_info in txs_info:
@@ -93,13 +93,15 @@ class RelayConnection(GatewayConnection):
             tx_hash = tx_info[1]
             tx = tx_info[2]
 
+            self.node.missing_tx_manager.remove_sid_if_missing(tx_sid)
+
             if self.node.tx_manager.get_txid(tx_hash) == -1:
                 self.node.tx_manager.assign_tx_to_sid(tx_hash, tx_sid, time.time())
-                self.node.missing_tx_manager.remove_sid_if_missing(tx_sid)
+
+            self.node.missing_tx_manager.remove_tx_hash_if_missing(tx_hash)
 
             if tx_hash not in self.node.tx_manager.hash_to_contents:
                 self.node.tx_manager.hash_to_contents[tx_hash] = tx
-                self.node.missing_tx_manager.remove_tx_hash_if_missing(tx_hash)
 
         self._msg_broadcast_retry()
 
