@@ -47,7 +47,7 @@ jobs:
           command: |
             . venv/bin/activate
             cd bxgateway/test/
-            PYTHONPATH=../../bxcommon/src/ \
+            PYTHONPATH=../../bxcommon/src/:../src/  \
             PYLINTRC_PATH=../../bxcommon/pylintrc \
             python -m unittest discover --verbose
       - store_artifacts:
