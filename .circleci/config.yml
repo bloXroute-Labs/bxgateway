@@ -12,9 +12,20 @@ jobs:
           path:
             "bxgateway"
       - run:
-          name: Git clone bxcommon
+          name: Try to clone the corresponding bxcommon branch to this branch, or bxcommon/develop.
           command: |
+            cd ~/ws/bxgateway
+            branchName=$(git rev-parse --abbrev-ref HEAD)
+
+            cd ~/ws
+            { # try
+                echo "Trying to clone identical branch name '$branchName' from bxgateway."
+                git clone -b $branchName --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+                echo "Success, using branch '$branchName' from bxgateway."
+            } || { # catch
+                echo "Using bxcommon develop branch, could not find identical branch name '$branchName' in bxgateway."
             git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+            }
       - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
           key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
       - run: # install and activate virtual environment with pip
