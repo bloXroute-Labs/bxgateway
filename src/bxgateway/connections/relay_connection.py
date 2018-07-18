@@ -1,10 +1,9 @@
 import hashlib
 import time
 
-from bxcommon.constants import BTC_SHA_HASH_LEN, BTC_HDR_COMMON_OFF
-from bxcommon.messages.btc.btc_message import BTCMessage
-from bxcommon.messages.hello_message import HelloMessage
+from bxcommon.constants import BTC_SHA_HASH_LEN
 from bxcommon.messages.get_txs_details_message import GetTxsDetailsMessage
+from bxcommon.messages.hello_message import HelloMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import BTCObjectHash
 from bxgateway.connections.gateway_connection import GatewayConnection

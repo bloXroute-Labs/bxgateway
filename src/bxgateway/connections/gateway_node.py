@@ -23,7 +23,6 @@ class GatewayNode(AbstractNode):
 
         self.missing_tx_manager = MissingTransactionsManager(self.alarm_queue)
 
-
     def can_retry_after_destroy(self, teardown, conn):
         # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
         return not teardown and conn.is_server

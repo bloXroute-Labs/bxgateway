@@ -46,6 +46,7 @@ def block_to_broadcastmsg(msg, tx_manager):
 
     return BroadcastMessage(msg.block_hash(), block)
 
+
 def broadcastmsg_to_block(msg, tx_manager):
     # XXX: make this not a copy
     blob = bytearray(msg.blob())
@@ -87,7 +88,7 @@ def broadcastmsg_to_block(msg, tx_manager):
             tx = blob[off:off + txsize]
             off += txsize
 
-        if all_txs_known: # stop appending pieces when at least on tx sid or content is unknown
+        if all_txs_known:  # stop appending pieces when at least on tx sid or content is unknown
             pieces.append(tx)
             size += len(tx)
 
@@ -107,7 +108,8 @@ def broadcastmsg_to_block(msg, tx_manager):
         logger.warn("Unknown tx: Unable to parse block message. {0} sids, {1} tx hashes missing. total txs: {2}"
                     .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
         return None, block_hash, unknown_tx_sids, unknown_tx_hashes
-    
+
+
 def tx_msg_to_btc_tx_msg(tx_msg, btc_magic):
     if not isinstance(tx_msg, TxMessage):
         raise TypeError("tx_msg is expected to be of type TxMessage")
@@ -117,6 +119,7 @@ def tx_msg_to_btc_tx_msg(tx_msg, btc_magic):
     btc_tx_msg = BTCMessage(btc_magic, 'tx', len(tx_msg.blob()), buf)
 
     return btc_tx_msg
+
 
 def btc_tx_msg_to_tx_msg(btc_tx_msg):
     if not isinstance(btc_tx_msg, TxBTCMessage):
