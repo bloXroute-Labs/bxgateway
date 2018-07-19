@@ -2,7 +2,7 @@ import socket
 from collections import deque
 
 from bxcommon.connections.abstract_node import AbstractNode
-from bxcommon.transactions.missing_transactions_manager import MissingTransactionsManager
+from bxcommon.transactions.block_recovery_manager import BlockRecoveryManager
 from bxcommon.utils import logger
 from bxgateway.connections.btc_node_connection import BTCNodeConnection
 from bxgateway.connections.relay_connection import RelayConnection
@@ -21,7 +21,7 @@ class GatewayNode(AbstractNode):
         self.node_conn = None  # Connection object for the blockchain node
         self.node_msg_queue = deque()
 
-        self.missing_tx_manager = MissingTransactionsManager(self.alarm_queue)
+        self.block_recovery_manager = BlockRecoveryManager(self.alarm_queue)
 
     def can_retry_after_destroy(self, teardown, conn):
         # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
