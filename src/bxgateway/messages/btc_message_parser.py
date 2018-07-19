@@ -15,7 +15,7 @@ sha256 = hashlib.sha256
 
 
 # Convert a block message to a broadcast message
-def block_to_broadcastmsg(msg, tx_manager):
+def block_to_broadcastmsg(msg, tx_service):
     # Do the block compression
     size = 0
     buf = deque()
@@ -25,7 +25,7 @@ def block_to_broadcastmsg(msg, tx_manager):
 
     for tx in msg.txns():
         tx_hash = BTCObjectHash(buf=sha256(sha256(tx).digest()).digest(), length=BTC_SHA_HASH_LEN)
-        shortid = tx_manager.get_txid(tx_hash)
+        shortid = tx_service.get_txid(tx_hash)
         if shortid == -1:
             buf.append(tx)
             size += len(tx)
@@ -47,7 +47,7 @@ def block_to_broadcastmsg(msg, tx_manager):
     return BroadcastMessage(msg.block_hash(), block)
 
 
-def broadcastmsg_to_block(msg, tx_manager):
+def broadcastmsg_to_block(msg, tx_service):
     # XXX: make this not a copy
     blob = bytearray(msg.blob())
 
@@ -74,7 +74,7 @@ def broadcastmsg_to_block(msg, tx_manager):
     while off < len(blob):
         if blob[off] == 0x00:
             sid, = struct.unpack_from('<I', blob, off + 1)
-            tx_hash, tx = tx_manager.get_tx_from_sid(sid)
+            tx_hash, tx = tx_service.get_tx_from_sid(sid)
             if tx is None:
                 if tx_hash is None:
                     unknown_tx_sids.append(sid)
