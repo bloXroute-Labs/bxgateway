@@ -83,7 +83,7 @@ class RelayConnection(GatewayConnection):
 
         txs_info = msg.get_txs_details()
 
-        logger.debug("Unknown tx: Txs details message received from server. Contains {0} txs."
+        logger.debug("Block recovery: Txs details message received from server. Contains {0} txs."
                      .format(len(txs_info)))
 
         for tx_info in txs_info:
@@ -105,10 +105,10 @@ class RelayConnection(GatewayConnection):
         self._msg_broadcast_retry()
 
     def _msg_broadcast_retry(self):
-        if self.node.block_recovery_service.msgs_ready_for_retry:
-            for msg in self.node.block_recovery_service.msgs_ready_for_retry:
-                logger.info("Unknown tx: Received all unknown txs for a block. Broadcasting block message.")
+        if self.node.block_recovery_service.recovered_msgs:
+            for msg in self.node.block_recovery_service.recovered_msgs:
+                logger.info("Block recovery: Received all unknown txs for a block. Broadcasting block message.")
                 self.msg_broadcast(msg)
 
-            logger.debug("Unknown tx: Broadcasted all of the messages ready for retry.")
+            logger.debug("Block recovery: Broadcasted all of the messages ready for retry.")
             self.node.block_recovery_service.clean_up_recovered_messages()

@@ -105,7 +105,7 @@ def broadcastmsg_to_block(msg, tx_service):
         logger.debug("Successfully parsed block broadcast message. {0} transactions in block".format(total_tx_count))
         return blx_block, block_hash, unknown_tx_sids, unknown_tx_hashes
     else:
-        logger.warn("Unknown tx: Unable to parse block message. {0} sids, {1} tx hashes missing. total txs: {2}"
+        logger.warn("Block recovery: Unable to parse block message. {0} sids, {1} tx hashes missing. total txs: {2}"
                     .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
         return None, block_hash, unknown_tx_sids, unknown_tx_hashes
 

@@ -21,7 +21,7 @@ class GatewayNode(AbstractNode):
         self.node_conn = None  # Connection object for the blockchain node
         self.node_msg_queue = deque()
 
-        self.block_recovery_manager = BlockRecoveryService(self.alarm_queue)
+        self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
 
     def can_retry_after_destroy(self, teardown, conn):
         # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
