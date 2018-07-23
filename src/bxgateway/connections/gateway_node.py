@@ -30,17 +30,13 @@ class GatewayNode(AbstractNode):
     def get_connection_class(self, ip=None):
         return BTCNodeConnection if self.node_addr[0] == ip else self._get_relay_connection_cls()
 
-    def connect_to_peers(self):
+    def configure_peers(self):
         for idx in self.servers:
             ip, port = self.servers[idx]
             logger.debug("connecting to relay node {0}:{1}".format(ip, port))
+            self.enqueue_connection(ip, port)
 
-            relay_connection_cls = self._get_relay_connection_cls()
-
-            self.connect_to_address(relay_connection_cls, socket.gethostbyname(ip), port, setup=True)
-
-        self.connect_to_address(BTCNodeConnection, socket.gethostbyname(self.node_addr[0]), self.node_addr[1],
-                                setup=True)
+        self.enqueue_connection(socket.gethostbyname(self.node_addr[0]), self.node_addr[1])
 
     # Sends a message to the node that this is connected to
     def send_bytes_to_node(self, msg):

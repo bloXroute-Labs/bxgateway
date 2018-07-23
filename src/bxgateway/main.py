@@ -6,6 +6,7 @@
 #
 import socket
 
+from bxcommon.network import multiplexer_factory
 from bxcommon.utils import config, logger
 from bxgateway.connections.gateway_node import GatewayNode
 from bxgateway.testing.test_modes import TestModes
@@ -79,11 +80,12 @@ if __name__ == '__main__':
     node_addr = (node_ip, node_port)
 
     node = GatewayNode(ip, port, relay_nodes, node_addr, node_params)
+    multiplexer = multiplexer_factory.create_multiplexer(node)
 
     # Start main loop
     try:
         logger.debug("running node")
-        node.run()
+        multiplexer.run()
     finally:
         logger.fatal("node run method returned")
         logger.fatal("Log closed")
