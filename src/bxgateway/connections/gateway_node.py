@@ -23,12 +23,16 @@ class GatewayNode(AbstractNode):
 
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
 
+        self.configure_peers()
+
     def can_retry_after_destroy(self, teardown, conn):
         # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
         return not teardown and conn.is_server
 
-    def get_connection_class(self, ip=None):
-        return BTCNodeConnection if self.node_addr[0] == ip else self._get_relay_connection_cls()
+    def get_connection_class(self, ip=None, port=None):
+        return BTCNodeConnection \
+            if self.node_addr[0] == ip and self.node_addr[1] == port \
+            else self._get_relay_connection_cls()
 
     def configure_peers(self):
         for idx in self.servers:

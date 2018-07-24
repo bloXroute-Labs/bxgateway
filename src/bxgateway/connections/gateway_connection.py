@@ -11,16 +11,7 @@ class GatewayConnection(AbstractConnection):
 
         self.is_server = False  # This isn't a server message
 
-    # Send some bytes to the peer of this connection from the next cut through message or from the outputbuffer.
-    def send(self):
-        if self.state & ConnectionState.MARK_FOR_CLOSE:
-            return
-
-        byteswritten = self.send_bytes_on_buffer(self.outputbuf)
-        logger.debug(
-            "{0} bytes sent to {1}. {2} bytes left.".format(byteswritten, self.peer_desc, self.outputbuf.length))
-
-    # Dumps state using debug
+     # Dumps state using debug
     def dump_state(self):
         logger.debug("Connection {0} state dump".format(self.peer_desc))
         logger.debug("Connection state: {0}".format(self.state))

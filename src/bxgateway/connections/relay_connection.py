@@ -51,6 +51,7 @@ class RelayConnection(GatewayConnection):
 
             get_unknown_txs_msg = GetTxsDetailsMessage(short_ids=all_unknown_sids)
             self.enqueue_msg(get_unknown_txs_msg)
+            logger.debug("Block Recovery: Requesting ....")
 
     # Receive a transaction from the bloXroute network.
     def msg_tx(self, msg):
