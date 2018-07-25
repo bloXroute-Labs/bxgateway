@@ -13,8 +13,8 @@ sha256 = hashlib.sha256
 
 
 class RelayConnection(GatewayConnection):
-    def __init__(self, sock, address, node, from_me=False, setup=False):
-        super(RelayConnection, self).__init__(sock, address, node, setup=setup)
+    def __init__(self, sock, address, node, from_me=False):
+        super(RelayConnection, self).__init__(sock, address, node, from_me=from_me)
 
         self.is_server = True
         self.is_persistent = True

@@ -1,6 +1,4 @@
-from bxcommon.messages.btc.btc_message import BTCMessage
 from bxcommon.messages.btc.tx_btc_message import TxBTCMessage
-from bxcommon.messages.ping_message import PingMessage
 from bxcommon.messages.tx_message import TxMessage
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import generate_bytearray
@@ -15,7 +13,7 @@ class BtcMessageParserTests(AbstractTestCase):
         tx = generate_bytearray(250)
         magic = 123
 
-        tx_msg = TxMessage(msg_hash=msg_hash,blob=tx)
+        tx_msg = TxMessage(msg_hash=msg_hash, blob=tx)
 
         btc_tx_msg = tx_msg_to_btc_tx_msg(tx_msg, magic)
 

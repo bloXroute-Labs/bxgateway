@@ -22,8 +22,8 @@ class BTCNodeConnection(GatewayConnection):
 
     NONCE = random.randint(0, sys.maxint)  # Used to detect connections to self.
 
-    def __init__(self, sock, address, node, from_me=False, setup=False):
-        super(BTCNodeConnection, self).__init__(sock, address, node, setup=setup)
+    def __init__(self, sock, address, node, from_me=False):
+        super(BTCNodeConnection, self).__init__(sock, address, node)
 
         self.is_persistent = True
         magic_net = node.node_params['magic']
@@ -56,8 +56,8 @@ class BTCNodeConnection(GatewayConnection):
     def pop_next_message(self, payload_len, msg_type=Message, hdr_size=HDR_COMMON_OFF):
         return super(BTCNodeConnection, self).pop_next_message(payload_len, BTCMessage, BTC_HDR_COMMON_OFF)
 
-    def recv(self, msg_cls=Message, hello_msgs=['hello', 'ack']):
-        return super(BTCNodeConnection, self).recv(BTCMessage, ['version', 'verack'])
+    def process_message(self, msg_cls=Message, hello_msgs=['hello', 'ack']):
+        return super(BTCNodeConnection, self).process_message(BTCMessage, ['version', 'verack'])
 
     ###
     # Handlers for each message type
