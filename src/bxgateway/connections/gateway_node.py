@@ -12,6 +12,8 @@ from bxgateway.testing.test_modes import TestModes
 
 class GatewayNode(AbstractNode):
     def __init__(self, server_ip, server_port, servers, node_addr, node_params):
+        logger.debug("Init gateway node.")
+
         super(GatewayNode, self).__init__(server_ip, server_port)
 
         self.servers = servers  # A list of (ip, port) pairs of other bloXroute servers
@@ -54,8 +56,6 @@ class GatewayNode(AbstractNode):
             self.node_msg_queue.append(msg)
 
     def _get_relay_connection_cls(self):
-        logger.debug("Get Relay connection")
-
         return RelayConnectionDroppingTxs \
             if TestModes.TEST_MODES_PARAM_NAME in self.node_params and \
                self.node_params[TestModes.TEST_MODES_PARAM_NAME] == TestModes.DROPPING_TXS_MODE \
