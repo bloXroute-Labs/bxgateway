@@ -84,14 +84,14 @@ class RelayConnection(GatewayConnection):
 
     def msg_txs(self, msg):
 
-        txs_info = msg.get_txs()
+        txs = msg.get_txs()
 
         logger.debug("Block recovery: Txs details message received from server. Contains {0} txs."
-                     .format(len(txs_info)))
+                     .format(len(txs)))
 
-        for tx_info in txs_info:
+        for tx in txs:
 
-            tx_sid, tx_hash, tx = tx_info
+            tx_sid, tx_hash, tx = tx
 
             self.node.block_recovery_service.check_missing_sid(tx_sid)
 
