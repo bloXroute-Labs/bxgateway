@@ -2,7 +2,7 @@ import hashlib
 import time
 
 from bxcommon.constants import BTC_SHA_HASH_LEN
-from bxcommon.messages.get_txs_details_message import GetTxsDetailsMessage
+from bxcommon.messages.get_txs_message import GetTxsMessage
 from bxcommon.messages.hello_message import HelloMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import BTCObjectHash
@@ -49,7 +49,7 @@ class RelayConnection(GatewayConnection):
                 tx_sid = self.node.tx_service.get_txid(tx_hash)
                 all_unknown_sids.append(tx_sid)
 
-            get_unknown_txs_msg = GetTxsDetailsMessage(short_ids=all_unknown_sids)
+            get_unknown_txs_msg = GetTxsMessage(short_ids=all_unknown_sids)
             self.enqueue_msg(get_unknown_txs_msg)
 
     # Receive a transaction from the bloXroute network.
@@ -81,7 +81,7 @@ class RelayConnection(GatewayConnection):
 
     def msg_txs_details(self, msg):
 
-        txs_info = msg.get_txs_details()
+        txs_info = msg.get_txs()
 
         logger.debug("Block recovery: Txs details message received from server. Contains {0} txs."
                      .format(len(txs_info)))

@@ -2,7 +2,7 @@ import hashlib
 import struct
 from collections import deque
 
-from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN, HASH_LEN
+from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN, SHA256_HASH_LEN
 from bxcommon.messages.broadcast_message import BroadcastMessage
 from bxcommon.messages.btc.btc_message import BTCMessage
 from bxcommon.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
@@ -65,7 +65,7 @@ def broadcastmsg_to_block(msg, tx_service):
     _, txn_count_size = btcvarint_to_int(blob, headersize)
     headersize += txn_count_size
 
-    block_hash = ObjectHash(blob[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + HASH_LEN])
+    block_hash = ObjectHash(blob[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + SHA256_HASH_LEN])
     header = blob[:headersize]
     pieces.append(header)
     size += headersize
