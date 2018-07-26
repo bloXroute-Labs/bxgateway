@@ -74,13 +74,12 @@ def broadcastmsg_to_block(msg, tx_service):
         if blob[off] == 0x00:
             sid, = struct.unpack_from('<I', blob, off + 1)
             tx_hash, tx = tx_service.get_tx_from_sid(sid)
-            if tx is None:
-                if tx_hash is None:
-                    unknown_tx_sids.append(sid)
-                else:
-                    unknown_tx_hashes.append(tx_hash)
 
-                all_txs_known = False
+            if tx_hash is None:
+                unknown_tx_sids.append(sid)
+            elif tx is None:
+                unknown_tx_hashes.append(tx_hash)
+
             off += 5
         else:
             txsize = get_next_tx_size(blob, off)
