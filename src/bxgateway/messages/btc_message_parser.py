@@ -55,7 +55,6 @@ def broadcastmsg_to_block(msg, tx_service):
     pieces = deque()
 
     # parse statistics variables
-    all_txs_known = True
     total_tx_count = 0
     unknown_tx_sids = []
     unknown_tx_hashes = []
@@ -88,13 +87,13 @@ def broadcastmsg_to_block(msg, tx_service):
             tx = blob[off:off + txsize]
             off += txsize
 
-        if all_txs_known:  # stop appending pieces when at least on tx sid or content is unknown
+        if unknown_tx_sids or unknown_tx_hashes:  # stop appending pieces when at least on tx sid or content is unknown
             pieces.append(tx)
             size += len(tx)
 
         total_tx_count += 1
 
-    if all_txs_known:
+    if unknown_tx_sids or unknown_tx_hashes:
         blx_block = bytearray(size)
         off = 0
         for piece in pieces:

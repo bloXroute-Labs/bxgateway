@@ -7,7 +7,7 @@ from bxcommon.messages.hello_message import HelloMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import BTCObjectHash
 from bxgateway.connections.gateway_connection import GatewayConnection
-from bxgateway.messages.btc_message_parser import broadcastmsg_to_block, tx_msg_to_btc_tx_msg
+from bxgateway.messages import btc_message_parser
 
 sha256 = hashlib.sha256
 
@@ -34,7 +34,8 @@ class RelayConnection(GatewayConnection):
 
     # Handle a broadcast message
     def msg_broadcast(self, msg):
-        blx_block, block_hash, unknown_sids, unknown_hashes = broadcastmsg_to_block(msg, self.node.tx_service)
+        blx_block, block_hash, unknown_sids, unknown_hashes = btc_message_parser.broadcastmsg_to_block(msg,
+                                                                                                       self.node.tx_service)
         if blx_block is not None:
             logger.debug("Decoded block successfully- sending block to node")
             self.node.send_bytes_to_node(blx_block)
@@ -69,7 +70,7 @@ class RelayConnection(GatewayConnection):
         self._msg_broadcast_retry()
 
         if self.node.node_conn is not None:
-            btc_tx_msg = tx_msg_to_btc_tx_msg(msg, self.node.node_conn.magic)
+            btc_tx_msg = btc_message_parser.tx_msg_to_btc_tx_msg(msg, self.node.node_conn.magic)
             self.node.send_bytes_to_node(btc_tx_msg.rawbytes())
 
     def msg_txassign(self, msg):
@@ -90,9 +91,7 @@ class RelayConnection(GatewayConnection):
 
         for tx_info in txs_info:
 
-            tx_sid = tx_info[0]
-            tx_hash = tx_info[1]
-            tx = tx_info[2]
+            tx_sid, tx_hash, tx = tx_info
 
             self.node.block_recovery_service.check_missing_sid(tx_sid)
 

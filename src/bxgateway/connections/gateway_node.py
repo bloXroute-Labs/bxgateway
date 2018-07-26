@@ -6,7 +6,7 @@ from bxcommon.services.block_recovery_service import BlockRecoveryService
 from bxcommon.utils import logger
 from bxgateway.connections.btc_node_connection import BTCNodeConnection
 from bxgateway.connections.relay_connection import RelayConnection
-from bxgateway.testing.relay_connection_dropping_txs import RelayConnectionDroppingTxs
+from bxgateway.testing.lossy_relay_connection import LossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 
 
@@ -54,7 +54,7 @@ class GatewayNode(AbstractNode):
     def _get_relay_connection_cls(self):
         logger.debug("Get Relay connection")
 
-        return RelayConnectionDroppingTxs \
+        return LossyRelayConnection \
             if TestModes.TEST_MODES_PARAM_NAME in self.node_params and \
                self.node_params[TestModes.TEST_MODES_PARAM_NAME] == TestModes.DROPPING_TXS_MODE \
             else RelayConnection
