@@ -1,10 +1,10 @@
-import socket
 import random
+import socket
 import struct
 
-CLIENT_IP='127.0.0.1'
-CLIENT_PORT=9002
-MESSAGE_LEN=1024
+CLIENT_IP = '127.0.0.1'
+CLIENT_PORT = 9002
+MESSAGE_LEN = 1024
 
 # Setup socket and connect
 clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -20,5 +20,3 @@ print("First 100 bytes of message: " + repr(msg[:100]))
 print("Sending message")
 sent_bytes = clientsocket.send(msg)
 print("Sent {0} bytes of the message".format(sent_bytes))
-
-

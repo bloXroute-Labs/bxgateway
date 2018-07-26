@@ -11,10 +11,9 @@ from bxcommon.messages.btc.pong_btc_message import PongBTCMessage
 from bxcommon.messages.btc.ver_ack_btc_message import VerAckBTCMessage
 from bxcommon.messages.btc.version_btc_message import VersionBTCMessage
 from bxcommon.messages.message import Message
-from bxcommon.messages.tx_message import TxMessage
 from bxcommon.utils import logger
 from bxgateway.connections.gateway_connection import GatewayConnection
-from bxgateway.messages.btc_message_parser import block_to_broadcastmsg
+from bxgateway.messages import btc_message_parser
 
 
 # Connection from a bloXroute client to a BTC blockchain node
@@ -103,16 +102,17 @@ class BTCNodeConnection(GatewayConnection):
 
     # Handle a tx message by broadcasting this to the entire network.
     def msg_tx(self, msg):
-        blx_txmsg = TxMessage(msg.tx_hash(), msg.tx())
+        blx_txmsg = btc_message_parser.btc_tx_msg_to_tx_msg(msg)
 
         # All connections outside of this one is a bloXroute server
         logger.debug("Broadcasting the transaction to peers")
         self.node.broadcast(blx_txmsg, self)
-        self.node.tx_manager.hash_to_contents[msg.tx_hash()] = msg.tx()
+        self.node.tx_service.hash_to_contents[msg.tx_hash()] = msg.tx()
 
     # Handle a block message.
     def msg_block(self, msg):
-        blx_blockmsg = block_to_broadcastmsg(msg, self.node.tx_manager)
+        blx_blockmsg = btc_message_parser.block_to_broadcastmsg(msg, self.node.tx_service)
         logger.debug("Compressed block with hash {0} to size {1} from size {2}"
                      .format(msg.block_hash(), len(blx_blockmsg.rawbytes()), len(msg.rawbytes())))
+        self.node.block_recovery_service.cancel_recovery_for_block(msg.block_hash())
         self.node.broadcast(blx_blockmsg, self)

@@ -2,9 +2,12 @@ import socket
 from collections import deque
 
 from bxcommon.connections.abstract_node import AbstractNode
+from bxcommon.services.block_recovery_service import BlockRecoveryService
 from bxcommon.utils import logger
 from bxgateway.connections.btc_node_connection import BTCNodeConnection
 from bxgateway.connections.relay_connection import RelayConnection
+from bxgateway.testing.lossy_relay_connection import LossyRelayConnection
+from bxgateway.testing.test_modes import TestModes
 
 
 class GatewayNode(AbstractNode):
@@ -18,18 +21,23 @@ class GatewayNode(AbstractNode):
         self.node_conn = None  # Connection object for the blockchain node
         self.node_msg_queue = deque()
 
+        self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
+
     def can_retry_after_destroy(self, teardown, conn):
         # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
         return not teardown and conn.is_server
 
     def get_connection_class(self, ip=None):
-        return BTCNodeConnection if self.node_addr[0] == ip else RelayConnection
+        return BTCNodeConnection if self.node_addr[0] == ip else self._get_relay_connection_cls()
 
     def connect_to_peers(self):
         for idx in self.servers:
             ip, port = self.servers[idx]
             logger.debug("connecting to relay node {0}:{1}".format(ip, port))
-            self.connect_to_address(RelayConnection, socket.gethostbyname(ip), port, setup=True)
+
+            relay_connection_cls = self._get_relay_connection_cls()
+
+            self.connect_to_address(relay_connection_cls, socket.gethostbyname(ip), port, setup=True)
 
         self.connect_to_address(BTCNodeConnection, socket.gethostbyname(self.node_addr[0]), self.node_addr[1],
                                 setup=True)
@@ -42,3 +50,11 @@ class GatewayNode(AbstractNode):
         else:
             logger.debug("Adding things to node's message queue")
             self.node_msg_queue.append(msg)
+
+    def _get_relay_connection_cls(self):
+        logger.debug("Get Relay connection")
+
+        return LossyRelayConnection \
+            if TestModes.TEST_MODES_PARAM_NAME in self.node_params and \
+               self.node_params[TestModes.TEST_MODES_PARAM_NAME] == TestModes.DROPPING_TXS_MODE \
+            else RelayConnection
