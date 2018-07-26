@@ -49,6 +49,8 @@ class RelayConnection(GatewayConnection):
                 tx_sid = self.node.tx_service.get_txid(tx_hash)
                 all_unknown_sids.append(tx_sid)
 
+            logger.debug("Block recovery: Sending GetTxsMessage to relay with {0} unknown tx short ids."
+                         .format(len(all_unknown_sids)))
             get_unknown_txs_msg = GetTxsMessage(short_ids=all_unknown_sids)
             self.enqueue_msg(get_unknown_txs_msg)
 
