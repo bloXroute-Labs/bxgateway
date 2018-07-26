@@ -34,7 +34,7 @@ class LossyRelayConnection(RelayConnection):
         else:
             super(LossyRelayConnection, self).msg_txassign(msg)
 
-    def msg_txs_details(self, msg):
+    def msg_txs(self, msg):
         self.tx_unknown_txs_drop_counter += 1
 
         # Drop every 3rd message
@@ -42,4 +42,4 @@ class LossyRelayConnection(RelayConnection):
             self.tx_unknown_txs_drop_counter = 0
             logger.debug("Test mode: Dropping unknown txs message.")
         else:
-            super(LossyRelayConnection, self).msg_txs_details(msg)
+            super(LossyRelayConnection, self).msg_txs(msg)

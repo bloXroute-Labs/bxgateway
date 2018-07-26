@@ -29,7 +29,7 @@ class RelayConnection(GatewayConnection):
             'broadcast': self.msg_broadcast,
             'txassign': self.msg_txassign,
             'tx': self.msg_tx,
-            'txs': self.msg_txs_details
+            'txs': self.msg_txs
         }
 
     # Handle a broadcast message
@@ -82,7 +82,7 @@ class RelayConnection(GatewayConnection):
 
         return tx_hash
 
-    def msg_txs_details(self, msg):
+    def msg_txs(self, msg):
 
         txs_info = msg.get_txs()
 
