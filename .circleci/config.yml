@@ -1,7 +1,7 @@
 version: 2
 jobs:
 
-  test-unit:
+  test:
     docker:
       - image: circleci/python:2.7
     working_directory: ~/ws
@@ -47,14 +47,14 @@ jobs:
           command: |
             . venv/bin/activate
             cd bxgateway/test/unit
-            PYTHONPATH=../../bxcommon/src/:../src/  \
+            PYTHONPATH=../../../bxcommon/src/:../src/  \
             python -m unittest discover --verbose
       - run: # run tests
           name: Integration Tests
           command: |
             . venv/bin/activate
             cd bxgateway/test/integration
-            PYTHONPATH=../../bxcommon/src/:../src/  \
+            PYTHONPATH=../../../bxcommon/src/:../src/  \
             python -m unittest discover --verbose
       - run: # run pylint
           name: Lint Score
@@ -98,10 +98,10 @@ workflows:
 
   test-build:
     jobs:
-      - test-unit
+      - test
       - build:
           requires:
-            - test-unit
+            - test
           filters:
             branches:
               only: develop
