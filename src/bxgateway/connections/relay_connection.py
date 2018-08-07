@@ -2,12 +2,12 @@ import hashlib
 import time
 
 from bxcommon.constants import BTC_SHA_HASH_LEN
-from bxcommon.messages.get_txs_details_message import GetTxsDetailsMessage
+from bxcommon.messages.get_txs_message import GetTxsMessage
 from bxcommon.messages.hello_message import HelloMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import BTCObjectHash
 from bxgateway.connections.gateway_connection import GatewayConnection
-from bxgateway.messages.btc_message_parser import broadcastmsg_to_block, tx_msg_to_btc_tx_msg
+from bxgateway.messages import btc_message_parser
 
 sha256 = hashlib.sha256
 
@@ -29,12 +29,13 @@ class RelayConnection(GatewayConnection):
             'broadcast': self.msg_broadcast,
             'txassign': self.msg_txassign,
             'tx': self.msg_tx,
-            'txs': self.msg_txs_details
+            'txs': self.msg_txs
         }
 
     # Handle a broadcast message
     def msg_broadcast(self, msg):
-        blx_block, block_hash, unknown_sids, unknown_hashes = broadcastmsg_to_block(msg, self.node.tx_service)
+        blx_block, block_hash, unknown_sids, unknown_hashes = btc_message_parser.broadcastmsg_to_block(msg,
+                                                                                                       self.node.tx_service)
         if blx_block is not None:
             logger.debug("Decoded block successfully- sending block to node")
             self.node.send_bytes_to_node(blx_block)
@@ -49,7 +50,9 @@ class RelayConnection(GatewayConnection):
                 tx_sid = self.node.tx_service.get_txid(tx_hash)
                 all_unknown_sids.append(tx_sid)
 
-            get_unknown_txs_msg = GetTxsDetailsMessage(short_ids=all_unknown_sids)
+            logger.debug("Block recovery: Sending GetTxsMessage to relay with {0} unknown tx short ids."
+                         .format(len(all_unknown_sids)))
+            get_unknown_txs_msg = GetTxsMessage(short_ids=all_unknown_sids)
             self.enqueue_msg(get_unknown_txs_msg)
             logger.debug("Block Recovery: Requesting ....")
 
@@ -68,7 +71,7 @@ class RelayConnection(GatewayConnection):
         self._msg_broadcast_retry()
 
         if self.node.node_conn is not None:
-            btc_tx_msg = tx_msg_to_btc_tx_msg(msg, self.node.node_conn.magic)
+            btc_tx_msg = btc_message_parser.tx_msg_to_btc_tx_msg(msg, self.node.node_conn.magic)
             self.node.send_bytes_to_node(btc_tx_msg.rawbytes())
 
     def msg_txassign(self, msg):
@@ -80,18 +83,16 @@ class RelayConnection(GatewayConnection):
 
         return tx_hash
 
-    def msg_txs_details(self, msg):
+    def msg_txs(self, msg):
 
-        txs_info = msg.get_txs_details()
+        txs = msg.get_txs()
 
         logger.debug("Block recovery: Txs details message received from server. Contains {0} txs."
-                     .format(len(txs_info)))
+                     .format(len(txs)))
 
-        for tx_info in txs_info:
+        for tx in txs:
 
-            tx_sid = tx_info[0]
-            tx_hash = tx_info[1]
-            tx = tx_info[2]
+            tx_sid, tx_hash, tx = tx
 
             self.node.block_recovery_service.check_missing_sid(tx_sid)
 

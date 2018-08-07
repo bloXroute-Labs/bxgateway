@@ -2,7 +2,7 @@ import hashlib
 import struct
 from collections import deque
 
-from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN, HASH_LEN
+from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN, SHA256_HASH_LEN
 from bxcommon.messages.broadcast_message import BroadcastMessage
 from bxcommon.messages.btc.btc_message import BTCMessage
 from bxcommon.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
@@ -55,7 +55,6 @@ def broadcastmsg_to_block(msg, tx_service):
     pieces = deque()
 
     # parse statistics variables
-    all_txs_known = True
     total_tx_count = 0
     unknown_tx_sids = []
     unknown_tx_hashes = []
@@ -65,7 +64,7 @@ def broadcastmsg_to_block(msg, tx_service):
     _, txn_count_size = btcvarint_to_int(blob, headersize)
     headersize += txn_count_size
 
-    block_hash = ObjectHash(blob[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + HASH_LEN])
+    block_hash = ObjectHash(blob[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + SHA256_HASH_LEN])
     header = blob[:headersize]
     pieces.append(header)
     size += headersize
@@ -75,26 +74,25 @@ def broadcastmsg_to_block(msg, tx_service):
         if blob[off] == 0x00:
             sid, = struct.unpack_from('<I', blob, off + 1)
             tx_hash, tx = tx_service.get_tx_from_sid(sid)
-            if tx is None:
-                if tx_hash is None:
-                    unknown_tx_sids.append(sid)
-                else:
-                    unknown_tx_hashes.append(tx_hash)
 
-                all_txs_known = False
+            if tx_hash is None:
+                unknown_tx_sids.append(sid)
+            elif tx is None:
+                unknown_tx_hashes.append(tx_hash)
+
             off += 5
         else:
             txsize = get_next_tx_size(blob, off)
             tx = blob[off:off + txsize]
             off += txsize
 
-        if all_txs_known:  # stop appending pieces when at least on tx sid or content is unknown
+        if not unknown_tx_sids and not unknown_tx_hashes:  # stop appending pieces when at least on tx sid or content is unknown
             pieces.append(tx)
             size += len(tx)
 
         total_tx_count += 1
 
-    if all_txs_known:
+    if not unknown_tx_sids and not unknown_tx_hashes:
         blx_block = bytearray(size)
         off = 0
         for piece in pieces:

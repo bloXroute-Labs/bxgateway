@@ -1,7 +1,7 @@
 version: 2
 jobs:
 
-  test-unit:
+  test:
     docker:
       - image: circleci/python:2.7
     working_directory: ~/ws
@@ -43,13 +43,26 @@ jobs:
           paths:
             - venv
       - run: # run tests
-          name: Tests
+          name: Unit Tests
           command: |
             . venv/bin/activate
-            cd bxgateway/test/
-            PYTHONPATH=../../bxcommon/src/:../src/  \
-            PYLINTRC_PATH=../../bxcommon/pylintrc \
+            cd bxgateway/test/unit
+            PYTHONPATH=../../../bxcommon/src/:../../src/  \
             python -m unittest discover --verbose
+      - run: # run tests
+          name: Integration Tests
+          command: |
+            . venv/bin/activate
+            cd bxgateway/test/integration
+            PYTHONPATH=../../../bxcommon/src/:../../src/  \
+            python -m unittest discover --verbose
+      - run: # run pylint
+          name: Lint Score
+          command: |
+            . venv/bin/activate
+            cd bxgateway
+            # The || exit 0 bypasses not failing the build for <10 score
+            PYTHONPATH=../bxcommon/src/ pylint src/bxgateway --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" --rcfile=../bxcommon/pylintrc || exit 0
       - store_artifacts:
           path: test-reports/
           destination: tr1
@@ -85,10 +98,10 @@ workflows:
 
   test-build:
     jobs:
-      - test-unit
+      - test
       - build:
           requires:
-            - test-unit
+            - test
           filters:
             branches:
               only: develop
