@@ -3,14 +3,13 @@ import sys
 from collections import deque
 
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.constants import btc_magic_numbers, HDR_COMMON_OFF, BTC_HDR_COMMON_OFF
+from bxcommon.constants import btc_magic_numbers, BTC_HDR_COMMON_OFF
 from bxcommon.messages.btc.addr_btc_message import AddrBTCMessage
 from bxcommon.messages.btc.btc_message import BTCMessage
 from bxcommon.messages.btc.inventory_btc_message import GetDataBTCMessage
 from bxcommon.messages.btc.pong_btc_message import PongBTCMessage
 from bxcommon.messages.btc.ver_ack_btc_message import VerAckBTCMessage
 from bxcommon.messages.btc.version_btc_message import VersionBTCMessage
-from bxcommon.messages.message import Message
 from bxcommon.utils import logger
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.messages import btc_message_parser
@@ -22,8 +21,8 @@ class BTCNodeConnection(GatewayConnection):
 
     NONCE = random.randint(0, sys.maxint)  # Used to detect connections to self.
 
-    def __init__(self, sock, address, node, from_me=False, setup=False):
-        super(BTCNodeConnection, self).__init__(sock, address, node, setup=setup)
+    def __init__(self, sock, address, node, from_me=False):
+        super(BTCNodeConnection, self).__init__(sock, address, node)
 
         self.is_persistent = True
         magic_net = node.node_params['magic']
@@ -53,11 +52,11 @@ class BTCNodeConnection(GatewayConnection):
             'inv': self.msg_inv,
         }
 
-    def pop_next_message(self, payload_len, msg_type=Message, hdr_size=HDR_COMMON_OFF):
+    def pop_next_message(self, payload_len, msg_type=None, hdr_size=None):
         return super(BTCNodeConnection, self).pop_next_message(payload_len, BTCMessage, BTC_HDR_COMMON_OFF)
 
-    def recv(self, msg_cls=Message, hello_msgs=['hello', 'ack']):
-        return super(BTCNodeConnection, self).recv(BTCMessage, ['version', 'verack'])
+    def process_message(self, msg_cls=None, hello_msgs=None):
+        return super(BTCNodeConnection, self).process_message(BTCMessage, ['version', 'verack'])
 
     ###
     # Handlers for each message type

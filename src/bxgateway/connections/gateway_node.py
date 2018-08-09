@@ -12,6 +12,8 @@ from bxgateway.testing.test_modes import TestModes
 
 class GatewayNode(AbstractNode):
     def __init__(self, server_ip, server_port, servers, node_addr, node_params):
+        logger.debug("Init gateway node.")
+
         super(GatewayNode, self).__init__(server_ip, server_port)
 
         self.servers = servers  # A list of (ip, port) pairs of other bloXroute servers
@@ -23,24 +25,26 @@ class GatewayNode(AbstractNode):
 
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
 
+    def get_peers_addresses(self):
+        peers = []
+
+        for idx in self.servers:
+            ip, port = self.servers[idx]
+            logger.debug("connecting to relay node {0}:{1}".format(ip, port))
+            peers.append((ip, port))
+
+        peers.append((socket.gethostbyname(self.node_addr[0]), self.node_addr[1]))
+
+        return peers
+
     def can_retry_after_destroy(self, teardown, conn):
         # If the connection is to a bloXroute server, then retry it unless we're tearing down the Node
         return not teardown and conn.is_server
 
-    def get_connection_class(self, ip=None):
-        return BTCNodeConnection if self.node_addr[0] == ip else self._get_relay_connection_cls()
-
-    def connect_to_peers(self):
-        for idx in self.servers:
-            ip, port = self.servers[idx]
-            logger.debug("connecting to relay node {0}:{1}".format(ip, port))
-
-            relay_connection_cls = self._get_relay_connection_cls()
-
-            self.connect_to_address(relay_connection_cls, socket.gethostbyname(ip), port, setup=True)
-
-        self.connect_to_address(BTCNodeConnection, socket.gethostbyname(self.node_addr[0]), self.node_addr[1],
-                                setup=True)
+    def get_connection_class(self, ip=None, port=None):
+        return BTCNodeConnection \
+            if self.node_addr[0] == ip and self.node_addr[1] == port \
+            else self._get_relay_connection_cls()
 
     # Sends a message to the node that this is connected to
     def send_bytes_to_node(self, msg):

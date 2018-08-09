@@ -13,8 +13,8 @@ sha256 = hashlib.sha256
 
 
 class RelayConnection(GatewayConnection):
-    def __init__(self, sock, address, node, from_me=False, setup=False):
-        super(RelayConnection, self).__init__(sock, address, node, setup=setup)
+    def __init__(self, sock, address, node, from_me=False):
+        super(RelayConnection, self).__init__(sock, address, node, from_me=from_me)
 
         self.is_server = True
         self.is_persistent = True
@@ -54,6 +54,7 @@ class RelayConnection(GatewayConnection):
                          .format(len(all_unknown_sids)))
             get_unknown_txs_msg = GetTxsMessage(short_ids=all_unknown_sids)
             self.enqueue_msg(get_unknown_txs_msg)
+            logger.debug("Block Recovery: Requesting ....")
 
     # Receive a transaction from the bloXroute network.
     def msg_tx(self, msg):
