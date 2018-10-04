@@ -51,13 +51,13 @@ jobs:
             cd bxgateway/test/unit
             PYTHONPATH=../../../bxcommon/src/:../../src/  \
             python -m unittest discover --verbose
-      - run: # check coverage
+     - run: # check coverage
           name: Check Coverage
           command: |
             . venv/bin/activate
-            cd bxrelay/test/unit
-            PYTHONPATH=../../../bxcommon/src/:../../src/ \
-            coverage run */*.py && coverage report
+            cd bxcommon/test/unit
+            PYTHONPATH=../../../bxcommon/src/ \
+            coverage run --source=../../src -m unittest discover && coverage report --fail-under=10
       - run: # run tests
           name: Integration Tests
           command: |
