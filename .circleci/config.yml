@@ -55,8 +55,8 @@ jobs:
           name: Check Coverage
           command: |
             . venv/bin/activate
-            cd bxcommon/test/unit
-            PYTHONPATH=../../../bxcommon/src/ \
+            cd bxgateway/test/unit
+            PYTHONPATH=../../../bxcommon/src/:../../src/  \
             coverage run --source=../../src -m unittest discover && coverage report --fail-under=10
       - run: # run tests
           name: Integration Tests
