@@ -61,7 +61,7 @@ jobs:
           command: |
             . venv/bin/activate
             cd bxgateway/test/unit
-            coverage run --source=/home/circleci/ws/bxcommon/src -m unittest discover && coverage report --fail-under=01
+            coverage run --source=/home/circleci/ws/bxgateway/src -m unittest discover && coverage report --fail-under=01
       - run: # run tests
           name: Integration Tests
           command: |
