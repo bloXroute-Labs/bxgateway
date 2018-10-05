@@ -5,7 +5,7 @@ executors:
     docker:
       - image: circleci/python:2.7
     environment:
-      PYTHONPATH: /home/circleci/ws/bxcommon/src
+      PYTHONPATH: /home/circleci/ws/bxcommon/src:/home/circleci/ws/bxgateway/src
     working_directory: ~/ws
 
 jobs:
