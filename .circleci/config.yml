@@ -57,7 +57,7 @@ jobs:
             . venv/bin/activate
             cd bxgateway/test/unit
             PYTHONPATH=../../../bxcommon/src/:../../src/  \
-            coverage run --source=../../src -m unittest discover && coverage report --fail-under=10
+            coverage run --source=../../src -m unittest discover && coverage report --fail-under=7
       - run: # run tests
           name: Integration Tests
           command: |
