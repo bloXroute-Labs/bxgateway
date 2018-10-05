@@ -55,7 +55,6 @@ jobs:
           command: |
             . venv/bin/activate
             cd bxgateway/test/unit
-            PYTHONPATH=../../../bxcommon/src/:../../src/  \
             python -m unittest discover --verbose
       - run: # check coverage
           name: Check Coverage
