@@ -61,14 +61,12 @@ jobs:
           command: |
             . venv/bin/activate
             cd bxgateway/test/unit
-            PYTHONPATH=../../../bxcommon/src/:../../src/  \
             coverage run --source=../../src -m unittest discover && coverage report --fail-under=01
       - run: # run tests
           name: Integration Tests
           command: |
             . venv/bin/activate
             cd bxgateway/test/integration
-            PYTHONPATH=../../../bxcommon/src/:../../src/  \
             python -m unittest discover --verbose
       - run: # run pylint
           name: Lint Score
