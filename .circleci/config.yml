@@ -7,9 +7,11 @@ executors:
     environment:
       PYTHONPATH: /home/circleci/ws/bxcommon/src
     working_directory: ~/ws
+
 jobs:
 
   test:
+    executor: bloxroute-executor
     docker:
       - image: circleci/python:2.7
     working_directory: ~/ws
