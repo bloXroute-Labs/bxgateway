@@ -9,7 +9,6 @@ executors:
     working_directory: ~/ws
 
 jobs:
-
   test:
     executor: bloxroute-executor
     steps:
