@@ -1,10 +1,16 @@
-version: 2
-jobs:
+version: 2.1
 
-  test:
+executors:
+  bloxroute-executor:
     docker:
       - image: circleci/python:2.7
+    environment:
+      PYTHONPATH: /home/circleci/ws/bxcommon/src:/home/circleci/ws/bxgateway/src
     working_directory: ~/ws
+
+jobs:
+  test:
+    executor: bloxroute-executor
     steps:
       - attach_workspace:
           at: ~/ws
@@ -49,14 +55,18 @@ jobs:
           command: |
             . venv/bin/activate
             cd bxgateway/test/unit
-            PYTHONPATH=../../../bxcommon/src/:../../src/  \
             python -m unittest discover --verbose
+      - run: # check coverage
+          name: Check Coverage
+          command: |
+            . venv/bin/activate
+            cd bxgateway/test/unit
+            coverage run --source=/home/circleci/ws/bxgateway/src -m unittest discover && coverage report --fail-under=01
       - run: # run tests
           name: Integration Tests
           command: |
             . venv/bin/activate
             cd bxgateway/test/integration
-            PYTHONPATH=../../../bxcommon/src/:../../src/  \
             python -m unittest discover --verbose
       - run: # run pylint
           name: Lint Score
