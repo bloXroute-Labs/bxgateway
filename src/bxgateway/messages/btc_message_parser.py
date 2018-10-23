@@ -2,7 +2,7 @@ import hashlib
 import struct
 from collections import deque
 
-from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN, SHA256_HASH_LEN
+from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN, NULL_TX_SID, SHA256_HASH_LEN
 from bxcommon.messages.broadcast_message import BroadcastMessage
 from bxcommon.messages.btc.btc_message import BTCMessage
 from bxcommon.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
@@ -26,7 +26,7 @@ def block_to_broadcastmsg(msg, tx_service):
     for tx in msg.txns():
         tx_hash = BTCObjectHash(buf=sha256(sha256(tx).digest()).digest(), length=BTC_SHA_HASH_LEN)
         shortid = tx_service.get_txid(tx_hash)
-        if shortid == -1:
+        if shortid == NULL_TX_SID:
             buf.append(tx)
             size += len(tx)
         else:
@@ -112,9 +112,9 @@ def tx_msg_to_btc_tx_msg(tx_msg, btc_magic):
     if not isinstance(tx_msg, TxMessage):
         raise TypeError("tx_msg is expected to be of type TxMessage")
 
-    buf = bytearray(BTC_HDR_COMMON_OFF) + tx_msg.blob()
+    buf = bytearray(BTC_HDR_COMMON_OFF) + tx_msg.tx_val()
 
-    btc_tx_msg = BTCMessage(btc_magic, 'tx', len(tx_msg.blob()), buf)
+    btc_tx_msg = BTCMessage(btc_magic, 'tx', len(tx_msg.tx_val()), buf)
 
     return btc_tx_msg
 

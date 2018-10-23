@@ -1,92 +1,59 @@
+#!/bin/env python
 #
-# Copyright (C) 2017, bloXroute Labs, All rights reserved.
+# Copyright (C) 2018, bloXroute Labs, All rights reserved.
 # See the file COPYING for details.
 #
-# Startup script for nodes
+# Startup script for Gateway nodes
 #
-import socket
+import argparse
+import random
+import sys
 
-from bxcommon.network import network_event_loop_factory
-from bxcommon.utils import config, logger
+from bxcommon import constants, node_runner
+from bxcommon.utils import cli, config
 from bxgateway.connections.gateway_node import GatewayNode
-from bxgateway.testing.test_modes import TestModes
 
-# Extra parameters for gateway that are parsed from the config file.
-GATEWAY_PARAMS = [
-    'node_params',
-    'node_addr'
-]
 MAX_NUM_CONN = 8192
-CONFIG_FILE_NAME = "config.cfg"
 PID_FILE_NAME = "bxgateway.pid"
 
+
+def convert_net_magic(magic):
+    if magic in constants.btc_magic_numbers:
+        return constants.btc_magic_numbers[magic]
+    else:
+        return int(magic)
+
+
+def generate_default_nonce():
+    return random.randint(0, sys.maxint)
+
+
+def get_opts():
+    common_args = cli.get_args()
+
+    arg_parser = argparse.ArgumentParser()
+
+    # Get more options specific to gateways.
+    arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip", type=config.blocking_resolve_ip,
+                            required=False, default="127.0.0.1")
+    arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int, required=False,
+                            default=9333)
+    arg_parser.add_argument("--blockchain-version", help="Blockchain protocol version", type=int)
+    arg_parser.add_argument("--blockchain-nonce", help="Blockchain nonce", required=False,
+                            default=generate_default_nonce())
+    arg_parser.add_argument("--blockchain-net-magic", help="Blockchain net.magic parameter",
+                            type=convert_net_magic)
+    arg_parser.add_argument("--blockchain-services", help="Blockchain services parameter", type=int)
+
+    arg_parser.add_argument("--test-mode", help="Test modes to run. Possible values: {0}", required=False)
+
+    gateway_args, unknown = arg_parser.parse_known_args()
+
+    for key, val in gateway_args.__dict__.items():
+        common_args.__dict__[key] = val
+
+    return common_args
+
+
 if __name__ == '__main__':
-    config.log_pid(PID_FILE_NAME)
-
-    arg_parser = config.get_base_arg_parser()
-    arg_parser.add_argument("-b", "--blockchain-node",
-                            help="Blockchain node ip and port to connect to, space delimited, typically localhost")
-    arg_parser.add_argument("--blockchain-net-magic", help="Blockchain net.magic parameter")
-    arg_parser.add_argument("--blockchain-services", help="Blockchain services parameter")
-    arg_parser.add_argument("--bloxroute-version", help="Bloxroute version number")
-    arg_parser.add_argument("--blockchain-version", help="Blockchain protocol version")
-    arg_parser.add_argument("--test-mode", help="Test mode to run. Possible values: {0}"
-                            .format(TestModes.DROPPING_TXS_MODE))
-
-    opts = arg_parser.parse_args()
-
-    # The local name is the section of the config.cfg we will read
-    # It can be specified with -c or will be the local ip of the machine
-    my_ip = opts.config_name or config.get_my_ip()
-
-    # Parse the config corresponding to the ip in the config file.
-    config_parser, params = config.parse_config_file(CONFIG_FILE_NAME, my_ip, GATEWAY_PARAMS)
-
-    ip, port = config.parse_addr(opts, params)
-
-    config.init_logging(ip, port, opts, params)
-
-    # Initialize the node and register the peerfile update signal to USR2 signal.
-    relay_nodes = config.parse_peers(opts.peers or params['peers'])
-
-    node_param_list = {}
-    if params['node_params']:
-        node_param_list = [x.strip() for x in params['node_params'].split(",")]
-
-    node_params = {}
-
-    if node_param_list:
-        for param in node_param_list:
-            node_params[param] = config.getparam(config_parser, my_ip, param)
-
-    if opts.blockchain_node:
-        params['node_addr'] = opts.blockchain_node
-    if opts.blockchain_net_magic:
-        node_params['magic'] = opts.blockchain_net_magic
-    if opts.blockchain_services:
-        node_params['services'] = opts.blockchain_services
-    if opts.bloxroute_version:
-        node_params['bloxroute_version'] = opts.bloxroute_version
-    if opts.blockchain_version:
-        node_params['protocol_version'] = opts.blockchain_version
-    if opts.bloxroute_version:
-        node_params['version'] = opts.bloxroute_version
-    if opts.test_mode:
-        node_params[TestModes.TEST_MODES_PARAM_NAME] = opts.test_mode
-
-    tokens = params['node_addr'].strip().split()
-    node_ip = socket.gethostbyname(tokens[0])
-    node_port = int(tokens[1])
-    node_addr = (node_ip, node_port)
-
-    gateway_node = GatewayNode(ip, port, relay_nodes, node_addr, node_params)
-    event_loop = network_event_loop_factory.create_event_loop(gateway_node)
-
-    # Start main loop
-    try:
-        logger.debug("running node")
-        event_loop.run()
-    finally:
-        logger.fatal("node run method returned")
-        logger.fatal("Log closed")
-        logger.log_close()
+    node_runner.run_node(PID_FILE_NAME, get_opts(), GatewayNode)

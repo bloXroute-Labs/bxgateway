@@ -3,7 +3,7 @@ import sys
 from collections import deque
 
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.constants import btc_magic_numbers, BTC_HDR_COMMON_OFF
+from bxcommon.constants import BTC_HDR_COMMON_OFF
 from bxcommon.messages.btc.addr_btc_message import AddrBTCMessage
 from bxcommon.messages.btc.btc_message import BTCMessage
 from bxcommon.messages.btc.inventory_btc_message import GetDataBTCMessage
@@ -16,6 +16,7 @@ from bxgateway.messages import btc_message_parser
 
 
 # Connection from a bloXroute client to a BTC blockchain node
+
 class BTCNodeConnection(GatewayConnection):
     ESTABLISHED = 0b1
 
@@ -24,21 +25,13 @@ class BTCNodeConnection(GatewayConnection):
     def __init__(self, sock, address, node, from_me=False):
         super(BTCNodeConnection, self).__init__(sock, address, node)
 
-        self.is_persistent = True
-        magic_net = node.node_params['magic']
-        self.magic = btc_magic_numbers[magic_net] if magic_net in btc_magic_numbers else int(magic_net)
-        self.services = int(node.node_params['services'])
-        self.version = node.node_params['version']
-        self.protocol_version = int(node.node_params['protocol_version'])
-
-        if 'nonce' not in node.node_params:
-            node.node_params['nonce'] = random.randint(0, sys.maxint)
-
-        self.nonce = node.node_params['nonce']
+        self.magic = node.opts.blockchain_net_magic
 
         # I must be the one that is establishing this connection.
-        version_msg = VersionBTCMessage(self.magic, self.protocol_version, self.peer_ip, self.peer_port, self.my_ip,
-                                        self.my_port, self.nonce, 0, self.version, self.services)
+        version_msg = VersionBTCMessage(node.opts.blockchain_net_magic, node.opts.blockchain_version, self.peer_ip,
+                                        self.peer_port, self.node.opts.external_ip, self.node.opts.external_port,
+                                        node.opts.blockchain_nonce, 0, node.opts.bloxroute_version,
+                                        node.opts.blockchain_services)
         self.enqueue_msg(version_msg)
 
         # Command to message handler for that function.
