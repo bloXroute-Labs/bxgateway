@@ -82,51 +82,51 @@ jobs:
   e2e:
     executor: bloxroute-executor
     steps:
-    - attach_workspace:
-        at: ~/ws
-    - checkout:
-        path:
-          "bxgateway"
-    - run:
-        name: Try to clone corresponding branches
-        command: |
-          cd ~/ws
-          { # try
-              echo "Trying to clone identical branch name '$CIRCLE_BRANCH' from bxgateway."
-              git clone -b $CIRCLE_BRANCH --single-branch --depth=1 git@github.com:bloXroute-Labs/bxe2e.git
-          } || { # catch
-              echo "Trying bxe2e develop branch, could not find identical branch name '$CIRCLE_BRANCH' in bxrelay."
-              git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxe2e.git
-          }
-          { # try
-              echo "Trying to clone identical branch name '$CIRCLE_BRANCH' from bxgateway."
-              git clone -b $CIRCLE_BRANCH --single-branch --depth=1 git@github.com:bloXroute-Labs/bxrelay.git
-          } || { # catch
-              echo "Trying bxrelay develop branch, could not find identical branch name '$CIRCLE_BRANCH  in bxrelay."
-              git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxrelay.git
-          }
-          { # try
-              echo "Trying to clone identical branch name '$CIRCLE_BRANCH  from bxgateway."
-              git clone -b $CIRCLE_BRANCH --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
-          } || { # catch
-              echo "Trying bxgateway develop branch, could not find identical branch name '$CIRCLE_BRANCH  in bxrelay."
-              git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
-          }
-    - run:
-        name: Initialize virtualenv
-        command: |
-          python -m virtualenv venv
-          . venv/bin/activate
-          pip install -r bxcommon/requirements.txt
-          pip install -r bxrelay/requirements.txt
-          pip install -r bxgateway/requirements.txt
-    - run:
-        name: Integration Test
-        command: |
-          . venv/bin/activate
-          cd bxe2e/test/integration
-          PYTHONPATH=$PYTHONPATH:/home/circleci/ws/bxe2e/src:/home/circleci/ws/bxrelay/src \
-          python -m unittest discover --verbose
+      - attach_workspace:
+          at: ~/ws
+      - checkout:
+          path:
+            "bxgateway"
+      - run:
+          name: Try to clone corresponding branches
+          command: |
+            cd ~/ws
+            { # try
+                echo "Trying to clone identical branch name '$CIRCLE_BRANCH' from bxgateway."
+                git clone -b $CIRCLE_BRANCH --single-branch --depth=1 git@github.com:bloXroute-Labs/bxe2e.git
+            } || { # catch
+                echo "Trying bxe2e develop branch, could not find identical branch name '$CIRCLE_BRANCH' in bxrelay."
+                git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxe2e.git
+            }
+            { # try
+                echo "Trying to clone identical branch name '$CIRCLE_BRANCH' from bxgateway."
+                git clone -b $CIRCLE_BRANCH --single-branch --depth=1 git@github.com:bloXroute-Labs/bxrelay.git
+            } || { # catch
+                echo "Trying bxrelay develop branch, could not find identical branch name '$CIRCLE_BRANCH  in bxrelay."
+                git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxrelay.git
+            }
+            { # try
+                echo "Trying to clone identical branch name '$CIRCLE_BRANCH  from bxgateway."
+                git clone -b $CIRCLE_BRANCH --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+            } || { # catch
+                echo "Trying bxgateway develop branch, could not find identical branch name '$CIRCLE_BRANCH  in bxrelay."
+                git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+            }
+      - run:
+          name: Initialize virtualenv
+          command: |
+            python -m virtualenv venv
+            . venv/bin/activate
+            pip install -r bxcommon/requirements.txt
+            pip install -r bxrelay/requirements.txt
+            pip install -r bxgateway/requirements.txt
+      - run:
+          name: Integration Test
+          command: |
+            . venv/bin/activate
+            cd bxe2e/test/integration
+            PYTHONPATH=$PYTHONPATH:/home/circleci/ws/bxe2e/src:/home/circleci/ws/bxrelay/src \
+            python -m unittest discover --verbose
   build:
     docker:
       - image: circleci/python:2.7

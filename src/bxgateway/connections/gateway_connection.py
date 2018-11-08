@@ -1,8 +1,12 @@
+from abc import ABCMeta
+
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.utils import logger
 
 
 class GatewayConnection(AbstractConnection):
+    __metaclass__ = ABCMeta
+
     def __init__(self, sock, address, node, from_me=False):
         super(GatewayConnection, self).__init__(sock, address, node, from_me)
 

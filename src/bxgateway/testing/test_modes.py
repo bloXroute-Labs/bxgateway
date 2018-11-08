@@ -1,2 +1,3 @@
 class TestModes(object):
-    DROPPING_TXS_MODE = "drop-transactions"
+    DROPPING_TXS = "drop-transactions"
+    DISABLE_ENCRYPTION = "disable-encryption"
