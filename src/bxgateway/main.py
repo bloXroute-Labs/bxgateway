@@ -44,13 +44,18 @@ def get_opts():
     arg_parser.add_argument("--blockchain-net-magic", help="Blockchain net.magic parameter",
                             type=convert_net_magic)
     arg_parser.add_argument("--blockchain-services", help="Blockchain services parameter", type=int)
+    arg_parser.add_argument("--outbound-ip", help="(TEST ONLY) Override parameter for an outbound peer to connect to")
+    arg_parser.add_argument("--outbound-port", help="(TEST ONLY) Override parameter for an outbound peer to connect to", type=int)
 
-    arg_parser.add_argument("--test-mode", help="Test modes to run. Possible values: {0}", required=False)
+    arg_parser.add_argument("--test-mode", help="(TEST ONLY) Test modes to run. Possible values: {0}", required=False)
 
     gateway_args, unknown = arg_parser.parse_known_args()
 
     for key, val in gateway_args.__dict__.items():
         common_args.__dict__[key] = val
+
+    if gateway_args.outbound_ip is not None and gateway_args.outbound_port is not None:
+        common_args.outbound_peers = [{"ip": gateway_args.outbound_ip, "port": gateway_args.outbound_port}]
 
     return common_args
 
