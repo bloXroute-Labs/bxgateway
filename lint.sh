@@ -4,6 +4,7 @@ mkdir -p .venv
 virtualenv .venv
 . .venv/bin/activate
 pip install -r requirements.txt
+pip install -r ../bxcommon/requirements.txt
 echo ""
 echo ""
 echo ""

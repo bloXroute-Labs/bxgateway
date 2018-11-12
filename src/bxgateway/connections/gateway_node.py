@@ -1,9 +1,9 @@
 from collections import deque
 
 from bxcommon.connections.abstract_node import AbstractNode
-from bxcommon.connections.node_types import NodeTypes
-from bxcommon.constants import NULL_IDX
-from bxcommon.models.outbound_peer_model import OutboundPeerModel
+from bxcommon.connections.node_type import NodeType
+from bxcommon.constants import NULL_IDX, SDN_CONTACT_RETRY_SECONDS
+from bxcommon.services import sdn_http_service
 from bxcommon.services.block_recovery_service import BlockRecoveryService
 from bxcommon.utils import logger
 from bxgateway.connections.btc_node_connection import BTCNodeConnection
@@ -15,7 +15,7 @@ from bxgateway.testing.unencrypted_block_cache import UnencryptedCache
 
 
 class GatewayNode(AbstractNode):
-    node_type = NodeTypes.GATEWAY
+    node_type = NodeType.GATEWAY
     """
     bloXroute gateway node. Middlemans messages between blockchain nodes and the bloXroute
     relay network.
@@ -47,11 +47,20 @@ class GatewayNode(AbstractNode):
 
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
 
+    def send_request_for_peers(self):
+        # Gateway uses rest, but relay uses messages.
+        outbound_peers = sdn_http_service.fetch_outbound_peers(self.opts.node_id)
+
+        self.on_updated_peers(outbound_peers)
+        if not self.opts.outbound_peers:
+            # Try again later.
+            return SDN_CONTACT_RETRY_SECONDS
+
     def get_outbound_peer_addresses(self):
         peers = []
 
         for peer in self.opts.outbound_peers:
-            peers.append((peer.get(OutboundPeerModel.ip), peer.get(OutboundPeerModel.port)))
+            peers.append((peer.ip, peer.port))
 
         peers.append((self.opts.blockchain_ip, self.opts.blockchain_port))
 

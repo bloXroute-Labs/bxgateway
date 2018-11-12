@@ -1,17 +1,20 @@
 import time
 
-from bxcommon.constants import BTC_SHA_HASH_LEN, BLOXROUTE_HELLO_MESSAGES, HDR_COMMON_OFF, NULL_TX_SID
+from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.constants import BLOXROUTE_HELLO_MESSAGES, BTC_SHA_HASH_LEN, HDR_COMMON_OFF, NULL_TX_SID
 from bxcommon.messages.bloxroute.bloxroute_message_factory import bloxroute_message_factory
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
-from bxcommon.utils import logger, crypto
+from bxcommon.utils import crypto, logger
 from bxcommon.utils.object_hash import BTCObjectHash, ObjectHash
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.messages import btc_message_parser
 
 
 class RelayConnection(GatewayConnection):
+    connection_type = ConnectionType.RELAY
+
     def __init__(self, sock, address, node, from_me=False):
         super(RelayConnection, self).__init__(sock, address, node, from_me=from_me)
 
@@ -74,6 +77,10 @@ class RelayConnection(GatewayConnection):
         if hash_val != msg.tx_hash():
             logger.error("Got ill formed tx message from the bloXroute network")
             return
+
+        short_id = msg.short_id()
+        if short_id:
+            self.node.tx_service.assign_tx_to_sid(hash_val, short_id, time.time())
 
         logger.debug("Adding hash value to tx service and forwarding it to node")
         self.node.tx_service.hash_to_contents[hash_val] = msg.tx_val()

@@ -10,6 +10,7 @@ import random
 import sys
 
 from bxcommon import constants, node_runner
+from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, config
 from bxgateway.connections.gateway_node import GatewayNode
 from bxgateway.testing.test_modes import TestModes
@@ -32,9 +33,8 @@ def generate_default_nonce():
 def get_opts():
     common_args = cli.get_args()
 
-    arg_parser = argparse.ArgumentParser()
-
     # Get more options specific to gateways.
+    arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip", type=config.blocking_resolve_ip,
                             default="127.0.0.1")
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int, default=9333)
@@ -56,13 +56,12 @@ def get_opts():
 
     gateway_args, unknown = arg_parser.parse_known_args()
 
-    for key, val in gateway_args.__dict__.items():
-        common_args.__dict__[key] = val
+    args = cli.merge_args(gateway_args, common_args)
 
     if gateway_args.outbound_ip is not None and gateway_args.outbound_port is not None:
-        common_args.outbound_peers = [{"ip": gateway_args.outbound_ip, "port": gateway_args.outbound_port}]
+        args.outbound_peers = [OutboundPeerModel(gateway_args.outbound_ip, gateway_args.outbound_port)]
 
-    return common_args
+    return args
 
 
 if __name__ == '__main__':

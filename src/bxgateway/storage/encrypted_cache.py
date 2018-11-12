@@ -2,7 +2,7 @@ from nacl.exceptions import CryptoError
 
 from bxcommon.exceptions import DecryptionError
 from bxcommon.utils import crypto
-from bxcommon.utils.crypto import symmetric_encrypt, symmetric_decrypt
+from bxcommon.utils.crypto import symmetric_decrypt, symmetric_encrypt
 from bxcommon.utils.expiration_queue import ExpirationQueue
 
 

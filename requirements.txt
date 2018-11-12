@@ -2,3 +2,4 @@ pylint==1.9.2
 pympler==0.5
 requests==2.19.1
 coverage==4.3.4
+mock==2.0.0

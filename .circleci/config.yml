@@ -3,7 +3,7 @@ version: 2.1
 executors:
   bloxroute-executor:
     docker:
-      - image: circleci/python:2.7
+    - image: circleci/python:2.7
     environment:
       PYTHONPATH: /home/circleci/ws/bxcommon/src:/home/circleci/ws/bxgateway/src
     working_directory: ~/ws
@@ -12,72 +12,72 @@ jobs:
   test:
     executor: bloxroute-executor
     steps:
-      - attach_workspace:
-          at: ~/ws
-      - checkout:
-          path:
-            "bxgateway"
-      - run:
-          name: Try to clone the corresponding bxcommon branch to this branch, or bxcommon/develop.
-          command: |
-            cd ~/ws/bxgateway
-            branchName=$(git rev-parse --abbrev-ref HEAD)
+    - attach_workspace:
+        at: ~/ws
+    - checkout:
+        path:
+          "bxgateway"
+    - run:
+        name: Try to clone the corresponding bxcommon branch to this branch, or bxcommon/develop.
+        command: |
+          cd ~/ws/bxgateway
+          branchName=$(git rev-parse --abbrev-ref HEAD)
 
-            cd ~/ws
-            { # try
-                echo "Trying to clone identical branch name '$branchName' from bxgateway."
-                git clone -b $branchName --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
-            } || { # catch
-                echo "Trying bxcommon develop branch, could not find identical branch name '$branchName' in bxgateway."
-                git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
-            }
-            cd bxcommon
-            bxcommonBranch=$(git rev-parse --abbrev-ref HEAD)
-            echo "Resolved branch $bxcommonBranch for bxcommon."
-      - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
-          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
-      - run: # install and activate virtual environment with pip
-          command: |
-            python -m virtualenv venv
-            . venv/bin/activate
-            pip install -r bxgateway/requirements.txt
-            pip install -r bxcommon/requirements.txt
-      - save_cache: # special step to save dependency cache
-          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
-          paths:
-            - "venv"
-      - persist_to_workspace:
-          root: .
-          paths:
-            - venv
-      - run: # run tests
-          name: Unit Tests
-          command: |
-            . venv/bin/activate
-            cd bxgateway/test/unit
-            python -m unittest discover --verbose
-      - run: # check coverage
-          name: Check Coverage
-          command: |
-            . venv/bin/activate
-            cd bxgateway/test/unit
-            coverage run --source=/home/circleci/ws/bxgateway/src -m unittest discover && coverage report --fail-under=01
-      - run: # run tests
-          name: Integration Tests
-          command: |
-            . venv/bin/activate
-            cd bxgateway/test/integration
-            python -m unittest discover --verbose
-      - run: # run pylint
-          name: Lint Score
-          command: |
-            . venv/bin/activate
-            cd bxgateway
-            # The || exit 0 bypasses not failing the build for <10 score
-            PYTHONPATH=../bxcommon/src/ pylint src/bxgateway --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" --rcfile=../bxcommon/pylintrc || exit 0
-      - store_artifacts:
-          path: test-reports/
-          destination: tr1
+          cd ~/ws
+          { # try
+              echo "Trying to clone identical branch name '$branchName' from bxgateway."
+              git clone -b $branchName --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+          } || { # catch
+              echo "Trying bxcommon develop branch, could not find identical branch name '$branchName' in bxgateway."
+              git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+          }
+          cd bxcommon
+          bxcommonBranch=$(git rev-parse --abbrev-ref HEAD)
+          echo "Resolved branch $bxcommonBranch for bxcommon."
+    - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
+        key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
+    - run: # install and activate virtual environment with pip
+        command: |
+          python -m virtualenv venv
+          . venv/bin/activate
+          pip install -r bxgateway/requirements.txt
+          pip install -r bxcommon/requirements.txt
+    - save_cache: # special step to save dependency cache
+        key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
+        paths:
+        - "venv"
+    - persist_to_workspace:
+        root: .
+        paths:
+        - venv
+    - run: # run tests
+        name: Unit Tests
+        command: |
+          . venv/bin/activate
+          cd bxgateway/test/unit
+          python -m unittest discover --verbose
+    - run: # check coverage
+        name: Check Coverage
+        command: |
+          . venv/bin/activate
+          cd bxgateway/test/unit
+          coverage run --source=/home/circleci/ws/bxgateway/src -m unittest discover && coverage report --fail-under=01
+    - run: # run tests
+        name: Integration Tests
+        command: |
+          . venv/bin/activate
+          cd bxgateway/test/integration
+          python -m unittest discover --verbose
+    - run: # run pylint
+        name: Lint Score
+        command: |
+          . venv/bin/activate
+          cd bxgateway
+          # The || exit 0 bypasses not failing the build for <10 score
+          PYTHONPATH=../bxcommon/src/ pylint src/bxgateway --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" --rcfile=../bxcommon/pylintrc || exit 0
+    - store_artifacts:
+        path: test-reports/
+        destination: tr1
 
   e2e:
     executor: bloxroute-executor
@@ -129,47 +129,47 @@ jobs:
             python -m unittest discover --verbose
   build:
     docker:
-      - image: circleci/python:2.7
+    - image: circleci/python:2.7
     working_directory: ~/ws
 
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/ws
-      - run:
-          name: Package
-          command: 'echo "Yay build!"'
+    - checkout
+    - attach_workspace:
+        at: ~/ws
+    - run:
+        name: Package
+        command: 'echo "Yay build!"'
 
   deploy:
     docker:
-      - image: circleci/python:2.7
+    - image: circleci/python:2.7
     working_directory: ~/ws
 
     steps:
-      - checkout
-      - attach_workspace:
-          at: ~/ws
-      - run:
-          name: Package
-          command: 'echo "Yay deploy!"'
+    - checkout
+    - attach_workspace:
+        at: ~/ws
+    - run:
+        name: Package
+        command: 'echo "Yay deploy!"'
 
 workflows:
   version: 2
 
   test-build:
     jobs:
-      - test
-      - e2e
-      - build:
-          requires:
-            - test
-          filters:
-            branches:
-              only: develop
+    - test
+    - e2e
+    - build:
+        requires:
+        - test
+        filters:
+          branches:
+            only: develop
 
-      - deploy:
-          filters:
-            branches:
-              only: develop
-          requires:
-            - build
+    - deploy:
+        filters:
+          branches:
+            only: develop
+        requires:
+        - build

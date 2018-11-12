@@ -3,6 +3,7 @@ import sys
 from collections import deque
 
 from bxcommon.connections.connection_state import ConnectionState
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_HELLO_MESSAGES
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
@@ -31,6 +32,8 @@ class BTCNodeConnection(GatewayConnection):
     """
     ESTABLISHED = 0b1
     NONCE = random.randint(0, sys.maxint)  # Used to detect connections to self.
+
+    connection_type = ConnectionType.BLOCKCHAIN_NODE
 
     def __init__(self, sock, address, node, from_me=False):
         super(BTCNodeConnection, self).__init__(sock, address, node)

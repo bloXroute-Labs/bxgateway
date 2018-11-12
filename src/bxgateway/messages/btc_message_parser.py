@@ -7,7 +7,7 @@ from bxcommon.messages.btc.block_btc_message import BlockBTCMessage
 from bxcommon.messages.btc.btc_message import BTCMessage
 from bxcommon.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
 from bxcommon.messages.btc.tx_btc_message import TxBTCMessage
-from bxcommon.utils import logger, crypto
+from bxcommon.utils import crypto, logger
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import BTCObjectHash, ObjectHash
 

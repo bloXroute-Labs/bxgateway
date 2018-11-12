@@ -1,10 +1,13 @@
 from abc import ABCMeta
 
 from bxcommon.connections.abstract_connection import AbstractConnection
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.utils import logger
 
 
 class GatewayConnection(AbstractConnection):
+    connection_type = ConnectionType.GATEWAY
+
     __metaclass__ = ABCMeta
 
     def __init__(self, sock, address, node, from_me=False):
