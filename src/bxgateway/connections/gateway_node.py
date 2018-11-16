@@ -5,6 +5,7 @@ from bxcommon.connections.node_type import NodeType
 from bxcommon.constants import NULL_IDX, SDN_CONTACT_RETRY_SECONDS
 from bxcommon.services import sdn_http_service
 from bxcommon.services.block_recovery_service import BlockRecoveryService
+from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import logger
 from bxgateway.connections.btc_node_connection import BTCNodeConnection
 from bxgateway.connections.relay_connection import RelayConnection
@@ -36,6 +37,8 @@ class GatewayNode(AbstractNode):
 
         self.opts = opts
         self.idx = NULL_IDX
+
+        self.tx_service = TransactionService(self)
 
         self.node_conn = None  # Connection object for the blockchain node
         self.node_msg_queue = deque()
