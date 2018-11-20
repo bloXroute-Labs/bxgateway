@@ -22,20 +22,9 @@ In this case, you have to set your machine up for python dev and then run:
 
     pip install -r requirements.txt
 
-## How the client works
+Example run
 
-The client reads its configuration from `config.cfg`. This file is currently a
-sample. You can specify a section of the config to read using `-c`
-
-    dev/run -c [yourhostname]
-
-### Overriding config.cfg with named params
-
-If you don't want to use config.cfg at all you can override the peering string
-which is a comma separated list of "[nodeip] [port] [index]"
-And other parameters
-
-    dev/run -p "google.com 80 1234"
+    dev/run --sdn-url=http://127.0.0.1:8080 --external-ip=127.0.0.1 --external-port=9000 --source-version=1.3.0 --blockchain-net-magic "12345" --blockchain-services 0 --bloxroute-version bloxroutetest --blockchain-version 70014
 
 Use the help to see the ful llist
 
