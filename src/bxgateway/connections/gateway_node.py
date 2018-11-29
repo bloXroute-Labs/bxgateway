@@ -4,8 +4,8 @@ from bxcommon import constants
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.node_type import NodeType
 from bxcommon.services import sdn_http_service
-from bxcommon.services.block_recovery_service import BlockRecoveryService
 from bxcommon.services.transaction_service import TransactionService
+from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxcommon.utils import logger
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway.connections.btc_node_connection import BTCNodeConnection

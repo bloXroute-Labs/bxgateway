@@ -120,30 +120,29 @@ class RelayConnection(GatewayConnection):
         self._msg_broadcast_retry()
 
     def _msg_broadcast_retry(self):
-        if self.node.block_recovery_service.recovered_msgs:
-            for msg in self.node.block_recovery_service.recovered_msgs:
+        if self.node.block_recovery_service.recovered_blocks:
+            for msg in self.node.block_recovery_service.recovered_blocks:
                 logger.info("Block recovery: Received all unknown txs for a block. Broadcasting block message.")
-                self.msg_broadcast(msg)
+                self._handle_block(msg)
 
             logger.debug("Block recovery: Broadcasted all of the messages ready for retry.")
-            self.node.block_recovery_service.clean_up_recovered_messages()
+            self.node.block_recovery_service.clean_up_recovered_blocks()
 
-    def _handle_block(self, message):
+    def _handle_block(self, blx_block):
         # TODO: determine if a real block or test block. Discard if test block.
         btc_block, block_hash, unknown_sids, unknown_hashes = \
-            btc_message_parser.bloxroute_block_to_btc_block(message, self.node.tx_service)
+            btc_message_parser.bloxroute_block_to_btc_block(blx_block, self.node.tx_service)
 
         if block_hash in self.node.blocks_seen.contents:
             logger.warn("Already saw block {0}. Dropping!".format(hash))
             return
 
-        self.node.blocks_seen.add(block_hash)
-
         if btc_block is not None:
             logger.debug("Decoded block successfully- sending block to node")
             self.node.send_bytes_to_node(btc_block.rawbytes())
+            self.node.blocks_seen.add(block_hash)
         else:
-            self.node.block_recovery_service.add_block_msg(message, block_hash, unknown_sids, unknown_hashes)
+            self.node.block_recovery_service.add_block(blx_block, block_hash, unknown_sids, unknown_hashes)
             self.enqueue_msg(self._create_unknown_txs_message(unknown_sids, unknown_hashes))
             logger.debug("Block Recovery: Requesting ....")
 
