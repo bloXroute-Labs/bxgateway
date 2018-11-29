@@ -31,7 +31,7 @@ def btc_block_to_bloxroute_block(btc_block_msg, tx_service):
         else:
             next_tx = bytearray(5)
             logger.debug("XXX: Packing transaction with shortid {0} into block".format(shortid))
-            struct.pack_into('<I', next_tx, 1, shortid)
+            struct.pack_into("<I", next_tx, 1, shortid)
             buf.append(next_tx)
             size += 5
 
@@ -69,7 +69,7 @@ def bloxroute_block_to_btc_block(block, tx_service):
     off = size
     while off < len(block):
         if block[off] == 0x00:
-            sid, = struct.unpack_from('<I', block, off + 1)
+            sid, = struct.unpack_from("<I", block, off + 1)
             tx_hash, tx = tx_service.get_tx_from_sid(sid)
 
             if tx_hash is None:
@@ -112,7 +112,7 @@ def tx_msg_to_btc_tx_msg(tx_msg, btc_magic):
 
     buf = bytearray(BTC_HDR_COMMON_OFF) + tx_msg.tx_val()
 
-    btc_tx_msg = BTCMessage(btc_magic, 'tx', len(tx_msg.tx_val()), buf)
+    btc_tx_msg = BTCMessage(btc_magic, "tx", len(tx_msg.tx_val()), buf)
 
     return btc_tx_msg
 

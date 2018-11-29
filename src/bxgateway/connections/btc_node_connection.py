@@ -2,15 +2,16 @@ import random
 import sys
 from collections import deque
 
+from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
-from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_HELLO_MESSAGES
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.messages.btc.addr_btc_message import AddrBTCMessage
 from bxcommon.messages.btc.btc_message_factory import btc_message_factory
 from bxcommon.messages.btc.btc_message_type import BtcMessageType
 from bxcommon.messages.btc.inventory_btc_message import GetDataBTCMessage
+from bxcommon.messages.btc.ping_btc_message import PingBTCMessage
 from bxcommon.messages.btc.pong_btc_message import PongBTCMessage
 from bxcommon.messages.btc.ver_ack_btc_message import VerAckBTCMessage
 from bxcommon.messages.btc.version_btc_message import VersionBTCMessage
@@ -27,7 +28,6 @@ class BTCNodeConnection(GatewayConnection):
     Attributes
     ----------
     magic: Bitcoin network magic number.
-    version_msg: Node connection version message + info.
     message_handlers: Overridden from AbstractConnection. Maps message types to method handlers.
     """
     ESTABLISHED = 0b1
@@ -47,8 +47,8 @@ class BTCNodeConnection(GatewayConnection):
                                         node.opts.blockchain_services)
         self.enqueue_msg(version_msg)
 
-        self.hello_messages = BTC_HELLO_MESSAGES
-        self.header_size = BTC_HDR_COMMON_OFF
+        self.hello_messages = constants.BTC_HELLO_MESSAGES
+        self.header_size = constants.BTC_HDR_COMMON_OFF
         self.message_factory = btc_message_factory
         self.message_handlers = {
             BtcMessageType.PING: self.msg_ping,
@@ -59,6 +59,7 @@ class BTCNodeConnection(GatewayConnection):
             BtcMessageType.GET_ADDRESS: self.msg_getaddr,
             BtcMessageType.INVENTORY: self.msg_inv,
         }
+        self.ping_btc_message = PingBTCMessage(self.magic)
 
     ###
     # Handlers for each message type
@@ -77,7 +78,7 @@ class BTCNodeConnection(GatewayConnection):
         """
         pass
 
-    def msg_version(self, msg):
+    def msg_version(self, _msg):
         """
         Handle version message.
         Gateway initiates connection, so do not check for misbehavior. Record that we received the version message,
@@ -86,17 +87,18 @@ class BTCNodeConnection(GatewayConnection):
         self.state |= ConnectionState.ESTABLISHED
         reply = VerAckBTCMessage(self.magic)
         self.enqueue_msg(reply)
+        self.node.alarm_queue.register_alarm(constants.BLOCKCHAIN_PING_INTERVAL_S, self.send_ping)
 
         if self.state & ConnectionState.ESTABLISHED == ConnectionState.ESTABLISHED:
             for each_msg in self.node.node_msg_queue:
-                self.enqueue_msg(each_msg)
+                self.enqueue_msg_bytes(each_msg)
 
             if self.node.node_msg_queue:
                 self.node.node_msg_queue = deque()
 
             self.node.node_conn = self
 
-    def msg_getaddr(self, msg):
+    def msg_getaddr(self, _msg):
         """
         Handle a getaddr message. Return a blank address to preserve privacy.
         """
@@ -126,13 +128,20 @@ class BTCNodeConnection(GatewayConnection):
         """
         Handle a block message. Sends to node for encryption, then broadcasts.
         """
+        block_hash = msg.block_hash()
+        if block_hash in self.node.blocks_seen.contents:
+            logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
+            return
+
         bloxroute_block = btc_message_parser.btc_block_to_bloxroute_block(msg, self.node.tx_service)
         encrypted_block, block_hash = self.node.in_progress_blocks.encrypt_and_add_payload(bloxroute_block)
         broadcast_message = BroadcastMessage(ObjectHash(block_hash), encrypted_block)
         logger.debug("Compressed block with hash {0} to size {1} from size {2}"
                      .format(block_hash, len(broadcast_message.rawbytes()), len(msg.rawbytes())))
+
         self.node.block_recovery_service.cancel_recovery_for_block(msg.block_hash())
         self.node.broadcast(broadcast_message, self)
+        self.node.blocks_seen.add(block_hash)
 
         # TODO: wait for receipt of other messages before sending key
         self.send_key(block_hash)
@@ -144,3 +153,10 @@ class BTCNodeConnection(GatewayConnection):
         key = self.node.in_progress_blocks.get_encryption_key(block_hash)
         key_message = KeyMessage(ObjectHash(block_hash), key)
         self.node.broadcast(key_message, self)
+
+    def send_ping(self):
+        """
+        Sends ping. Overrides with blockchain message type.
+        """
+        self.enqueue_msg(self.ping_btc_message)
+        return constants.BLOCKCHAIN_PING_INTERVAL_S

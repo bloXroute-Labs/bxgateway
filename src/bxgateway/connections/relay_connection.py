@@ -78,6 +78,10 @@ class RelayConnection(GatewayConnection):
             logger.error("Got ill formed tx message from the bloXroute network")
             return
 
+        if hash_val in self.node.tx_service.hash_to_contents:
+            logger.debug("Transaction has already been seen!")
+            return
+
         short_id = msg.short_id()
         if short_id:
             self.node.tx_service.assign_tx_to_sid(hash_val, short_id, time.time())
@@ -128,6 +132,13 @@ class RelayConnection(GatewayConnection):
         # TODO: determine if a real block or test block. Discard if test block.
         btc_block, block_hash, unknown_sids, unknown_hashes = \
             btc_message_parser.bloxroute_block_to_btc_block(message, self.node.tx_service)
+
+        if block_hash in self.node.blocks_seen.contents:
+            logger.warn("Already saw block {0}. Dropping!".format(hash))
+            return
+
+        self.node.blocks_seen.add(block_hash)
+
         if btc_block is not None:
             logger.debug("Decoded block successfully- sending block to node")
             self.node.send_bytes_to_node(btc_block.rawbytes())

@@ -1,6 +1,6 @@
 import socket
 
-from mock import MagicMock
+from mock import MagicMock, patch
 
 from bxcommon.constants import BTC_HDR_COMMON_OFF
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
@@ -44,12 +44,15 @@ def receive_node_message(node, fileno, message):
     node.on_finished_receiving(fileno)
 
 
+@patch("bxcommon.constants.OUTPUT_BUFFER_MIN_SIZE", 0)
+@patch("bxcommon.constants.OUTPUT_BUFFER_BATCH_MAX_HOLD_TIME", 0)
 class GatewayNodeTests(AbstractTestCase):
 
     def send_received_block_and_key(self, node1, node2):
         blockchain_fileno = 1
         blockchain_connection = SocketConnection(MagicMock(spec=socket.socket), None)
         blockchain_connection.fileno = MagicMock(return_value=blockchain_fileno)
+
         relay_fileno = 2
         relay_connection = SocketConnection(MagicMock(spec=socket.socket), None)
         relay_connection.fileno = MagicMock(return_value=relay_fileno)

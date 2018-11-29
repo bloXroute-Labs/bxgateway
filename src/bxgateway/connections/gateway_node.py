@@ -1,12 +1,13 @@
 from collections import deque
 
+from bxcommon import constants
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.node_type import NodeType
-from bxcommon.constants import NULL_IDX, SDN_CONTACT_RETRY_SECONDS
 from bxcommon.services import sdn_http_service
 from bxcommon.services.block_recovery_service import BlockRecoveryService
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import logger
+from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway.connections.btc_node_connection import BTCNodeConnection
 from bxgateway.connections.relay_connection import RelayConnection
 from bxgateway.storage.block_encrypted_cache import BlockEncryptedCache
@@ -36,12 +37,13 @@ class GatewayNode(AbstractNode):
         super(GatewayNode, self).__init__(opts)
 
         self.opts = opts
-        self.idx = NULL_IDX
+        self.idx = constants.NULL_IDX
 
         self.tx_service = TransactionService(self)
 
         self.node_conn = None  # Connection object for the blockchain node
         self.node_msg_queue = deque()
+        self.blocks_seen = ExpiringSet(self.alarm_queue, constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S)
 
         if TestModes.DISABLE_ENCRYPTION in self.opts.test_mode:
             self.in_progress_blocks = UnencryptedCache(self.alarm_queue)
@@ -57,7 +59,7 @@ class GatewayNode(AbstractNode):
         self.on_updated_peers(outbound_peers)
         if not self.opts.outbound_peers:
             # Try again later.
-            return SDN_CONTACT_RETRY_SECONDS
+            return constants.SDN_CONTACT_RETRY_SECONDS
 
     def get_outbound_peer_addresses(self):
         peers = []
@@ -70,20 +72,22 @@ class GatewayNode(AbstractNode):
         return peers
 
     def get_connection_class(self, ip=None, port=None):
-        return BTCNodeConnection \
-            if self.opts.blockchain_ip == ip and self.opts.blockchain_port == port \
-            else self._get_relay_connection_cls()
+        if self.opts.blockchain_ip == ip and self.opts.blockchain_port == port:
+            return BTCNodeConnection
+        else:
+            return self._get_relay_connection_cls()
 
     def is_blockchain_node_address(self, ip, port):
         return ip == self.opts.blockchain_ip and port == self.opts.blockchain_port
 
-    def send_bytes_to_node(self, msg):
+    # Sends a message to the node that this is connected to
+    def send_bytes_to_node(self, msg, prepend_to_queue=False):
         """
         Sends a message to the blockchain node this is connected to.
         """
         if self.node_conn is not None:
             logger.debug("Sending message to node: " + repr(msg))
-            self.node_conn.enqueue_msg_bytes(msg)
+            self.node_conn.enqueue_msg_bytes(msg, prepend_to_queue)
         else:
             logger.debug("Adding things to node's message queue")
             self.node_msg_queue.append(msg)
