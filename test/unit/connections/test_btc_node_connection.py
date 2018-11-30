@@ -6,6 +6,7 @@ from bxcommon.constants import BTC_HDR_COMMON_OFF, NULL_TX_SID
 from bxcommon.messages.btc.block_btc_message import BlockBTCMessage
 from bxcommon.messages.btc.tx_btc_message import TxBTCMessage
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils.helpers import get_gateway_opts
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import symmetric_decrypt
@@ -18,19 +19,7 @@ class BtcNodeConnectionTests(AbstractTestCase):
     HASH = BTCObjectHash(binary=crypto.double_sha256("123"))
 
     def setUp(self):
-        opts = Namespace()
-        opts.__dict__ = {
-            "blockchain_net_magic": 12345,
-            "blockchain_version": 23456,
-            "blockchain_nonce": 0,
-            "blockchain_services": 1,
-            "bloxroute_version": "bloxroute 1.5",
-            "sid_expire_time": 30,
-            "external_ip": "127.0.0.1",
-            "external_port": 8001,
-            "test_mode": []
-        }
-        self.gateway_node = AbstractGatewayNode(opts)
+        self.gateway_node = AbstractGatewayNode(get_gateway_opts(8001))
         self.gateway_node.tx_service = MagicMock()
         self.sut = BTCNodeConnection(MockSocketConnection(), ("127.0.0.1", 8001), self.gateway_node)
 
