@@ -41,8 +41,6 @@ class AbstractGatewayNode(AbstractNode):
         self.opts = opts
         self.idx = constants.NULL_IDX
 
-        self.tx_service = TransactionService(self)
-
         self.node_conn = None  # Connection object for the blockchain node
         self.node_msg_queue = deque()
         self.blocks_seen = ExpiringSet(self.alarm_queue, constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S)
@@ -53,6 +51,17 @@ class AbstractGatewayNode(AbstractNode):
             self.in_progress_blocks = BlockEncryptedCache(self.alarm_queue)
 
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
+
+        self._tx_service = TransactionService(self)
+
+        self.network_num = opts.network_num
+
+    def get_tx_service(self, network_num=None):
+        if network_num is not None and network_num != self.opts.network_num:
+            raise ValueError("Gateway is running with network number '{}' but tx service for '{}' was requested"
+                             .format(self.opts.network_num, network_num))
+
+        return self._tx_service
 
     def send_request_for_peers(self):
         # Gateway uses rest, but relay uses messages.

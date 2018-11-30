@@ -12,7 +12,7 @@ from bxgateway.utils.eth import rlp_utils
 
 class EthMessageConverter(AbstractMessageConverter):
 
-    def tx_to_bx_txs(self, tx_msg):
+    def tx_to_bx_txs(self, tx_msg, network_num):
         """
         Converts Ethereum transactions message to array of internal transaction messages
 
@@ -39,7 +39,7 @@ class EthMessageConverter(AbstractMessageConverter):
             tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
             tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
             msg_hash = ObjectHash(tx_hash_bytes)
-            bx_tx_msg = TxMessage(tx_hash=msg_hash, tx_val=tx_bytes)
+            bx_tx_msg = TxMessage(tx_hash=msg_hash, network_num=network_num, tx_val=tx_bytes)
             bx_tx_msgs.append((bx_tx_msg, msg_hash, tx_bytes))
 
             tx_start_index = tx_item_start + tx_item_length

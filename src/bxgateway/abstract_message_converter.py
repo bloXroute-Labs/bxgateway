@@ -11,7 +11,7 @@ class AbstractMessageConverter(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def tx_to_bx_txs(self, tx_msg):
+    def tx_to_bx_txs(self, tx_msg, network_num):
         """
         Converts blockchain transactions message to internal transaction message
 

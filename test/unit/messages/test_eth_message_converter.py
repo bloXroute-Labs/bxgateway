@@ -27,6 +27,7 @@ class EthMessageConverterTests(AbstractTestCase):
     def setUp(self):
         self.tx_service = TransactionService(MockNode("127.0.0.1", 123))
         self.message_parser = EthMessageConverter()
+        self.test_network_num = 12345
 
     def test_tx_to_bx_tx__success(self):
         txs = [
@@ -70,7 +71,7 @@ class EthMessageConverterTests(AbstractTestCase):
 
 
     def validate_tx_to_bx_txs_conversion(self, tx_msg, txs):
-        bx_tx_msgs = self.message_parser.tx_to_bx_txs(tx_msg)
+        bx_tx_msgs = self.message_parser.tx_to_bx_txs(tx_msg, self.test_network_num)
 
         self.assertTrue(bx_tx_msgs)
         self.assertEqual(len(txs), len(bx_tx_msgs))
@@ -87,7 +88,7 @@ class EthMessageConverterTests(AbstractTestCase):
         tx_hash_bytes = hashlib.sha256(tx_bytes).digest()
         tx_hash = ObjectHash(tx_hash_bytes)
 
-        bx_tx_message = TxMessage(tx_hash=tx_hash, tx_val=tx_bytes)
+        bx_tx_message = TxMessage(tx_hash=tx_hash, network_num=self.test_network_num, tx_val=tx_bytes)
 
         tx_message = self.message_parser.bx_tx_to_tx(bx_tx_message)
 
@@ -221,7 +222,7 @@ class EthMessageConverterTests(AbstractTestCase):
         compact_block_hash_bytes = hashlib.sha256(compact_block_bytes).digest()
         compact_block_hash = ObjectHash(compact_block_hash_bytes)
 
-        bx_block_msg = BroadcastMessage(compact_block_hash, compact_block_bytes)
+        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, compact_block_bytes)
 
         block_msg, block_hash, unknown_tx_sids, unknown_tx_hashes = self.message_parser.bx_block_to_block(
             bx_block_msg.blob(), self.tx_service)
@@ -281,7 +282,7 @@ class EthMessageConverterTests(AbstractTestCase):
         compact_block_hash_bytes = hashlib.sha256(compact_block_bytes).digest()
         compact_block_hash = ObjectHash(compact_block_hash_bytes)
 
-        bx_block_msg = BroadcastMessage(compact_block_hash, compact_block_bytes)
+        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, compact_block_bytes)
 
         block_msg, block_hash, unknown_tx_sids, unknown_tx_hashes = self.message_parser.bx_block_to_block(
             bx_block_msg.blob(), self.tx_service)

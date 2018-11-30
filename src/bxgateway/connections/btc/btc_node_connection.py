@@ -34,6 +34,8 @@ class BTCNodeConnection(AbstractGatewayBlockchainConnection):
     def __init__(self, sock, address, node, from_me=False):
         super(BTCNodeConnection, self).__init__(sock, address, node)
 
+        self.is_server = False
+
         self.magic = node.opts.blockchain_net_magic
 
         # Establish connection with blockchain node

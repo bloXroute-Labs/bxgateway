@@ -11,15 +11,15 @@ from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnectio
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import symmetric_decrypt
 from bxcommon.utils.object_hash import BTCObjectHash
+from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.connections.btc.btc_node_connection import BTCNodeConnection
-from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
 class BtcNodeConnectionTests(AbstractTestCase):
     HASH = BTCObjectHash(binary=crypto.double_sha256("123"))
 
     def setUp(self):
-        self.gateway_node = AbstractGatewayNode(get_gateway_opts(8001))
+        self.gateway_node = BtcGatewayNode(get_gateway_opts(8001))
         self.gateway_node.tx_service = MagicMock()
         self.sut = BTCNodeConnection(MockSocketConnection(), ("127.0.0.1", 8001), self.gateway_node)
 
@@ -37,7 +37,6 @@ class BtcNodeConnectionTests(AbstractTestCase):
                 return get_txid.counter
 
         get_txid.counter = 0
-        self.gateway_node.tx_service.get_txid = get_txid
 
         self.sut.msg_block(message)
 

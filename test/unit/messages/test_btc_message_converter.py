@@ -22,7 +22,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         tx_hash = ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
         tx = helpers.generate_bytearray(self.AVERAGE_TX_SIZE)
 
-        tx_msg = TxMessage(tx_hash=tx_hash, tx_val=tx)
+        tx_msg = TxMessage(tx_hash=tx_hash, network_num=12345, tx_val=tx)
 
         btc_tx_msg = self.btc_message_converter.bx_tx_to_tx(tx_msg)
 
@@ -38,11 +38,13 @@ class BtcMessageConverterTests(AbstractTestCase):
 
     def test_btc_tx_msg_to_tx_msg__success(self):
         btc_tx_msg = TxBTCMessage(buf=helpers.generate_bytearray(self.AVERAGE_TX_SIZE))
+        network_num = 12345
 
-        tx_msgs = self.btc_message_converter.tx_to_bx_txs(btc_tx_msg)
+        tx_msgs = self.btc_message_converter.tx_to_bx_txs(btc_tx_msg, network_num)
 
         self.assertTrue(tx_msgs)
         self.assertIsInstance(tx_msgs[0][0], TxMessage)
+        self.assertEqual(tx_msgs[0][0].network_num(), network_num)
         self.assertEqual(tx_msgs[0][1], btc_tx_msg.tx_hash())
         self.assertEqual(tx_msgs[0][2], btc_tx_msg.tx())
 
@@ -88,7 +90,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         # TODO: if we convert bloxroute block to a class, add some tests here
 
         parsed_btc_block, block_hash, _, _ = self.btc_message_converter.bx_block_to_block(bloxroute_block,
-                                                                                     tx_service)
+                                                                                          tx_service)
         self.assertIsNotNone(parsed_btc_block)
         self.assertEqual(version, parsed_btc_block.version())
         self.assertEqual(magic, parsed_btc_block.magic())

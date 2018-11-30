@@ -1,5 +1,6 @@
 from argparse import Namespace
 
+from bxcommon.constants import DEFAULT_NETWORK_NUM
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.test_utils import helpers
@@ -138,7 +139,8 @@ class ETHGatewayNodeTest(AbstractTestCase):
             "network_id": 1,
             "chain_difficulty": 4194304,
             "genesis_hash": "1e8ff5fd9d06ab673db775cf5c72a6b2d63171cd26fe1e6a8b9d2d696049c781",
-            "no_discovery": not initialize_handshake
+            "no_discovery": not initialize_handshake,
+            "network_num": DEFAULT_NETWORK_NUM
         }
 
         self.node = EthGatewayNode(opts)

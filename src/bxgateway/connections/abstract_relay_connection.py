@@ -1,30 +1,27 @@
 import time
 
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.constants import BLOXROUTE_HELLO_MESSAGES, BTC_SHA_HASH_LEN, HDR_COMMON_OFF, NULL_TX_SID
-from bxcommon.messages.bloxroute.bloxroute_message_factory import bloxroute_message_factory
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.utils import crypto, logger
-from bxcommon.utils.object_hash import BTCObjectHash, ObjectHash
-from bxgateway.connections.abstract_gateway_connection import AbstractGatewayConnection
+from bxcommon.utils.object_hash import ObjectHash
 
 
-class AbstractRelayConnection(AbstractGatewayConnection):
+class AbstractRelayConnection(InternalNodeConnection):
     connection_type = ConnectionType.RELAY
 
     def __init__(self, sock, address, node, from_me=False):
         super(AbstractRelayConnection, self).__init__(sock, address, node, from_me=from_me)
 
-        self.is_server = True
-
-        hello_msg = HelloMessage(self.node.idx)
+        hello_msg = HelloMessage(protocol_version=self.protocol_version, idx=self.node.idx,
+                                 network_num=self.network_num)
         self.enqueue_msg(hello_msg)
 
         self.hello_messages = BLOXROUTE_HELLO_MESSAGES
         self.header_size = HDR_COMMON_OFF
-        self.message_factory = bloxroute_message_factory
         self.message_handlers = {
             BloxrouteMessageType.HELLO: self.msg_hello,
             BloxrouteMessageType.ACK: self.msg_ack,
@@ -33,6 +30,8 @@ class AbstractRelayConnection(AbstractGatewayConnection):
             BloxrouteMessageType.TRANSACTION: self.msg_tx,
             BloxrouteMessageType.TRANSACTIONS: self.msg_txs,
         }
+
+        self.message_converter = None
 
     def msg_broadcast(self, msg):
         """
@@ -71,23 +70,24 @@ class AbstractRelayConnection(AbstractGatewayConnection):
         """
         Handle transactions receive from bloXroute network.
         """
+        tx_service = self.node.get_tx_service()
 
         short_id = msg.short_id()
         tx_hash = msg.tx_hash()
 
-        if tx_hash in self.node.tx_service.txhash_to_sid:
+        if tx_hash in tx_service.txhash_to_sid:
             logger.debug("Transaction has assigned short id!")
             return
 
         if short_id:
-            self.node.tx_service.assign_tx_to_sid(tx_hash, short_id, time.time())
+            tx_service.assign_tx_to_sid(tx_hash, short_id, time.time())
 
-        if tx_hash in self.node.tx_service.hash_to_contents:
+        if tx_hash in tx_service.hash_to_contents:
             logger.debug("Transaction has been seen, but short id newly assigned.")
             return
 
         logger.debug("Adding hash value to tx service and forwarding it to node")
-        self.node.tx_service.hash_to_contents[tx_hash] = msg.tx_val()
+        tx_service.hash_to_contents[tx_hash] = msg.tx_val()
 
         self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
         self._msg_broadcast_retry()
@@ -103,19 +103,21 @@ class AbstractRelayConnection(AbstractGatewayConnection):
         logger.debug("Block recovery: Txs details message received from server. Contains {0} txs."
                      .format(len(txs)))
 
+        tx_service = self.node.get_tx_service()
+
         for tx in txs:
 
             tx_sid, tx_hash, tx = tx
 
             self.node.block_recovery_service.check_missing_sid(tx_sid)
 
-            if self.node.tx_service.get_txid(tx_hash) == NULL_TX_SID:
-                self.node.tx_service.assign_tx_to_sid(tx_hash, tx_sid, time.time())
+            if tx_service.get_txid(tx_hash) == NULL_TX_SID:
+                tx_service.assign_tx_to_sid(tx_hash, tx_sid, time.time())
 
             self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
-            if tx_hash not in self.node.tx_service.hash_to_contents:
-                self.node.tx_service.hash_to_contents[tx_hash] = tx
+            if tx_hash not in tx_service.hash_to_contents:
+                tx_service.hash_to_contents[tx_hash] = tx
 
         self._msg_broadcast_retry()
 
@@ -131,7 +133,7 @@ class AbstractRelayConnection(AbstractGatewayConnection):
     def _handle_block(self, blx_block):
         # TODO: determine if a real block or test block. Discard if test block.
         btc_block, block_hash, unknown_sids, unknown_hashes = \
-            self.message_converter.bx_block_to_block(blx_block, self.node.tx_service)
+            self.message_converter.bx_block_to_block(blx_block, self.node.get_tx_service())
 
         if block_hash in self.node.blocks_seen.contents:
             logger.warn("Already saw block {0}. Dropping!".format(hash))
@@ -150,9 +152,11 @@ class AbstractRelayConnection(AbstractGatewayConnection):
         all_unknown_sids = []
         all_unknown_sids.extend(unknown_sids)
 
+        tx_service = self.node.get_tx_service()
+
         # retrieving sids of txs with unknown contents
         for tx_hash in unknown_hashes:
-            tx_sid = self.node.tx_service.get_txid(tx_hash)
+            tx_sid = tx_service.get_txid(tx_hash)
             all_unknown_sids.append(tx_sid)
 
         logger.debug("Block recovery: Sending GetTxsMessage to relay with {0} unknown tx short ids."

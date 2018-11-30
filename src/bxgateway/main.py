@@ -12,7 +12,6 @@ import sys
 from bxcommon import constants, node_runner
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, config
-from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
 
@@ -29,6 +28,33 @@ def convert_net_magic(magic):
 
 def generate_default_nonce():
     return random.randint(0, sys.maxint)
+
+
+def parse_network_number(opts):
+    # TODO: This list will be loaded from SDN
+    networks_list = [
+        (1, "Bitcoin", "Mainnet"),
+        (2, "Bitcoin", "Testnet"),
+        (3, "Ethereum", "Mainnet"),
+        (4, "Ethereum", "Ropsten")
+    ]
+
+    network_num = None
+
+    for network in networks_list:
+        if opts.blockchain_protocol == network[1] and opts.blockchain_network == network[2]:
+            network_num = network[0]
+            break
+
+    if network_num is None:
+        all_networks = ", ".join(map(lambda network: "'{}' - '{}'".format(network[1], network[2]), networks_list))
+        error_msg = "Network number does not exist for blockchain protocol '{}' and network '{}'. Valid options: {}." \
+            .format(opts.blockchain_protocol, opts.blockchain_network, all_networks)
+        print(error_msg)
+
+        exit(1)
+
+    opts.__dict__["network_num"] = network_num
 
 
 def get_opts():
@@ -61,7 +87,8 @@ def get_opts():
     arg_parser.add_argument("--blockchain-services", help="Blockchain services parameter", type=int)
 
     # Ethereum specific
-    arg_parser.add_argument("--private-key", help="Private key for encrypted communication with Ethereum node", type=str)
+    arg_parser.add_argument("--private-key", help="Private key for encrypted communication with Ethereum node",
+                            type=str)
     arg_parser.add_argument("--network-id", help="Ethereum network id", type=int)
     arg_parser.add_argument("--genesis-hash", help="Genesis block hash of Ethereum network", type=str)
     arg_parser.add_argument("--chain-difficulty", help="Difficulty of genesis block Ethereum network (hex)", type=str)
@@ -74,6 +101,8 @@ def get_opts():
 
     if gateway_args.outbound_ip is not None and gateway_args.outbound_port is not None:
         args.outbound_peers = [OutboundPeerModel(gateway_args.outbound_ip, gateway_args.outbound_port)]
+
+    parse_network_number(args)
 
     return args
 

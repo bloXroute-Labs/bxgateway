@@ -69,7 +69,7 @@ class EthNodeConnection(AbstractGatewayBlockchainConnection):
             logger.debug("Public key of remote node is not know. Waiting for handshake request.")
             self.node.alarm_queue.register_alarm(eth_constants.HANDSHAKE_TIMEOUT_SEC, self._handshake_timeout)
 
-    def enqueue_msg(self, msg):
+    def enqueue_msg(self, msg, prepend=False):
         if self.state & ConnectionState.MARK_FOR_CLOSE:
             return
 
@@ -87,7 +87,7 @@ class EthNodeConnection(AbstractGatewayBlockchainConnection):
 
         for frame in frames:
             frame_bytes = self._rlpx_cipher.encrypt_frame(frame)
-            self.enqueue_msg_bytes(frame_bytes)
+            self.enqueue_msg_bytes(frame_bytes, prepend)
 
     def msg_auth(self, msg):
         logger.debug("Begin process auth message")
@@ -167,7 +167,7 @@ class EthNodeConnection(AbstractGatewayBlockchainConnection):
 
         hello_msg = HelloEthProtocolMessage(None,
                                             eth_constants.P2P_PROTOCOL_VERSION,
-                                            self.node.opts.bloxroute_version,
+                                            self.node.opts.source_version,
                                             eth_constants.CAPABILITIES,
                                             self.external_port,
                                             public_key)

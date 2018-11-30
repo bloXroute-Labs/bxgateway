@@ -5,6 +5,7 @@ from mock import MagicMock, patch
 from bxcommon.constants import BTC_HDR_COMMON_OFF
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
+from bxcommon.messages.bloxroute.versioning.versioning import CURRENT_PROTOCOL_VERSION
 from bxcommon.messages.btc.block_btc_message import BlockBTCMessage
 from bxcommon.messages.btc.tx_btc_message import TxBTCMessage
 from bxcommon.messages.btc.version_btc_message import VersionBTCMessage
@@ -47,6 +48,7 @@ def receive_node_message(node, fileno, message):
 @patch("bxcommon.constants.OUTPUT_BUFFER_MIN_SIZE", 0)
 @patch("bxcommon.constants.OUTPUT_BUFFER_BATCH_MAX_HOLD_TIME", 0)
 class GatewayNodeTests(AbstractTestCase):
+    test_network_num = 12345
 
     def send_received_block_and_key(self, node1, node2):
         blockchain_fileno = 1
@@ -62,10 +64,12 @@ class GatewayNodeTests(AbstractTestCase):
                                                                          1000, 1, 2, "bloxroute").rawbytes())
 
         node1.on_connection_added(relay_connection, "127.0.0.1", 7001, False)
-        receive_node_message(node1, relay_fileno, HelloMessage(1).rawbytes())
+        receive_node_message(node1, relay_fileno,
+                             HelloMessage(CURRENT_PROTOCOL_VERSION, 1, self.test_network_num).rawbytes())
 
         node2.on_connection_added(relay_connection, "127.0.0.1", 7001, False)
-        receive_node_message(node2, relay_fileno, HelloMessage(1).rawbytes())
+        receive_node_message(node2, relay_fileno,
+                             HelloMessage(CURRENT_PROTOCOL_VERSION, 1, self.test_network_num).rawbytes())
 
         node2.on_connection_added(blockchain_connection, "127.0.0.1", 7000, False)
         receive_node_message(node2, blockchain_fileno, VersionBTCMessage(12345, 12345, "0.0.0.0", 1000, "0.0.0.0",
