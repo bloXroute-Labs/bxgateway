@@ -30,6 +30,20 @@ def generate_default_nonce():
     return random.randint(0, sys.maxint)
 
 
+def parse_peer_string(peer_string):
+    """
+    Parses string of format ip:port,ip:port,ip:port,... to list of OutboundPeerModels.
+    """
+    peers = []
+    for ip_port_string in peer_string.split(","):
+        if ip_port_string:
+            ip_port_list = ip_port_string.strip().split(":")
+            ip = ip_port_list[0]
+            port = int(ip_port_list[1])
+            peers.append(OutboundPeerModel(ip, port))
+    return peers
+
+
 def parse_network_number(opts):
     # TODO: This list will be loaded from SDN
     networks_list = [
@@ -65,6 +79,11 @@ def get_opts():
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip", type=config.blocking_resolve_ip,
                             default="127.0.0.1")
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int, default=9333)
+    arg_parser.add_argument("--peer-gateways",
+                            help="Optional gateway peer ip/ports that will always be connected to. "
+                                 "Should be in the format ip1:port1,ip2:port2,...",
+                            type=parse_peer_string,
+                            default="")
     arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. E.g Bitcoin, Ethereum", type=str,
                             default="Bitcoin")
     arg_parser.add_argument("--blockchain-network", help="Blockchain network. E.g Mainnet, Testnet", type=str,
@@ -72,6 +91,11 @@ def get_opts():
     arg_parser.add_argument("--outbound-ip", help="(TEST ONLY) Override parameter for an outbound peer to connect to")
     arg_parser.add_argument("--outbound-port", help="(TEST ONLY) Override parameter for an outbound peer to connect to",
                             type=int)
+    arg_parser.add_argument("--peer-relays",
+                            help="(TEST ONLY) Optional relays peer ip/ports that will always be connected to. "
+                                 "Should be in the format ip1:port1,ip2:port2,...",
+                            type=parse_peer_string,
+                            default="")
     arg_parser.add_argument("--test-mode",
                             help="(TEST ONLY) Test modes to run. Possible values: {0}".format(
                                 [TestModes.DISABLE_ENCRYPTION, TestModes.DROPPING_TXS]
@@ -98,12 +122,9 @@ def get_opts():
     gateway_args, unknown = arg_parser.parse_known_args()
 
     args = cli.merge_args(gateway_args, common_args)
-
-    if gateway_args.outbound_ip is not None and gateway_args.outbound_port is not None:
-        args.outbound_peers = [OutboundPeerModel(gateway_args.outbound_ip, gateway_args.outbound_port)]
+    args.outbound_peers = args.peer_gateways + args.peer_relays
 
     parse_network_number(args)
-
     return args
 
 

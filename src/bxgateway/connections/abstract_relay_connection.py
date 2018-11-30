@@ -2,7 +2,7 @@ import time
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
-from bxcommon.constants import BLOXROUTE_HELLO_MESSAGES, BTC_SHA_HASH_LEN, HDR_COMMON_OFF, NULL_TX_SID
+from bxcommon.constants import BLOXROUTE_HELLO_MESSAGES, HDR_COMMON_OFF, NULL_TX_SID
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage

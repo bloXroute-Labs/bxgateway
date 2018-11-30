@@ -9,6 +9,7 @@ from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.messages.btc.block_btc_message import BlockBTCMessage
 from bxcommon.messages.btc.tx_btc_message import TxBTCMessage
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils.helpers import get_gateway_opts
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import symmetric_encrypt, SHA256_HASH_LEN
@@ -17,26 +18,16 @@ from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 
 
-class RelayConnectionTest(AbstractTestCase):
+class BtcRelayConnectionTest(AbstractTestCase):
     BTC_HASH = BTCObjectHash(crypto.double_sha256("123"), length=SHA256_HASH_LEN)
 
     MAGIC = 12345
     VERSION = 23456
+    TEST_NETWORK_NUM = 12345
 
     def setUp(self):
-        self.test_network_num = 12345
-
-        opts = Namespace()
-        opts.__dict__ = {
-            "sid_expire_time": 0,
-            "external_ip": "0.0.0.0",
-            "external_port": 8000,
-            "network_num": self.test_network_num,
-            "test_mode": [],
-            "blockchain_net_magic": 12345
-        }
-        self.gateway_node = BtcGatewayNode(opts)
-        self.sut = BtcRelayConnection(MockSocketConnection(), ("127.0.0.1", 8001), self.gateway_node, from_me=True)
+        self.gateway_node = BtcGatewayNode(get_gateway_opts(8000, include_default_btc_args=True))
+        self.sut = BtcRelayConnection(MockSocketConnection(), ("127.0.0.1", 8001), self.gateway_node)
 
         self.gateway_node.tx_service = MagicMock()
 
@@ -68,7 +59,7 @@ class RelayConnectionTest(AbstractTestCase):
 
         key, ciphertext = symmetric_encrypt(blx_block)
         block_hash = crypto.double_sha256(ciphertext)
-        broadcast_message = BroadcastMessage(ObjectHash(block_hash),  self.test_network_num, ciphertext)
+        broadcast_message = BroadcastMessage(ObjectHash(block_hash),  self.TEST_NETWORK_NUM, ciphertext)
 
         self.sut.msg_broadcast(broadcast_message)
 
@@ -79,7 +70,7 @@ class RelayConnectionTest(AbstractTestCase):
         self.gateway_node.send_msg_to_node.assert_not_called()
         self.assertEqual(1, len(self.gateway_node.in_progress_blocks))
 
-        key_message = KeyMessage(ObjectHash(block_hash), key, self.test_network_num)
+        key_message = KeyMessage(ObjectHash(block_hash), key, self.TEST_NETWORK_NUM)
         self.sut.msg_key(key_message)
 
         self.gateway_node.send_msg_to_node.assert_called_once()
@@ -103,7 +94,7 @@ class RelayConnectionTest(AbstractTestCase):
 
         self.gateway_node.send_msg_to_node.assert_not_called()
 
-        key_message = KeyMessage(ObjectHash(block_hash), key, self.test_network_num)
+        key_message = KeyMessage(ObjectHash(block_hash), key, self.TEST_NETWORK_NUM)
         self.sut.msg_key(key_message)
 
         # handle duplicate broadcasts
@@ -112,7 +103,7 @@ class RelayConnectionTest(AbstractTestCase):
 
         self.assertEqual(1, len(self.gateway_node.in_progress_blocks))
 
-        broadcast_message = BroadcastMessage(ObjectHash(block_hash), self.test_network_num, ciphertext)
+        broadcast_message = BroadcastMessage(ObjectHash(block_hash), self.TEST_NETWORK_NUM, ciphertext)
         self.sut.msg_broadcast(broadcast_message)
 
         self.gateway_node.send_msg_to_node.assert_called_once()

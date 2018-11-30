@@ -17,7 +17,7 @@ from bxgateway.connections.abstract_gateway_blockchain_connection import Abstrac
 from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
 
 
-class BTCNodeConnection(AbstractGatewayBlockchainConnection):
+class BtcNodeConnection(AbstractGatewayBlockchainConnection):
     """
     bloXroute gateway <=> blockchain node connection class.
 
@@ -32,7 +32,7 @@ class BTCNodeConnection(AbstractGatewayBlockchainConnection):
     connection_type = ConnectionType.BLOCKCHAIN_NODE
 
     def __init__(self, sock, address, node, from_me=False):
-        super(BTCNodeConnection, self).__init__(sock, address, node)
+        super(BtcNodeConnection, self).__init__(sock, address, node)
 
         self.is_server = False
 

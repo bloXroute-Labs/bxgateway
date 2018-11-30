@@ -8,13 +8,16 @@ from bxgateway.utils.eth import rlp_utils, crypto_utils
 
 
 class EthGatewayNode(AbstractGatewayNode):
-    node_type = NodeType.GATEWAY
-    relay_connection_cls = EthRelayConnection
-
     def __init__(self, opts):
         super(EthGatewayNode, self).__init__(opts)
 
         self._remote_public_key = None
+
+    def get_blockchain_connection_cls(self):
+        return EthNodeDiscoveryConnection if self._is_in_discovery() else EthNodeConnection
+
+    def get_relay_connection_cls(self):
+        return EthRelayConnection
 
     def get_outbound_peer_addresses(self):
         peers = []
@@ -26,12 +29,6 @@ class EthGatewayNode(AbstractGatewayNode):
         peers.append((self.opts.blockchain_ip, self.opts.blockchain_port, protocol))
 
         return peers
-
-    def get_connection_class(self, ip=None, port=None):
-        if self.opts.blockchain_ip == ip and self.opts.blockchain_port == port:
-            return self._get_gateway_connection_cls()
-        else:
-            return self._get_relay_connection_cls()
 
     def get_private_key(self):
         return rlp_utils.decode_hex(self.opts.private_key)
@@ -59,9 +56,6 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def get_remote_public_key(self):
         return self._remote_public_key
-
-    def _get_gateway_connection_cls(self):
-        return EthNodeDiscoveryConnection if self._is_in_discovery() else EthNodeConnection
 
     def _is_in_discovery(self):
         return not self.opts.no_discovery and self._remote_public_key is None

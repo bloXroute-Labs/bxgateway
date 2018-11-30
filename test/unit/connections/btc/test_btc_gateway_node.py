@@ -47,7 +47,7 @@ def receive_node_message(node, fileno, message):
 
 @patch("bxcommon.constants.OUTPUT_BUFFER_MIN_SIZE", 0)
 @patch("bxcommon.constants.OUTPUT_BUFFER_BATCH_MAX_HOLD_TIME", 0)
-class GatewayNodeTests(AbstractTestCase):
+class BtcGatewayNodeTests(AbstractTestCase):
     test_network_num = 12345
 
     def send_received_block_and_key(self, node1, node2):
@@ -63,11 +63,11 @@ class GatewayNodeTests(AbstractTestCase):
         receive_node_message(node1, blockchain_fileno, VersionBTCMessage(12345, 12345, "0.0.0.0", 1000, "0.0.0.0",
                                                                          1000, 1, 2, "bloxroute").rawbytes())
 
-        node1.on_connection_added(relay_connection, "127.0.0.1", 7001, False)
+        node1.on_connection_added(relay_connection, "127.0.0.1", 7001, True)
         receive_node_message(node1, relay_fileno,
                              HelloMessage(CURRENT_PROTOCOL_VERSION, 1, self.test_network_num).rawbytes())
 
-        node2.on_connection_added(relay_connection, "127.0.0.1", 7001, False)
+        node2.on_connection_added(relay_connection, "127.0.0.1", 7001, True)
         receive_node_message(node2, relay_fileno,
                              HelloMessage(CURRENT_PROTOCOL_VERSION, 1, self.test_network_num).rawbytes())
 
@@ -100,15 +100,15 @@ class GatewayNodeTests(AbstractTestCase):
         self.assertEqual(3, received_block.nonce())
 
     def test_send_receive_block_and_key_encrypted(self):
-        node1 = BtcGatewayNode(get_gateway_opts(9000))
-        node2 = BtcGatewayNode(get_gateway_opts(9001))
+        node1 = BtcGatewayNode(get_gateway_opts(9000, include_default_btc_args=True))
+        node2 = BtcGatewayNode(get_gateway_opts(9001, include_default_btc_args=True))
         self.send_received_block_and_key(node1, node2)
 
     def test_send_received_block_and_key_no_encrypt(self):
-        node1_opts = get_gateway_opts(9000)
+        node1_opts = get_gateway_opts(9000, include_default_btc_args=True)
         node1_opts.test_mode = ["disable-encryption"]
         node1 = BtcGatewayNode(node1_opts)
-        node2_opts = get_gateway_opts(9001)
+        node2_opts = get_gateway_opts(9001, include_default_btc_args=True)
         node2_opts.test_mode = ["disable-encryption"]
         node2 = BtcGatewayNode(node2_opts)
 

@@ -23,7 +23,7 @@ class ETHGatewayNodeTest(AbstractTestCase):
 
     def test_get_gateway_connection_class__do_not_initiate_handshake(self):
         node = self._set_up_test_node(False)
-        connection_cls = node._get_gateway_connection_cls()
+        connection_cls = node.get_blockchain_connection_cls()
         self.assertEqual(connection_cls, EthNodeConnection)
 
     def test_get_gateway_connection_class__initiate_handshake_no_remote_pub_key(self):
@@ -130,6 +130,8 @@ class ETHGatewayNodeTest(AbstractTestCase):
             "external_ip": self.server_ip,
             "external_port": self.server_port,
             "test_mode": [],
+            "peer_gateways": [],
+            "peer_relays": self.servers,
             "outbound_peers": self.servers,
 
             "blockchain_ip": self.blockchain_ip,
