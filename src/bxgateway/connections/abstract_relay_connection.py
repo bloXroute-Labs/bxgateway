@@ -75,7 +75,7 @@ class AbstractRelayConnection(AbstractGatewayConnection):
         short_id = msg.short_id()
         tx_hash = msg.tx_hash()
 
-        if tx_hash in self.node.tx_service.hash_to_contents:
+        if tx_hash in self.node.tx_service.txhash_to_sid:
             logger.debug("Transaction has already been seen!")
             return
 
@@ -88,7 +88,7 @@ class AbstractRelayConnection(AbstractGatewayConnection):
         self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
         self._msg_broadcast_retry()
 
-        if self.node.node_conn is not None:
+        if self.node.node_conn is not None and tx_hash not in self.node.tx_service.hash_to_contents:
             btc_tx_msg = self.message_converter.bx_tx_to_tx(msg)
             self.node.send_msg_to_node(btc_tx_msg)
 
