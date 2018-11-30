@@ -14,7 +14,7 @@ from bxcommon.test_utils.helpers import get_gateway_opts
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import BTCObjectHash
-from bxgateway.connections.gateway_node import GatewayNode
+from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.testing.unencrypted_block_cache import UnencryptedCache
 
 
@@ -96,17 +96,17 @@ class GatewayNodeTests(AbstractTestCase):
         self.assertEqual(3, received_block.nonce())
 
     def test_send_receive_block_and_key_encrypted(self):
-        node1 = GatewayNode(get_gateway_opts(9000))
-        node2 = GatewayNode(get_gateway_opts(9001))
+        node1 = BtcGatewayNode(get_gateway_opts(9000))
+        node2 = BtcGatewayNode(get_gateway_opts(9001))
         self.send_received_block_and_key(node1, node2)
 
     def test_send_received_block_and_key_no_encrypt(self):
         node1_opts = get_gateway_opts(9000)
         node1_opts.test_mode = ["disable-encryption"]
-        node1 = GatewayNode(node1_opts)
+        node1 = BtcGatewayNode(node1_opts)
         node2_opts = get_gateway_opts(9001)
         node2_opts.test_mode = ["disable-encryption"]
-        node2 = GatewayNode(node2_opts)
+        node2 = BtcGatewayNode(node2_opts)
 
         self.send_received_block_and_key(node1, node2)
 

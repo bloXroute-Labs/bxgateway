@@ -5,19 +5,17 @@ from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.node_type import NodeType
 from bxcommon.services import sdn_http_service
 from bxcommon.services.transaction_service import TransactionService
+from bxgateway.connections.btc.btc_node_connection import BTCNodeConnection
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxcommon.utils import logger
 from bxcommon.utils.expiring_set import ExpiringSet
-from bxgateway.connections.btc_node_connection import BTCNodeConnection
-from bxgateway.connections.relay_connection import RelayConnection
 from bxgateway.storage.block_encrypted_cache import BlockEncryptedCache
 from bxgateway.testing.lossy_relay_connection import LossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.testing.unencrypted_block_cache import UnencryptedCache
 
 
-class GatewayNode(AbstractNode):
-    node_type = NodeType.GATEWAY
+class AbstractGatewayNode(AbstractNode):
     """
     bloXroute gateway node. Middlemans messages between blockchain nodes and the bloXroute
     relay network.
@@ -33,8 +31,12 @@ class GatewayNode(AbstractNode):
     block_recovery_service: service for finding unknown transaction short ids
     """
 
+    node_type = NodeType.GATEWAY
+
+    relay_connection_cls = None
+
     def __init__(self, opts):
-        super(GatewayNode, self).__init__(opts)
+        super(AbstractGatewayNode, self).__init__(opts)
 
         self.opts = opts
         self.idx = constants.NULL_IDX
@@ -80,14 +82,13 @@ class GatewayNode(AbstractNode):
     def is_blockchain_node_address(self, ip, port):
         return ip == self.opts.blockchain_ip and port == self.opts.blockchain_port
 
-    # Sends a message to the node that this is connected to
-    def send_bytes_to_node(self, msg, prepend_to_queue=False):
+    def send_msg_to_node(self, msg):
         """
         Sends a message to the blockchain node this is connected to.
         """
         if self.node_conn is not None:
             logger.debug("Sending message to node: " + repr(msg))
-            self.node_conn.enqueue_msg_bytes(msg, prepend_to_queue)
+            self.node_conn.enqueue_msg(msg)
         else:
             logger.debug("Adding things to node's message queue")
             self.node_msg_queue.append(msg)
@@ -96,4 +97,4 @@ class GatewayNode(AbstractNode):
         if TestModes.DROPPING_TXS in self.opts.test_mode:
             return LossyRelayConnection
         else:
-            return RelayConnection
+            return self.relay_connection_cls

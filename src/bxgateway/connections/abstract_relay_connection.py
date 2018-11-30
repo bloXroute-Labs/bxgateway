@@ -8,15 +8,14 @@ from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.utils import crypto, logger
 from bxcommon.utils.object_hash import BTCObjectHash, ObjectHash
-from bxgateway.connections.gateway_connection import GatewayConnection
-from bxgateway.messages import btc_message_parser
+from bxgateway.connections.abstract_gateway_connection import AbstractGatewayConnection
 
 
-class RelayConnection(GatewayConnection):
+class AbstractRelayConnection(AbstractGatewayConnection):
     connection_type = ConnectionType.RELAY
 
     def __init__(self, sock, address, node, from_me=False):
-        super(RelayConnection, self).__init__(sock, address, node, from_me=from_me)
+        super(AbstractRelayConnection, self).__init__(sock, address, node, from_me=from_me)
 
         self.is_server = True
 
@@ -72,29 +71,26 @@ class RelayConnection(GatewayConnection):
         """
         Handle transactions receive from bloXroute network.
         """
-        hash_val = BTCObjectHash(crypto.bitcoin_hash(msg.tx_val()), length=BTC_SHA_HASH_LEN)
 
-        if hash_val != msg.tx_hash():
-            logger.error("Got ill formed tx message from the bloXroute network")
-            return
+        short_id = msg.short_id()
+        tx_hash = msg.tx_hash()
 
-        if hash_val in self.node.tx_service.hash_to_contents:
+        if tx_hash in self.node.tx_service.hash_to_contents:
             logger.debug("Transaction has already been seen!")
             return
 
-        short_id = msg.short_id()
         if short_id:
-            self.node.tx_service.assign_tx_to_sid(hash_val, short_id, time.time())
+            self.node.tx_service.assign_tx_to_sid(tx_hash, short_id, time.time())
 
         logger.debug("Adding hash value to tx service and forwarding it to node")
-        self.node.tx_service.hash_to_contents[hash_val] = msg.tx_val()
+        self.node.tx_service.hash_to_contents[tx_hash] = msg.tx_val()
 
-        self.node.block_recovery_service.check_missing_tx_hash(hash_val)
+        self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
         self._msg_broadcast_retry()
 
         if self.node.node_conn is not None:
-            btc_tx_msg = btc_message_parser.tx_msg_to_btc_tx_msg(msg, self.node.node_conn.magic)
-            self.node.send_bytes_to_node(btc_tx_msg.rawbytes())
+            btc_tx_msg = self.message_converter.bx_tx_to_tx(msg)
+            self.node.send_msg_to_node(btc_tx_msg)
 
     def msg_txs(self, msg):
 
@@ -131,7 +127,7 @@ class RelayConnection(GatewayConnection):
     def _handle_block(self, blx_block):
         # TODO: determine if a real block or test block. Discard if test block.
         btc_block, block_hash, unknown_sids, unknown_hashes = \
-            btc_message_parser.bloxroute_block_to_btc_block(blx_block, self.node.tx_service)
+            self.message_converter.bx_block_to_block(blx_block, self.node.tx_service)
 
         if block_hash in self.node.blocks_seen.contents:
             logger.warn("Already saw block {0}. Dropping!".format(hash))
@@ -139,7 +135,7 @@ class RelayConnection(GatewayConnection):
 
         if btc_block is not None:
             logger.debug("Decoded block successfully- sending block to node")
-            self.node.send_bytes_to_node(btc_block.rawbytes())
+            self.node.send_msg_to_node(btc_block)
             self.node.blocks_seen.add(block_hash)
         else:
             self.node.block_recovery_service.add_block(blx_block, block_hash, unknown_sids, unknown_hashes)

@@ -5,8 +5,6 @@ from collections import deque
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
-from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
-from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.messages.btc.addr_btc_message import AddrBTCMessage
 from bxcommon.messages.btc.btc_message_factory import btc_message_factory
 from bxcommon.messages.btc.btc_message_type import BtcMessageType
@@ -15,13 +13,11 @@ from bxcommon.messages.btc.ping_btc_message import PingBTCMessage
 from bxcommon.messages.btc.pong_btc_message import PongBTCMessage
 from bxcommon.messages.btc.ver_ack_btc_message import VerAckBTCMessage
 from bxcommon.messages.btc.version_btc_message import VersionBTCMessage
-from bxcommon.utils import logger
-from bxcommon.utils.object_hash import ObjectHash
-from bxgateway.connections.gateway_connection import GatewayConnection
-from bxgateway.messages import btc_message_parser
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
+from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
 
 
-class BTCNodeConnection(GatewayConnection):
+class BTCNodeConnection(AbstractGatewayBlockchainConnection):
     """
     bloXroute gateway <=> blockchain node connection class.
 
@@ -60,6 +56,8 @@ class BTCNodeConnection(GatewayConnection):
             BtcMessageType.INVENTORY: self.msg_inv,
         }
         self.ping_btc_message = PingBTCMessage(self.magic)
+
+        self.message_converter = BtcMessageConverter(self.magic)
 
     ###
     # Handlers for each message type
@@ -112,47 +110,6 @@ class BTCNodeConnection(GatewayConnection):
         """
         getdata = GetDataBTCMessage(magic=msg.magic(), inv_vects=[x for x in msg])
         self.enqueue_msg(getdata)
-
-    def msg_tx(self, msg):
-        """
-        Handle a TX message by broadcasting to the entire network
-        """
-        blx_txmsg = btc_message_parser.btc_tx_msg_to_tx_msg(msg)
-
-        # All connections outside of this one is a bloXroute server
-        logger.debug("Broadcasting the transaction to peers")
-        self.node.broadcast(blx_txmsg, self)
-        self.node.tx_service.hash_to_contents[msg.tx_hash()] = msg.tx()
-
-    def msg_block(self, msg):
-        """
-        Handle a block message. Sends to node for encryption, then broadcasts.
-        """
-        block_hash = msg.block_hash()
-        if block_hash in self.node.blocks_seen.contents:
-            logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
-            return
-
-        bloxroute_block = btc_message_parser.btc_block_to_bloxroute_block(msg, self.node.tx_service)
-        encrypted_block, block_hash = self.node.in_progress_blocks.encrypt_and_add_payload(bloxroute_block)
-        broadcast_message = BroadcastMessage(ObjectHash(block_hash), encrypted_block)
-        logger.debug("Compressed block with hash {0} to size {1} from size {2}"
-                     .format(block_hash, len(broadcast_message.rawbytes()), len(msg.rawbytes())))
-
-        self.node.block_recovery_service.cancel_recovery_for_block(msg.block_hash())
-        self.node.broadcast(broadcast_message, self)
-        self.node.blocks_seen.add(block_hash)
-
-        # TODO: wait for receipt of other messages before sending key
-        self.send_key(block_hash)
-
-    def send_key(self, block_hash):
-        """
-        Sends out the decryption key for a block hash.
-        """
-        key = self.node.in_progress_blocks.get_encryption_key(block_hash)
-        key_message = KeyMessage(ObjectHash(block_hash), key)
-        self.node.broadcast(key_message, self)
 
     def send_ping(self):
         """

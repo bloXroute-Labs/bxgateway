@@ -1,8 +1,8 @@
 from bxcommon.utils import logger
-from bxgateway.connections.relay_connection import RelayConnection
+from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 
 
-class LossyRelayConnection(RelayConnection):
+class LossyRelayConnection(AbstractRelayConnection):
     def __init__(self, sock, address, node, from_me=False, setup=False):
         super(LossyRelayConnection, self).__init__(sock, address, node, setup)
 

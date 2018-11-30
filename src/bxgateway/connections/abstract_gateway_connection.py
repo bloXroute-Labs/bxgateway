@@ -5,13 +5,13 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.utils import logger
 
 
-class GatewayConnection(AbstractConnection):
+class AbstractGatewayConnection(AbstractConnection):
     connection_type = ConnectionType.GATEWAY
 
     __metaclass__ = ABCMeta
 
     def __init__(self, sock, address, node, from_me=False):
-        super(GatewayConnection, self).__init__(sock, address, node, from_me)
+        super(AbstractGatewayConnection, self).__init__(sock, address, node, from_me)
 
         logger.debug("initialized connection to {0}".format(self.peer_desc))
 

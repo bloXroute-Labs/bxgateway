@@ -10,8 +10,8 @@ from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnectio
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import symmetric_decrypt
 from bxcommon.utils.object_hash import BTCObjectHash
-from bxgateway.connections.btc_node_connection import BTCNodeConnection
-from bxgateway.connections.gateway_node import GatewayNode
+from bxgateway.connections.btc.btc_node_connection import BTCNodeConnection
+from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
 class BtcNodeConnectionTests(AbstractTestCase):
@@ -30,7 +30,7 @@ class BtcNodeConnectionTests(AbstractTestCase):
             "external_port": 8001,
             "test_mode": []
         }
-        self.gateway_node = GatewayNode(opts)
+        self.gateway_node = AbstractGatewayNode(opts)
         self.gateway_node.tx_service = MagicMock()
         self.sut = BTCNodeConnection(MockSocketConnection(), ("127.0.0.1", 8001), self.gateway_node)
 

@@ -13,9 +13,8 @@ from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnectio
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import symmetric_encrypt, SHA256_HASH_LEN
 from bxcommon.utils.object_hash import ObjectHash, BTCObjectHash
-from bxgateway.connections.gateway_node import GatewayNode
-from bxgateway.connections.relay_connection import RelayConnection
-from bxgateway.messages import btc_message_parser
+from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
+from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 
 
 class RelayConnectionTest(AbstractTestCase):
@@ -28,11 +27,13 @@ class RelayConnectionTest(AbstractTestCase):
         opts = Namespace()
         opts.__dict__ = {
             "sid_expire_time": 0,
+            "external_ip": "0.0.0.0",
             "external_port": 8000,
-            "test_mode": []
+            "test_mode": [],
+            "blockchain_net_magic": 12345
         }
-        self.gateway_node = GatewayNode(opts)
-        self.sut = RelayConnection(MockSocketConnection(), ("127.0.0.1", 8001), self.gateway_node)
+        self.gateway_node = BtcGatewayNode(opts)
+        self.sut = BtcRelayConnection(MockSocketConnection(), ("127.0.0.1", 8001), self.gateway_node)
 
         self.gateway_node.tx_service = MagicMock()
 
@@ -55,11 +56,12 @@ class RelayConnectionTest(AbstractTestCase):
     def block(self, txns):
         btc_block = BlockBTCMessage(self.MAGIC, self.VERSION, self.BTC_HASH, self.BTC_HASH, 0, 0, 0, txns)
         return btc_block, bytes(
-            btc_message_parser.btc_block_to_bloxroute_block(btc_block, self.gateway_node.tx_service))
+            self.sut.message_converter.block_to_bx_block(btc_block, self.gateway_node.tx_service))
 
     def test_msg_broadcast_wait_for_key(self):
+
         btc_block, blx_block = self.block(self.transactions_bytes())
-        self.gateway_node.send_bytes_to_node = MagicMock()
+        self.gateway_node.send_msg_to_node = MagicMock()
 
         key, ciphertext = symmetric_encrypt(blx_block)
         block_hash = crypto.double_sha256(ciphertext)
@@ -71,33 +73,32 @@ class RelayConnectionTest(AbstractTestCase):
         self.sut.msg_broadcast(broadcast_message)
         self.sut.msg_broadcast(broadcast_message)
 
-        self.gateway_node.send_bytes_to_node.assert_not_called()
+        self.gateway_node.send_msg_to_node.assert_not_called()
         self.assertEqual(1, len(self.gateway_node.in_progress_blocks))
 
         key_message = KeyMessage(ObjectHash(block_hash), key)
         self.sut.msg_key(key_message)
 
-        self.gateway_node.send_bytes_to_node.assert_called_once()
-        ((sent_msg,), _) = self.gateway_node.send_bytes_to_node.call_args
-        sent_btc_block = BlockBTCMessage(buf=bytearray(sent_msg))
+        self.gateway_node.send_msg_to_node.assert_called_once()
+        ((sent_msg,), _) = self.gateway_node.send_msg_to_node.call_args
 
-        self.assertEqual(btc_block.version(), sent_btc_block.version())
-        self.assertEqual(btc_block.magic(), sent_btc_block.magic())
-        self.assertEqual(btc_block.prev_block(), sent_btc_block.prev_block())
-        self.assertEqual(btc_block.merkle_root(), sent_btc_block.merkle_root())
-        self.assertEqual(btc_block.timestamp(), sent_btc_block.timestamp())
-        self.assertEqual(btc_block.bits(), sent_btc_block.bits())
-        self.assertEqual(btc_block.nonce(), sent_btc_block.nonce())
-        self.assertEqual(btc_block.txn_count(), sent_btc_block.txn_count())
+        self.assertEqual(btc_block.version(), sent_msg.version())
+        self.assertEqual(btc_block.magic(), sent_msg.magic())
+        self.assertEqual(btc_block.prev_block(), sent_msg.prev_block())
+        self.assertEqual(btc_block.merkle_root(), sent_msg.merkle_root())
+        self.assertEqual(btc_block.timestamp(), sent_msg.timestamp())
+        self.assertEqual(btc_block.bits(), sent_msg.bits())
+        self.assertEqual(btc_block.nonce(), sent_msg.nonce())
+        self.assertEqual(btc_block.txn_count(), sent_msg.txn_count())
 
     def test_msg_key_wait_for_broadcast(self):
         btc_block, blx_block = self.block(self.transactions_bytes())
-        self.gateway_node.send_bytes_to_node = MagicMock()
+        self.gateway_node.send_msg_to_node = MagicMock()
 
         key, ciphertext = symmetric_encrypt(blx_block)
         block_hash = crypto.double_sha256(ciphertext)
 
-        self.gateway_node.send_bytes_to_node.assert_not_called()
+        self.gateway_node.send_msg_to_node.assert_not_called()
 
         key_message = KeyMessage(ObjectHash(block_hash), key)
         self.sut.msg_key(key_message)
@@ -111,18 +112,17 @@ class RelayConnectionTest(AbstractTestCase):
         broadcast_message = BroadcastMessage(ObjectHash(block_hash), ciphertext)
         self.sut.msg_broadcast(broadcast_message)
 
-        self.gateway_node.send_bytes_to_node.assert_called_once()
-        ((sent_msg,), _) = self.gateway_node.send_bytes_to_node.call_args
-        sent_btc_block = BlockBTCMessage(buf=bytearray(sent_msg))
+        self.gateway_node.send_msg_to_node.assert_called_once()
+        ((sent_msg,), _) = self.gateway_node.send_msg_to_node.call_args
 
-        self.assertEqual(btc_block.version(), sent_btc_block.version())
-        self.assertEqual(btc_block.magic(), sent_btc_block.magic())
-        self.assertEqual(btc_block.prev_block(), sent_btc_block.prev_block())
-        self.assertEqual(btc_block.merkle_root(), sent_btc_block.merkle_root())
-        self.assertEqual(btc_block.timestamp(), sent_btc_block.timestamp())
-        self.assertEqual(btc_block.bits(), sent_btc_block.bits())
-        self.assertEqual(btc_block.nonce(), sent_btc_block.nonce())
-        self.assertEqual(btc_block.txn_count(), sent_btc_block.txn_count())
+        self.assertEqual(btc_block.version(), sent_msg.version())
+        self.assertEqual(btc_block.magic(), sent_msg.magic())
+        self.assertEqual(btc_block.prev_block(), sent_msg.prev_block())
+        self.assertEqual(btc_block.merkle_root(), sent_msg.merkle_root())
+        self.assertEqual(btc_block.timestamp(), sent_msg.timestamp())
+        self.assertEqual(btc_block.bits(), sent_msg.bits())
+        self.assertEqual(btc_block.nonce(), sent_msg.nonce())
+        self.assertEqual(btc_block.txn_count(), sent_msg.txn_count())
 
     def test_get_txs_block_recovery(self):
         transactions = self.transactions()
@@ -157,7 +157,7 @@ class RelayConnectionTest(AbstractTestCase):
 
         self.gateway_node.block_recovery_service.add_block = \
             MagicMock(wraps=self.gateway_node.block_recovery_service.add_block)
-        self.gateway_node.send_bytes_to_node = MagicMock()
+        self.gateway_node.send_msg_to_node = MagicMock()
 
         btc_block, blx_block = self.block(self.transactions_bytes())
 
@@ -175,9 +175,9 @@ class RelayConnectionTest(AbstractTestCase):
         txs_message = TxsMessage(txs=txs)
         self.sut.msg_txs(txs_message)
 
-        self.gateway_node.send_bytes_to_node.assert_called_once()
-        ((sent_msg,), _) = self.gateway_node.send_bytes_to_node.call_args
-        sent_btc_block = BlockBTCMessage(buf=bytearray(sent_msg))
+        self.gateway_node.send_msg_to_node.assert_called_once()
+        ((sent_msg,), _) = self.gateway_node.send_msg_to_node.call_args
+        sent_btc_block = sent_msg
 
         self.assertEqual(btc_block.version(), sent_btc_block.version())
         self.assertEqual(btc_block.magic(), sent_btc_block.magic())

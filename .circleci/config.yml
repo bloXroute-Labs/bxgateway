@@ -3,9 +3,9 @@ version: 2.1
 executors:
   bloxroute-executor:
     docker:
-    - image: circleci/python:2.7
+    - image: python:2.7.14
     environment:
-      PYTHONPATH: /home/circleci/ws/bxcommon/src:/home/circleci/ws/bxgateway/src
+      PYTHONPATH: /root/ws/bxcommon/src:/root/ws/bxgateway/src
     working_directory: ~/ws
 
 jobs:
@@ -61,7 +61,7 @@ jobs:
         command: |
           . venv/bin/activate
           cd bxgateway/test/unit
-          coverage run --source=/home/circleci/ws/bxgateway/src -m unittest discover && coverage report --fail-under=01
+          coverage run --source=/root/ws/bxgateway/src -m unittest discover && coverage report --fail-under=01
     - run: # run tests
         name: Integration Tests
         command: |
@@ -125,11 +125,11 @@ jobs:
           command: |
             . venv/bin/activate
             cd bxe2e/test/integration
-            PYTHONPATH=$PYTHONPATH:/home/circleci/ws/bxe2e/src:/home/circleci/ws/bxrelay/src \
+            PYTHONPATH=$PYTHONPATH:/root/ws/bxe2e/src:/root/ws/bxrelay/src \
             python -m unittest discover --verbose
   build:
     docker:
-    - image: circleci/python:2.7
+    - image: python:2.7.14
     working_directory: ~/ws
 
     steps:
@@ -142,7 +142,7 @@ jobs:
 
   deploy:
     docker:
-    - image: circleci/python:2.7
+    - image: python:2.7.14
     working_directory: ~/ws
 
     steps:

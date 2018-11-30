@@ -9,46 +9,47 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import BTCObjectHash, ObjectHash
-from bxgateway.messages import btc_message_parser
+from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
 
 
-class BtcMessageParserTests(AbstractTestCase):
+class BtcMessageConverterTests(AbstractTestCase):
     AVERAGE_TX_SIZE = 250
+    MAGIC = 123
+
+    btc_message_converter = BtcMessageConverter(MAGIC)
 
     def test_tx_msg_to_btc_tx_msg__success(self):
         tx_hash = ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
         tx = helpers.generate_bytearray(self.AVERAGE_TX_SIZE)
-        magic = 123
 
         tx_msg = TxMessage(tx_hash=tx_hash, tx_val=tx)
 
-        btc_tx_msg = btc_message_parser.tx_msg_to_btc_tx_msg(tx_msg, magic)
+        btc_tx_msg = self.btc_message_converter.bx_tx_to_tx(tx_msg)
 
         self.assertTrue(btc_tx_msg)
-        self.assertEqual(btc_tx_msg.magic(), magic)
-        self.assertEqual(btc_tx_msg.command(), 'tx')
+        self.assertEqual(btc_tx_msg.magic(), self.MAGIC)
+        self.assertEqual(btc_tx_msg.command(), "tx")
         self.assertEqual(btc_tx_msg.payload(), tx)
 
     def test_tx_msg_to_btc_tx_msg__type_error(self):
         btc_tx_msg = TxBTCMessage(buf=helpers.generate_bytearray(self.AVERAGE_TX_SIZE))
-        magic = 123
 
-        self.assertRaises(TypeError, btc_message_parser.tx_msg_to_btc_tx_msg, btc_tx_msg, magic)
+        self.assertRaises(TypeError, self.btc_message_converter.bx_tx_to_tx, btc_tx_msg)
 
     def test_btc_tx_msg_to_tx_msg__success(self):
         btc_tx_msg = TxBTCMessage(buf=helpers.generate_bytearray(self.AVERAGE_TX_SIZE))
 
-        tx_msg = btc_message_parser.btc_tx_msg_to_tx_msg(btc_tx_msg)
+        tx_msgs = self.btc_message_converter.tx_to_bx_txs(btc_tx_msg)
 
-        self.assertTrue(tx_msg)
-        self.assertIsInstance(tx_msg, TxMessage)
-        self.assertEqual(tx_msg.tx_hash(), btc_tx_msg.tx_hash())
-        self.assertEqual(tx_msg.tx_val(), btc_tx_msg.tx())
+        self.assertTrue(tx_msgs)
+        self.assertIsInstance(tx_msgs[0][0], TxMessage)
+        self.assertEqual(tx_msgs[0][1], btc_tx_msg.tx_hash())
+        self.assertEqual(tx_msgs[0][2], btc_tx_msg.tx())
 
     def test_btc_tx_msg_to_tx_msg__type_error(self):
         tx_msg = TxMessage(buf=helpers.generate_bytearray(self.AVERAGE_TX_SIZE))
 
-        self.assertRaises(TypeError, btc_message_parser.btc_tx_msg_to_tx_msg, tx_msg)
+        self.assertRaises(TypeError, self.btc_message_converter.tx_to_bx_txs, tx_msg)
 
     def test_btc_block_to_bloxroute_block_and_back_sids_found(self):
         magic = 12345
@@ -83,11 +84,11 @@ class BtcMessageParserTests(AbstractTestCase):
         tx_service.get_txid = get_txid
         tx_service.get_tx_from_sid = get_tx_from_sid
 
-        bloxroute_block = btc_message_parser.btc_block_to_bloxroute_block(btc_block, tx_service)
+        bloxroute_block = self.btc_message_converter.block_to_bx_block(btc_block, tx_service)
         # TODO: if we convert bloxroute block to a class, add some tests here
 
-        parsed_btc_block, block_hash, _, _ = btc_message_parser.bloxroute_block_to_btc_block(bloxroute_block,
-                                                                                             tx_service)
+        parsed_btc_block, block_hash, _, _ = self.btc_message_converter.bx_block_to_block(bloxroute_block,
+                                                                                     tx_service)
         self.assertIsNotNone(parsed_btc_block)
         self.assertEqual(version, parsed_btc_block.version())
         self.assertEqual(magic, parsed_btc_block.magic())
