@@ -39,7 +39,7 @@ class BTCNodeConnection(AbstractGatewayBlockchainConnection):
         # Establish connection with blockchain node
         version_msg = VersionBTCMessage(node.opts.blockchain_net_magic, node.opts.blockchain_version, self.peer_ip,
                                         self.peer_port, self.node.opts.external_ip, self.node.opts.external_port,
-                                        node.opts.blockchain_nonce, 0, node.opts.bloxroute_version,
+                                        node.opts.blockchain_nonce, 0, str(node.opts.protocol_version),
                                         node.opts.blockchain_services)
         self.enqueue_msg(version_msg)
 
