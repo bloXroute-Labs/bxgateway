@@ -128,48 +128,79 @@ jobs:
             PYTHONPATH=$PYTHONPATH:/root/ws/bxe2e/src:/root/ws/bxrelay/src \
             python -m unittest discover --verbose
   build:
-    docker:
-    - image: python:2.7.14
     working_directory: ~/ws
-
-    steps:
-    - checkout
-    - attach_workspace:
-        at: ~/ws
-    - run:
-        name: Package
-        command: 'echo "Yay build!"'
-
-  deploy:
     docker:
-    - image: python:2.7.14
-    working_directory: ~/ws
-
+      - image: docker:17.05.0-ce-git
     steps:
-    - checkout
-    - attach_workspace:
-        at: ~/ws
-    - run:
-        name: Package
-        command: 'echo "Yay deploy!"'
+      - setup_remote_docker
+      - attach_workspace:
+          at: ~/ws
+      - checkout:
+          path:
+            "bxgateway"
+      - run:
+          name: Try to clone the corresponding bxcommon branch to this branch, or bxcommon/develop.
+          command: |
+            cd ~/ws/bxgateway
+            branchName=$(git rev-parse --abbrev-ref HEAD)
+
+            cd ~/ws
+            { # try
+                echo "Trying to clone identical branch name '$branchName' from bxgateway."
+                git clone -b $branchName --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+            } || { # catch
+                echo "Trying bxcommon develop branch, could not find identical branch name '$branchName' in bxgateway."
+                git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+            }
+            cd bxcommon
+            bxcommonBranch=$(git rev-parse --abbrev-ref HEAD)
+            echo "Resolved branch $bxcommonBranch for bxcommon."
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --no-cache \
+              py-pip=9.0.0-r1
+            pip install \
+              docker-compose==1.12.0 \
+              awscli==1.11.76
+      - restore_cache:
+          keys:
+            - v1-{{ .Branch }}
+          paths:
+            - /caches/app.tar
+      - run:
+          name: Load Docker image layer cache
+          command: |
+            set +o pipefail
+            docker load -i /caches/app.tar | true
+      - run:
+          name: Build application Docker image
+          command: |
+            cd ~/ws/bxgateway && docker build -f Dockerfile --cache-from=app -t app ../
+      - run:
+          name: Save Docker image layer cache
+          command: |
+            mkdir -p /caches
+            docker save -o /caches/app.tar app
+      - save_cache: 
+          key: v1-{{ .Branch }}-{{ epoch }}
+          paths:
+            - /caches/app.tar
+      # - deploy:
+      #     name: Push application Docker image
+      #     command: |
+      #       if [ "${CIRCLE_BRANCH}" == "master" ]; then
+      #         login="$(aws ecr get-login)"
+      #         ${login}
+      #         docker tag app "${ECR_ENDPOINT}/app:${CIRCLE_SHA1}"
+      #         docker push "${ECR_ENDPOINT}/app:${CIRCLE_SHA1}"
+      #       fi
 
 workflows:
   version: 2
 
   test-build:
     jobs:
+    - build
     - test
     - e2e
-    - build:
-        requires:
-        - test
-        filters:
-          branches:
-            only: develop
-
-    - deploy:
-        filters:
-          branches:
-            only: develop
-        requires:
-        - build
