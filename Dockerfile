@@ -15,6 +15,7 @@ RUN apk update \
         tini \
 # grab bash for the convenience
         bash \
+        gmp-dev \
  && pip install --upgrade pip
 
 # Assumes this repo and bxcommon repo are at equal roots
