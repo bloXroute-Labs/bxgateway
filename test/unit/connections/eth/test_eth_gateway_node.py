@@ -116,7 +116,6 @@ class ETHGatewayNodeTest(AbstractTestCase):
         self.blockchain_ip = "0.0.0.0"
         self.blockchain_port = "30303"
 
-
         # Setting up dummy server addresses
         self.servers = [
             OutboundPeerModel("172.0.0.1", 2222),
@@ -128,6 +127,7 @@ class ETHGatewayNodeTest(AbstractTestCase):
                                         test_mode=[], peer_gateways=[], peer_relays=self.servers,
                                         blockchain_address=(self.blockchain_ip, self.blockchain_port),
                                         include_default_etc_args=True, no_discovery=not initialize_handshake)
+
         self.node = EthGatewayNode(opts)
         self.assertTrue(self.node)
 

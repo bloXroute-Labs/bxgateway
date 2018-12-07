@@ -1,5 +1,7 @@
 import time
 
+from bxcommon.connections.connection_type import ConnectionType
+
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.utils import logger
 from bxgateway import eth_constants
@@ -18,6 +20,8 @@ from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 
 
 class EthNodeConnection(AbstractGatewayBlockchainConnection):
+
+    connection_type = ConnectionType.BLOCKCHAIN_NODE
 
     def __init__(self, sock, address, node, from_me):
         super(EthNodeConnection, self).__init__(sock, address, node, from_me)
@@ -221,7 +225,7 @@ class EthNodeConnection(AbstractGatewayBlockchainConnection):
     def _handshake_timeout(self):
         if not self._handshake_complete:
             logger.debug("Handshake was not completed within defined timeout. Closing connection.")
-            self.mark_for_close()
+            self.mark_for_close(force_destroy_now=True)
         else:
             logger.debug("Handshake completed within defined timeout.")
         return 0

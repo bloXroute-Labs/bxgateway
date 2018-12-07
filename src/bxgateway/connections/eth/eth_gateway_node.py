@@ -1,4 +1,3 @@
-from bxcommon.connections.node_type import NodeType
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
@@ -12,6 +11,9 @@ class EthGatewayNode(AbstractGatewayNode):
         super(EthGatewayNode, self).__init__(opts)
 
         self._remote_public_key = None
+
+        if opts.remote_public_key is not None:
+            self._remote_public_key = rlp_utils.decode_hex(opts.remote_public_key)
 
     def get_blockchain_connection_cls(self):
         return EthNodeDiscoveryConnection if self._is_in_discovery() else EthNodeConnection

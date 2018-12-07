@@ -1,6 +1,8 @@
 import socket
 import time
 
+from bxcommon.connections.connection_type import ConnectionType
+
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.utils import logger
 from bxgateway import eth_constants
@@ -15,6 +17,8 @@ class EthNodeDiscoveryConnection(AbstractConnection):
     Discovery protocol connection with Ethereum node.
     This connection is used to obtain public key of Ethereum node from Ping message.
     """
+
+    connection_type = ConnectionType.BLOCKCHAIN_NODE
 
     def __init__(self, sock, address, node, from_me):
         super(EthNodeDiscoveryConnection, self).__init__(sock, address, node, from_me)
@@ -39,6 +43,9 @@ class EthNodeDiscoveryConnection(AbstractConnection):
         self.send_ping()
         self.node.alarm_queue.register_alarm(eth_constants.DISCOVERY_PONG_TIMEOUT_SEC, self._pong_timeout)
 
+    def msg_ping(self, msg):
+        logger.debug("Discovery ping message received. Ignoring.")
+
     def msg_pong(self, msg):
         logger.debug("Discovery pong received.")
         self.node.set_remote_public_key(self, msg.get_public_key())
@@ -47,4 +54,4 @@ class EthNodeDiscoveryConnection(AbstractConnection):
     def _pong_timeout(self):
         if not self._pong_received:
             logger.warn("Pong message was not received within allocated timeout connection. Closing connection.")
-            self.mark_for_close()
+            self.mark_for_close(force_destroy_now=True)
