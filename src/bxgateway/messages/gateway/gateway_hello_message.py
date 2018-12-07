@@ -1,12 +1,12 @@
 import struct
 
 from bxcommon import constants
-from bxcommon.messages.bloxroute.message import Message
+from bxcommon.messages.bloxroute.version_message import VersionMessage
 from bxgateway.messages.gateway import gateway_message_utils
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
 
-class GatewayHelloMessage(Message):
+class GatewayHelloMessage(VersionMessage):
     """
     Hello message type for Gateway-Gateway connections.
 
@@ -14,26 +14,36 @@ class GatewayHelloMessage(Message):
     Ordering is provided so both nodes drop the same connection (e.g. the one with lower ordering).
     """
     MESSAGE_TYPE = GatewayMessageType.HELLO
-    PAYLOAD_LENGTH = constants.IP_ADDR_SIZE_IN_BYTES + constants.UL_SHORT_SIZE_IN_BYTES + constants.UL_INT_SIZE_IN_BYTES
+    PAYLOAD_LENGTH = (constants.VERSION_NUM_LEN +
+                      constants.NETWORK_NUM_LEN +
+                      constants.IP_ADDR_SIZE_IN_BYTES +
+                      constants.UL_SHORT_SIZE_IN_BYTES +
+                      constants.UL_INT_SIZE_IN_BYTES)
 
-    def __init__(self, ip=None, port=None, ordering=None, buf=None):
+    def __init__(self, protocol_version=None, network_num=None, ip=None, port=None, ordering=None, buf=None):
         if buf is None:
-            buf = bytearray(self.HEADER_LENGTH + self.PAYLOAD_LENGTH)
+            buf = bytearray(VersionMessage.BASE_LENGTH + self.PAYLOAD_LENGTH)
 
-            off = self.HEADER_LENGTH
+            off = VersionMessage.BASE_LENGTH
+
             gateway_message_utils.pack_ip_port(buf, off, ip, port)
             off += constants.IP_ADDR_SIZE_IN_BYTES + constants.UL_SHORT_SIZE_IN_BYTES
 
             struct.pack_into("<L", buf, off, ordering)
 
         self.buf = buf
-        self._ip = self._port = self._ordering = None
-        super(GatewayHelloMessage, self).__init__(self.MESSAGE_TYPE, self.PAYLOAD_LENGTH, buf)
+        self._ip = None
+        self._port = None
+        self._ordering = None
+        super(GatewayHelloMessage, self).__init__(self.MESSAGE_TYPE, self.PAYLOAD_LENGTH, protocol_version,
+                                                  network_num, buf)
 
     def _unpack_buffer(self):
-        off = self.HEADER_LENGTH
+        off = VersionMessage.BASE_LENGTH
+
         self._ip, self._port = gateway_message_utils.unpack_ip_port(self._memoryview[off:].tobytes())
         off += constants.IP_ADDR_SIZE_IN_BYTES + constants.UL_SHORT_SIZE_IN_BYTES
+
         self._ordering, = struct.unpack_from("<L", self._memoryview, off)
 
     def ip(self):

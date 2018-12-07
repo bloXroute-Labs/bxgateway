@@ -84,6 +84,10 @@ def get_opts():
                                  "Should be in the format ip1:port1,ip2:port2,...",
                             type=parse_peer_string,
                             default="")
+    arg_parser.add_argument("--min-peer-gateways",
+                            help="Minimum number of peer gateways before node will contact SDN for more.",
+                            type=int,
+                            default=1)
     arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. E.g Bitcoin, Ethereum", type=str,
                             default="Bitcoin")
     arg_parser.add_argument("--blockchain-network", help="Blockchain network. E.g Mainnet, Testnet", type=str,

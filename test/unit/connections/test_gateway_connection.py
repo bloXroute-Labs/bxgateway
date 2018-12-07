@@ -3,13 +3,15 @@ import socket
 from mock import MagicMock
 
 from bxcommon.connections.connection_pool import ConnectionPool
-from bxcommon.constants import LOCALHOST
+from bxcommon.connections.connection_state import ConnectionState
+from bxcommon.constants import LOCALHOST, DEFAULT_NETWORK_NUM
 from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockOpts
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
+from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
 
 
 def create_node(ip, port):
@@ -17,7 +19,6 @@ def create_node(ip, port):
     node.opts = MockOpts(external_ip=ip, external_port=port)
     node.connection_pool = ConnectionPool()
     node.connection_exists = node.connection_pool.has_connection
-    node.enqueue_disconnect = MagicMock()
     node.network_num = node.opts.network_num
     return node
 
@@ -42,11 +43,10 @@ class GatewayConnectionTest(AbstractTestCase):
         inbound_connection = self._create_connection(fileno, LOCALHOST, 40000, False)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
 
-        inbound_connection.msg_hello(GatewayHelloMessage(LOCALHOST, 8001, 1))
-        self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
+        inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                         DEFAULT_NETWORK_NUM, LOCALHOST, 8001, 1))
+        self.assertFalse(self.node.connection_pool.has_connection(LOCALHOST, 40000))
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
-        self.assertEqual(self.node.connection_pool.get_byipport(LOCALHOST, 8001),
-                         self.node.connection_pool.get_byipport(LOCALHOST, 40000))
 
     def test_msg_hello_reject_mismatched_ip(self):
         fileno = 1
@@ -54,9 +54,10 @@ class GatewayConnectionTest(AbstractTestCase):
         inbound_connection = self._create_connection(fileno, LOCALHOST, 40000, False)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
 
-        inbound_connection.msg_hello(GatewayHelloMessage("192.168.1.1", 8001, 1))
+        inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                         DEFAULT_NETWORK_NUM, "192.168.1.1", 8001, 1))
 
-        self.node.enqueue_disconnect.assert_called_with(fileno)
+        self.assertTrue(inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
 
     def test_msg_hello_replace_other_connection(self):
         inbound_fileno = 1
@@ -68,13 +69,12 @@ class GatewayConnectionTest(AbstractTestCase):
         outbound_connection.ordering = 1
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
 
-        inbound_connection.msg_hello(GatewayHelloMessage(LOCALHOST, 8001, 10))
+        inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                         DEFAULT_NETWORK_NUM, LOCALHOST, 8001, 10))
 
-        self.node.enqueue_disconnect.assert_called_with(outbound_fileno)
-        self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
+        self.assertTrue(outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertFalse(self.node.connection_pool.has_connection(LOCALHOST, 40000))
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
-        self.assertEqual(self.node.connection_pool.get_byipport(LOCALHOST, 8001),
-                         self.node.connection_pool.get_byipport(LOCALHOST, 40000))
 
     def test_msg_hello_replace_self(self):
         inbound_fileno = 1
@@ -86,9 +86,10 @@ class GatewayConnectionTest(AbstractTestCase):
         outbound_connection.ordering = 10
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
 
-        inbound_connection.msg_hello(GatewayHelloMessage(LOCALHOST, 8001, 1))
+        inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                         DEFAULT_NETWORK_NUM, LOCALHOST, 8001, 1))
 
-        self.node.enqueue_disconnect.assert_called_with(inbound_fileno)
+        self.assertTrue(inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
         self.assertEqual(outbound_connection, self.node.connection_pool.get_byipport(LOCALHOST, 8001))
 
@@ -126,11 +127,15 @@ class GatewayConnectionTest(AbstractTestCase):
         self.assertNotEqual(GatewayConnection.NULL_ORDERING, peer_outbound_connection.ordering)
         self.assertTrue(peer_node.connection_pool.has_connection(LOCALHOST, main_port))
 
-        main_inbound_connection.msg_hello(GatewayHelloMessage(LOCALHOST, peer_port, peer_outbound_ordering))
-        peer_inbound_connection.msg_hello(GatewayHelloMessage(LOCALHOST, main_port, main_outbound_ordering))
+        main_inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                              DEFAULT_NETWORK_NUM, LOCALHOST, peer_port,
+                                                              peer_outbound_ordering))
+        peer_inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                              DEFAULT_NETWORK_NUM, LOCALHOST, main_port,
+                                                              main_outbound_ordering))
 
-        self.node.enqueue_disconnect.assert_called_with(main_inbound_fileno)
-        peer_node.enqueue_disconnect.assert_called_with(peer_outbound_fileno)
+        self.assertTrue(main_inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertTrue(peer_outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
 
     def test_msg_hello_calls_on_two_nodes_retry(self):
         main_port = 8000
@@ -168,11 +173,17 @@ class GatewayConnectionTest(AbstractTestCase):
         self.assertNotEqual(GatewayConnection.NULL_ORDERING, peer_outbound_connection.ordering)
         self.assertTrue(peer_node.connection_pool.has_connection(LOCALHOST, main_port))
 
-        main_inbound_connection.msg_hello(GatewayHelloMessage(LOCALHOST, peer_port, peer_outbound_ordering))
-        peer_inbound_connection.msg_hello(GatewayHelloMessage(LOCALHOST, main_port, main_outbound_ordering))
+        main_inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                              DEFAULT_NETWORK_NUM, LOCALHOST, peer_port,
+                                                              peer_outbound_ordering))
+        peer_inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                              DEFAULT_NETWORK_NUM, LOCALHOST, main_port,
+                                                              main_outbound_ordering))
 
-        self.node.enqueue_disconnect.assert_not_called()
-        peer_node.enqueue_disconnect.assert_not_called()
+        self.assertFalse(main_inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertFalse(main_outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertFalse(peer_inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertFalse(peer_outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
 
         main_inbound_connection.enqueue_msg.assert_called_once()
         peer_inbound_connection.enqueue_msg.assert_called_once()
@@ -180,9 +191,13 @@ class GatewayConnectionTest(AbstractTestCase):
         main_inbound_connection.ordering = 11
         peer_inbound_connection.ordering = 12
 
-        main_outbound_connection.msg_hello(GatewayHelloMessage(LOCALHOST, peer_port, peer_inbound_connection.ordering))
-        peer_outbound_connection.msg_hello(GatewayHelloMessage(LOCALHOST, main_port, main_inbound_connection.ordering))
+        main_outbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                               DEFAULT_NETWORK_NUM, LOCALHOST, peer_port,
+                                                               peer_inbound_connection.ordering))
+        peer_outbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                               DEFAULT_NETWORK_NUM, LOCALHOST, main_port,
+                                                               main_inbound_connection.ordering))
 
-        self.node.enqueue_disconnect.assert_called_with(main_inbound_fileno)
-        peer_node.enqueue_disconnect.assert_called_with(peer_outbound_fileno)
+        self.assertTrue(main_inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertTrue(peer_outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
 

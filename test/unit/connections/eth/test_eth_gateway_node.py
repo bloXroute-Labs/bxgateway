@@ -124,27 +124,10 @@ class ETHGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel("172.0.0.3", 4444)
         ]
 
-        opts = Namespace()
-        opts.__dict__ = {
-            "sid_expire_time": 0,
-            "external_ip": self.server_ip,
-            "external_port": self.server_port,
-            "test_mode": [],
-            "peer_gateways": [],
-            "peer_relays": self.servers,
-            "outbound_peers": self.servers,
-
-            "blockchain_ip": self.blockchain_ip,
-            "blockchain_port": self.blockchain_port,
-
-            "private_key": "294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3",
-            "network_id": 1,
-            "chain_difficulty": 4194304,
-            "genesis_hash": "1e8ff5fd9d06ab673db775cf5c72a6b2d63171cd26fe1e6a8b9d2d696049c781",
-            "no_discovery": not initialize_handshake,
-            "network_num": DEFAULT_NETWORK_NUM
-        }
-
+        opts = helpers.get_gateway_opts(self.server_port, sid_expire_time=0, external_ip=self.server_ip,
+                                        test_mode=[], peer_gateways=[], peer_relays=self.servers,
+                                        blockchain_address=(self.blockchain_ip, self.blockchain_port),
+                                        include_default_etc_args=True, no_discovery=not initialize_handshake)
         self.node = EthGatewayNode(opts)
         self.assertTrue(self.node)
 

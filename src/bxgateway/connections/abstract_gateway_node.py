@@ -3,7 +3,9 @@ from collections import deque
 
 from bxcommon import constants
 from bxcommon.connections.abstract_node import AbstractNode
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.node_type import NodeType
+from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.services import sdn_http_service
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import logger
@@ -44,8 +46,8 @@ class AbstractGatewayNode(AbstractNode):
 
         self.opts = opts
         self.idx = constants.NULL_IDX
-        self.peer_gateways = opts.peer_gateways
-        self.peer_relays = opts.peer_relays
+        self.peer_gateways = set(opts.peer_gateways)
+        self.peer_relays = set(opts.peer_relays)
 
         self.node_conn = None  # Connection object for the blockchain node
         self.node_msg_queue = deque()
@@ -74,8 +76,8 @@ class AbstractGatewayNode(AbstractNode):
         Requests relay peers from SDN. Merges list with provided command line relays.
         """
         peer_relays = sdn_http_service.fetch_relay_peers(self.opts.node_id)
-        self.peer_relays = self.opts.peer_relays + peer_relays
-        self.on_updated_peers(self.peer_gateways + self.peer_relays)
+        self.peer_relays = set(self.opts.peer_relays + peer_relays)
+        self.on_updated_peers(self._get_all_peers())
 
         # Try again later.
         if not peer_relays:
@@ -86,8 +88,8 @@ class AbstractGatewayNode(AbstractNode):
         Requests gateway peers from SDN. Merges list with provided command line gateways.
         """
         peer_gateways = sdn_http_service.fetch_gateway_peers(self.opts.node_id)
-        self.peer_gateways = self.opts.peer_gateways + peer_gateways
-        self.on_updated_peers(self.peer_gateways + self.peer_relays)
+        self._add_gateway_peers(peer_gateways)
+        self.on_updated_peers(self._get_all_peers())
 
         # Try again later
         if not peer_gateways:
@@ -121,6 +123,43 @@ class AbstractGatewayNode(AbstractNode):
         else:
             logger.debug("Adding things to node's message queue")
             self.node_msg_queue.append(msg)
+
+    def destroy_conn(self, conn, retry_connection=False):
+        if not retry_connection and conn.connection_type == ConnectionType.GATEWAY:
+            self._remove_gateway_peer(conn.peer_ip, conn.peer_port)
+        super(AbstractGatewayNode, self).destroy_conn(conn, retry_connection)
+
+    def retry_init_client_socket(self, ip, port, connection_type):
+        super(AbstractGatewayNode, self).retry_init_client_socket(ip, port, connection_type)
+        if connection_type == ConnectionType.GATEWAY and not self.should_retry_connection(ip, port, connection_type):
+            del self.num_retries_by_ip[ip]
+            logger.debug("Not retrying connection to {0}:{1}- maximum connections exceeded!".format(ip, port))
+            sdn_http_service.submit_peer_connection_error_event(self.opts.node_id, ip, port)
+
+            self._remove_gateway_peer(ip, port)
+
+        return 0
+
+    def should_retry_connection(self, ip, port, connection_type):
+        return super(AbstractGatewayNode, self).should_retry_connection(ip, port, connection_type) or \
+               OutboundPeerModel(ip, port) in self.opts.peer_gateways
+
+    def _get_all_peers(self):
+        return list(self.peer_gateways.union(self.peer_relays))
+
+    def _add_gateway_peers(self, gateways_peers):
+        for gateway_peer in gateways_peers:
+            if gateway_peer.ip != self.opts.external_ip or gateway_peer.port != self.opts.external_port:
+                self.peer_gateways.add(gateway_peer)
+
+    def _remove_gateway_peer(self, ip, port):
+        outbound_peer = OutboundPeerModel(ip, port)
+        if outbound_peer in self.peer_gateways:
+            self.peer_gateways.remove(OutboundPeerModel(ip, port))
+            self.on_updated_peers(self._get_all_peers())
+            if len(self.peer_gateways) < self.opts.min_peer_gateways:
+                self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
+                                                self._send_request_for_gateway_peers)
 
     @abstractmethod
     def get_blockchain_connection_cls(self):
