@@ -9,9 +9,10 @@ import argparse
 import random
 import sys
 
-from bxcommon import constants, node_runner
+from bxcommon import node_runner
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, config
+from bxgateway import btc_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
 
@@ -20,8 +21,8 @@ PID_FILE_NAME = "bxgateway.pid"
 
 
 def convert_net_magic(magic):
-    if magic in constants.btc_magic_numbers:
-        return constants.btc_magic_numbers[magic]
+    if magic in btc_constants.BTC_MAGIC_NUMBERS:
+        return btc_constants.BTC_MAGIC_NUMBERS[magic]
     else:
         return int(magic)
 
