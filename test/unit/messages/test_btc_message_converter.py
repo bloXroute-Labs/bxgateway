@@ -1,15 +1,17 @@
 from mock import MagicMock
 
-from bxcommon.constants import BTC_HDR_COMMON_OFF, NULL_TX_SID
+from bxcommon.constants import NULL_TX_SID
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.messages.btc.block_btc_message import BlockBTCMessage
-from bxcommon.messages.btc.tx_btc_message import TxBTCMessage
+from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import SHA256_HASH_LEN
-from bxcommon.utils.object_hash import BTCObjectHash, ObjectHash
+from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BtcMessageConverterTests(AbstractTestCase):
@@ -32,12 +34,12 @@ class BtcMessageConverterTests(AbstractTestCase):
         self.assertEqual(btc_tx_msg.payload(), tx)
 
     def test_tx_msg_to_btc_tx_msg__type_error(self):
-        btc_tx_msg = TxBTCMessage(buf=helpers.generate_bytearray(self.AVERAGE_TX_SIZE))
+        btc_tx_msg = TxBtcMessage(buf=helpers.generate_bytearray(self.AVERAGE_TX_SIZE))
 
         self.assertRaises(TypeError, self.btc_message_converter.bx_tx_to_tx, btc_tx_msg)
 
     def test_btc_tx_msg_to_tx_msg__success(self):
-        btc_tx_msg = TxBTCMessage(buf=helpers.generate_bytearray(self.AVERAGE_TX_SIZE))
+        btc_tx_msg = TxBtcMessage(buf=helpers.generate_bytearray(self.AVERAGE_TX_SIZE))
         network_num = 12345
 
         tx_msgs = self.btc_message_converter.tx_to_bx_txs(btc_tx_msg, network_num)
@@ -57,18 +59,18 @@ class BtcMessageConverterTests(AbstractTestCase):
         magic = 12345
         version = 23456
         prev_block_hash = bytearray(crypto.bitcoin_hash("123"))
-        prev_block = BTCObjectHash(prev_block_hash, length=SHA256_HASH_LEN)
+        prev_block = BtcObjectHash(prev_block_hash, length=SHA256_HASH_LEN)
         merkle_root_hash = bytearray(crypto.bitcoin_hash("234"))
-        merkle_root = BTCObjectHash(merkle_root_hash, length=SHA256_HASH_LEN)
+        merkle_root = BtcObjectHash(merkle_root_hash, length=SHA256_HASH_LEN)
         timestamp = 1
         bits = 2
         nonce = 3
 
-        txns = [TxBTCMessage(magic, version, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in xrange(10)]
-        txn_hashes = map(lambda x: BTCObjectHash(buf=crypto.bitcoin_hash(x), length=SHA256_HASH_LEN), txns)
+        txns = [TxBtcMessage(magic, version, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in xrange(10)]
+        txn_hashes = map(lambda x: BtcObjectHash(buf=crypto.bitcoin_hash(x), length=SHA256_HASH_LEN), txns)
         short_ids = [i for i in xrange(5)]
 
-        btc_block = BlockBTCMessage(magic, version, prev_block, merkle_root, timestamp, bits, nonce, txns)
+        btc_block = BlockBtcMessage(magic, version, prev_block, merkle_root, timestamp, bits, nonce, txns)
 
         # find an sid for half the transactions
         def get_txid(txhash):

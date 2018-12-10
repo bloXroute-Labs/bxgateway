@@ -1,0 +1,45 @@
+from bxcommon.messages.abstract_message_factory import AbstractMessageFactory
+from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.messages.btc.btc_message import BtcMessage
+from bxgateway.messages.btc.btc_message_type import BtcMessageType
+from bxgateway.messages.btc.data_btc_message import GetBlocksBtcMessage, GetHeadersBtcMessage
+from bxgateway.messages.btc.get_addr_btc_message import GetAddrBtcMessage
+from bxgateway.messages.btc.header_btc_message import HeadersBtcMessage
+from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InvBtcMessage, NotFoundBtcMessage
+from bxgateway.messages.btc.ping_btc_message import PingBtcMessage
+from bxgateway.messages.btc.pong_btc_message import PongBtcMessage
+from bxgateway.messages.btc.reject_btc_message import RejectBtcMessage
+from bxgateway.messages.btc.send_headers_btc_message import SendHeadersBtcMessage
+from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
+from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
+from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
+
+
+class _BtcMessageFactory(AbstractMessageFactory):
+    _MESSAGE_TYPE_MAPPING = {
+        BtcMessageType.VERSION: VersionBtcMessage,
+        BtcMessageType.VERACK: VerAckBtcMessage,
+        BtcMessageType.PING: PingBtcMessage,
+        BtcMessageType.PONG: PongBtcMessage,
+        BtcMessageType.GET_ADDRESS: GetAddrBtcMessage,
+        BtcMessageType.ADDRESS: AddrBtcMessage,
+        BtcMessageType.INVENTORY: InvBtcMessage,
+        BtcMessageType.GET_DATA: GetDataBtcMessage,
+        BtcMessageType.NOT_FOUND: NotFoundBtcMessage,
+        BtcMessageType.GET_HEADERS: GetHeadersBtcMessage,
+        BtcMessageType.GET_BLOCKS: GetBlocksBtcMessage,
+        BtcMessageType.TRANSACTIONS: TxBtcMessage,
+        BtcMessageType.BLOCK: BlockBtcMessage,
+        BtcMessageType.HEADERS: HeadersBtcMessage,
+        BtcMessageType.REJECT: RejectBtcMessage,
+        BtcMessageType.SEND_HEADERS: SendHeadersBtcMessage,
+    }
+
+    def __init__(self):
+        super(_BtcMessageFactory, self).__init__()
+        self.message_type_mapping = self._MESSAGE_TYPE_MAPPING
+        self.base_message_type = BtcMessage
+
+
+btc_message_factory = _BtcMessageFactory()

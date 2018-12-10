@@ -1,25 +1,25 @@
-from argparse import Namespace
-
 from mock import MagicMock
 
-from bxcommon.constants import BTC_HDR_COMMON_OFF, NULL_TX_SID, DEFAULT_NETWORK_NUM
+from bxcommon.constants import NULL_TX_SID, DEFAULT_NETWORK_NUM
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
-from bxcommon.messages.btc.block_btc_message import BlockBTCMessage
-from bxcommon.messages.btc.tx_btc_message import TxBTCMessage
+from bxcommon.utils.object_hash import ObjectHash
+from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import get_gateway_opts
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import symmetric_encrypt, SHA256_HASH_LEN
-from bxcommon.utils.object_hash import ObjectHash, BTCObjectHash
 from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BtcRelayConnectionTest(AbstractTestCase):
-    BTC_HASH = BTCObjectHash(crypto.double_sha256("123"), length=SHA256_HASH_LEN)
+    BTC_HASH = BtcObjectHash(crypto.double_sha256("123"), length=SHA256_HASH_LEN)
 
     MAGIC = 12345
     VERSION = 23456
@@ -42,13 +42,13 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.gateway_node.tx_service.get_tx_from_sid = get_tx_from_sid
 
     def transactions(self):
-        return [TxBTCMessage(self.MAGIC, self.VERSION, [], [], i) for i in xrange(10)]
+        return [TxBtcMessage(self.MAGIC, self.VERSION, [], [], i) for i in xrange(10)]
 
     def transactions_bytes(self):
         return [transaction.rawbytes()[BTC_HDR_COMMON_OFF:] for transaction in self.transactions()]
 
     def block(self, txns):
-        btc_block = BlockBTCMessage(self.MAGIC, self.VERSION, self.BTC_HASH, self.BTC_HASH, 0, 0, 0, txns)
+        btc_block = BlockBtcMessage(self.MAGIC, self.VERSION, self.BTC_HASH, self.BTC_HASH, 0, 0, 0, txns)
         return btc_block, bytes(
             self.sut.message_converter.block_to_bx_block(btc_block, self.gateway_node.get_tx_service()))
 

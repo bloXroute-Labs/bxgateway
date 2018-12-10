@@ -1,16 +1,18 @@
 import struct
 from collections import deque
 
-from bxcommon.constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN, NULL_TX_SID
+from bxcommon.constants import NULL_TX_SID
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.messages.btc.block_btc_message import BlockBTCMessage
-from bxcommon.messages.btc.btc_message import BTCMessage
-from bxcommon.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
-from bxcommon.messages.btc.tx_btc_message import TxBTCMessage
+from bxcommon.utils.object_hash import ObjectHash
+from bxgateway.btc_constants import BTC_SHA_HASH_LEN, BTC_HDR_COMMON_OFF
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.messages.btc.btc_message import BtcMessage
+from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
+from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxcommon.utils import crypto, logger
 from bxcommon.utils.crypto import SHA256_HASH_LEN
-from bxcommon.utils.object_hash import BTCObjectHash, ObjectHash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BtcMessageConverter(AbstractMessageConverter):
@@ -32,7 +34,7 @@ class BtcMessageConverter(AbstractMessageConverter):
         buf.append(header)
 
         for tx in btc_block_msg.txns():
-            tx_hash = BTCObjectHash(buf=crypto.double_sha256(tx), length=BTC_SHA_HASH_LEN)
+            tx_hash = BtcObjectHash(buf=crypto.double_sha256(tx), length=BTC_SHA_HASH_LEN)
             shortid = tx_service.get_txid(tx_hash)
             if shortid == NULL_TX_SID:
                 buf.append(tx)
@@ -108,7 +110,7 @@ class BtcMessageConverter(AbstractMessageConverter):
 
             logger.debug(
                 "Successfully parsed block broadcast message. {0} transactions in block".format(total_tx_count))
-            return BlockBTCMessage(buf=btc_block), block_hash, unknown_tx_sids, unknown_tx_hashes
+            return BlockBtcMessage(buf=btc_block), block_hash, unknown_tx_sids, unknown_tx_hashes
         else:
             logger.warn("Block recovery: Unable to parse block message. {0} sids, {1} tx hashes missing. total txs: {2}"
                         .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
@@ -120,12 +122,12 @@ class BtcMessageConverter(AbstractMessageConverter):
 
         buf = bytearray(BTC_HDR_COMMON_OFF) + tx_msg.tx_val()
 
-        btc_tx_msg = BTCMessage(self._btc_magic, "tx", len(tx_msg.tx_val()), buf)
+        btc_tx_msg = BtcMessage(self._btc_magic, "tx", len(tx_msg.tx_val()), buf)
 
         return btc_tx_msg
 
     def tx_to_bx_txs(self, btc_tx_msg, network_num):
-        if not isinstance(btc_tx_msg, TxBTCMessage):
+        if not isinstance(btc_tx_msg, TxBtcMessage):
             raise TypeError("tx_msg is expected to be of type TxBTCMessage")
 
         tx_msg = TxMessage(btc_tx_msg.tx_hash(), network_num, btc_tx_msg.tx())

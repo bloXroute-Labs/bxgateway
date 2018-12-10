@@ -1,7 +1,10 @@
+from bxgateway.messages.btc.data_btc_message import GetBlocksBtcMessage
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import create_input_buffer_with_message
+from bxcommon.utils import crypto
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class GatewayMessageFactoryTest(AbstractTestCase):
@@ -30,3 +33,4 @@ class GatewayMessageFactoryTest(AbstractTestCase):
         self.assertEqual("127.0.0.1", hello_message.ip())
         self.assertEqual(40001, hello_message.port())
         self.assertEqual(1, hello_message.ordering())
+

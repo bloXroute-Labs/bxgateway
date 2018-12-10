@@ -1,8 +1,8 @@
-from bxcommon.constants import BTC_SHA_HASH_LEN
 from bxcommon.utils import crypto, logger
-from bxcommon.utils.object_hash import BTCObjectHash
+from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BtcRelayConnection(AbstractRelayConnection):
@@ -13,7 +13,7 @@ class BtcRelayConnection(AbstractRelayConnection):
         self.message_converter = BtcMessageConverter(node.opts.blockchain_net_magic)
 
     def msg_tx(self, msg):
-        hash_val = BTCObjectHash(crypto.bitcoin_hash(msg.tx_val()), length=BTC_SHA_HASH_LEN)
+        hash_val = BtcObjectHash(crypto.bitcoin_hash(msg.tx_val()), length=BTC_SHA_HASH_LEN)
 
         if hash_val != msg.tx_hash():
             logger.error("Got ill formed tx message from the bloXroute network")

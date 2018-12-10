@@ -7,6 +7,7 @@ from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.utils import logger
+from bxgateway import gateway_constants
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
@@ -26,7 +27,7 @@ class GatewayConnection(InternalNodeConnection):
     def __init__(self, sock, address, node, from_me=False):
         super(GatewayConnection, self).__init__(sock, address, node, from_me)
 
-        self.hello_messages = [GatewayMessageType.HELLO, BloxrouteMessageType.ACK]
+        self.hello_messages = gateway_constants.GATEWAY_HELLO_MESSAGES
         self.header_size = constants.HDR_COMMON_OFF
 
         self.message_factory = gateway_message_factory
