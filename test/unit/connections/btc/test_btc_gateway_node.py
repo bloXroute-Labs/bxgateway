@@ -3,6 +3,7 @@ import socket
 from mock import MagicMock, patch
 
 from bxcommon.constants import DEFAULT_NETWORK_NUM
+from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_version_manager import bloxroute_version_manager
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
@@ -63,14 +64,20 @@ class BtcGatewayNodeTests(AbstractTestCase):
                                                                          1000, 1, 2, "bloxroute").rawbytes())
 
         node1.on_connection_added(relay_connection, "127.0.0.1", 7001, True)
+        node1.on_connection_initialized(relay_fileno)
         receive_node_message(node1, relay_fileno,
                              HelloMessage(bloxroute_version_manager.CURRENT_PROTOCOL_VERSION, DEFAULT_NETWORK_NUM, 1)
                              .rawbytes())
+        receive_node_message(node1, relay_fileno,
+                             AckMessage().rawbytes())
 
         node2.on_connection_added(relay_connection, "127.0.0.1", 7001, True)
+        node2.on_connection_initialized(relay_fileno)
         receive_node_message(node2, relay_fileno,
                              HelloMessage(bloxroute_version_manager.CURRENT_PROTOCOL_VERSION, DEFAULT_NETWORK_NUM, 1)
                              .rawbytes())
+        receive_node_message(node2, relay_fileno,
+                             AckMessage().rawbytes())
 
         node2.on_connection_added(blockchain_connection, "127.0.0.1", 7000, False)
         receive_node_message(node2, blockchain_fileno, VersionBtcMessage(12345, 12345, "0.0.0.0", 1000, "0.0.0.0",
