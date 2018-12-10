@@ -45,41 +45,18 @@ def parse_peer_string(peer_string):
     return peers
 
 
-def parse_network_number(opts):
-    # TODO: This list will be loaded from SDN
-    networks_list = [
-        (1, "Bitcoin", "Mainnet"),
-        (2, "Bitcoin", "Testnet"),
-        (3, "Ethereum", "Mainnet"),
-        (4, "Ethereum", "Ropsten")
-    ]
-
-    network_num = None
-
-    for network in networks_list:
-        if opts.blockchain_protocol == network[1] and opts.blockchain_network == network[2]:
-            network_num = network[0]
-            break
-
-    if network_num is None:
-        all_networks = ", ".join(map(lambda network: "'{}' - '{}'".format(network[1], network[2]), networks_list))
-        error_msg = "Network number does not exist for blockchain protocol '{}' and network '{}'. Valid options: {}." \
-            .format(opts.blockchain_protocol, opts.blockchain_network, all_networks)
-        print(error_msg)
-
-        exit(1)
-
-    opts.__dict__["network_num"] = network_num
-
-
 def get_opts():
     common_args = cli.get_args()
 
     # Get more options specific to gateways.
     arg_parser = argparse.ArgumentParser()
+    arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int, required=True)
+    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. E.g Bitcoin, Ethereum", type=str,
+                            required=True)
+    arg_parser.add_argument("--blockchain-network", help="Blockchain network. E.g Mainnet, Testnet", type=str,
+                            required=True)
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip", type=config.blocking_resolve_ip,
                             default="127.0.0.1")
-    arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int, default=9333)
     arg_parser.add_argument("--peer-gateways",
                             help="Optional gateway peer ip/ports that will always be connected to. "
                                  "Should be in the format ip1:port1,ip2:port2,...",
@@ -89,10 +66,6 @@ def get_opts():
                             help="Minimum number of peer gateways before node will contact SDN for more.",
                             type=int,
                             default=1)
-    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. E.g Bitcoin, Ethereum", type=str,
-                            default="Bitcoin")
-    arg_parser.add_argument("--blockchain-network", help="Blockchain network. E.g Mainnet, Testnet", type=str,
-                            default="Mainnet")
     arg_parser.add_argument("--outbound-ip", help="(TEST ONLY) Override parameter for an outbound peer to connect to")
     arg_parser.add_argument("--outbound-port", help="(TEST ONLY) Override parameter for an outbound peer to connect to",
                             type=int)
@@ -131,7 +104,6 @@ def get_opts():
     args = cli.merge_args(gateway_args, common_args)
     args.outbound_peers = args.peer_gateways + args.peer_relays
 
-    parse_network_number(args)
     return args
 
 

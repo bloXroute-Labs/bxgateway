@@ -62,7 +62,6 @@ class AbstractGatewayNode(AbstractNode):
 
         self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS, self._send_request_for_gateway_peers)
         self._tx_service = TransactionService(self)
-        self.network_num = opts.network_num
 
     def get_tx_service(self, network_num=None):
         if network_num is not None and network_num != self.opts.network_num:
