@@ -43,6 +43,8 @@ class EthNodeDiscoveryConnection(AbstractConnection):
         self.send_ping()
         self.node.alarm_queue.register_alarm(eth_constants.DISCOVERY_PONG_TIMEOUT_SEC, self._pong_timeout)
 
+        self.hello_messages = [EthDiscoveryMessageType.PING, EthDiscoveryMessageType.PONG]
+
     def msg_ping(self, msg):
         logger.debug("Discovery ping message received. Ignoring.")
 

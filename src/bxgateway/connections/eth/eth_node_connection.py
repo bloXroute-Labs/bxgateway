@@ -43,6 +43,11 @@ class EthNodeConnection(AbstractGatewayBlockchainConnection):
             EthProtocolMessageType.NEW_BLOCK: self.msg_block,
         }
 
+        self.hello_messages = [EthProtocolMessageType.AUTH,
+                               EthProtocolMessageType.AUTH_ACK,
+                               EthProtocolMessageType.HELLO,
+                               EthProtocolMessageType.STATUS]
+
         self.message_converter = EthMessageConverter()
 
         self.can_send_pings = True
