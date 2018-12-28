@@ -1,7 +1,7 @@
 from bxcommon.exceptions import ParseError
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.utils import convert
 from bxgateway.utils.eth import rlp_utils
-from bxgateway.utils.eth.rlp_utils import encode_hex
 
 
 class RlpUtilsTest(AbstractTestCase):
@@ -49,13 +49,13 @@ class RlpUtilsTest(AbstractTestCase):
         self.assertEqual(b"\x00", big_endian_0)
 
         big_endian_1 = rlp_utils.int_to_big_endian(1)
-        self.assertEqual("01", encode_hex(big_endian_1))
+        self.assertEqual("01", convert.bytes_to_hex(big_endian_1))
 
         big_endian_1025 = rlp_utils.int_to_big_endian(1025)
-        self.assertEqual("0401", encode_hex(big_endian_1025))
+        self.assertEqual("0401", convert.bytes_to_hex(big_endian_1025))
 
         big_endian_133124 = rlp_utils.int_to_big_endian(133124)
-        self.assertEqual("020804", encode_hex(big_endian_133124))
+        self.assertEqual("020804", convert.bytes_to_hex(big_endian_133124))
 
     def test_big_endian_to_int(self):
         big_endian_0 = b"\x00"
@@ -69,16 +69,6 @@ class RlpUtilsTest(AbstractTestCase):
 
         big_endian_133124 = b"\x02\x08\x04"
         self.assertEqual(133124, rlp_utils.big_endian_to_int(big_endian_133124))
-
-    def test_encode_hex(self):
-        self.assertEqual("00", rlp_utils.encode_hex(b"\x00"))
-        self.assertEqual("0001", rlp_utils.encode_hex(b"\x00\x01"))
-        self.assertEqual("0001ab", rlp_utils.encode_hex(b"\x00\x01\xab"))
-
-    def test_decode_hex(self):
-        self.assertEqual(b"\x00", rlp_utils.decode_hex("00"))
-        self.assertEqual(b"\x00\x01", rlp_utils.decode_hex("0001"))
-        self.assertEqual(b"\x00\x01\xab", rlp_utils.decode_hex("0001ab"))
 
     def test_get_length_prefix_str(self):
         self.assertEqual(b"\x81",  rlp_utils.get_length_prefix_str(1))

@@ -6,6 +6,7 @@ from rlp import utils as rlp_utils
 
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.utils import convert
 from bxgateway import eth_constants
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
 from bxgateway.messages.eth.discovery.pong_eth_discovery_message import PongEthDiscoveryMessage
@@ -47,7 +48,7 @@ class EthMessagesTests(AbstractTestCase):
                                      int(time.time()))
 
     def test_hello_eth_message(self):
-        dummy_private_key = rlp_utils.decode_hex("294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3")
+        dummy_private_key = convert.hex_to_bytes("294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3")
         dummy_public_key = crypto_utils.private_to_public_key(dummy_private_key)
 
         self._test_msg_serialization(HelloEthProtocolMessage,
@@ -67,8 +68,8 @@ class EthMessagesTests(AbstractTestCase):
     def test_status_eth_message(self):
         dummy_network_id = 111
         dummy_chain_difficulty = 11111
-        dummy_chain_head_hash = rlp_utils.decode_hex("f973c5d3763c40e2b5080f35a9003e64e7d9f9d429ddecd7c559cbd4061094cd")
-        dummy_genesis_hash = rlp_utils.decode_hex("aec175735fb6b74722d54455b638f6340bb9fdd5fa8101c8c0869d10cdccb000")
+        dummy_chain_head_hash = convert.hex_to_bytes("f973c5d3763c40e2b5080f35a9003e64e7d9f9d429ddecd7c559cbd4061094cd")
+        dummy_genesis_hash = convert.hex_to_bytes("aec175735fb6b74722d54455b638f6340bb9fdd5fa8101c8c0869d10cdccb000")
 
         self._test_msg_serialization(StatusEthProtocolMessage,
                                      False,
@@ -149,7 +150,7 @@ class EthMessagesTests(AbstractTestCase):
 
         if needs_private_key:
             # random private key
-            private_key = rlp_utils.decode_hex("294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3")
+            private_key = convert.hex_to_bytes("294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3")
             msg = msg_cls(None, private_key, *args, **kwargs)
         else:
             msg = msg_cls(None, *args, **kwargs)

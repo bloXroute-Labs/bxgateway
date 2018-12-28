@@ -3,12 +3,14 @@ import codecs
 import struct
 
 from bxcommon.exceptions import ParseError
+from bxcommon.utils import convert
 
 """
 Utility functions to work with RLP (Recursive Length Prefix) encoding.
 
 https://github.com/ethereum/wiki/wiki/RLP
 """
+
 
 def encode_int(value):
     """
@@ -158,7 +160,7 @@ def big_endian_to_int(value):
             value = value.tobytes()
         return struct.unpack(">Q", value.rjust(8, "\x00"))[0]
     else:
-        return int(encode_hex(value), 16)
+        return int(convert.bytes_to_hex(value), 16)
 
 
 def int_to_big_endian(value):
@@ -173,34 +175,6 @@ def int_to_big_endian(value):
         return b"\x00"
 
     return _pack_left(value)
-
-
-def encode_hex(s):
-    """
-    Encodes bytes to hex
-
-    :param s: bytes
-    :return: HEX representation of bytes
-    """
-
-    if isinstance(s, bytearray):
-        s = str(s)
-    if not isinstance(s, (str, unicode)):
-        raise TypeError("Value must be an instance of str or unicode")
-    return s.encode("hex")
-
-def decode_hex(s):
-    """
-    Decodes hex string to bytes
-
-    :param s: hex string
-    :return: bytes
-    """
-
-    if not isinstance(s, (str, unicode)):
-        raise TypeError("Value must be an instance of str or unicode")
-
-    return s.decode("hex")
 
 
 def safe_ord(c):
@@ -226,6 +200,7 @@ def ascii_chr(value):
     """
 
     return chr(value)
+
 
 def str_to_bytes(value):
     """

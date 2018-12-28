@@ -2,6 +2,7 @@ from rlp import utils as rlp_utils
 
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.utils import convert
 from bxgateway import eth_constants
 from bxgateway.utils.eth import crypto_utils
 
@@ -94,14 +95,14 @@ class CryptoUtilsTests(AbstractTestCase):
         self.assertEqual(encoded_signature, signature)
 
     def test_ecies_kdf(self):
-        input1 = self._fromHex("0x0de72f1223915fa8b8bf45dffef67aef8d89792d116eb61c9a1eb02c422a4663")
-        expect1 = self._fromHex("0x1d0c446f9899a3426f2b89a8cb75c14b")
+        input1 = self._from_hex("0x0de72f1223915fa8b8bf45dffef67aef8d89792d116eb61c9a1eb02c422a4663")
+        expect1 = self._from_hex("0x1d0c446f9899a3426f2b89a8cb75c14b")
         test1 = crypto_utils.ecies_kdf(input1, 16)
         self.assertEqual(len(test1), len(expect1))
         self.assertEqual(test1, expect1)
 
-        kdfInput2 = self._fromHex("0x961c065873443014e0371f1ed656c586c6730bf927415757f389d92acf8268df")
-        kdfExpect2 = self._fromHex("0x4050c52e6d9c08755e5a818ac66fabe478b825b1836fd5efc4d44e40d04dabcc")
+        kdfInput2 = self._from_hex("0x961c065873443014e0371f1ed656c586c6730bf927415757f389d92acf8268df")
+        kdfExpect2 = self._from_hex("0x4050c52e6d9c08755e5a818ac66fabe478b825b1836fd5efc4d44e40d04dabcc")
         kdfTest2 = crypto_utils.ecies_kdf(kdfInput2, 32)
         self.assertEqual(len(kdfTest2), len(kdfExpect2))
         self.assertEqual(kdfTest2, kdfExpect2)
@@ -132,5 +133,5 @@ class CryptoUtilsTests(AbstractTestCase):
         self.assertEqual(msg_from_padded, msg[:22])
         self.assertEqual(padding, bytearray(10))
 
-    def _fromHex(self, x):
-        return rlp_utils.decode_hex(x[2:])
+    def _from_hex(self, x):
+        return convert.hex_to_bytes(x[2:])

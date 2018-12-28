@@ -1,4 +1,5 @@
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
+from bxcommon.utils import convert
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
@@ -13,7 +14,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self._remote_public_key = None
 
         if opts.remote_public_key is not None:
-            self._remote_public_key = rlp_utils.decode_hex(opts.remote_public_key)
+            self._remote_public_key = convert.hex_to_bytes(opts.remote_public_key)
 
     def get_blockchain_connection_cls(self):
         return EthNodeDiscoveryConnection if self._is_in_discovery() else EthNodeConnection
@@ -33,7 +34,7 @@ class EthGatewayNode(AbstractGatewayNode):
         return peers
 
     def get_private_key(self):
-        return rlp_utils.decode_hex(self.opts.private_key)
+        return convert.hex_to_bytes(self.opts.private_key)
 
     def get_public_key(self):
         return crypto_utils.private_to_public_key(self.get_private_key())

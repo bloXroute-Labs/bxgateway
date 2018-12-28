@@ -3,7 +3,7 @@ import time
 from bxcommon.connections.connection_type import ConnectionType
 
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.utils import logger
+from bxcommon.utils import logger, convert
 from bxgateway import eth_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
@@ -188,8 +188,8 @@ class EthNodeConnection(AbstractGatewayBlockchainConnection):
 
         network_id = self.node.opts.network_id
         chain_difficulty = int(self.node.opts.chain_difficulty, 16)
-        chain_head_hash = rlp_utils.decode_hex(self.node.opts.genesis_hash)
-        genesis_hash = rlp_utils.decode_hex(self.node.opts.genesis_hash)
+        chain_head_hash = convert.hex_to_bytes(self.node.opts.genesis_hash)
+        genesis_hash = convert.hex_to_bytes(self.node.opts.genesis_hash)
 
         status_msg = StatusEthProtocolMessage(None,
                                               eth_constants.ETH_PROTOCOL_VERSION,
