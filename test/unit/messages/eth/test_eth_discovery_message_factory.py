@@ -25,28 +25,28 @@ class EthDiscoveryMessageFactoryTests(AbstractTestCase):
 
     def test_peek_message__full_message(self):
         msg_bytes, expected_msg_len = self._create_full_msg_bytes()
-        is_full, msg_type, msg_len = self.parser.get_message_header_preview(self._to_input_buffer(msg_bytes))
+        is_full, msg_type, msg_len = self.parser.get_message_header_preview_from_input_buffer(self._to_input_buffer(msg_bytes))
         self.assertTrue(is_full)
         self.assertEqual(msg_type, self.test_msg_type)
         self.assertEqual(msg_len, expected_msg_len)
 
     def test_peek_message__incomplete_message(self):
         msg_bytes, expected_msg_len = self._create_half_payload_msg_bytes()
-        is_full, msg_type, msg_len = self.parser.get_message_header_preview(self._to_input_buffer(msg_bytes))
+        is_full, msg_type, msg_len = self.parser.get_message_header_preview_from_input_buffer(self._to_input_buffer(msg_bytes))
         self.assertFalse(is_full)
         self.assertEqual(msg_type, self.test_msg_type)
         self.assertEqual(msg_len, expected_msg_len)
 
     def test_peek_message__incomplete_message_2(self):
         msg_bytes, expected_msg_len = self._create_half_msg_bytes()
-        is_full, msg_type, msg_len = self.parser.get_message_header_preview(self._to_input_buffer(msg_bytes))
+        is_full, msg_type, msg_len = self.parser.get_message_header_preview_from_input_buffer(self._to_input_buffer(msg_bytes))
         self.assertFalse(is_full)
         self.assertIsNone(msg_type)
         self.assertIsNone(msg_len)
 
     def test_peek_message__longer_message(self):
         msg_bytes, expected_msg_len = self._create_longer_msg_bytes()
-        is_full, msg_type, msg_len = self.parser.get_message_header_preview(self._to_input_buffer(msg_bytes))
+        is_full, msg_type, msg_len = self.parser.get_message_header_preview_from_input_buffer(self._to_input_buffer(msg_bytes))
         self.assertTrue(is_full)
         self.assertEqual(msg_type, self.test_msg_type)
         self.assertEqual(msg_len, expected_msg_len)

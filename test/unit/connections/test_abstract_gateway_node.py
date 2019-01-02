@@ -2,6 +2,7 @@ import time
 
 from mock import MagicMock, call
 
+from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import LOCALHOST, CONNECTION_RETRY_SECONDS, MAX_CONNECT_RETRIES, SDN_CONTACT_RETRY_SECONDS
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -13,6 +14,9 @@ from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
 class GatewayNode(AbstractGatewayNode):
+
+    def get_remote_blockchain_connection_cls(self):
+        pass
 
     def get_blockchain_connection_cls(self):
         pass
@@ -57,13 +61,13 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.enqueue_disconnect = MagicMock()
 
         node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, True)
-        cli_peer_conn = node.connection_pool.get_byipport(LOCALHOST, 8001)
+        cli_peer_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
         node.num_retries_by_ip[LOCALHOST] = MAX_CONNECT_RETRIES
         node._connection_timeout(cli_peer_conn)
 
-        node.alarm_queue.register_alarm.assert_has_calls([call(CONNECTION_RETRY_SECONDS, node.retry_init_client_socket,
+        node.alarm_queue.register_alarm.assert_has_calls([call(CONNECTION_RETRY_SECONDS, node._retry_init_client_socket,
                                                                LOCALHOST, 8001, ConnectionType.GATEWAY)])
-        node.retry_init_client_socket(LOCALHOST, 8001, ConnectionType.GATEWAY)
+        node._retry_init_client_socket(LOCALHOST, 8001, ConnectionType.GATEWAY)
         self.assertEqual(MAX_CONNECT_RETRIES + 1, node.num_retries_by_ip[LOCALHOST])
 
     def test_gateway_peer_get_more_peers_when_too_few_gateways(self):
@@ -78,7 +82,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         ])
 
         node.on_connection_added(MockSocketConnection(), LOCALHOST, 8002, True)
-        not_cli_peer_conn = node.connection_pool.get_byipport(LOCALHOST, 8002)
+        not_cli_peer_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
         node.destroy_conn(not_cli_peer_conn)
 
         time.time = MagicMock(return_value=time.time() + SDN_CONTACT_RETRY_SECONDS)
@@ -88,3 +92,35 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(2, len(node.outbound_peers))
         self.assertIn(OutboundPeerModel(LOCALHOST, 8001), node.outbound_peers)
         self.assertIn(OutboundPeerModel(LOCALHOST, 8003), node.outbound_peers)
+
+    def test_get_preferred_gateway_connection_opts(self):
+        opts_peer_gateways = [
+            OutboundPeerModel(LOCALHOST, 8001)
+        ]
+        node = GatewayNode(helpers.get_gateway_opts(8000, peer_gateways=opts_peer_gateways))
+        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, False)
+
+        opts_connection = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
+        self.assertIsNone(node.get_preferred_gateway_connection())
+        opts_connection.state |= ConnectionState.ESTABLISHED
+        self.assertEqual(opts_connection, node.get_preferred_gateway_connection())
+
+    def test_get_preferred_gateway_connection_bloxroute(self):
+        node = GatewayNode(helpers.get_gateway_opts(8000))
+        node.peer_gateways = [
+            OutboundPeerModel(LOCALHOST, 8001, is_internal=False),
+            OutboundPeerModel(LOCALHOST, 8002, is_internal=True)
+        ]
+
+        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, False)
+        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8002, False)
+
+        other_connection = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
+        other_connection.state |= ConnectionState.ESTABLISHED
+        bloxroute_connection = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
+        bloxroute_connection.state |= ConnectionState.ESTABLISHED
+        self.assertEqual(bloxroute_connection, node.get_preferred_gateway_connection())
+
+        bloxroute_connection.mark_for_close()
+        self.assertEqual(other_connection, node.get_preferred_gateway_connection())
+

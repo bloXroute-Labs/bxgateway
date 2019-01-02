@@ -14,7 +14,7 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 
 
 class AbstractRelayConnection(InternalNodeConnection):
-    connection_type = ConnectionType.RELAY
+    CONNECTION_TYPE = ConnectionType.RELAY
 
     def __init__(self, sock, address, node, from_me=False):
         super(AbstractRelayConnection, self).__init__(sock, address, node, from_me=from_me)
@@ -45,7 +45,7 @@ class AbstractRelayConnection(InternalNodeConnection):
         block_stats.add_block_event(msg,
                                     BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_PEER,
                                     peer=self.peer_desc,
-                                    connection_type=self.connection_type)
+                                    connection_type=self.CONNECTION_TYPE)
 
         msg_hash = msg.msg_hash()
 
@@ -73,7 +73,7 @@ class AbstractRelayConnection(InternalNodeConnection):
         block_stats.add_block_event_by_block_hash(msg_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_RECEIVED_BY_GATEWAY_FROM_PEER,
                                                   peer=self.peer_desc,
-                                                  connection_type=self.connection_type)
+                                                  connection_type=self.CONNECTION_TYPE)
 
         if self.node.in_progress_blocks.has_ciphertext_for_hash(msg_hash):
             logger.debug("Cipher text found. Decrypting and sending to node.")

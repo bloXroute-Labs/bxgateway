@@ -21,7 +21,7 @@ class _EthDiscoveryMessageFactory(AbstractMessageFactory):
         self.message_type_mapping = self._MESSAGE_TYPE_MAPPING
         self.base_message_type = EthDiscoveryMessage
 
-    def get_message_header_preview(self, input_buffer):
+    def get_message_header_preview_from_input_buffer(self, input_buffer):
         """
         Peeks at a message, determining if its full.
         Returns (is_full_message, command, payload_length)

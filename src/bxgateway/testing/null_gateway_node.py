@@ -14,6 +14,10 @@ class NullGatewayNode(AbstractGatewayNode):
     """
     Test Gateway Node that doesn't connect use its blockchain or relay connection.
     """
+
+    def get_remote_blockchain_connection_cls(self):
+        return NullConnection
+
     def get_blockchain_connection_cls(self):
         return NullConnection
 

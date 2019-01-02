@@ -1,0 +1,63 @@
+from bxcommon.constants import LOCALHOST
+from bxcommon.test_utils import helpers
+from bxcommon.utils import convert
+from bxgateway import eth_constants
+from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
+from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
+from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
+from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.eth_protocol_message_factory import EthProtocolMessageFactory
+from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
+from bxgateway.testing import spies
+from bxgateway.testing.abstract_rlpx_cipher_test import AbstractRLPxCipherTest
+from bxgateway.testing.mocks import mock_eth_messages
+from bxgateway.utils.eth import crypto_utils, rlp_utils, frame_utils
+
+
+class BlockchainSyncEthTest(AbstractRLPxCipherTest):
+    BLOCK_HASH = helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN)
+
+    def setUp(self):
+        self.local_node_fileno = 1
+        self.remote_node_fileno = 2
+
+        eth_node_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
+        self.gateway_node = spies.make_spy_node(EthGatewayNode, 8000, include_default_eth_args=True)
+        gateway_node_private_key = convert.hex_to_bytes(self.gateway_node.opts.private_key)
+        eth_node_public_key = crypto_utils.private_to_public_key(eth_node_private_key)
+
+        self.eth_node_cipher, gateway_cipher = self.setup_ciphers(eth_node_private_key, gateway_node_private_key)
+
+        self.gateway_node._node_public_key = eth_node_public_key
+        self.gateway_node._remote_public_key = eth_node_public_key
+        self.eth_node_connection = spies.make_spy_connection(EthNodeConnection, self.local_node_fileno, 8001,
+                                                             self.gateway_node)
+        self.eth_remote_node_connection = spies.make_spy_connection(EthRemoteConnection, self.remote_node_fileno, 8002,
+                                                                    self.gateway_node)
+
+        self.eth_node_connection._rlpx_cipher = gateway_cipher
+        self.eth_node_connection.message_factory = EthProtocolMessageFactory(gateway_cipher)
+        self.eth_remote_node_connection._rlpx_cipher = gateway_cipher
+        self.eth_remote_node_connection.message_factory = EthProtocolMessageFactory(gateway_cipher)
+
+        self.gateway_node.node_conn = self.eth_node_connection
+        self.gateway_node.remote_node_conn = self.eth_remote_node_connection
+        self.gateway_node.connection_pool.add(self.local_node_fileno, LOCALHOST, 8001, self.eth_node_connection)
+        self.gateway_node.connection_pool.add(self.remote_node_fileno, LOCALHOST, 8002, self.eth_remote_node_connection)
+
+    def test_block_headers_request(self):
+        get_headers = GetBlockHeadersEthProtocolMessage(None, self.BLOCK_HASH, 111, 222, 0)
+        get_headers_frames = map(self.eth_node_cipher.encrypt_frame,
+                                 frame_utils.get_frames(get_headers.msg_type, get_headers.rawbytes()))
+        for get_headers_frame in get_headers_frames:
+            helpers.receive_node_message(self.gateway_node, self.local_node_fileno, get_headers_frame)
+        self.eth_remote_node_connection.enqueue_msg.assert_called_once_with(get_headers)
+
+        headers = BlockHeadersEthProtocolMessage(None, [
+            mock_eth_messages.get_dummy_block_header(1), mock_eth_messages.get_dummy_block_header(2)
+        ])
+        headers_frames = map(self.eth_node_cipher.encrypt_frame,
+                             frame_utils.get_frames(headers.msg_type, headers.rawbytes()))
+        for headers_frame in headers_frames:
+            helpers.receive_node_message(self.gateway_node, self.remote_node_fileno, headers_frame)
+        self.eth_node_connection.enqueue_msg.assert_called_once_with(headers)

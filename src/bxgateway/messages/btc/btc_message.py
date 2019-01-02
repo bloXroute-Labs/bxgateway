@@ -50,12 +50,7 @@ class BtcMessage(AbstractMessage):
 
     @classmethod
     def initialize_class(cls, cls_type, buf, unpacked_args):
-        command, magic, checksum, payload_length = unpacked_args
         instance = cls_type(buf=buf)
-        instance._magic = magic
-        instance._command = command
-        instance._payload_len = payload_length
-        instance._checksum = checksum
         return instance
 
     # END TODO
@@ -97,6 +92,11 @@ class BtcMessage(AbstractMessage):
             self._payload = self.buf[BTC_HDR_COMMON_OFF:self.payload_len() + BTC_HDR_COMMON_OFF]
         return self._payload
 
-    @staticmethod
-    def get_header_from_partial_buf(buf):
-        return struct.unpack_from('Q12s<I', buf, 0)
+    def __eq__(self, other):
+        """
+        Expensive equality comparison. Use only for tests.
+        """
+        if not isinstance(other, BtcMessage):
+            return False
+        else:
+            return self.rawbytes().tobytes() == other.rawbytes().tobytes()

@@ -21,11 +21,8 @@ from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message impor
 from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
-from bxgateway.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.block_hash import BlockHash
-from bxgateway.messages.eth.serializers.block_header import BlockHeader
-from bxgateway.messages.eth.serializers.transaction import Transaction
-from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
+from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.utils.eth import crypto_utils
 
 
@@ -105,9 +102,9 @@ class EthMessagesTests(AbstractTestCase):
         self._test_msg_serialization(BlockHeadersEthProtocolMessage,
                                      False,
                                      [
-                                         self._get_dummy_block_header(1),
-                                         self._get_dummy_block_header(2),
-                                         self._get_dummy_block_header(3)
+                                         mock_eth_messages.get_dummy_block_header(1),
+                                         mock_eth_messages.get_dummy_block_header(2),
+                                         mock_eth_messages.get_dummy_block_header(3)
                                      ])
 
     def test_get_block_bodies_eth_message(self):
@@ -125,24 +122,24 @@ class EthMessagesTests(AbstractTestCase):
                                      False,
                                      # passing randomly generated hashes
                                      [
-                                         self._get_dummy_transient_block_body(1),
-                                         self._get_dummy_transient_block_body(2),
-                                         self._get_dummy_transient_block_body(3)
+                                         mock_eth_messages.get_dummy_transient_block_body(1),
+                                         mock_eth_messages.get_dummy_transient_block_body(2),
+                                         mock_eth_messages.get_dummy_transient_block_body(3)
                                      ])
 
     def test_transactions_eth_message(self):
         self._test_msg_serialization(TransactionsEthProtocolMessage,
                                      False,
                                      [
-                                         self._get_dummy_transaction(1),
-                                         self._get_dummy_transaction(2),
-                                         self._get_dummy_transaction(3)
+                                         mock_eth_messages.get_dummy_transaction(1),
+                                         mock_eth_messages.get_dummy_transaction(2),
+                                         mock_eth_messages.get_dummy_transaction(3)
                                      ])
 
     def test_new_block_eth_message(self):
         self._test_msg_serialization(NewBlockEthProtocolMessage,
                                      False,
-                                     self._get_dummy_block(1),
+                                     mock_eth_messages.get_dummy_block(1),
                                      111)
 
     def _test_msg_serialization(self, msg_cls, needs_private_key, *args, **kwargs):
@@ -161,7 +158,7 @@ class EthMessagesTests(AbstractTestCase):
         # serialize message into bytes
         msg_bytes = msg.rawbytes()
 
-        # desirialize message from bytes
+        # deserialize message from bytes
         msg_deserialized = msg_cls(msg_bytes)
         msg_deserialized.deserialize()
 
@@ -202,61 +199,3 @@ class EthMessagesTests(AbstractTestCase):
         else:
             self.assertEqual(actual_value, expected_value)
 
-    def _get_dummy_transaction(self, nonce):
-        # create transaction object with dummy values multiplied by nonce to be able generate txs with different values
-        return Transaction(
-            nonce,
-            2 * nonce,
-            3 * nonce,
-            helpers.generate_bytearray(eth_constants.ADDRESS_LEN),
-            4 * nonce,
-            helpers.generate_bytearray(15 * nonce),
-            5 * nonce,
-            6 * nonce,
-            7 * nonce)
-
-    def _get_dummy_block_header(self, nonce):
-        # create BlockHeader object with dummy values multiplied by nonce to be able generate txs with different value
-        return BlockHeader(
-            helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-            helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-            helpers.generate_bytearray(eth_constants.ADDRESS_LEN),
-            helpers.generate_bytearray(eth_constants.MERKLE_ROOT_LEN),
-            helpers.generate_bytearray(eth_constants.MERKLE_ROOT_LEN),
-            helpers.generate_bytearray(eth_constants.MERKLE_ROOT_LEN),
-            100 * nonce,
-            nonce,
-            2 * nonce,
-            3 * nonce,
-            4 * nonce,
-            5 * nonce,
-            helpers.generate_bytearray(100 * nonce),
-            helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-            helpers.generate_bytearray(nonce)
-        )
-
-    def _get_dummy_transient_block_body(self, nonce):
-        return TransientBlockBody(
-            [
-                self._get_dummy_transaction(nonce),
-                self._get_dummy_transaction(2 * nonce),
-                self._get_dummy_transaction(3 * nonce)
-            ],
-            [
-                self._get_dummy_block_header(nonce),
-                self._get_dummy_block_header(2 * nonce)
-            ])
-
-    def _get_dummy_block(self, nonce):
-        return Block(
-            self._get_dummy_block_header(nonce),
-            [
-                self._get_dummy_transaction(1),
-                self._get_dummy_transaction(2),
-                self._get_dummy_transaction(3)
-            ],
-            [
-                self._get_dummy_block_header(1),
-                self._get_dummy_block_header(2)
-            ]
-        )

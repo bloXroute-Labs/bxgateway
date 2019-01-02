@@ -60,7 +60,7 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
     def reset_expected_msg_type(self):
         self._expected_msg_type = None
 
-    def get_message_header_preview(self, input_buffer):
+    def get_message_header_preview_from_input_buffer(self, input_buffer):
         """
         Peeks at a message, determining if its full.
         Returns (is_full_message, command, payload_length)
@@ -94,6 +94,4 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
 
         message_bytes, command = self._framed_input_buffer.get_full_message()
 
-        message_cls = self.message_type_mapping[command]
-
-        return self.base_message_type.initialize_class(message_cls, message_bytes, None)
+        return self.create_message(command, message_bytes)

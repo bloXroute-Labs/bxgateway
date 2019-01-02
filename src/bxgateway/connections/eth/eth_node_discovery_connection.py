@@ -17,9 +17,6 @@ class EthNodeDiscoveryConnection(AbstractConnection):
     Discovery protocol connection with Ethereum node.
     This connection is used to obtain public key of Ethereum node from Ping message.
     """
-
-    connection_type = ConnectionType.BLOCKCHAIN_NODE
-
     def __init__(self, sock, address, node, from_me):
         super(EthNodeDiscoveryConnection, self).__init__(sock, address, node, from_me)
 

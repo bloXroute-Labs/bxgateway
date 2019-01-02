@@ -108,19 +108,15 @@ class HeadersBtcMessage(BtcMessage):
 
     def hash_count(self):
         if self._header_count is None:
-            raise RuntimeError('FIXME')
-            # FIXME buf is undefined, change to self.buf and test
-            # off = BTC_HDR_COMMON_OFF
-            # self._header_count, size = btcvarint_to_int(buf, off)
+            off = BTC_HDR_COMMON_OFF
+            self._header_count, size = btcvarint_to_int(self.buf, off)
 
         return self._header_count
 
     def __iter__(self):
-        raise RuntimeError('FIXME')
-        # FIXME buf is undefined, change to self.buf and test
-        # off = BTC_HDR_COMMON_OFF
-        # self._header_count, size = btcvarint_to_int(buf, off)
-        # off += size
-        # for _ in xrange(self._header_count):
-        #     yield self._memoryview[off:off + 81]
-        #     off += 81
+        off = BTC_HDR_COMMON_OFF
+        self._header_count, size = btcvarint_to_int(self.buf, off)
+        off += size
+        for _ in xrange(self._header_count):
+            yield self._memoryview[off:off + 81]
+            off += 81

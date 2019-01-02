@@ -7,7 +7,7 @@ from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message_factory import btc_message_factory
 from bxgateway.messages.btc.data_btc_message import GetHeadersBtcMessage, GetBlocksBtcMessage
 from bxgateway.messages.btc.get_addr_btc_message import GetAddrBtcMessage
-from bxgateway.messages.btc.header_btc_message import HeadersBtcMessage
+from bxgateway.messages.btc.headers_btc_message import HeadersBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, GetDataBtcMessage, NotFoundBtcMessage
 from bxgateway.messages.btc.ping_btc_message import PingBtcMessage
 from bxgateway.messages.btc.pong_btc_message import PongBtcMessage
@@ -31,7 +31,7 @@ class BtcMessageFactoryTest(AbstractTestCase):
     VERSION_BTC_MESSAGE = VersionBtcMessage(MAGIC, VERSION, "127.0.0.1", 8000, "127.0.0.1", 8001, 123, 0, "hello")
 
     def peek_message_successfully(self, message, expected_command, expected_payload_length):
-        is_full_message, command, payload_length = btc_message_factory.get_message_header_preview(
+        is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
             create_input_buffer_with_message(message)
         )
         self.assertTrue(is_full_message)
@@ -77,14 +77,14 @@ class BtcMessageFactoryTest(AbstractTestCase):
         self.peek_message_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage.MESSAGE_TYPE, 0)
 
     def test_peek_message_incomplete(self):
-        is_full_message, command, payload_length = btc_message_factory.get_message_header_preview(
+        is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
             create_input_buffer_with_bytes(self.VERSION_BTC_MESSAGE.rawbytes()[:-10])
         )
         self.assertFalse(is_full_message)
         self.assertEquals("version", command)
         self.assertEquals(90, payload_length)
 
-        is_full_message, command, payload_length = btc_message_factory.get_message_header_preview(
+        is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
             create_input_buffer_with_bytes(self.VERSION_BTC_MESSAGE.rawbytes()[:1])
         )
         self.assertFalse(is_full_message)

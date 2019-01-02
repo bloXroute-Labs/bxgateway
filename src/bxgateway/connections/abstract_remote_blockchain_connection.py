@@ -3,14 +3,13 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxgateway import gateway_constants
 
 
-class AbstractGatewayBlockchainConnection(AbstractConnection):
-    CONNECTION_TYPE = ConnectionType.BLOCKCHAIN_NODE
+class AbstractRemoteBlockchainConnection(AbstractConnection):
+    CONNECTION_TYPE = ConnectionType.REMOTE_BLOCKCHAIN_NODE
 
-    def __init__(self, sock, address, node, from_me=False):
-        super(AbstractGatewayBlockchainConnection, self).__init__(sock, address, node, from_me)
-        self.message_converter = None
+    def __init__(self, socket_connection, address, node, from_me=False):
+        super(AbstractRemoteBlockchainConnection, self).__init__(socket_connection, address, node, from_me)
+
         self.connection_protocol = None
-        self.is_server = False
 
     def send_ping(self):
         self.enqueue_msg(self.ping_message)

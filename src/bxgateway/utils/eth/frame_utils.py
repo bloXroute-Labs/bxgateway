@@ -8,7 +8,8 @@ from bxgateway.utils.eth.crypto_utils import get_padded_len_16
 from bxgateway.utils.eth.frame import Frame
 
 
-def get_frames(msg_type, payload_bytes, protocol_id, window_size):
+def get_frames(msg_type, payload_bytes, protocol_id=eth_constants.DEFAULT_FRAME_PROTOCOL_ID,
+               window_size=eth_constants.DEFAULT_FRAME_SIZE):
     """
     Parses frames from message bytes
 

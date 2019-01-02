@@ -12,14 +12,16 @@ from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
+from bxgateway.services.blockchain_sync_service import BlockchainSyncService
 
 
-def create_node(ip, port):
+def create_node(ip=LOCALHOST, port=8000):
     node = MagicMock(spec=AbstractGatewayNode)
     node.opts = MockOpts(external_ip=ip, external_port=port)
     node.connection_pool = ConnectionPool()
     node.connection_exists = node.connection_pool.has_connection
     node.network_num = node.opts.network_num
+    node.blockchain_sync_service = MagicMock(spec=BlockchainSyncService)
     return node
 
 
@@ -27,7 +29,7 @@ class GatewayConnectionTest(AbstractTestCase):
     def setUp(self):
         self.node = create_node(LOCALHOST, 8000)
 
-    def _create_connection(self, fileno, ip, port, from_me, node=None):
+    def _create_connection(self, fileno=1, ip=LOCALHOST, port=8001, from_me=True, node=None):
         if node is None:
             node = self.node
         sock = MagicMock(spec=socket.socket)
@@ -91,7 +93,7 @@ class GatewayConnectionTest(AbstractTestCase):
 
         self.assertTrue(inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
-        self.assertEqual(outbound_connection, self.node.connection_pool.get_byipport(LOCALHOST, 8001))
+        self.assertEqual(outbound_connection, self.node.connection_pool.get_by_ipport(LOCALHOST, 8001))
 
     def test_msg_hello_calls_on_two_nodes_resolve(self):
         main_port = 8000
@@ -200,4 +202,3 @@ class GatewayConnectionTest(AbstractTestCase):
 
         self.assertTrue(main_inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
         self.assertTrue(peer_outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
-

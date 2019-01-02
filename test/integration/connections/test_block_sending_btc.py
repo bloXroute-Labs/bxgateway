@@ -8,6 +8,7 @@ from bxcommon.messages.bloxroute.bloxroute_version_manager import bloxroute_vers
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import get_gateway_opts
 from bxcommon.utils import crypto
@@ -37,19 +38,9 @@ def btc_block():
     return BlockBtcMessage(magic, version, prev_block, merkle_root, timestamp, bits, nonce, txns)
 
 
-def clear_node_buffer(node, fileno):
-    while node.get_bytes_to_send(fileno) is not None:
-        node.on_bytes_sent(fileno, len(node.get_bytes_to_send(fileno)))
-
-
-def receive_node_message(node, fileno, message):
-    node.on_bytes_received(fileno, message)
-    node.on_finished_receiving(fileno)
-
-
 @patch("bxcommon.constants.OUTPUT_BUFFER_MIN_SIZE", 0)
 @patch("bxcommon.constants.OUTPUT_BUFFER_BATCH_MAX_HOLD_TIME", 0)
-class BtcGatewayNodeTests(AbstractTestCase):
+class BlockSendingBtcTest(AbstractTestCase):
     def send_received_block_and_key(self, node1, node2):
         blockchain_fileno = 1
         blockchain_connection = SocketConnection(MagicMock(spec=socket.socket), None)
@@ -60,43 +51,47 @@ class BtcGatewayNodeTests(AbstractTestCase):
         relay_connection.fileno = MagicMock(return_value=relay_fileno)
 
         node1.on_connection_added(blockchain_connection, "127.0.0.1", 7000, False)
-        receive_node_message(node1, blockchain_fileno, VersionBtcMessage(12345, 12345, "0.0.0.0", 1000, "0.0.0.0",
-                                                                         1000, 1, 2, "bloxroute").rawbytes())
+        helpers.receive_node_message(node1, blockchain_fileno,
+                                     VersionBtcMessage(12345, 12345, "0.0.0.0", 1000, "0.0.0.0",
+                                                       1000, 1, 2, "bloxroute").rawbytes())
 
         node1.on_connection_added(relay_connection, "127.0.0.1", 7001, True)
         node1.on_connection_initialized(relay_fileno)
-        receive_node_message(node1, relay_fileno,
-                             HelloMessage(bloxroute_version_manager.CURRENT_PROTOCOL_VERSION, DEFAULT_NETWORK_NUM, 1)
-                             .rawbytes())
-        receive_node_message(node1, relay_fileno,
-                             AckMessage().rawbytes())
+        helpers.receive_node_message(node1, relay_fileno,
+                                     HelloMessage(bloxroute_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                  DEFAULT_NETWORK_NUM, 1)
+                                     .rawbytes())
+        helpers.receive_node_message(node1, relay_fileno,
+                                     AckMessage().rawbytes())
 
         node2.on_connection_added(relay_connection, "127.0.0.1", 7001, True)
         node2.on_connection_initialized(relay_fileno)
-        receive_node_message(node2, relay_fileno,
-                             HelloMessage(bloxroute_version_manager.CURRENT_PROTOCOL_VERSION, DEFAULT_NETWORK_NUM, 1)
-                             .rawbytes())
-        receive_node_message(node2, relay_fileno,
-                             AckMessage().rawbytes())
+        helpers.receive_node_message(node2, relay_fileno,
+                                     HelloMessage(bloxroute_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                  DEFAULT_NETWORK_NUM, 1)
+                                     .rawbytes())
+        helpers.receive_node_message(node2, relay_fileno,
+                                     AckMessage().rawbytes())
 
         node2.on_connection_added(blockchain_connection, "127.0.0.1", 7000, False)
-        receive_node_message(node2, blockchain_fileno, VersionBtcMessage(12345, 12345, "0.0.0.0", 1000, "0.0.0.0",
-                                                                         1000, 1, 2, "bloxroute").rawbytes())
+        helpers.receive_node_message(node2, blockchain_fileno,
+                                     VersionBtcMessage(12345, 12345, "0.0.0.0", 1000, "0.0.0.0",
+                                                       1000, 1, 2, "bloxroute").rawbytes())
 
-        clear_node_buffer(node1, blockchain_fileno)
-        clear_node_buffer(node1, relay_fileno)
-        clear_node_buffer(node2, blockchain_fileno)
-        clear_node_buffer(node2, relay_fileno)
+        helpers.clear_node_buffer(node1, blockchain_fileno)
+        helpers.clear_node_buffer(node1, relay_fileno)
+        helpers.clear_node_buffer(node2, blockchain_fileno)
+        helpers.clear_node_buffer(node2, relay_fileno)
 
         block = btc_block()
-        receive_node_message(node1, blockchain_fileno, block.rawbytes())
+        helpers.receive_node_message(node1, blockchain_fileno, block.rawbytes())
 
         relayed_block = node1.get_bytes_to_send(relay_fileno)
         node1.on_bytes_sent(relay_fileno, len(relayed_block))
         relayed_key = node1.get_bytes_to_send(relay_fileno)
 
-        receive_node_message(node2, relay_fileno, relayed_block)
-        receive_node_message(node2, relay_fileno, relayed_key)
+        helpers.receive_node_message(node2, relay_fileno, relayed_block)
+        helpers.receive_node_message(node2, relay_fileno, relayed_key)
         bytes_to_blockchain = node2.get_bytes_to_send(blockchain_fileno)
         self.assertEqual(len(block.rawbytes()), len(bytes_to_blockchain))
 

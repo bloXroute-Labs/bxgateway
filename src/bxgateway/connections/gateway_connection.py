@@ -16,10 +16,10 @@ from bxgateway.messages.gateway.gateway_version_manager import gateway_version_m
 
 class GatewayConnection(InternalNodeConnection):
     """
-    Connection handler for Gateway-Gateway connections. TODO: GatewayPeerConnection?
+    Connection handler for Gateway-Gateway connections.
     """
 
-    connection_type = ConnectionType.GATEWAY
+    CONNECTION_TYPE = ConnectionType.GATEWAY
 
     NULL_ORDERING = -1
     ACK_MESSAGE = AckMessage()
@@ -33,7 +33,7 @@ class GatewayConnection(InternalNodeConnection):
         self.message_factory = gateway_message_factory
         self.message_handlers = {
             GatewayMessageType.HELLO: self.msg_hello,
-            BloxrouteMessageType.ACK: self.msg_ack,
+            BloxrouteMessageType.ACK: self.msg_ack
         }
         self.version_manager = gateway_version_manager
         self.protocol_version = self.version_manager.CURRENT_PROTOCOL_VERSION
@@ -69,7 +69,7 @@ class GatewayConnection(InternalNodeConnection):
         ordering = msg.ordering()
 
         if self.node.connection_exists(ip, port):
-            connection = self.node.connection_pool.get_byipport(ip, port)
+            connection = self.node.connection_pool.get_by_ipport(ip, port)
 
             # connection already has correct ip / port info assigned
             if connection == self:
@@ -77,7 +77,7 @@ class GatewayConnection(InternalNodeConnection):
                 self.enqueue_msg(self.ack_message)
                 return
 
-            if connection.state & ConnectionState.ESTABLISHED == ConnectionState.ESTABLISHED:
+            if connection.is_active():
                 logger.warn("Duplicate established connection. Dropping.")
                 self.mark_for_close()
                 return
@@ -121,6 +121,9 @@ class GatewayConnection(InternalNodeConnection):
         self.ordering = ordering
 
     def msg_ack(self, _msg):
+        """
+        Acks hello message and establishes connection.
+        """
         logger.debug("Received ack. Initializing connection.")
         self.state |= ConnectionState.ESTABLISHED
 

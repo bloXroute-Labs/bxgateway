@@ -36,13 +36,13 @@ class ETHGatewayNodeTest(AbstractTestCase):
         dummy_con_ip = "0.0.0.0"
         dummy_con_port = 12345
         node = self._set_up_test_node(True)
-        remote_public_key = self._get_dummy_public_key()
+        node_public_key = self._get_dummy_public_key()
         discovery_connection = EthNodeDiscoveryConnection(MockSocketConnection(dummy_con_fileno),
                                                           (dummy_con_ip, dummy_con_port),
                                                           node,
                                                           False)
         node.connection_pool.add(dummy_con_fileno, dummy_con_ip, dummy_con_port, discovery_connection)
-        node.set_remote_public_key(discovery_connection, remote_public_key)
+        node.set_node_public_key(discovery_connection, node_public_key)
         connection_cls = node.get_connection_class(self.blockchain_ip, self.blockchain_port)
         self.assertEqual(connection_cls, EthNodeConnection)
 
@@ -58,12 +58,12 @@ class ETHGatewayNodeTest(AbstractTestCase):
         self.assertTrue(public_key)
         self.assertEqual(len(public_key), eth_constants.PUBLIC_KEY_LEN)
 
-    def test_get_remote_public_key__default(self):
+    def test_get_node_public_key__default(self):
         node = self._set_up_test_node(False)
-        remote_public_key = node.get_remote_public_key()
-        self.assertIsNone(remote_public_key)
+        node_public_key = node.get_node_public_key()
+        self.assertIsNone(node_public_key)
 
-    def test_set_remote_public_key(self):
+    def test_set_node_public_key(self):
         dummy_con_fileno = 123
         dummy_con_ip = "0.0.0.0"
         dummy_con_port = 12345
@@ -75,18 +75,18 @@ class ETHGatewayNodeTest(AbstractTestCase):
         node.connection_pool.add(dummy_con_fileno, dummy_con_ip, dummy_con_port, discovery_connection)
         self.assertEqual(1, len(self.node.connection_pool))
 
-        remote_public_key = node.get_remote_public_key()
-        self.assertIsNone(remote_public_key)
+        node_public_key = node.get_node_public_key()
+        self.assertIsNone(node_public_key)
 
-        new_remote_public_key = self._get_dummy_public_key()
-        node.set_remote_public_key(discovery_connection, new_remote_public_key)
+        new_node_public_key = self._get_dummy_public_key()
+        node.set_node_public_key(discovery_connection, new_node_public_key)
 
         self.assertEqual(0, len(self.node.connection_pool))
         self.assertEqual(1, len(self.node.disconnect_queue))
         self.assertEqual(dummy_con_fileno, self.node.disconnect_queue.pop())
 
-        updated_remote_public_key = node.get_remote_public_key()
-        self.assertIsNotNone(updated_remote_public_key)
+        updated_node_public_key = node.get_node_public_key()
+        self.assertIsNotNone(updated_node_public_key)
 
     def _test_get_outbound_peer_addresses(self, initiate_handshake, expected_node_con_protocol):
         node = self._set_up_test_node(initiate_handshake)
@@ -126,8 +126,7 @@ class ETHGatewayNodeTest(AbstractTestCase):
         opts = helpers.get_gateway_opts(self.server_port, sid_expire_time=0, external_ip=self.server_ip,
                                         test_mode=[], peer_gateways=[], peer_relays=self.servers,
                                         blockchain_address=(self.blockchain_ip, self.blockchain_port),
-                                        include_default_etc_args=True, no_discovery=not initialize_handshake)
-
+                                        include_default_eth_args=True, no_discovery=not initialize_handshake)
         self.node = EthGatewayNode(opts)
         self.assertTrue(self.node)
 

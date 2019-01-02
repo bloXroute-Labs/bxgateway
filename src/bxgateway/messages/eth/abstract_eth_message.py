@@ -116,3 +116,12 @@ class AbstractEthMessage(AbstractMessage):
 
         if len(field_set) != 0:
             raise TypeError("Not all fields initialized")
+
+    def __eq__(self, other):
+        """
+        Expensive equality comparison. Use only for tests.
+        """
+        if not isinstance(other, AbstractEthMessage):
+            return False
+        else:
+            return self.rawbytes() == other.rawbytes()

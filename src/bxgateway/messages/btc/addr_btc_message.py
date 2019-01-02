@@ -10,7 +10,6 @@ from bxgateway.messages.btc.btc_messages_util import ipaddrport_to_btcbytearray,
 class AddrBtcMessage(BtcMessage):
     MESSAGE_TYPE = BtcMessageType.ADDRESS
 
-    # FIXME addrs arg is sharing global state
     def __init__(self, magic=None, addrs=None, buf=None):
         if addrs is None:
             addrs = []

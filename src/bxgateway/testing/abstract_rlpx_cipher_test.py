@@ -10,11 +10,13 @@ class AbstractRLPxCipherTest(AbstractTestCase):
     Base class for unit test that need to use RLPx Cipher
     """
 
-    def setup_ciphers(self):
-        private_key1 = crypto_utils.make_private_key(helpers.generate_bytearray(111))
-        public_key1 = crypto_utils.private_to_public_key(private_key1)
+    def setup_ciphers(self, private_key1=None, private_key2=None):
+        if private_key1 is None:
+            private_key1 = crypto_utils.make_private_key(helpers.generate_bytearray(111))
+        if private_key2 is None:
+            private_key2 = crypto_utils.make_private_key(helpers.generate_bytearray(111))
 
-        private_key2 = crypto_utils.make_private_key(helpers.generate_bytearray(111))
+        public_key1 = crypto_utils.private_to_public_key(private_key1)
         public_key2 = crypto_utils.private_to_public_key(private_key2)
 
         cipher1 = RLPxCipher(True, private_key1, public_key2)

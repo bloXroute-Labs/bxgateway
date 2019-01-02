@@ -13,13 +13,13 @@ class GetBlockHeadersEthProtocolMessage(EthProtocolMessage):
               ("reverse", rlp.sedes.big_endian_int)]
 
     def get_block(self):
-        self.get_field_value("block")
+        return self.get_field_value("block")
 
     def get_amount(self):
-        self.get_field_value("amount")
+        return self.get_field_value("amount")
 
     def get_skip(self):
-        self.get_field_value("skip")
+        return self.get_field_value("skip")
 
     def get_reverse(self):
-        self.get_field_value("reverse")
+        return self.get_field_value("reverse")
