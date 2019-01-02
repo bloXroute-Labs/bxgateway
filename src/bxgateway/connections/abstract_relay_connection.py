@@ -9,6 +9,7 @@ from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.utils import crypto, logger, convert
 from bxcommon.utils.object_hash import ObjectHash
+from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 
@@ -57,10 +58,12 @@ class AbstractRelayConnection(InternalNodeConnection):
             logger.debug("Already had key for received block. Sending block to node.")
             block = self.node.in_progress_blocks.decrypt_ciphertext(msg_hash, cipherblob)
             block_stats.add_block_event(msg, BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS)
-            self._handle_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
+            self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
         else:
             logger.debug("Received encrypted block. Storing.")
             self.node.in_progress_blocks.add_ciphertext(msg_hash, cipherblob)
+            block_received_message = BlockReceivedMessage(msg_hash)
+            self.node.broadcast(block_received_message, self, connection_type=ConnectionType.GATEWAY)
 
     def msg_key(self, message):
         """
@@ -79,7 +82,7 @@ class AbstractRelayConnection(InternalNodeConnection):
             logger.debug("Cipher text found. Decrypting and sending to node.")
             block = self.node.in_progress_blocks.decrypt_and_get_payload(msg_hash, key)
             block_stats.add_block_event_by_block_hash(msg_hash, BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS)
-            self._handle_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
+            self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
         else:
             logger.debug("No cipher text found on key message. Storing.")
             self.node.in_progress_blocks.add_key(msg_hash, key)
@@ -143,12 +146,12 @@ class AbstractRelayConnection(InternalNodeConnection):
         if self.node.block_recovery_service.recovered_blocks:
             for msg in self.node.block_recovery_service.recovered_blocks:
                 logger.info("Block recovery: Received all unknown txs for a block. Broadcasting block message.")
-                self._handle_block(msg, recovered=True)
+                self._handle_decrypted_block(msg, recovered=True)
 
             logger.debug("Block recovery: Broadcasted all of the messages ready for retry.")
             self.node.block_recovery_service.clean_up_recovered_blocks()
 
-    def _handle_block(self, blx_block, encrypted_block_hash_hex=None, recovered=False):
+    def _handle_decrypted_block(self, blx_block, encrypted_block_hash_hex=None, recovered=False):
         decompress_start = datetime.datetime.utcnow()
         # TODO: determine if a real block or test block. Discard if test block.
         btc_block, block_hash, unknown_sids, unknown_hashes = \

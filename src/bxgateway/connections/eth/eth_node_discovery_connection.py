@@ -1,8 +1,6 @@
 import socket
 import time
 
-from bxcommon.connections.connection_type import ConnectionType
-
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.utils import logger
 from bxgateway import eth_constants

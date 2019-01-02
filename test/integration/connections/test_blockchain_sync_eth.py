@@ -11,7 +11,7 @@ from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message impo
 from bxgateway.testing import spies
 from bxgateway.testing.abstract_rlpx_cipher_test import AbstractRLPxCipherTest
 from bxgateway.testing.mocks import mock_eth_messages
-from bxgateway.utils.eth import crypto_utils, rlp_utils, frame_utils
+from bxgateway.utils.eth import crypto_utils, frame_utils
 
 
 class BlockchainSyncEthTest(AbstractRLPxCipherTest):

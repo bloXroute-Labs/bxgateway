@@ -1,6 +1,3 @@
-from argparse import Namespace
-
-from bxcommon.constants import DEFAULT_NETWORK_NUM
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.test_utils import helpers

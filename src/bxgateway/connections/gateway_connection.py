@@ -33,7 +33,9 @@ class GatewayConnection(InternalNodeConnection):
         self.message_factory = gateway_message_factory
         self.message_handlers = {
             GatewayMessageType.HELLO: self.msg_hello,
-            BloxrouteMessageType.ACK: self.msg_ack
+            BloxrouteMessageType.ACK: self.msg_ack,
+            GatewayMessageType.BLOCK_RECEIVED: self.msg_block_received,
+            GatewayMessageType.BLOCK_PROPAGATION_REQUEST: self.msg_block_propagation_request
         }
         self.version_manager = gateway_version_manager
         self.protocol_version = self.version_manager.CURRENT_PROTOCOL_VERSION
@@ -116,6 +118,7 @@ class GatewayConnection(InternalNodeConnection):
             logger.debug("Connection is only one of its kind. Updating port reference.")
             self.node.connection_pool.update_port(port, self)
             self.enqueue_msg(self.ack_message)
+            self.state |= ConnectionState.ESTABLISHED
 
         self._update_port_info(port)
         self.ordering = ordering
@@ -126,6 +129,12 @@ class GatewayConnection(InternalNodeConnection):
         """
         logger.debug("Received ack. Initializing connection.")
         self.state |= ConnectionState.ESTABLISHED
+
+    def msg_block_received(self, msg):
+        self.node.neutrality_service.record_block_receipt(msg.block_hash())
+
+    def msg_block_propagation_request(self, msg):
+        self.node.neutrality_service.propagate_block_to_network(msg.blob(), self)
 
     def _initialize_ordered_handshake(self):
         self.ordering = random.getrandbits(constants.UL_INT_SIZE_IN_BYTES * 8)

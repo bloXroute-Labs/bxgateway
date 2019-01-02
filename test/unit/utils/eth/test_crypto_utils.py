@@ -1,5 +1,3 @@
-from rlp import utils as rlp_utils
-
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import convert

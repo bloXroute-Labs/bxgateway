@@ -14,6 +14,7 @@ from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway import gateway_constants
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.services.block_recovery_service import BlockRecoveryService
+from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.storage.block_encrypted_cache import BlockEncryptedCache
 from bxgateway.testing.lossy_relay_connection import LossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
@@ -61,6 +62,7 @@ class AbstractGatewayNode(AbstractNode):
             self.in_progress_blocks = BlockEncryptedCache(self.alarm_queue)
 
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
+        self.neutrality_service = NeutralityService(self)
 
         self.remote_blockchain_ip = None
         self.remote_blockchain_port = None

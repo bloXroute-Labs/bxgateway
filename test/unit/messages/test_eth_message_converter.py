@@ -7,19 +7,17 @@ import rlp
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.services.transaction_service import TransactionService
-from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils.object_hash import ObjectHash
-from bxgateway import eth_constants
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.messages.eth.serializers.block import Block
-from bxgateway.messages.eth.serializers.block_header import BlockHeader
 from bxgateway.messages.eth.serializers.compact_block import CompactBlock
 from bxgateway.messages.eth.serializers.short_transaction import ShortTransaction
 from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxgateway.testing.mocks import mock_eth_messages
 
 
 class EthMessageConverterTests(AbstractTestCase):
@@ -31,9 +29,9 @@ class EthMessageConverterTests(AbstractTestCase):
 
     def test_tx_to_bx_tx__success(self):
         txs = [
-            self._get_dummy_tx(1),
-            self._get_dummy_tx(2),
-            self._get_dummy_tx(3)
+            mock_eth_messages.get_dummy_transaction(1),
+            mock_eth_messages.get_dummy_transaction(2),
+            mock_eth_messages.get_dummy_transaction(3),
         ]
 
         tx_msg = TransactionsEthProtocolMessage(None, txs)
@@ -43,9 +41,9 @@ class EthMessageConverterTests(AbstractTestCase):
 
     def test_tx_to_bx_tx__from_bytes_success(self):
         txs = [
-            self._get_dummy_tx(1),
-            self._get_dummy_tx(2),
-            self._get_dummy_tx(3)
+            mock_eth_messages.get_dummy_transaction(1),
+            mock_eth_messages.get_dummy_transaction(2),
+            mock_eth_messages.get_dummy_transaction(3),
         ]
 
         tx_msg = TransactionsEthProtocolMessage(None, txs)
@@ -58,7 +56,7 @@ class EthMessageConverterTests(AbstractTestCase):
 
     def test_tx_to_bx_tx__from_bytes_single_tx_success(self):
         txs = [
-            self._get_dummy_tx(1)
+            mock_eth_messages.get_dummy_transaction(1),
         ]
 
         tx_msg = TransactionsEthProtocolMessage(None, txs)
@@ -68,7 +66,6 @@ class EthMessageConverterTests(AbstractTestCase):
         tx_msg_from_bytes = TransactionsEthProtocolMessage(tx_msg_bytes)
 
         self.validate_tx_to_bx_txs_conversion(tx_msg_from_bytes, txs)
-
 
     def validate_tx_to_bx_txs_conversion(self, tx_msg, txs):
         bx_tx_msgs = self.message_parser.tx_to_bx_txs(tx_msg, self.test_network_num)
@@ -82,7 +79,7 @@ class EthMessageConverterTests(AbstractTestCase):
             self.assertEqual(tx, tx_obj)
 
     def test_bx_tx_to_tx__success(self):
-        tx = self._get_dummy_tx(1)
+        tx = mock_eth_messages.get_dummy_transaction(1)
 
         tx_bytes = rlp.encode(tx, Transaction)
         tx_hash_bytes = hashlib.sha256(tx_bytes).digest()
@@ -110,7 +107,7 @@ class EthMessageConverterTests(AbstractTestCase):
         tx_count = 10
 
         for i in range(1, tx_count):
-            tx = self._get_dummy_tx(i)
+            tx = mock_eth_messages.get_dummy_transaction(1)
             txs.append(tx)
 
             tx_bytes = rlp.encode(tx, Transaction)
@@ -126,11 +123,11 @@ class EthMessageConverterTests(AbstractTestCase):
                 short_ids.append(0)
 
         block = Block(
-            self._get_dummy_block_header(1),
+            mock_eth_messages.get_dummy_block_header(1),
             txs,
             [
-                self._get_dummy_block_header(2),
-                self._get_dummy_block_header(3)
+                mock_eth_messages.get_dummy_block_header(2),
+                mock_eth_messages.get_dummy_block_header(3),
             ]
         )
 
@@ -169,7 +166,7 @@ class EthMessageConverterTests(AbstractTestCase):
         self.assertEqual(compact_block.chain_difficulty, block_msg.chain_difficulty)
 
     def test_block_to_bx_block__empty_block_success(self):
-        block = Block(self._get_dummy_block_header(8), [], [])
+        block = Block(mock_eth_messages.get_dummy_block_header(8), [], [])
 
         dummy_chain_difficulty = 10
 
@@ -196,7 +193,7 @@ class EthMessageConverterTests(AbstractTestCase):
         short_txs = []
 
         for i in range(1, tx_count):
-            tx = self._get_dummy_tx(i)
+            tx = mock_eth_messages.get_dummy_transaction(1)
             txs.append(tx)
 
             tx_bytes = rlp.encode(tx, Transaction)
@@ -210,11 +207,11 @@ class EthMessageConverterTests(AbstractTestCase):
 
         dummy_chain_difficulty = 2000000
 
-        compact_block = CompactBlock(self._get_dummy_block_header(7),
+        compact_block = CompactBlock(mock_eth_messages.get_dummy_block_header(7),
                                      short_txs,
                                      [
-                                         self._get_dummy_block_header(2),
-                                         self._get_dummy_block_header(3)
+                                         mock_eth_messages.get_dummy_block_header(2),
+                                         mock_eth_messages.get_dummy_block_header(3)
                                      ],
                                      dummy_chain_difficulty)
 
@@ -251,7 +248,7 @@ class EthMessageConverterTests(AbstractTestCase):
         short_txs = []
 
         for i in range(1, tx_count):
-            tx = self._get_dummy_tx(i)
+            tx = mock_eth_messages.get_dummy_transaction(1)
             txs.append(tx)
 
             tx_bytes = rlp.encode(tx, Transaction)
@@ -270,11 +267,11 @@ class EthMessageConverterTests(AbstractTestCase):
 
         dummy_chain_difficulty = 20
 
-        compact_block = CompactBlock(self._get_dummy_block_header(8),
+        compact_block = CompactBlock(mock_eth_messages.get_dummy_block_header(8),
                                      short_txs,
                                      [
-                                         self._get_dummy_block_header(2),
-                                         self._get_dummy_block_header(3)
+                                         mock_eth_messages.get_dummy_block_header(2),
+                                         mock_eth_messages.get_dummy_block_header(3)
                                      ],
                                      dummy_chain_difficulty)
 
@@ -313,7 +310,7 @@ class EthMessageConverterTests(AbstractTestCase):
         tx_count = 10
 
         for i in range(1, tx_count):
-            tx = self._get_dummy_tx(i)
+            tx = mock_eth_messages.get_dummy_transaction(i)
             txs.append(tx)
 
             tx_bytes = rlp.encode(tx, Transaction)
@@ -326,7 +323,7 @@ class EthMessageConverterTests(AbstractTestCase):
             self.tx_service.hash_to_contents[tx_hash] = tx_bytes
             short_ids.append(i)
 
-        block = Block(self._get_dummy_block_header(100), txs, [self._get_dummy_block_header(2)])
+        block = Block(mock_eth_messages.get_dummy_block_header(100), txs, [mock_eth_messages.get_dummy_block_header(2)])
 
         dummy_chain_difficulty = 40000000
 
@@ -344,39 +341,6 @@ class EthMessageConverterTests(AbstractTestCase):
 
         self.assertEqual(len(converted_block_msg_bytes), len(block_msg_bytes))
         self.assertEqual(converted_block_msg_bytes, block_msg_bytes)
-
-    def _get_dummy_tx(self, nonce):
-        # create transaction object with dummy values multiplied by nonce to be able generate txs with different values
-        return Transaction(
-            nonce,
-            2 * nonce,
-            3 * nonce,
-            helpers.generate_bytearray(eth_constants.ADDRESS_LEN),
-            4 * nonce,
-            helpers.generate_bytearray(15 * nonce),
-            5 * nonce,
-            6 * nonce,
-            7 * nonce)
-
-    def _get_dummy_block_header(self, nonce):
-        # create BlockHeader object with dummy values multiplied by nonce to be able generate txs with different value
-        return BlockHeader(
-            helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-            helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-            helpers.generate_bytearray(eth_constants.ADDRESS_LEN),
-            helpers.generate_bytearray(eth_constants.MERKLE_ROOT_LEN),
-            helpers.generate_bytearray(eth_constants.MERKLE_ROOT_LEN),
-            helpers.generate_bytearray(eth_constants.MERKLE_ROOT_LEN),
-            100 * nonce,
-            nonce,
-            2 * nonce,
-            3 * nonce,
-            4 * nonce,
-            5 * nonce,
-            helpers.generate_bytearray(100 * nonce),
-            helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-            helpers.generate_bytearray(nonce)
-        )
 
     def _assert_values_equal(self, actual_value, expected_value, ):
 

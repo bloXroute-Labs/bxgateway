@@ -5,13 +5,21 @@ from mock import MagicMock
 from bxcommon.connections.connection_pool import ConnectionPool
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import LOCALHOST, DEFAULT_NETWORK_NUM
+from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockOpts
+from bxcommon.utils.alarm import AlarmQueue
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.gateway_connection import GatewayConnection
+from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
+from bxgateway.services.neutrality_service import NeutralityService
+from bxgateway.storage.block_encrypted_cache import BlockEncryptedCache
+
+
 from bxgateway.services.blockchain_sync_service import BlockchainSyncService
 
 
@@ -21,6 +29,8 @@ def create_node(ip=LOCALHOST, port=8000):
     node.connection_pool = ConnectionPool()
     node.connection_exists = node.connection_pool.has_connection
     node.network_num = node.opts.network_num
+    node.in_progress_blocks = BlockEncryptedCache(AlarmQueue())
+    node.neutrality_service = MagicMock(spec=NeutralityService)
     node.blockchain_sync_service = MagicMock(spec=BlockchainSyncService)
     return node
 
@@ -39,16 +49,28 @@ class GatewayConnectionTest(AbstractTestCase):
         node.connection_pool.add(fileno, ip, port, connection)
         return connection
 
-    def test_msg_hello_updating_port_reference(self):
-        fileno = 1
+    def test_msg_hello_only_connection(self):
+        main_node = create_node(LOCALHOST, 40001)
+        peer_node = create_node(LOCALHOST, 40000)
+        main_inbound_fileno = 1
+        main_inbound_connection = self._create_connection(main_inbound_fileno, LOCALHOST, 50000, False, main_node)
+        peer_outbound_fileno = 2
+        peer_outbound_connection = self._create_connection(peer_outbound_fileno, LOCALHOST, 40001, True, peer_node)
 
-        inbound_connection = self._create_connection(fileno, LOCALHOST, 40000, False)
-        self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
+        self.assertTrue(main_node.connection_pool.has_connection(LOCALHOST, 50000))
 
-        inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
-                                                         DEFAULT_NETWORK_NUM, LOCALHOST, 8001, 1))
-        self.assertFalse(self.node.connection_pool.has_connection(LOCALHOST, 40000))
-        self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
+        main_inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
+                                                              DEFAULT_NETWORK_NUM, LOCALHOST, 40000, 1))
+
+        # update port reference
+        self.assertFalse(main_node.connection_pool.has_connection(LOCALHOST, 50000))
+        self.assertTrue(main_node.connection_pool.has_connection(LOCALHOST, 40000))
+        self.assertTrue(peer_node.connection_pool.has_connection(LOCALHOST, 40001))
+
+        peer_outbound_connection.msg_ack(AckMessage())
+
+        self.assertEqual(ConnectionState.ESTABLISHED, main_inbound_connection.state)
+        self.assertEqual(ConnectionState.ESTABLISHED, peer_outbound_connection.state)
 
     def test_msg_hello_reject_mismatched_ip(self):
         fileno = 1
@@ -202,3 +224,11 @@ class GatewayConnectionTest(AbstractTestCase):
 
         self.assertTrue(main_inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
         self.assertTrue(peer_outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+
+    def test_msg_block_propagation_request(self):
+        block = helpers.generate_bytearray(30)
+        message = BlockPropagationRequestMessage(block)
+        connection = self._create_connection(1, LOCALHOST, 8000, True)
+
+        connection.msg_block_propagation_request(message)
+        self.node.neutrality_service.propagate_block_to_network.assert_called_once()
