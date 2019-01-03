@@ -72,12 +72,14 @@ class AbstractGatewayNode(AbstractNode):
                 self.remote_blockchain_port = opts.remote_blockchain_port
                 self.enqueue_connection(opts.remote_blockchain_ip, opts.remote_blockchain_port)
             else:
-                self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
+                # offset SDN calls so all the peers aren't queued up at the same time
+                self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS + 1,
                                                 self._send_request_for_remote_blockchain_peer)
         self.remote_node_conn = None
         self.remote_node_msg_queue = deque()
 
-        self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS, self._send_request_for_gateway_peers)
+        # offset SDN calls so all the peers aren't queued up at the same time
+        self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS + 2, self._send_request_for_gateway_peers)
         self._tx_service = TransactionService(self)
 
         self._preferred_gateway_connection = None
