@@ -20,6 +20,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         logger.debug("Status message received.")
 
         self.connection.state |= ConnectionState.ESTABLISHED
-        self.connection.node.node_conn = self
+        self.connection.node.node_conn = self.connection
 
         self.connection.send_ping()

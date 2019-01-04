@@ -4,3 +4,6 @@ from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtoco
 
 class PingEthProtocolMessage(EthProtocolMessage):
     msg_type = EthProtocolMessageType.PING
+
+    def should_log_debug(self):
+        return True

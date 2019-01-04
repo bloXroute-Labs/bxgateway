@@ -13,3 +13,4 @@ class RawEthProtocolMessage(EthProtocolMessage):
 
     def deserialize(self):
         raise NotImplementedError("Raw message can't be deserialized")
+

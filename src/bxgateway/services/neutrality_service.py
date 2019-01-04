@@ -49,12 +49,13 @@ class NeutralityService(object):
     def record_block_receipt(self, block_hash):
         """
         Records a receipt of a block hash. Releases key if threshold reached.
+        :param block_hash ObjectHash
         """
         if block_hash in self._receipt_tracker:
             self._receipt_tracker[block_hash] += 1
             if self._are_enough_receipts_received(block_hash):
                 logger.info("Received enough block receipt messages. Releasing key for block with hash: {}"
-                            .format(block_hash))
+                            .format(convert.bytes_to_hex(block_hash.binary)))
                 self._send_key(block_hash)
                 self._node.alarm_queue.unregister_alarm(self._alarms[block_hash])
                 del self._receipt_tracker[block_hash]
@@ -83,10 +84,6 @@ class NeutralityService(object):
                                                   compressed_size=len(bx_block))
 
         broadcast_message = BroadcastMessage(bx_block_hash, self._node.network_num, encrypted_block)
-        logger.debug("Compressed block with hash {0} to size {1} from size {2}"
-                     .format(block_message.block_hash(),
-                             len(broadcast_message.rawbytes()),
-                             len(block_message.rawbytes())))
 
         conns = self._node.broadcast(broadcast_message, connection)
         block_stats.add_block_event_by_block_hash(bx_block_hash,

@@ -145,17 +145,15 @@ class AbstractRelayConnection(InternalNodeConnection):
     def _msg_broadcast_retry(self):
         if self.node.block_recovery_service.recovered_blocks:
             for msg in self.node.block_recovery_service.recovered_blocks:
-                logger.info("Block recovery: Received all unknown txs for a block. Broadcasting block message.")
                 self._handle_decrypted_block(msg, recovered=True)
 
-            logger.debug("Block recovery: Broadcasted all of the messages ready for retry.")
             self.node.block_recovery_service.clean_up_recovered_blocks()
 
-    def _handle_decrypted_block(self, blx_block, encrypted_block_hash_hex=None, recovered=False):
+    def _handle_decrypted_block(self, bx_block, encrypted_block_hash_hex=None, recovered=False):
         decompress_start = datetime.datetime.utcnow()
         # TODO: determine if a real block or test block. Discard if test block.
-        btc_block, block_hash, unknown_sids, unknown_hashes = \
-            self.message_converter.bx_block_to_block(blx_block, self.node.get_tx_service())
+        block_message, block_hash, unknown_sids, unknown_hashes = \
+            self.message_converter.bx_block_to_block(bx_block, self.node.get_tx_service())
         decompress_end = datetime.datetime.utcnow()
 
         if recovered:
@@ -165,24 +163,23 @@ class AbstractRelayConnection(InternalNodeConnection):
             encrypted_block_hash_hex = "Unknown"
 
         if block_hash in self.node.blocks_seen.contents:
-            logger.warn("Already saw block {0}. Dropping!".format(hash))
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_IGNORE_SEEN,
                                                       start_date_time=decompress_start,
                                                       end_date_time=decompress_end,
                                                       encrypted_block_hash=encrypted_block_hash_hex)
             return
 
-        if btc_block is not None:
-            logger.debug("Decoded block successfully- sending block to node")
+        if block_message is not None:
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_SUCCESS,
                                                       start_date_time=decompress_start,
                                                       end_date_time=decompress_end,
                                                       encrypted_block_hash=encrypted_block_hash_hex)
-            self.node.send_msg_to_node(btc_block)
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE)
+            self.node.send_msg_to_node(block_message)
+            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
+                                                      block_size=len(block_message.rawbytes()))
             self.node.blocks_seen.add(block_hash)
         else:
-            self.node.block_recovery_service.add_block(blx_block, block_hash, unknown_sids, unknown_hashes)
+            self.node.block_recovery_service.add_block(bx_block, block_hash, unknown_sids, unknown_hashes)
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_DECOMPRESSED_WITH_UNKNOWN_TXS,
                                                       start_date_time=decompress_start,
@@ -192,7 +189,6 @@ class AbstractRelayConnection(InternalNodeConnection):
                                                       unknown_hashes_count=len(unknown_hashes))
             self.enqueue_msg(self._create_unknown_txs_message(unknown_sids, unknown_hashes))
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECOVERY_STARTED)
-            logger.debug("Block Recovery: Requesting ....")
 
     def _create_unknown_txs_message(self, unknown_sids, unknown_hashes):
         all_unknown_sids = []

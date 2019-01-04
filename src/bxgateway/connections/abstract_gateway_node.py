@@ -147,6 +147,7 @@ class AbstractGatewayNode(AbstractNode):
         Requests relay peers from SDN. Merges list with provided command line relays.
         """
         peer_relays = sdn_http_service.fetch_relay_peers(self.opts.node_id)
+        logger.info("Processing updated peer relays: {}".format(peer_relays))
         self.peer_relays = set(self.opts.peer_relays + peer_relays)
         self.on_updated_peers(self._get_all_peers())
 
@@ -159,6 +160,7 @@ class AbstractGatewayNode(AbstractNode):
         Requests gateway peers from SDN. Merges list with provided command line gateways.
         """
         peer_gateways = sdn_http_service.fetch_gateway_peers(self.opts.node_id)
+        logger.info("Processing updated peer gateways: {}".format(peer_gateways))
         self._add_gateway_peers(peer_gateways)
         self.on_updated_peers(self._get_all_peers())
 

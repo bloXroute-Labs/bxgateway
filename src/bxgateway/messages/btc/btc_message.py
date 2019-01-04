@@ -8,6 +8,7 @@ from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_MAGIC_NUMBERS, BTC_H
 
 
 class BtcMessage(AbstractMessage):
+    MESSAGE_TYPE = "btc"
     HEADER_LENGTH = BTC_HDR_COMMON_OFF
 
     def __init__(self, magic=None, command=None, payload_len=None, buf=None):
@@ -100,3 +101,6 @@ class BtcMessage(AbstractMessage):
             return False
         else:
             return self.rawbytes().tobytes() == other.rawbytes().tobytes()
+
+    def __repr__(self):
+        return "BtcMessage<command: {}, length: {}>".format(self.MESSAGE_TYPE, len(self.rawbytes()))

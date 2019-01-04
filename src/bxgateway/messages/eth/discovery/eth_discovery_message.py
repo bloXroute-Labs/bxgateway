@@ -12,6 +12,9 @@ class EthDiscoveryMessage(AbstractEthMessage):
         self._private_key = private_key
         self._public_key = None
 
+    def __repr__(self):
+        return "EthDiscoveryMessage<type: {}>".format(self.__class__.__name__)
+
     def get_public_key(self):
         if not self._is_deserialized:
             self.deserialize()

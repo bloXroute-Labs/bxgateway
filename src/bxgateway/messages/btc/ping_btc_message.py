@@ -38,3 +38,6 @@ class PingBtcMessage(BtcMessage):
             else:
                 self._nonce = struct.unpack_from('<Q', self.buf, BTC_HDR_COMMON_OFF)[0]
         return self._nonce
+
+    def should_log_debug(self):
+        return True

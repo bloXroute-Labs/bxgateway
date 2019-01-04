@@ -1,7 +1,7 @@
 import time
 
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.utils import logger
+from bxcommon.utils import logger, convert
 from bxgateway import eth_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
@@ -96,7 +96,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
     def get_message_bytes(self, msg):
         if isinstance(msg, RawEthProtocolMessage):
-            yield [msg.rawbytes()]
+            yield msg.rawbytes()
         else:
             frames = frame_utils.get_frames(msg.msg_type,
                                             msg.rawbytes(),
@@ -135,8 +135,8 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
         network_id = self.connection.node.opts.network_id
         chain_difficulty = int(self.connection.node.opts.chain_difficulty, 16)
-        chain_head_hash = rlp_utils.decode_hex(self.connection.node.opts.genesis_hash)
-        genesis_hash = rlp_utils.decode_hex(self.connection.node.opts.genesis_hash)
+        chain_head_hash = convert.hex_to_bytes(self.connection.node.opts.genesis_hash)
+        genesis_hash = convert.hex_to_bytes(self.connection.node.opts.genesis_hash)
 
         status_msg = StatusEthProtocolMessage(None,
                                               eth_constants.ETH_PROTOCOL_VERSION,
