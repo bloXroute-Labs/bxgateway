@@ -85,7 +85,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         not_cli_peer_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
         node.destroy_conn(not_cli_peer_conn)
 
-        time.time = MagicMock(return_value=time.time() + SDN_CONTACT_RETRY_SECONDS)
+        time.time = MagicMock(return_value=time.time() + SDN_CONTACT_RETRY_SECONDS * 2)
         node.alarm_queue.fire_alarms()
 
         sdn_http_service.fetch_gateway_peers.assert_has_calls([call(node.opts.node_id), call(node.opts.node_id)])

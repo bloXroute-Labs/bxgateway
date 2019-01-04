@@ -76,9 +76,6 @@ def get_opts():
                             help="If gateway should proxy messages from a remote bloXroute owned blockchain node",
                             type=convert.str_to_bool,
                             default=True)
-    arg_parser.add_argument("--outbound-ip", help="(TEST ONLY) Override parameter for an outbound peer to connect to")
-    arg_parser.add_argument("--outbound-port", help="(TEST ONLY) Override parameter for an outbound peer to connect to",
-                            type=int)
     arg_parser.add_argument("--peer-relays",
                             help="(TEST ONLY) Optional relays peer ip/ports that will always be connected to. "
                                  "Should be in the format ip1:port1,ip2:port2,...",
