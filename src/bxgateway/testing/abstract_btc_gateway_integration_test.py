@@ -24,6 +24,11 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
         self.node1 = BtcGatewayNode(opts1)
         self.node2 = BtcGatewayNode(opts2)
 
+        self.node1.peer_gateways = {OutboundPeerModel(LOCALHOST, 7002)}
+        self.node1.peer_relays = {OutboundPeerModel(LOCALHOST, 7001)}
+        self.node2.peer_gateways = {OutboundPeerModel(LOCALHOST, 7002)}
+        self.node2.peer_relays = {OutboundPeerModel(LOCALHOST, 7001)}
+
         self.blockchain_fileno = 1
         self.relay_fileno = 2
         self.gateway_fileno = 3

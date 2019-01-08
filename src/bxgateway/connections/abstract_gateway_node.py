@@ -197,8 +197,12 @@ class AbstractGatewayNode(AbstractNode):
         elif not from_me or any(ip == peer_gateway.ip and port == peer_gateway.port
                                 for peer_gateway in self.peer_gateways):
             return GatewayConnection
-        else:
+        elif any(ip == peer_relay.ip and port == peer_relay.port for peer_relay in self.peer_relays):
             return self.get_relay_connection_cls()
+        else:
+            logger.error("Attempted connection to peer that's not a blockchain, remote blockchain, gateway, or relay."
+                         "Tried: {}:{}, from_me={}. Ignoring".format(ip, port, from_me))
+            return None
 
     def is_local_blockchain_address(self, ip, port):
         return ip == self.opts.blockchain_ip and port == self.opts.blockchain_port
@@ -258,7 +262,7 @@ class AbstractGatewayNode(AbstractNode):
         outbound_peer = OutboundPeerModel(ip, port)
         if outbound_peer in self.peer_gateways:
             self.peer_gateways.remove(OutboundPeerModel(ip, port))
-            self.on_updated_peers(self._get_all_peers())
+            self.outbound_peers = self._get_all_peers()
             if len(self.peer_gateways) < self.opts.min_peer_gateways:
                 self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
                                                 self._send_request_for_gateway_peers)
