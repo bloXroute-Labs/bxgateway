@@ -6,6 +6,7 @@ from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import crypto, logger, convert
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import ObjectHash
+from bxgateway import btc_constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN, BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -41,6 +42,7 @@ class BtcMessageConverter(AbstractMessageConverter):
                 size += len(tx)
             else:
                 next_tx = bytearray(5)
+                next_tx[0] = btc_constants.BTC_SHORT_ID_INDICATOR
                 logger.debug("XXX: Packing transaction with shortid {0} into block".format(shortid))
                 struct.pack_into('<I', next_tx, 1, shortid)
                 buf.append(next_tx)
@@ -78,7 +80,7 @@ class BtcMessageConverter(AbstractMessageConverter):
 
         off = size
         while off < len(block):
-            if block[off] == 0x00:
+            if block[off] == btc_constants.BTC_SHORT_ID_INDICATOR:
                 sid, = struct.unpack_from('<I', block, off + 1)
                 tx_hash, tx = tx_service.get_tx_from_sid(sid)
 

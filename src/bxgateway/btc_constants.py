@@ -26,3 +26,6 @@ BTC_OBJTYPE_BLOCK = 2
 BTC_OBJTYPE_FILTERED_BLOCK = 3
 
 BTC_HELLO_MESSAGES = ["version", "verack"]
+
+# Indicator byte compressing bitcoin blocks to indicate short id
+BTC_SHORT_ID_INDICATOR = 0xFF
