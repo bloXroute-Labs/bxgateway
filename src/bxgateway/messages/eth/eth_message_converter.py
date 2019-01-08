@@ -297,14 +297,12 @@ class EthMessageConverter(AbstractMessageConverter):
                 off = next_off
 
             block_msg = NewBlockEthProtocolMessage(block_msg_bytes)
-            logger.debug(
-                "Successfully parsed block broadcast message. {0} transactions in block"
-                    .format(tx_count))
+            logger.debug("Successfully parsed block broadcast message. {0} transactions in block"
+                         .format(tx_count))
 
             return block_msg, block_hash, unknown_tx_sids, unknown_tx_hashes
         else:
-            logger.warn(
-                "Block recovery: Unable to parse block message. {0} sids, {1} tx hashes missing. total txs: {2}"
-                    .format(len(unknown_tx_sids), len(unknown_tx_hashes), tx_count))
+            logger.warn("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in block: {2}"
+                        .format(len(unknown_tx_sids), len(unknown_tx_hashes), tx_count))
 
             return None, block_hash, unknown_tx_sids, unknown_tx_hashes

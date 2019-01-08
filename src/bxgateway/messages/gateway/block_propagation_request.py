@@ -27,5 +27,5 @@ class BlockPropagationRequestMessage(Message):
     def blob(self):
         if self._blob is None:
             off = constants.HDR_COMMON_OFF
-            self._blob = self._memoryview[off: off + self.payload_len()]
+            self._blob = self.buf[off: off + self.payload_len()]
         return self._blob

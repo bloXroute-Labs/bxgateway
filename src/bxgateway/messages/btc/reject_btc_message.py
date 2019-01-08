@@ -1,5 +1,6 @@
 import struct
 
+from bxcommon.utils import convert
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
@@ -65,3 +66,7 @@ class RejectBtcMessage(BtcMessage):
         if self._message is None:
             self.message()
         return self._data
+
+    def __repr__(self):
+        return "RejectBtcMessage<message: {}, ccode: {}, reason: {}, data: {}".format(
+            self.message(), self.ccode(), self.reason(), convert.bytes_to_hex(self.data()))

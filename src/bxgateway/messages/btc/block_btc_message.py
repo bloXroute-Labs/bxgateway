@@ -4,7 +4,7 @@ from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size, pack_int_to_btcvarint
-from bxcommon.utils import crypto
+from bxcommon.utils import crypto, convert
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
@@ -75,6 +75,8 @@ class BlockBtcMessage(BtcMessage):
             self._txn_count, size = btcvarint_to_int(self.buf, off)
             off += size
             self._tx_offset = off
+
+            self._header = self._memoryview[0:self._tx_offset]
 
         return self._version
 
@@ -149,3 +151,10 @@ class BlockBtcMessage(BtcMessage):
         payload_len = struct.unpack_from('<L', buf, 16)[0]
         is_here = True
         return is_here, BtcObjectHash(buf=raw_hash, length=BTC_SHA_HASH_LEN), payload_len
+
+    def __repr__(self):
+        return "BlockBtcMessage<block_hash: {}, rawbytes: {}, length: {}>".format(self.block_hash(),
+                                                                                  convert.bytes_to_hex(
+                                                                                      self.rawbytes().tobytes()
+                                                                                  ),
+                                                                                  len(self.rawbytes()))

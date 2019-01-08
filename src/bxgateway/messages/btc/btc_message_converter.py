@@ -3,15 +3,15 @@ from collections import deque
 
 from bxcommon.constants import NULL_TX_SID
 from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.utils import crypto, logger, convert
+from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import ObjectHash
+from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN, BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
-from bxcommon.utils import crypto, logger
-from bxcommon.utils.crypto import SHA256_HASH_LEN
-from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
@@ -112,7 +112,7 @@ class BtcMessageConverter(AbstractMessageConverter):
                 "Successfully parsed block broadcast message. {0} transactions in block".format(total_tx_count))
             return BlockBtcMessage(buf=btc_block), block_hash, unknown_tx_sids, unknown_tx_hashes
         else:
-            logger.warn("Block recovery: Unable to parse block message. {0} sids, {1} tx hashes missing. total txs: {2}"
+            logger.warn("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in block: {2}"
                         .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
             return None, block_hash, unknown_tx_sids, unknown_tx_hashes
 

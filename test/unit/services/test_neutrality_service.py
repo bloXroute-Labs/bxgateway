@@ -7,6 +7,7 @@ from bxcommon.constants import LOCALHOST
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import ObjectHash
 from bxgateway import gateway_constants
@@ -119,17 +120,9 @@ class NeutralityServiceTest(AbstractTestCase):
         self.assertEqual(GatewayMessageType.BLOCK_PROPAGATION_REQUEST, block_request_message.msg_type())
         self.assertEqual(self.BYTE_BLOCK, block_request_message.blob())
 
-    def test_propagate_btc_block_to_network(self):
-        btc_hash = BtcObjectHash(binary=self.BLOCK_HASH.binary)
-        block_message = BlockBtcMessage(12345, 12345, btc_hash, btc_hash, 1, 2, 3, [])
-        self._test_propagate_block_to_network(block_message, mock_connection(BtcMessageConverter(12345)))
-
-    def test_propagate_eth_block_to_network(self):
-        block = Block(mock_eth_messages.get_dummy_block_header(1), [], [])
-        block_message = NewBlockEthProtocolMessage(None, block, 10)
-        self._test_propagate_block_to_network(block_message, mock_connection(EthMessageConverter()))
-
-    def _test_propagate_block_to_network(self, block_message, connection):
+    def test_propagate_block_to_network(self):
+        block_message = helpers.generate_bytearray(50)
+        connection = MockConnection(1, (LOCALHOST, 9000), self.node)
         self.neutrality_service.propagate_block_to_network(block_message, connection)
 
         self.assertEqual(1, len(self.node.broadcast_messages))

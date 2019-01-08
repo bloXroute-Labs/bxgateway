@@ -1,3 +1,4 @@
+import datetime
 from abc import ABCMeta
 
 from bxcommon.messages.bloxroute.key_message import KeyMessage
@@ -38,7 +39,17 @@ class AbstractBlockchainConnectionProtocol(object):
             logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
             return
 
-        self.connection.node.neutrality_service.propagate_block_to_network(msg, self.connection)
+        compress_start = datetime.datetime.utcnow()
+        bx_block = self.connection.message_converter.block_to_bx_block(msg, self.connection.node.get_tx_service())
+        compress_end = datetime.datetime.utcnow()
+        block_stats.add_block_event_by_block_hash(block_hash,
+                                                  BlockStatEventType.BLOCK_COMPRESSED,
+                                                  start_date_time=compress_start,
+                                                  end_date_time=compress_end,
+                                                  original_size=len(msg.rawbytes()),
+                                                  compressed_size=len(bx_block))
+
+        self.connection.node.neutrality_service.propagate_block_to_network(bx_block, self.connection, block_hash)
         self.connection.node.block_recovery_service.cancel_recovery_for_block(msg.block_hash())
 
     def msg_proxy_request(self, msg):

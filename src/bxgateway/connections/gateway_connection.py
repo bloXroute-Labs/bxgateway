@@ -6,7 +6,9 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
-from bxcommon.utils import logger
+from bxcommon.utils import logger, crypto, convert
+from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
+from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
@@ -134,7 +136,11 @@ class GatewayConnection(InternalNodeConnection):
         self.node.neutrality_service.record_block_receipt(msg.block_hash())
 
     def msg_block_propagation_request(self, msg):
-        self.node.neutrality_service.propagate_block_to_network(msg.blob(), self)
+        bx_block = msg.blob()
+        bx_block_hash = crypto.double_sha256(bx_block)
+        block_stats.add_block_event_by_block_hash(convert.bytes_to_hex(bx_block_hash),
+                                                  BlockStatEventType.BLOCK_PROPAGATION_REQUESTED_BY_PEER)
+        self.node.neutrality_service.propagate_block_to_network(bx_block, self)
 
     def _initialize_ordered_handshake(self):
         self.ordering = random.getrandbits(constants.UL_INT_SIZE_IN_BYTES * 8)

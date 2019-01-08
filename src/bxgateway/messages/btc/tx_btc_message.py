@@ -1,10 +1,10 @@
 import struct
 
+from bxcommon.utils import crypto, convert
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, pack_int_to_btcvarint
-from bxcommon.utils import crypto
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
@@ -130,7 +130,7 @@ class TxBtcMessage(BtcMessage):
     def version(self):
         if self._version is None:
             off = BTC_HDR_COMMON_OFF
-            self._version = struct.unpack_from('<I', self.buf, off)
+            self._version, = struct.unpack_from('<i', self.buf, off)
         return self._version
 
     def tx_in(self):
@@ -165,7 +165,7 @@ class TxBtcMessage(BtcMessage):
 
             off = end
 
-            self._lock_time = struct.unpack_from('<I', self.buf, off)
+            self._lock_time, = struct.unpack_from('<I', self.buf, off)
 
         return self._tx_in
 
@@ -186,3 +186,11 @@ class TxBtcMessage(BtcMessage):
 
     def tx(self):
         return self.payload()
+
+    def __repr__(self):
+        return ("TxBtcMessage<version: {}, length: {}, tx_hash: {}, rawbytes: {}>"
+                .format(self.version(),
+                        len(self.rawbytes()),
+                        self.tx_hash().get_big_endian(),
+                        convert.bytes_to_hex(
+                            self.rawbytes().tobytes())))

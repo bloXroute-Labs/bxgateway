@@ -1,5 +1,6 @@
 import struct
 
+from bxcommon.utils import convert
 from bxcommon.utils.object_hash import ObjectHash, PARTIAL_HASH_LENGTH
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 
@@ -43,3 +44,6 @@ class BtcObjectHash(ObjectHash):
         if self._buf is None:
             self._buf = self.binary[::-1]
         return self._buf
+
+    def __repr__(self):
+        return "BtcObjectHash<binary: {}>".format(convert.bytes_to_hex(self.binary))
