@@ -191,6 +191,6 @@ class TxBtcMessage(BtcMessage):
         return ("TxBtcMessage<version: {}, length: {}, tx_hash: {}, rawbytes: {}>"
                 .format(self.version(),
                         len(self.rawbytes()),
-                        self.tx_hash().get_big_endian(),
+                        convert.bytes_to_hex(self.tx_hash().get_big_endian()),
                         convert.bytes_to_hex(
                             self.rawbytes().tobytes())))

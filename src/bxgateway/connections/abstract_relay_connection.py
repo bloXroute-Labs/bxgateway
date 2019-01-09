@@ -121,8 +121,8 @@ class AbstractRelayConnection(InternalNodeConnection):
 
         txs = msg.get_txs()
 
-        logger.debug("Block recovery: Txs details message received from server. Contains {0} txs."
-                     .format(len(txs)))
+        logger.info("Block recovery status: Received mappings from server. Contains {0} txs."
+                    .format(len(txs)))
 
         tx_service = self.node.get_tx_service()
 
