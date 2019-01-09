@@ -9,7 +9,7 @@ BTC_MAGIC_NUMBERS = {
 # The length of everything in the header minus the checksum
 BTC_HEADER_MINUS_CHECKSUM = 20
 BTC_HDR_COMMON_OFF = 24  # type: int
-BTC_BLOCK_HDR_SIZE = 81
+BTC_BLOCK_HDR_SIZE = 80
 # Length of a sha256 hash
 BTC_SHA_HASH_LEN = 32
 BTC_IP_ADDR_PORT_SIZE = 18
@@ -29,3 +29,4 @@ BTC_HELLO_MESSAGES = ["version", "verack"]
 
 # Indicator byte compressing bitcoin blocks to indicate short id
 BTC_SHORT_ID_INDICATOR = 0xFF
+BTC_SHORT_ID_LENGTH = 5

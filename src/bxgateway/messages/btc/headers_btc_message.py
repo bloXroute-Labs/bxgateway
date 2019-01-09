@@ -77,7 +77,7 @@ class BlockHeader(object):
 
     def block_hash(self):
         if self._block_hash is None:
-            header = self._memoryview[:BTC_BLOCK_HDR_SIZE - 1]  # remove the tx count at the end
+            header = self._memoryview[:BTC_BLOCK_HDR_SIZE]  # remove the tx count at the end
             raw_hash = crypto.bitcoin_hash(header)
             self._hash_val = BtcObjectHash(buf=raw_hash, length=BTC_SHA_HASH_LEN)
         return self._hash_val

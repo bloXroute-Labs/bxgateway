@@ -71,6 +71,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         short_ids = [i for i in xrange(5)]
 
         btc_block = BlockBtcMessage(magic, version, prev_block, merkle_root, timestamp, bits, nonce, txns)
+        block_hash = btc_block.block_hash()
 
         # find an sid for half the transactions
         def get_txid(txhash):
@@ -91,8 +92,8 @@ class BtcMessageConverterTests(AbstractTestCase):
         bloxroute_block = self.btc_message_converter.block_to_bx_block(btc_block, tx_service)
         # TODO: if we convert bloxroute block to a class, add some tests here
 
-        parsed_btc_block, block_hash, _, _ = self.btc_message_converter.bx_block_to_block(bloxroute_block,
-                                                                                          tx_service)
+        parsed_btc_block, parsed_block_hash, _, _ = self.btc_message_converter.bx_block_to_block(bloxroute_block,
+                                                                                                 tx_service)
         self.assertIsNotNone(parsed_btc_block)
         self.assertEqual(version, parsed_btc_block.version())
         self.assertEqual(magic, parsed_btc_block.magic())
@@ -102,3 +103,6 @@ class BtcMessageConverterTests(AbstractTestCase):
         self.assertEqual(bits, parsed_btc_block.bits())
         self.assertEqual(nonce, parsed_btc_block.nonce())
         self.assertEqual(len(txns), parsed_btc_block.txn_count())
+        self.assertEqual(btc_block.checksum(), parsed_btc_block.checksum())
+        self.assertEqual(block_hash, parsed_btc_block.block_hash())
+        self.assertEqual(block_hash.binary, parsed_block_hash.binary)

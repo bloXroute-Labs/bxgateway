@@ -6,11 +6,13 @@ from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.helpers import get_gateway_opts
 from bxcommon.utils import convert
+from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.testing.mocks.mock_btc_messages import btc_block, RealBtcBlocks
 from bxgateway.testing.unencrypted_block_cache import UnencryptedCache
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 @patch("bxcommon.constants.OUTPUT_BUFFER_MIN_SIZE", 0)
@@ -77,11 +79,28 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         relayed_key._payload_len = None
         self.assertEqual(UnencryptedCache.NO_ENCRYPT_KEY, relayed_key.key().tobytes())
 
-    def test_send_receive_block_and_key_real_blocks(self):
-        block1 = self.send_received_block_and_key(block=btc_block(real_block=RealBtcBlocks.BLOCK1))
-        self.assertEqual(9772, len(block1.rawbytes()))
-        self.assertEqual(536870912, block1.version())
-        self.assertEqual("bbb1f6f3a9324ab86ad23642994eac6624a9c9ef454d2f6e3bf68e3b094e0343",
-                         convert.bytes_to_hex(block1.merkle_root().binary))
-        self.assertEqual(38, len(block1.txns()))
+    def test_send_receive_block_and_key_real_block_1(self):
+        send_block = btc_block(real_block=RealBtcBlocks.BLOCK1)
+        block_hash = "000000000000d76febe49ae1033fa22afebe6ac46ea255640268d7ede1084e6f"
+        self.assertEqual(block_hash, convert.bytes_to_hex(send_block.block_hash().binary))
 
+        received_block = self.send_received_block_and_key(block=send_block)
+        self.assertEqual(9772, len(received_block.rawbytes()))
+        self.assertEqual(536870912, received_block.version())
+        self.assertEqual("bbb1f6f3a9324ab86ad23642994eac6624a9c9ef454d2f6e3bf68e3b094e0343",
+                         convert.bytes_to_hex(received_block.merkle_root().binary))
+        self.assertEqual(38, len(received_block.txns()))
+
+        block_hash_object = ObjectHash(binary=convert.hex_to_bytes(block_hash))
+        self.assertEqual(1, len(self.node1.blocks_seen.contents))
+        self.assertIn(block_hash_object, self.node1.blocks_seen.contents)
+        self.assertEqual(1, len(self.node2.blocks_seen.contents))
+        self.assertIn(block_hash_object, self.node2.blocks_seen.contents)
+
+    def test_send_receive_block_and_key_real_block_2(self):
+        received_block = self.send_received_block_and_key(block=btc_block(real_block=RealBtcBlocks.BLOCK_WITNESS_REJECT))
+        self.assertEqual(9613, len(received_block.rawbytes()))
+        self.assertEqual(536870912, received_block.version())
+        self.assertEqual("66bbbabedebee6c045284299069c407cdaa493166e64fe92ae03f358e96c7164",
+                         convert.bytes_to_hex(received_block.merkle_root().binary))
+        self.assertEqual(47, len(received_block.txns()))

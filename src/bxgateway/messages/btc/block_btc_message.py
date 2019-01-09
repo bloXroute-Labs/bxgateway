@@ -134,19 +134,19 @@ class BlockBtcMessage(BtcMessage):
 
     def block_hash(self):
         if self._hash_val is None:
-            header = self._memoryview[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE - 1]
+            header = self._memoryview[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE]
             raw_hash = crypto.bitcoin_hash(header)
             self._hash_val = BtcObjectHash(buf=raw_hash, length=BTC_SHA_HASH_LEN)
         return self._hash_val
 
     @staticmethod
     def peek_block(input_buffer):
-        buf = input_buffer.peek_message(BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE - 1)
+        buf = input_buffer.peek_message(BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE)
         is_here = False
-        if input_buffer.length < BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE - 1:
+        if input_buffer.length < BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE:
             return is_here, None, None
 
-        header = buf[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE - 1]
+        header = buf[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE]
         raw_hash = crypto.bitcoin_hash(header)
         payload_len = struct.unpack_from('<L', buf, 16)[0]
         is_here = True
