@@ -212,22 +212,22 @@ class AbstractGatewayNode(AbstractNode):
         Sends a message to the blockchain node this is connected to.
         """
         if self.node_conn is not None:
-            logger.debug("Sending message to node: " + repr(msg))
+            logger.debug("Sending message to node: {}".format(msg))
             self.node_conn.enqueue_msg(msg)
         else:
-            logger.debug("Adding things to node's message queue")
-            self.node_msg_queue.append(msg)
+            logger.debug("Adding message to node's message queue: {}".format(msg))
+            self.node_msg_queue.append(msg.rawbytes())
 
     def send_msg_to_remote_node(self, msg):
         """
         Sends a message to remote connected blockchain node.
         """
         if self.remote_node_conn is not None:
-            logger.debug("Sending message to remote node: " + repr(msg))
+            logger.debug("Sending message to remote node: {}".format(msg))
             self.remote_node_conn.enqueue_msg(msg)
         else:
-            logger.debug("Adding things to remote node's message queue")
-            self.remote_node_msg_queue.append(msg)
+            logger.debug("Adding message to remote node's message queue: {}".format(msg))
+            self.remote_node_msg_queue.append(msg.rawbytes())
 
     def destroy_conn(self, conn, retry_connection=False):
         if not retry_connection and conn.CONNECTION_TYPE == ConnectionType.GATEWAY:
