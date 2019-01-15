@@ -23,6 +23,7 @@ class BtcConnectionProtocolTest(AbstractTestCase):
         self.connection.node = self.node
         self.connection.peer_ip = LOCALHOST
         self.connection.peer_port = 8001
+        self.connection.network_num = 2
 
         self.sut = BtcBaseConnectionProtocol(self.connection)
 

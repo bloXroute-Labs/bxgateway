@@ -50,7 +50,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
     def block(self, txns):
         btc_block = BlockBtcMessage(self.MAGIC, self.VERSION, self.BTC_HASH, self.BTC_HASH, 0, 0, 0, txns)
         return btc_block, bytes(
-            self.sut.message_converter.block_to_bx_block(btc_block, self.gateway_node.get_tx_service()))
+            self.sut.message_converter.block_to_bx_block(btc_block, self.gateway_node.get_tx_service())[0])
 
     def test_msg_broadcast_wait_for_key(self):
 

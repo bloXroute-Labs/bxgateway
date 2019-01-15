@@ -9,6 +9,7 @@ from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockNode
+from bxcommon.utils import convert
 from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
@@ -136,7 +137,10 @@ class EthMessageConverterTests(AbstractTestCase):
         block_msg = NewBlockEthProtocolMessage(None, block, dummy_chain_difficulty)
         self.assertTrue(block_msg.rawbytes())
 
-        bx_block_msg = self.message_parser.block_to_bx_block(block_msg, self.tx_service)
+        bx_block_msg, block_info = self.message_parser.block_to_bx_block(block_msg, self.tx_service)
+
+        self.assertEqual(len(txs), block_info[0])
+        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info[1])
 
         self.assertTrue(bx_block_msg)
         self.assertIsInstance(bx_block_msg, bytearray)
@@ -173,7 +177,10 @@ class EthMessageConverterTests(AbstractTestCase):
         block_msg = NewBlockEthProtocolMessage(None, block, dummy_chain_difficulty)
         self.assertTrue(block_msg.rawbytes())
 
-        bx_block_msg = self.message_parser.block_to_bx_block(block_msg, self.tx_service)
+        bx_block_msg, block_info = self.message_parser.block_to_bx_block(block_msg, self.tx_service)
+
+        self.assertEqual(0, block_info[0])
+        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info[1])
 
         self.assertTrue(bx_block_msg)
         self.assertIsInstance(bx_block_msg, bytearray)
@@ -331,8 +338,11 @@ class EthMessageConverterTests(AbstractTestCase):
         block_msg_bytes = block_msg.rawbytes()
         self.assertTrue(block_msg_bytes)
 
-        bx_block_msg = self.message_parser.block_to_bx_block(block_msg, self.tx_service)
+        bx_block_msg, block_info = self.message_parser.block_to_bx_block(block_msg, self.tx_service)
         self.assertIsNotNone(bx_block_msg)
+
+        self.assertEqual(len(txs), block_info[0])
+        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info[1])
 
         converted_block_msg, _, _, _ = self.message_parser.bx_block_to_block(bx_block_msg, self.tx_service)
         self.assertIsNotNone(converted_block_msg)

@@ -31,7 +31,10 @@ class AbstractBlockchainConnectionProtocol(object):
         Handle a block message. Sends to node for encryption, then broadcasts.
         """
         block_hash = msg.block_hash()
-        block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE)
+        block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
+                                                  network_num=self.connection.network_num,
+                                                  blockchain_protocol=self.connection.node.opts.blockchain_protocol,
+                                                  blockchain_network=self.connection.node.opts.blockchain_network)
 
         if block_hash in self.connection.node.blocks_seen.contents:
             block_stats.add_block_event_by_block_hash(block_hash,
@@ -40,14 +43,16 @@ class AbstractBlockchainConnectionProtocol(object):
             return
 
         compress_start = datetime.datetime.utcnow()
-        bx_block = self.connection.message_converter.block_to_bx_block(msg, self.connection.node.get_tx_service())
+        bx_block, block_info = self.connection.message_converter.block_to_bx_block(msg, self.connection.node.get_tx_service())
         compress_end = datetime.datetime.utcnow()
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.BLOCK_COMPRESSED,
                                                   start_date_time=compress_start,
                                                   end_date_time=compress_end,
                                                   original_size=len(msg.rawbytes()),
-                                                  compressed_size=len(bx_block))
+                                                  compressed_size=len(bx_block),
+                                                  txs_count=block_info[0],
+                                                  prev_block_hash=block_info[1])
 
         self.connection.node.neutrality_service.propagate_block_to_network(bx_block, self.connection, block_hash)
 

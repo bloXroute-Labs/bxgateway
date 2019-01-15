@@ -37,7 +37,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage):
             block_itm_bytes = block_msg_bytes[block_msg_itm_start:block_msg_itm_start + block_itm_len]
 
             _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
-            block_hdr_bytes = block_itm_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
+            block_hdr_bytes = block_itm_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
 
             raw_hash = crypto_utils.keccak_hash(block_hdr_bytes)
 

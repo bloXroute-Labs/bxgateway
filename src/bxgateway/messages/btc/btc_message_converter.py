@@ -3,7 +3,7 @@ from collections import deque
 
 from bxcommon.constants import NULL_TX_SID
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.utils import crypto, logger
+from bxcommon.utils import crypto, logger, convert
 from bxgateway import btc_constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN, BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHORT_ID_LENGTH
@@ -52,7 +52,7 @@ class BtcMessageConverter(AbstractMessageConverter):
             next_off = off + len(blob)
             block[off:next_off] = blob
             off = next_off
-        return block
+        return block, (btc_block_msg.txn_count(), convert.bytes_to_hex(btc_block_msg.prev_block().full_string()))
 
     def bx_block_to_block(self, bx_block, tx_service):
         """

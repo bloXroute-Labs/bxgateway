@@ -1,7 +1,7 @@
 from collections import deque
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.utils import logger
+from bxcommon.utils import logger, convert
 from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
@@ -86,7 +86,7 @@ class EthMessageConverter(AbstractMessageConverter):
 
         :param block_msg: Ethereum new block message
         :param tx_service: Transactions service
-        :return: Internal broadcast message bytes (bytearray)
+        :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash)
         """
 
         if not isinstance(block_msg, NewBlockEthProtocolMessage):
@@ -109,6 +109,9 @@ class EthMessageConverter(AbstractMessageConverter):
         block_hdr_full_bytes = block_itm_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
         block_hdr_bytes = block_itm_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
 
+        _, prev_block_itm_len, prev_block_itm_start = rlp_utils.consume_length_prefix(block_hdr_bytes, 0)
+        prev_block_bytes = block_hdr_bytes[prev_block_itm_start:prev_block_itm_start + prev_block_itm_len]
+
         _, txs_itm_len, txs_itm_start = rlp_utils.consume_length_prefix(block_itm_bytes,
                                                                         block_hdr_itm_start + block_hdr_itm_len)
         txs_bytes = block_itm_bytes[txs_itm_start:txs_itm_start + txs_itm_len]
@@ -120,6 +123,7 @@ class EthMessageConverter(AbstractMessageConverter):
         buf = deque()
 
         tx_start_index = 0
+        tx_count = 0
 
         while True:
             if tx_start_index >= len(txs_bytes):
@@ -157,6 +161,8 @@ class EthMessageConverter(AbstractMessageConverter):
 
             tx_start_index = tx_item_start + tx_item_length
 
+            tx_count += 1
+
         list_of_txs_prefix_bytes = rlp_utils.get_length_prefix_list(content_size)
         buf.appendleft(list_of_txs_prefix_bytes)
         content_size += len(list_of_txs_prefix_bytes)
@@ -182,7 +188,7 @@ class EthMessageConverter(AbstractMessageConverter):
             block[off:next_off] = blob
             off = next_off
 
-        return block
+        return block, (tx_count, convert.bytes_to_hex(prev_block_bytes))
 
     def bx_block_to_block(self, block, tx_service):
         """
@@ -205,10 +211,9 @@ class EthMessageConverter(AbstractMessageConverter):
         block_itm_bytes = block_bytes[block_itm_start:]
 
         _, block_hdr_len, block_hdr_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
-        hdr_bytes = block_itm_bytes[block_hdr_start:block_hdr_start + block_hdr_len]
         full_hdr_bytes = block_itm_bytes[0:block_hdr_start + block_hdr_len]
 
-        block_hash_bytes = crypto_utils.keccak_hash(hdr_bytes)
+        block_hash_bytes = crypto_utils.keccak_hash(full_hdr_bytes)
         block_hash = ObjectHash(block_hash_bytes)
 
         _, block_txs_len, block_txs_start = rlp_utils.consume_length_prefix(block_itm_bytes,

@@ -89,7 +89,10 @@ class BtcMessageConverterTests(AbstractTestCase):
         tx_service.get_txid = get_txid
         tx_service.get_tx_from_sid = get_tx_from_sid
 
-        bloxroute_block = self.btc_message_converter.block_to_bx_block(btc_block, tx_service)
+        bloxroute_block, block_info = self.btc_message_converter.block_to_bx_block(btc_block, tx_service)
+        self.assertEqual(10, block_info[0])
+        self.assertEqual("5a77d1e9612d350b3734f6282259b7ff0a3f87d62cfef5f35e91a5604c0490a3", block_info[1])
+
         # TODO: if we convert bloxroute block to a class, add some tests here
 
         parsed_btc_block, parsed_block_hash, _, _ = self.btc_message_converter.bx_block_to_block(bloxroute_block,
