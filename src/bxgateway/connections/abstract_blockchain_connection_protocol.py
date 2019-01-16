@@ -38,7 +38,8 @@ class AbstractBlockchainConnectionProtocol(object):
 
         if block_hash in self.connection.node.blocks_seen.contents:
             block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN)
+                                                      BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
+                                                      network_num=self.connection.network_num)
             logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
             return
 
@@ -49,6 +50,7 @@ class AbstractBlockchainConnectionProtocol(object):
                                                   BlockStatEventType.BLOCK_COMPRESSED,
                                                   start_date_time=compress_start,
                                                   end_date_time=compress_end,
+                                                  network_num=self.connection.network_num,
                                                   original_size=len(msg.rawbytes()),
                                                   compressed_size=len(bx_block),
                                                   txs_count=block_info[0],
@@ -80,4 +82,5 @@ class AbstractBlockchainConnectionProtocol(object):
         conns = self.connection.node.broadcast(key_message, self.connection)
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_PEER,
+                                                  network_num=self.connection.network_num,
                                                   peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))

@@ -53,7 +53,9 @@ class NeutralityService(object):
         """
         if cipher_hash in self._receipt_tracker:
             self._receipt_tracker[cipher_hash] += 1
-            block_stats.add_block_event_by_block_hash(cipher_hash, BlockStatEventType.ENC_BLOCK_RECEIVED_BLOCK_RECEIPT)
+            block_stats.add_block_event_by_block_hash(cipher_hash,
+                                                      BlockStatEventType.ENC_BLOCK_RECEIVED_BLOCK_RECEIPT,
+                                                      network_num=self._node.network_num)
 
             if self._are_enough_receipts_received(cipher_hash):
                 logger.info("Received enough block receipt messages. Releasing key for block with hash: {}"
@@ -84,6 +86,7 @@ class NeutralityService(object):
                                                   BlockStatEventType.BLOCK_ENCRYPTED,
                                                   start_date_time=encrypt_start,
                                                   end_date_time=encrypt_end,
+                                                  network_num=self._node.network_num,
                                                   encrypted_block_hash=convert.bytes_to_hex(raw_cipher_hash),
                                                   compressed_size=len(bx_block),
                                                   encrypted_size=len(encrypted_block))
@@ -94,6 +97,7 @@ class NeutralityService(object):
         conns = self._node.broadcast(broadcast_message, connection)
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
+                                                  network_num=self._node.network_num,
                                                   requested_by_peer=requested_by_peer,
                                                   peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))
         self.register_for_block_receipts(cipher_hash, bx_block)
@@ -133,6 +137,7 @@ class NeutralityService(object):
         bx_block_hash = crypto.double_sha256(bx_block)
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_PROPAGATION_NEEDED,
+                                                  network_num=self._node.network_num,
                                                   compressed_block_hash=convert.bytes_to_hex(bx_block_hash))
         logger.warn("Did not receive bx_block receipts in timeout. Propagating bx_block to other gateways.")
         self._send_key(cipher_hash)
@@ -149,4 +154,5 @@ class NeutralityService(object):
         conns = self._node.broadcast(key_message, None)
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_PEER,
+                                                  network_num=self._node.network_num,
                                                   peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))

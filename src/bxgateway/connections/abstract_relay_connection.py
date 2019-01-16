@@ -45,6 +45,7 @@ class AbstractRelayConnection(InternalNodeConnection):
 
         block_stats.add_block_event(msg,
                                     BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_PEER,
+                                    network_num=self.network_num,
                                     peer=self.peer_desc,
                                     connection_type=self.CONNECTION_TYPE)
 
@@ -57,7 +58,9 @@ class AbstractRelayConnection(InternalNodeConnection):
         if self.node.in_progress_blocks.has_encryption_key_for_hash(msg_hash):
             logger.debug("Already had key for received block. Sending block to node.")
             block = self.node.in_progress_blocks.decrypt_ciphertext(msg_hash, cipherblob)
-            block_stats.add_block_event(msg, BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS)
+            block_stats.add_block_event(msg,
+                                        BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
+                                        network_num=self.network_num)
             self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
         else:
             logger.debug("Received encrypted block. Storing.")
@@ -75,13 +78,16 @@ class AbstractRelayConnection(InternalNodeConnection):
 
         block_stats.add_block_event_by_block_hash(msg_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_RECEIVED_BY_GATEWAY_FROM_PEER,
+                                                  network_num=self.network_num,
                                                   peer=self.peer_desc,
                                                   connection_type=self.CONNECTION_TYPE)
 
         if self.node.in_progress_blocks.has_ciphertext_for_hash(msg_hash):
             logger.debug("Cipher text found. Decrypting and sending to node.")
             block = self.node.in_progress_blocks.decrypt_and_get_payload(msg_hash, key)
-            block_stats.add_block_event_by_block_hash(msg_hash, BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS)
+            block_stats.add_block_event_by_block_hash(msg_hash,
+                                                      BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
+                                                      network_num=self.network_num)
             self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
         else:
             logger.debug("No cipher text found on key message. Storing.")
@@ -157,7 +163,9 @@ class AbstractRelayConnection(InternalNodeConnection):
         decompress_end = datetime.datetime.utcnow()
 
         if recovered:
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECOVERY_COMPLETED)
+            block_stats.add_block_event_by_block_hash(block_hash,
+                                                      BlockStatEventType.BLOCK_RECOVERY_COMPLETED,
+                                                      network_num=self.network_num)
 
         if encrypted_block_hash_hex is None:
             encrypted_block_hash_hex = "Unknown"
@@ -166,6 +174,7 @@ class AbstractRelayConnection(InternalNodeConnection):
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_IGNORE_SEEN,
                                                       start_date_time=decompress_start,
                                                       end_date_time=decompress_end,
+                                                      network_num=self.network_num,
                                                       encrypted_block_hash=encrypted_block_hash_hex)
             return
 
@@ -173,9 +182,11 @@ class AbstractRelayConnection(InternalNodeConnection):
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_SUCCESS,
                                                       start_date_time=decompress_start,
                                                       end_date_time=decompress_end,
+                                                      network_num=self.network_num,
                                                       encrypted_block_hash=encrypted_block_hash_hex)
             self.node.send_msg_to_node(block_message)
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
+                                                      network_num=self.network_num,
                                                       block_size=len(block_message.rawbytes()))
             self.node.blocks_seen.add(block_hash)
         else:
@@ -184,11 +195,14 @@ class AbstractRelayConnection(InternalNodeConnection):
                                                       BlockStatEventType.BLOCK_DECOMPRESSED_WITH_UNKNOWN_TXS,
                                                       start_date_time=decompress_start,
                                                       end_date_time=decompress_end,
+                                                      network_num=self.network_num,
                                                       encrypted_block_hash=encrypted_block_hash_hex,
                                                       unknown_sids_count=len(unknown_sids),
                                                       unknown_hashes_count=len(unknown_hashes))
             self.enqueue_msg(self._create_unknown_txs_message(unknown_sids, unknown_hashes))
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECOVERY_STARTED)
+            block_stats.add_block_event_by_block_hash(block_hash,
+                                                      BlockStatEventType.BLOCK_RECOVERY_STARTED,
+                                                      network_num=self.network_num)
 
     def _create_unknown_txs_message(self, unknown_sids, unknown_hashes):
         all_unknown_sids = []

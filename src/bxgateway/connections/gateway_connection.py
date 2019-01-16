@@ -139,7 +139,8 @@ class GatewayConnection(InternalNodeConnection):
         bx_block = msg.blob()
         bx_block_hash = crypto.double_sha256(bx_block)
         block_stats.add_block_event_by_block_hash(convert.bytes_to_hex(bx_block_hash),
-                                                  BlockStatEventType.BLOCK_PROPAGATION_REQUESTED_BY_PEER)
+                                                  BlockStatEventType.BLOCK_PROPAGATION_REQUESTED_BY_PEER,
+                                                  network_num=self.network_num)
         self.node.neutrality_service.propagate_block_to_network(bx_block, self)
 
     def _initialize_ordered_handshake(self):
