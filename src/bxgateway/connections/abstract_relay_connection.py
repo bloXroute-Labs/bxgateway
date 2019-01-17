@@ -20,8 +20,8 @@ class AbstractRelayConnection(InternalNodeConnection):
     def __init__(self, sock, address, node, from_me=False):
         super(AbstractRelayConnection, self).__init__(sock, address, node, from_me=from_me)
 
-        hello_msg = HelloMessage(protocol_version=self.protocol_version, idx=self.node.idx,
-                                 network_num=self.network_num)
+        hello_msg = HelloMessage(protocol_version=self.protocol_version, network_num=self.network_num,
+                                 node_id=self.node.opts.node_id)
         self.enqueue_msg(hello_msg)
 
         self.hello_messages = BLOXROUTE_HELLO_MESSAGES

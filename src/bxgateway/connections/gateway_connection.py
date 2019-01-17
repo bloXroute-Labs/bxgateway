@@ -71,6 +71,12 @@ class GatewayConnection(InternalNodeConnection):
 
         port = msg.port()
         ordering = msg.ordering()
+        peer_id = msg.node_id()
+
+        # naively set the the peer id to what reported
+        if peer_id is None:
+            logger.warn("Hello message without peer_id received from {}".format(self))
+        self.peer_id = peer_id
 
         if self.node.connection_exists(ip, port):
             connection = self.node.connection_pool.get_by_ipport(ip, port)
@@ -146,7 +152,7 @@ class GatewayConnection(InternalNodeConnection):
     def _initialize_ordered_handshake(self):
         self.ordering = random.getrandbits(constants.UL_INT_SIZE_IN_BYTES * 8)
         self.enqueue_msg(GatewayHelloMessage(self.protocol_version, self.network_num, self.node.opts.external_ip,
-                                             self.node.opts.external_port, self.ordering))
+                                             self.node.opts.external_port, self.ordering, self.node.opts.node_id))
 
     def _update_port_info(self, new_port):
         self.peer_port = new_port

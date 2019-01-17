@@ -48,7 +48,6 @@ class AbstractGatewayNode(AbstractNode):
         super(AbstractGatewayNode, self).__init__(opts)
 
         self.opts = opts
-        self.idx = constants.NULL_IDX
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 mkdir -p .venv
-virtualenv .venv
+virtualenv -p python2 .venv
 . .venv/bin/activate
 pip install -r requirements.txt
 pip install -r ../bxcommon/requirements.txt

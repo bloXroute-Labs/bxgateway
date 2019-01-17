@@ -32,6 +32,7 @@ def create_node(ip=LOCALHOST, port=8000):
     node.in_progress_blocks = BlockEncryptedCache(AlarmQueue())
     node.neutrality_service = MagicMock(spec=NeutralityService)
     node.blockchain_sync_service = MagicMock(spec=BlockchainSyncService)
+    node.alarm_queue = None
     return node
 
 
