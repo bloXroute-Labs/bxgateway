@@ -28,7 +28,7 @@ def create_node(ip=LOCALHOST, port=8000):
     node.opts = MockOpts(external_ip=ip, external_port=port)
     node.connection_pool = ConnectionPool()
     node.connection_exists = node.connection_pool.has_connection
-    node.network_num = node.opts.network_num
+    node.network_num = node.opts.blockchain_network_num
     node.in_progress_blocks = BlockEncryptedCache(AlarmQueue())
     node.neutrality_service = MagicMock(spec=NeutralityService)
     node.blockchain_sync_service = MagicMock(spec=BlockchainSyncService)

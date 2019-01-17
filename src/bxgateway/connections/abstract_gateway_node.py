@@ -63,6 +63,12 @@ class AbstractGatewayNode(AbstractNode):
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
         self.neutrality_service = NeutralityService(self)
 
+        # TODO: Remove is_internal_blockchain check
+        # Long term, we don't want to allow the gateway itself to specify whether it is an internal gateway - this
+        # should rather be done via an admin console on the SDN or similar
+        if opts.is_internal_blockchain:
+            sdn_http_service.set_node_as_internal_blockchain(self.opts.node_id)
+
         self.remote_blockchain_ip = None
         self.remote_blockchain_port = None
         if opts.connect_to_remote_blockchain:
@@ -96,9 +102,9 @@ class AbstractGatewayNode(AbstractNode):
         pass
 
     def get_tx_service(self, network_num=None):
-        if network_num is not None and network_num != self.opts.network_num:
+        if network_num is not None and network_num != self.opts.blockchain_network_num:
             raise ValueError("Gateway is running with network number '{}' but tx service for '{}' was requested"
-                             .format(self.opts.network_num, network_num))
+                             .format(self.opts.blockchain_network_num, network_num))
 
         return self._tx_service
 
@@ -117,7 +123,7 @@ class AbstractGatewayNode(AbstractNode):
                 self._preferred_gateway_connection = connected_opts_peer
                 return connected_opts_peer
 
-            bloxroute_peers = filter(lambda peer: peer.is_internal, self.peer_gateways)
+            bloxroute_peers = filter(lambda peer: peer.is_internal_gateway, self.peer_gateways)
             connected_bloxroute_peer = self._find_active_connection(bloxroute_peers)
             if connected_bloxroute_peer is not None:
                 self._preferred_gateway_connection = connected_bloxroute_peer
@@ -176,7 +182,7 @@ class AbstractGatewayNode(AbstractNode):
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
             self.remote_blockchain_ip = remote_blockchain_peer.ip
-            self.remote_blockchain_peer = remote_blockchain_peer.peer
+            self.remote_blockchain_port = remote_blockchain_peer.port
             self.enqueue_connection(remote_blockchain_peer.ip, remote_blockchain_peer.port)
             return constants.CANCEL_ALARMS
 
@@ -279,3 +285,4 @@ class AbstractGatewayNode(AbstractNode):
                 if connection.is_active():
                     return connection
         return None
+

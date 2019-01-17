@@ -108,8 +108,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
     def test_get_preferred_gateway_connection_bloxroute(self):
         node = GatewayNode(helpers.get_gateway_opts(8000))
         node.peer_gateways = [
-            OutboundPeerModel(LOCALHOST, 8001, is_internal=False),
-            OutboundPeerModel(LOCALHOST, 8002, is_internal=True)
+            OutboundPeerModel(LOCALHOST, 8001, is_internal_gateway=False),
+            OutboundPeerModel(LOCALHOST, 8002, is_internal_gateway=True)
         ]
 
         node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, False)
