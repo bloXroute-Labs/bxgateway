@@ -286,3 +286,6 @@ class AbstractGatewayNode(AbstractNode):
                     return connection
         return None
 
+    def record_mem_stats(self):
+        self._tx_service.log_tx_service_mem_stats(self.opts.blockchain_network_num)
+        return super(AbstractGatewayNode, self).record_mem_stats()
