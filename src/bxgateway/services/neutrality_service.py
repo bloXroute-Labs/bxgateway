@@ -68,7 +68,7 @@ class NeutralityService(object):
     def propagate_block_to_network(self, bx_block, connection, block_hash=None):
         """
         Propagates encrypted block to bloXroute network and starts listening for block receipts.
-        :param block_message: compressed block
+        :param bx_block: compressed block
         :param connection: connection initiating propagation
         :param block_hash: original block hash, only provided if this is the original block
         :return: broadcast message

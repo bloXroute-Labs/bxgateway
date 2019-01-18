@@ -57,12 +57,11 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
     def msg_auth(self, msg):
         logger.debug("Begin process auth message")
         msg_bytes = msg.rawbytes()
-        decrypted_auth_msg, size = self.rlpx_cipher.decrypt_auth_message(msg_bytes)
+        decrypted_auth_msg, size = self.rlpx_cipher.decrypt_auth_message(bytes(msg_bytes))
         if decrypted_auth_msg is None:
             logger.debug("Auth message is not complete. Continue waiting for more bytes.")
             return
 
-        self.connection.inputbuf.remove_bytes(size)
         self.rlpx_cipher.parse_auth_message(decrypted_auth_msg)
 
         self._enqueue_auth_ack_message()
@@ -110,15 +109,15 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
     def _enqueue_auth_message(self):
         auth_msg_bytes = self._get_auth_msg_bytes()
+        logger.info("Enqueued auth bytes on: {}".format(self.connection))
         self.connection.enqueue_msg_bytes(auth_msg_bytes)
 
     def _enqueue_auth_ack_message(self):
         auth_ack_msg_bytes = self._get_auth_ack_msg_bytes()
+        logger.info("Enqueued auth ack bytes on: {}".format(self.connection))
         self.connection.enqueue_msg_bytes(auth_ack_msg_bytes)
 
     def _enqueue_hello_message(self):
-        logger.debug("Sending hello message")
-
         public_key = self.connection.node.get_public_key()
 
         hello_msg = HelloEthProtocolMessage(None,
@@ -128,6 +127,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                             self.connection.external_port,
                                             public_key)
 
+        logger.info("Enqueued hello bytes on: {}".format(self.connection))
         self.connection.enqueue_msg(hello_msg)
 
     def _enqueue_status_message(self):
