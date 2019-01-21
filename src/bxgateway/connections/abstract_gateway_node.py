@@ -63,11 +63,11 @@ class AbstractGatewayNode(AbstractNode):
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
         self.neutrality_service = NeutralityService(self)
 
-        # TODO: Remove is_internal_blockchain check
+        # TODO: Remove is_internal_gateway check
         # Long term, we don't want to allow the gateway itself to specify whether it is an internal gateway - this
         # should rather be done via an admin console on the SDN or similar
-        if opts.is_internal_blockchain:
-            sdn_http_service.set_node_as_internal_blockchain(self.opts.node_id)
+        if opts.is_internal_gateway:
+            sdn_http_service.set_node_as_internal_gateway(self.opts.node_id)
 
         self.remote_blockchain_ip = None
         self.remote_blockchain_port = None
