@@ -1,5 +1,6 @@
+from bxcommon import constants
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
-from bxcommon.utils import convert
+from bxcommon.utils import convert, logger
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
@@ -32,6 +33,15 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def get_remote_blockchain_connection_cls(self):
         return EthRemoteConnection
+
+    def on_updated_remote_blockchain_peer(self, peer):
+        if "node_public_key" not in peer.attributes:
+            logger.warn("Received remote blockchain peer without remote public key. This is currently unsupported.")
+            return constants.SDN_CONTACT_RETRY_SECONDS
+        else:
+            super(EthGatewayNode, self).on_updated_remote_blockchain_peer(peer)
+            self._remote_public_key = convert.hex_to_bytes(peer.attributes["node_public_key"])
+            return constants.CANCEL_ALARMS
 
     def get_outbound_peer_addresses(self):
         peers = []

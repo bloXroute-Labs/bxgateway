@@ -79,7 +79,7 @@ class AbstractGatewayNode(AbstractNode):
             else:
                 # offset SDN calls so all the peers aren't queued up at the same time
                 self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS + 1,
-                                                self._send_request_for_remote_blockchain_peer)
+                                                self.send_request_for_remote_blockchain_peer)
         self.remote_node_conn = None
         self.remote_node_msg_queue = deque()
 
@@ -173,18 +173,22 @@ class AbstractGatewayNode(AbstractNode):
         if not peer_gateways:
             return constants.SDN_CONTACT_RETRY_SECONDS
 
-    def _send_request_for_remote_blockchain_peer(self):
+    def send_request_for_remote_blockchain_peer(self):
         """
         Requests a bloxroute owned blockchain node from the SDN.
         """
         remote_blockchain_peer = sdn_http_service.fetch_remote_blockchain_peer(self.opts.node_id)
         if remote_blockchain_peer is None:
+            logger.info("Did not receive expected remote blockchain peer. Retrying.".format(remote_blockchain_peer))
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
-            self.remote_blockchain_ip = remote_blockchain_peer.ip
-            self.remote_blockchain_port = remote_blockchain_peer.port
-            self.enqueue_connection(remote_blockchain_peer.ip, remote_blockchain_peer.port)
-            return constants.CANCEL_ALARMS
+            logger.info("Processing remote blockchain peer: {}".format(remote_blockchain_peer))
+            return self.on_updated_remote_blockchain_peer(remote_blockchain_peer)
+
+    def on_updated_remote_blockchain_peer(self, outbound_peer):
+        self.remote_blockchain_ip = outbound_peer.ip
+        self.remote_blockchain_port = outbound_peer.port
+        self.enqueue_connection(outbound_peer.ip, outbound_peer.port)
 
     def get_outbound_peer_addresses(self):
         peers = [(peer.ip, peer.port) for peer in self.outbound_peers]
@@ -196,7 +200,7 @@ class AbstractGatewayNode(AbstractNode):
     def get_connection_class(self, ip=None, port=None, from_me=False):
         if self.is_local_blockchain_address(ip, port):
             return self.get_blockchain_connection_cls()
-        elif self.opts.remote_blockchain_ip == ip and self.opts.remote_blockchain_port == port:
+        elif self.remote_blockchain_ip == ip and self.remote_blockchain_port == port:
             return self.get_remote_blockchain_connection_cls()
         # only other gateways attempt to actively connect to gateways
         elif not from_me or any(ip == peer_gateway.ip and port == peer_gateway.port
@@ -205,8 +209,8 @@ class AbstractGatewayNode(AbstractNode):
         elif any(ip == peer_relay.ip and port == peer_relay.port for peer_relay in self.peer_relays):
             return self.get_relay_connection_cls()
         else:
-            logger.error("Attempted connection to peer that's not a blockchain, remote blockchain, gateway, or relay."
-                         "Tried: {}:{}, from_me={}. Ignoring".format(ip, port, from_me))
+            logger.error("Attempted connection to peer that's not a blockchain, remote blockchain, gateway, or relay. "
+                         "Tried: {}:{}, from_me={}. Ignoring.".format(ip, port, from_me))
             return None
 
     def is_local_blockchain_address(self, ip, port):
@@ -245,7 +249,7 @@ class AbstractGatewayNode(AbstractNode):
             sdn_http_service.submit_peer_connection_error_event(self.opts.node_id, ip, port)
             self._remove_gateway_peer(ip, port)
         elif connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
-            self._send_request_for_remote_blockchain_peer()
+            self.send_request_for_remote_blockchain_peer()
 
         return 0
 
