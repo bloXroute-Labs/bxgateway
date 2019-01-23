@@ -10,8 +10,17 @@ from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, pack_int_
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
+class InventoryType(object):
+    MSG_WITNESS_FLAG = 1 << 30
+
+    MSG_TX = 1
+    MSG_BLOCK = 2
+    MSG_WITNESS_BLOCK = MSG_BLOCK | MSG_WITNESS_FLAG
+    MSG_WITNESS_TX = MSG_TX | MSG_WITNESS_FLAG
+
+
 class InventoryBtcMessage(BtcMessage):
-    def __init__(self, magic=None, inv_vect=None, command=None, buf=None):
+    def __init__(self, magic=None, inv_vect=None, command=None, request_witness_data=False, buf=None):
         if buf is None:
             buf = bytearray(
                 BTC_HDR_COMMON_OFF + 9 + 36 * len(inv_vect))  # we conservatively allocate the max space for varint
@@ -21,7 +30,12 @@ class InventoryBtcMessage(BtcMessage):
             off += pack_int_to_btcvarint(len(inv_vect), buf, off)
 
             for inv_item in inv_vect:
-                struct.pack_into('<L', buf, off, inv_item[0])
+
+                inv_type = inv_item[0]
+                if request_witness_data:
+                    inv_type = self._inv_type_to_witness_inv_type(inv_item[0])
+
+                struct.pack_into("<L", buf, off, inv_type)
                 off += 4
                 buf[off:off + 32] = inv_item[1].get_big_endian()
                 off += 32
@@ -38,6 +52,15 @@ class InventoryBtcMessage(BtcMessage):
         num_items, size = btcvarint_to_int(self.buf, off)
         return num_items
 
+    def _inv_type_to_witness_inv_type(self, inv_type):
+        if inv_type == InventoryType.MSG_TX:
+            return InventoryType.MSG_WITNESS_TX
+
+        if inv_type == InventoryType.MSG_BLOCK:
+            return InventoryType.MSG_WITNESS_BLOCK
+
+        return inv_type
+
     def __iter__(self):
         off = BTC_HDR_COMMON_OFF
         num_items, size = btcvarint_to_int(self.buf, off)
@@ -46,7 +69,7 @@ class InventoryBtcMessage(BtcMessage):
 
         self._items = list()
         for _ in xrange(num_items):
-            invtype = struct.unpack_from('<L', self.buf, off)[0]
+            invtype = struct.unpack_from("<L", self.buf, off)[0]
             off += 4
             yield (invtype, BtcObjectHash(buf=self.buf, offset=off, length=BTC_SHA_HASH_LEN))
             off += 32
@@ -56,18 +79,18 @@ class InvBtcMessage(InventoryBtcMessage):
     MESSAGE_TYPE = BtcMessageType.INVENTORY
 
     def __init__(self, magic=None, inv_vects=None, buf=None):
-        InventoryBtcMessage.__init__(self, magic, inv_vects, self.MESSAGE_TYPE, buf)
+        super(InvBtcMessage, self).__init__(magic, inv_vects, self.MESSAGE_TYPE, False, buf)
 
 
 class GetDataBtcMessage(InventoryBtcMessage):
     MESSAGE_TYPE = BtcMessageType.GET_DATA
 
-    def __init__(self, magic=None, inv_vects=None, buf=None):
-        InventoryBtcMessage.__init__(self, magic, inv_vects, self.MESSAGE_TYPE, buf)
+    def __init__(self, magic=None, inv_vects=None, request_witness_data=False, buf=None):
+        super(GetDataBtcMessage, self).__init__(magic, inv_vects, self.MESSAGE_TYPE, request_witness_data, buf)
 
 
 class NotFoundBtcMessage(InventoryBtcMessage):
     MESSAGE_TYPE = BtcMessageType.NOT_FOUND
 
     def __init__(self, magic=None, inv_vects=None, buf=None):
-        InventoryBtcMessage.__init__(self, magic, inv_vects, self.MESSAGE_TYPE, buf)
+        super(NotFoundBtcMessage, self).__init__(magic, inv_vects, self.MESSAGE_TYPE, False, buf)

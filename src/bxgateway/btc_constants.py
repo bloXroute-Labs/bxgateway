@@ -30,3 +30,10 @@ BTC_HELLO_MESSAGES = ["version", "verack"]
 # Indicator byte compressing bitcoin blocks to indicate short id
 BTC_SHORT_ID_INDICATOR = 0xFF
 BTC_SHORT_ID_LENGTH = 5
+
+TX_VERSION_LEN = 4
+TX_SEGWIT_FLAG_LEN = 2
+TX_LOCK_TIME_LEN = 4
+TX_SEGWIT_FLAG_VALUE = 1
+
+NODE_WITNESS_SERVICE_FLAG = (1 << 3)

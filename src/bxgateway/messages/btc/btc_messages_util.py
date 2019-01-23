@@ -2,7 +2,8 @@ import socket
 import struct
 
 from bxcommon import constants
-from bxgateway.btc_constants import BTC_IP_ADDR_PORT_SIZE
+from bxgateway.btc_constants import BTC_IP_ADDR_PORT_SIZE, TX_SEGWIT_FLAG_VALUE, TX_VERSION_LEN, TX_SEGWIT_FLAG_LEN, \
+    TX_LOCK_TIME_LEN
 
 
 def ipaddrport_to_btcbytearray(ip_addr, ip_port):
@@ -78,11 +79,65 @@ def btcvarint_to_int(buf, off):
 
 
 def get_next_tx_size(buf, off, tail=-1):
+    segwit_flag, = struct.unpack_from(">h", buf, off + 4)
+
+    if segwit_flag == TX_SEGWIT_FLAG_VALUE:
+        return get_next_segwit_tx_size(buf, off, tail)
+    else:
+        return get_next_non_segwit_tx_size(buf, off, tail)
+
+
+def get_next_non_segwit_tx_size(buf, off, tail=-1):
     """
     Returns the size of the next transaction in the.
     Returns -1 if there's a parsing error or the end goes beyond the tail.
     """
-    end = off + 4
+    end = off + TX_VERSION_LEN
+
+    io_size, _, _ = _get_tx_io_count_and_size(buf, end, tail)
+
+    if io_size < 0 :
+        return -1
+
+    end += io_size + TX_LOCK_TIME_LEN
+
+    if end > tail > 0:
+        return -1
+
+    return end - off
+
+def get_next_segwit_tx_size(buf, off, tail=-1):
+    """
+    Returns the size of the next transaction in the.
+    Returns -1 if there's a parsing error or the end goes beyond the tail.
+    """
+    end = off + TX_VERSION_LEN + TX_SEGWIT_FLAG_LEN
+
+    io_size, txin_c, _ = _get_tx_io_count_and_size(buf, end, tail)
+
+    if io_size < 0 :
+        return -1
+
+    end += io_size
+
+    for _ in xrange(txin_c):
+        witness_count, size = btcvarint_to_int(buf, end)
+        end += size
+
+        for _ in xrange(witness_count):
+            witness_len, size = btcvarint_to_int(buf, end)
+            end += size + witness_len
+
+    end += TX_LOCK_TIME_LEN
+
+    if end > tail > 0:
+        return -1
+
+    return end - off
+
+def _get_tx_io_count_and_size(buf, start, tail):
+    end = start
+
     txin_c, size = btcvarint_to_int(buf, end)
     end += size
 
@@ -107,9 +162,4 @@ def get_next_tx_size(buf, off, tail=-1):
         if end > tail > 0:
             return -1
 
-    end += 4
-
-    if end > tail > 0:
-        return -1
-
-    return end - off
+    return  end - start, txin_c, txout_c
