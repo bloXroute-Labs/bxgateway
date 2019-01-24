@@ -199,10 +199,13 @@ class AbstractRelayConnection(InternalNodeConnection):
                                                       encrypted_block_hash=encrypted_block_hash_hex,
                                                       unknown_sids_count=len(unknown_sids),
                                                       unknown_hashes_count=len(unknown_hashes))
-            self.enqueue_msg(self._create_unknown_txs_message(unknown_sids, unknown_hashes))
+            gettxs_message = self._create_unknown_txs_message(unknown_sids, unknown_hashes)
+            self.enqueue_msg(gettxs_message)
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_RECOVERY_STARTED,
-                                                      network_num=self.network_num)
+                                                      network_num=self.network_num,
+                                                      request_hash=convert.bytes_to_hex(
+                                                          crypto.double_sha256(gettxs_message.rawbytes())))
 
     def _create_unknown_txs_message(self, unknown_sids, unknown_hashes):
         all_unknown_sids = []
