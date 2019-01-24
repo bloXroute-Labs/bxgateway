@@ -177,7 +177,7 @@ class AbstractGatewayNode(AbstractNode):
         """
         Requests a bloxroute owned blockchain node from the SDN.
         """
-        remote_blockchain_peer = sdn_http_service.fetch_remote_blockchain_peer(self.opts.node_id)
+        remote_blockchain_peer = sdn_http_service.fetch_remote_blockchain_peer(self.opts.blockchain_network_num)
         if remote_blockchain_peer is None:
             logger.info("Did not receive expected remote blockchain peer. Retrying.".format(remote_blockchain_peer))
             return constants.SDN_CONTACT_RETRY_SECONDS
