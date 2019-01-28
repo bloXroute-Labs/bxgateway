@@ -50,7 +50,7 @@ def get_opts():
 
     # Get more options specific to gateways.
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int, required=True)
+    arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
     arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. E.g Bitcoin, Ethereum", type=str,
                             required=True)
     arg_parser.add_argument("--blockchain-network", help="Blockchain network. E.g Mainnet, Testnet", type=str,
