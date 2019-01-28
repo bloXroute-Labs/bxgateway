@@ -184,10 +184,10 @@ class AbstractRelayConnection(InternalNodeConnection):
                                                       end_date_time=decompress_end,
                                                       network_num=self.network_num,
                                                       encrypted_block_hash=encrypted_block_hash_hex)
-            self.node.send_msg_to_node(block_message)
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
-                                                      network_num=self.network_num,
-                                                      block_size=len(block_message.rawbytes()))
+            if recovered:
+                self.node.block_queuing_service.update_recovered_block(block_hash, block_message)
+            else:
+                self.node.block_queuing_service.push(block_hash, block_message)
             self.node.blocks_seen.add(block_hash)
         else:
             self.node.block_recovery_service.add_block(bx_block, block_hash, unknown_sids, unknown_hashes)
@@ -201,6 +201,7 @@ class AbstractRelayConnection(InternalNodeConnection):
                                                       unknown_hashes_count=len(unknown_hashes))
             gettxs_message = self._create_unknown_txs_message(unknown_sids, unknown_hashes)
             self.enqueue_msg(gettxs_message)
+            self.node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_RECOVERY_STARTED,
                                                       network_num=self.network_num,

@@ -13,6 +13,7 @@ from bxcommon.utils import logger
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway import gateway_constants
 from bxgateway.connections.gateway_connection import GatewayConnection
+from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.storage.block_encrypted_cache import BlockEncryptedCache
@@ -62,6 +63,7 @@ class AbstractGatewayNode(AbstractNode):
 
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
         self.neutrality_service = NeutralityService(self)
+        self.block_queuing_service = BlockQueuingService(self)
 
         # TODO: Remove is_internal_gateway check
         # Long term, we don't want to allow the gateway itself to specify whether it is an internal gateway - this

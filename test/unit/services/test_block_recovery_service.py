@@ -4,9 +4,9 @@ import time
 from mock import MagicMock
 
 from bxcommon import constants
-from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_alarm_queue import MockAlarmQueue
+from bxgateway.services.block_recovery_service import BlockRecoveryService
 
 
 def _create_block():
@@ -144,7 +144,7 @@ class BlockRecoveryManagerTest(AbstractTestCase):
 
         self.assertEqual(len(self.block_recovery_service.recovered_blocks), 0)
 
-    def test_clean_up_old_blockss__multiple_blocks(self):
+    def test_clean_up_old_blocks__multiple_blocks(self):
         self.assertFalse(self.block_recovery_service.cleanup_scheduled)
         self.assertEqual(len(self.alarm_queue.alarms), 0)
 

@@ -62,6 +62,7 @@ class AbstractBlockchainConnectionProtocol(object):
         self.connection.node.neutrality_service.propagate_block_to_network(bx_block, self.connection, block_hash)
 
         self.connection.node.block_recovery_service.cancel_recovery_for_block(block_hash)
+        self.connection.node.block_queuing_service.remove(block_hash)
         self.connection.node.blocks_seen.add(block_hash)
 
     def msg_proxy_request(self, msg):
