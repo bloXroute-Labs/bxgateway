@@ -133,7 +133,7 @@ class EthMessageConverter(AbstractMessageConverter):
             tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
             tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
             tx_hash = ObjectHash(tx_hash_bytes)
-            short_id = tx_service.get_txid(tx_hash)
+            short_id = tx_service.get_short_id(tx_hash)
 
             if short_id <= 0:
                 is_full_tx_bytes = rlp_utils.encode_int(1)
@@ -257,7 +257,7 @@ class EthMessageConverter(AbstractMessageConverter):
             if is_full_tx:
                 tx_bytes = tx_content_bytes
             else:
-                tx_hash, tx_bytes = tx_service.get_tx_from_sid(short_id)
+                tx_hash, tx_bytes = tx_service.get_transaction(short_id)
 
                 if tx_hash is None:
                     unknown_tx_sids.append(short_id)

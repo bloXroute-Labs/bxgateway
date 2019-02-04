@@ -118,7 +118,7 @@ class EthMessageConverterTests(AbstractTestCase):
             txs_hashes.append(tx_hash)
 
             if i % 2 == 0:
-                self.tx_service.assign_tx_to_sid(tx_hash, i, time.time())
+                self.tx_service.assign_short_id(tx_hash, i)
                 short_ids.append(i)
             else:
                 short_ids.append(0)
@@ -206,8 +206,8 @@ class EthMessageConverterTests(AbstractTestCase):
             tx_bytes = rlp.encode(tx, Transaction)
             tx_hash = hashlib.sha256(tx_bytes)
 
-            self.tx_service.assign_tx_to_sid(tx_hash, i, time.time())
-            self.tx_service.hash_to_contents[tx_hash] = tx_bytes
+            self.tx_service.assign_short_id(tx_hash, i)
+            self.tx_service.txhash_to_contents[tx_hash] = tx_bytes
 
             short_tx = ShortTransaction(0, i, bytes())
             short_txs.append(short_tx)
@@ -263,8 +263,8 @@ class EthMessageConverterTests(AbstractTestCase):
             if i % 2 == 0:
                 tx_hash = hashlib.sha256(tx_bytes)
 
-                self.tx_service.assign_tx_to_sid(tx_hash, i, time.time())
-                self.tx_service.hash_to_contents[tx_hash] = tx_bytes
+                self.tx_service.assign_short_id(tx_hash, i)
+                self.tx_service.txhash_to_contents[tx_hash] = tx_bytes
 
                 short_tx = ShortTransaction(0, i, bytes())
                 short_txs.append(short_tx)
@@ -326,8 +326,8 @@ class EthMessageConverterTests(AbstractTestCase):
             tx_hash = tx.hash()
             txs_hashes.append(tx_hash)
 
-            self.tx_service.assign_tx_to_sid(tx_hash, i, time.time())
-            self.tx_service.hash_to_contents[tx_hash] = tx_bytes
+            self.tx_service.assign_short_id(tx_hash, i)
+            self.tx_service.txhash_to_contents[tx_hash] = tx_bytes
             short_ids.append(i)
 
         block = Block(mock_eth_messages.get_dummy_block_header(100), txs, [mock_eth_messages.get_dummy_block_header(2)])

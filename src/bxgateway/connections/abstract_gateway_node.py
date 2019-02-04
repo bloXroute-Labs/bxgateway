@@ -30,7 +30,6 @@ class AbstractGatewayNode(AbstractNode):
     Attributes
     ----------
     opts: node configuration options
-    idx: node index, included in HelloMessages
     peer_gateways: gateway nodes that is/will be connected to
     peer_relays: relay nodes that is/will be connected to
     node_conn: connection object to blockchain node

@@ -102,19 +102,20 @@ class AbstractRelayConnection(InternalNodeConnection):
         short_id = msg.short_id()
         tx_hash = msg.tx_hash()
 
-        if tx_hash in tx_service.txhash_to_sid:
+        if tx_hash in tx_service.txhash_to_sids and not short_id:
             logger.debug("Transaction has assigned short id!")
             return
 
         if short_id:
-            tx_service.assign_tx_to_sid(tx_hash, short_id, time.time())
+            tx_service.assign_short_id(tx_hash, short_id)
+            self.node.block_recovery_service.check_missing_sid(short_id)
 
-        if tx_hash in tx_service.hash_to_contents:
+        if tx_hash in tx_service.txhash_to_contents:
             logger.debug("Transaction has been seen, but short id newly assigned.")
             return
 
         logger.debug("Adding hash value to tx service and forwarding it to node")
-        tx_service.hash_to_contents[tx_hash] = msg.tx_val()
+        tx_service.txhash_to_contents[tx_hash] = msg.tx_val()
 
         self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
         self._msg_broadcast_retry()
@@ -125,26 +126,26 @@ class AbstractRelayConnection(InternalNodeConnection):
 
     def msg_txs(self, msg):
 
-        txs = msg.get_txs()
+        transactions = msg.get_txs()
 
         logger.info("Block recovery status: Received mappings from server. Contains {0} txs."
-                    .format(len(txs)))
+                    .format(len(transactions)))
 
         tx_service = self.node.get_tx_service()
 
-        for tx in txs:
+        for transaction in transactions:
 
-            tx_sid, tx_hash, tx = tx
+            short_id, transaction_hash, transaction_contents = transaction
 
-            self.node.block_recovery_service.check_missing_sid(tx_sid)
+            self.node.block_recovery_service.check_missing_sid(short_id)
 
-            if tx_service.get_txid(tx_hash) == NULL_TX_SID:
-                tx_service.assign_tx_to_sid(tx_hash, tx_sid, time.time())
+            if short_id not in tx_service.sid_to_txhash:
+                tx_service.assign_short_id(transaction_hash, short_id)
 
-            self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
+            self.node.block_recovery_service.check_missing_tx_hash(transaction_hash)
 
-            if tx_hash not in tx_service.hash_to_contents:
-                tx_service.hash_to_contents[tx_hash] = tx
+            if transaction_hash not in tx_service.txhash_to_contents:
+                tx_service.txhash_to_contents[transaction_hash] = transaction_contents
 
         self._msg_broadcast_retry()
 
@@ -184,12 +185,18 @@ class AbstractRelayConnection(InternalNodeConnection):
                                                       end_date_time=decompress_end,
                                                       network_num=self.network_num,
                                                       encrypted_block_hash=encrypted_block_hash_hex)
-            if recovered:
+            if recovered or block_hash in self.node.block_queuing_service:
                 self.node.block_queuing_service.update_recovered_block(block_hash, block_message)
             else:
                 self.node.block_queuing_service.push(block_hash, block_message)
+
+            self.node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self.node.blocks_seen.add(block_hash)
         else:
+            if block_hash in self.node.block_queuing_service and not recovered:
+                logger.debug("Handling already queued block again. Ignoring.")
+                return
+
             self.node.block_recovery_service.add_block(bx_block, block_hash, unknown_sids, unknown_hashes)
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_DECOMPRESSED_WITH_UNKNOWN_TXS,
@@ -201,12 +208,22 @@ class AbstractRelayConnection(InternalNodeConnection):
                                                       unknown_hashes_count=len(unknown_hashes))
             gettxs_message = self._create_unknown_txs_message(unknown_sids, unknown_hashes)
             self.enqueue_msg(gettxs_message)
-            self.node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_RECOVERY_STARTED,
-                                                      network_num=self.network_num,
-                                                      request_hash=convert.bytes_to_hex(
-                                                          crypto.double_sha256(gettxs_message.rawbytes())))
+
+            if recovered:
+                # for now, just allow retry.
+                block_stats.add_block_event_by_block_hash(block_hash,
+                                                          BlockStatEventType.BLOCK_RECOVERY_REPEATED,
+                                                          network_num=self.network_num,
+                                                          request_hash=convert.bytes_to_hex(
+                                                              crypto.double_sha256(gettxs_message.rawbytes())
+                                                          ))
+            else:
+                self.node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
+                block_stats.add_block_event_by_block_hash(block_hash,
+                                                          BlockStatEventType.BLOCK_RECOVERY_STARTED,
+                                                          network_num=self.network_num,
+                                                          request_hash=convert.bytes_to_hex(
+                                                              crypto.double_sha256(gettxs_message.rawbytes())))
 
     def _create_unknown_txs_message(self, unknown_sids, unknown_hashes):
         all_unknown_sids = []
@@ -216,7 +233,7 @@ class AbstractRelayConnection(InternalNodeConnection):
 
         # retrieving sids of txs with unknown contents
         for tx_hash in unknown_hashes:
-            tx_sid = tx_service.get_txid(tx_hash)
+            tx_sid = tx_service.get_short_id(tx_hash)
             all_unknown_sids.append(tx_sid)
 
         logger.debug("Block recovery: Sending GetTxsMessage to relay with {0} unknown tx short ids."

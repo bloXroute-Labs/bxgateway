@@ -24,7 +24,7 @@ class AbstractBlockchainConnectionProtocol(object):
             # All connections outside of this one is a bloXroute server
             logger.debug("Broadcasting the transaction to peers")
             self.connection.node.broadcast(blx_txmsg, self.connection)
-            self.connection.node.get_tx_service().hash_to_contents[tx_hash] = tx_bytes
+            self.connection.node.get_tx_service().txhash_to_contents[tx_hash] = tx_bytes
 
     def msg_block(self, msg):
         """

@@ -97,6 +97,14 @@ class BlockQueuingService(object):
 
         return len(self._block_queue)
 
+    def __contains__(self, block_hash):
+        """
+        Indicates if block hash is in block queue.
+        :param block_hash:
+        :return: if block hash is in queue
+        """
+        return block_hash in self._blocks
+
     def update_recovered_block(self, block_hash, block_msg):
         """
         Updates status of the block in the queue as recovered and ready to send to blockchain node

@@ -74,7 +74,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         block_hash = btc_block.block_hash()
 
         # find an sid for half the transactions
-        def get_txid(txhash):
+        def get_short_id(txhash):
             index = txn_hashes.index(txhash)
             if index % 2 == 0:
                 return short_ids[int(index / 2)]
@@ -82,12 +82,12 @@ class BtcMessageConverterTests(AbstractTestCase):
                 return NULL_TX_SID
 
         # return a transaction's info for assigned sids
-        def get_tx_from_sid(sid):
+        def get_transaction(sid):
             return txn_hashes[sid * 2], txns[sid * 2]
 
         tx_service = MagicMock()
-        tx_service.get_txid = get_txid
-        tx_service.get_tx_from_sid = get_tx_from_sid
+        tx_service.get_short_id = get_short_id
+        tx_service.get_transaction = get_transaction
 
         bloxroute_block, block_info = self.btc_message_converter.block_to_bx_block(btc_block, tx_service)
         self.assertEqual(10, block_info[0])

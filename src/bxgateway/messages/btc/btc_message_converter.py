@@ -34,7 +34,7 @@ class BtcMessageConverter(AbstractMessageConverter):
 
         for tx in btc_block_msg.txns():
             tx_hash = BtcObjectHash(buf=crypto.double_sha256(tx), length=BTC_SHA_HASH_LEN)
-            shortid = tx_service.get_txid(tx_hash)
+            shortid = tx_service.get_short_id(tx_hash)
             if shortid == NULL_TX_SID:
                 buf.append(tx)
                 size += len(tx)
@@ -56,7 +56,7 @@ class BtcMessageConverter(AbstractMessageConverter):
 
     def bx_block_to_block(self, bx_block, tx_service):
         """
-        Uncompresses a bx bx_block from a broadcast bx_block message and converts to a raw BTC bx_block.
+        Uncompresses a bx_block from a broadcast bx_block message and converts to a raw BTC bx_block.
         """
 
         # Initialize tracking of transaction and SID mapping
@@ -82,7 +82,7 @@ class BtcMessageConverter(AbstractMessageConverter):
         while off < len(bx_block):
             if bx_block[off] == btc_constants.BTC_SHORT_ID_INDICATOR:
                 sid, = struct.unpack_from("<I", bx_block, off + 1)
-                tx_hash, tx = tx_service.get_tx_from_sid(sid)
+                tx_hash, tx = tx_service.get_transaction(sid)
 
                 if tx_hash is None:
                     unknown_tx_sids.append(sid)
