@@ -1,26 +1,12 @@
 import struct
 
+from bxcommon.utils.log_level import LogLevel
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size, pack_int_to_btcvarint
 from bxcommon.utils import crypto, convert
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
-
-
-def pack_block_message(buf, magic, block_header, txns):
-    off = BTC_HDR_COMMON_OFF
-    buf[off:off + 80] = block_header
-    off += 80
-    num_txns = len(txns)
-    off += pack_int_to_btcvarint(num_txns, buf, off)
-
-    for i in xrange(num_txns):
-        tx_buf = txns[i]
-        buf[off:off + len(tx_buf)] = tx_buf
-        off += len(tx_buf)
-
-    return BtcMessage(magic, 'block', off - BTC_HDR_COMMON_OFF, buf)
 
 
 # FIXME, there's a lot of duplicate code between here and BlockHeader
@@ -60,6 +46,9 @@ class BlockBtcMessage(BtcMessage):
         self._version = self._prev_block = self._merkle_root = self._timestamp = None
         self._bits = self._nonce = self._txn_count = self._txns = self._hash_val = None
         self._header = self._tx_offset = None
+
+    def log_level(self):
+        return LogLevel.INFO
 
     def version(self):
         if self._version is None:
@@ -153,8 +142,4 @@ class BlockBtcMessage(BtcMessage):
         return is_here, BtcObjectHash(buf=raw_hash, length=BTC_SHA_HASH_LEN), payload_len
 
     def __repr__(self):
-        return "BlockBtcMessage<block_hash: {}, rawbytes: {}, length: {}>".format(self.block_hash(),
-                                                                                  convert.bytes_to_hex(
-                                                                                      self.rawbytes().tobytes()
-                                                                                  ),
-                                                                                  len(self.rawbytes()))
+        return "BlockBtcMessage<block_hash: {}, length: {}>".format(self.block_hash(), len(self.rawbytes()))

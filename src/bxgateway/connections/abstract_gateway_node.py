@@ -153,7 +153,7 @@ class AbstractGatewayNode(AbstractNode):
         Requests relay peers from SDN. Merges list with provided command line relays.
         """
         peer_relays = sdn_http_service.fetch_relay_peers(self.opts.node_id)
-        logger.info("Processing updated peer relays: {}".format(peer_relays))
+        logger.trace("Processing updated peer relays: {}".format(peer_relays))
         self.peer_relays = set(self.opts.peer_relays + peer_relays)
         self.on_updated_peers(self._get_all_peers())
 
@@ -166,7 +166,7 @@ class AbstractGatewayNode(AbstractNode):
         Requests gateway peers from SDN. Merges list with provided command line gateways.
         """
         peer_gateways = sdn_http_service.fetch_gateway_peers(self.opts.node_id)
-        logger.info("Processing updated peer gateways: {}".format(peer_gateways))
+        logger.trace("Processing updated peer gateways: {}".format(peer_gateways))
         self._add_gateway_peers(peer_gateways)
         self.on_updated_peers(self._get_all_peers())
 
@@ -180,10 +180,10 @@ class AbstractGatewayNode(AbstractNode):
         """
         remote_blockchain_peer = sdn_http_service.fetch_remote_blockchain_peer(self.opts.blockchain_network_num)
         if remote_blockchain_peer is None:
-            logger.info("Did not receive expected remote blockchain peer. Retrying.".format(remote_blockchain_peer))
+            logger.trace("Did not receive expected remote blockchain peer. Retrying.".format(remote_blockchain_peer))
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
-            logger.info("Processing remote blockchain peer: {}".format(remote_blockchain_peer))
+            logger.trace("Processing remote blockchain peer: {}".format(remote_blockchain_peer))
             return self.on_updated_remote_blockchain_peer(remote_blockchain_peer)
 
     def on_updated_remote_blockchain_peer(self, outbound_peer):
@@ -222,10 +222,9 @@ class AbstractGatewayNode(AbstractNode):
         Sends a message to the blockchain node this is connected to.
         """
         if self.node_conn is not None:
-            logger.debug("Sending message to node: {}".format(msg))
             self.node_conn.enqueue_msg(msg)
         else:
-            logger.debug("Adding message to node's message queue: {}".format(msg))
+            logger.trace("Adding message to local node's message queue: {}".format(msg))
             self.node_msg_queue.append(msg.rawbytes())
 
     def send_msg_to_remote_node(self, msg):
@@ -233,7 +232,6 @@ class AbstractGatewayNode(AbstractNode):
         Sends a message to remote connected blockchain node.
         """
         if self.remote_node_conn is not None:
-            logger.debug("Sending message to remote node: {}".format(msg))
             self.remote_node_conn.enqueue_msg(msg)
         else:
             logger.debug("Adding message to remote node's message queue: {}".format(msg))

@@ -19,7 +19,7 @@ class BtcMessage(AbstractMessage):
         checksum = crypto.bitcoin_hash(self._memoryview[BTC_HDR_COMMON_OFF:payload_len + BTC_HDR_COMMON_OFF])
 
         off = 0
-        struct.pack_into('<L12sL', buf, off, magic_num, command, payload_len)
+        struct.pack_into("<L12sL", buf, off, magic_num, command, payload_len)
         off += 20
         buf[off:off + 4] = checksum[0:4]
 
@@ -32,7 +32,7 @@ class BtcMessage(AbstractMessage):
     # TODO: pull this out in to a message protocol
     @classmethod
     def unpack(cls, buf):
-        magic, command, payload_length = struct.unpack_from('<L12sL', buf)
+        magic, command, payload_length = struct.unpack_from("<L12sL", buf)
         checksum = buf[BTC_HEADER_MINUS_CHECKSUM:cls.HEADER_LENGTH]
         return command.rstrip(MSG_NULL_BYTE), magic, checksum, payload_length
 
@@ -61,7 +61,7 @@ class BtcMessage(AbstractMessage):
         Returns a memoryview of the message
         """
         if self._payload_len is None:
-            self._payload_len = struct.unpack_from('<L', self.buf, 16)[0]
+            self._payload_len = struct.unpack_from("<L", self.buf, 16)[0]
 
         if self._payload_len + BTC_HDR_COMMON_OFF == len(self.buf):
             return self._memoryview
@@ -70,17 +70,17 @@ class BtcMessage(AbstractMessage):
 
     def magic(self):
         if self._magic is None:
-            self._magic = struct.unpack_from('<L', self.buf)[0]
+            self._magic, = struct.unpack_from("<L", self.buf)
         return self._magic
 
     def command(self):
         if self._command is None:
-            self._command = struct.unpack_from('<12s', self.buf, 4)[0]
+            self._command = struct.unpack_from("<12s", self.buf, 4)[0].rstrip(MSG_NULL_BYTE)
         return self._command
 
     def payload_len(self):
         if self._payload_len is None:
-            self._payload_len = struct.unpack_from('<L', self.buf, 16)[0]
+            self._payload_len, = struct.unpack_from("<L", self.buf, 16)
         return self._payload_len
 
     def checksum(self):

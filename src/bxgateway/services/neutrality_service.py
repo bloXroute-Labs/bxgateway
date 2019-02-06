@@ -37,10 +37,10 @@ class NeutralityService(object):
 
         self._receipt_tracker[cipher_hash] = 0
         if gateway_constants.NEUTRALITY_POLICY == NeutralityPolicy.RELEASE_IMMEDIATELY:
-            logger.info("Neutrality policy: releasing key immediately.")
+            logger.debug("Neutrality policy: releasing key immediately.")
             self._send_key(cipher_hash)
         else:
-            logger.info("Neutrality policy: waiting for receipts before releasing key.")
+            logger.debug("Neutrality policy: waiting for receipts before releasing key.")
             alarm_id = self._node.alarm_queue.register_alarm(gateway_constants.NEUTRALITY_BROADCAST_BLOCK_TIMEOUT_S,
                                                              lambda: self._propagate_block_to_gateway_peers(cipher_hash,
                                                                                                             bx_block))
@@ -139,7 +139,9 @@ class NeutralityService(object):
                                                   BlockStatEventType.ENC_BLOCK_PROPAGATION_NEEDED,
                                                   network_num=self._node.network_num,
                                                   compressed_block_hash=convert.bytes_to_hex(bx_block_hash))
-        logger.warn("Did not receive bx_block receipts in timeout. Propagating bx_block to other gateways.")
+
+        logger.warn("Did not receive receipts for: {}. Propagating compressed block to other gateways: {}"
+                    .format(cipher_hash, bx_block_hash))
         self._send_key(cipher_hash)
 
         request = BlockPropagationRequestMessage(bx_block)

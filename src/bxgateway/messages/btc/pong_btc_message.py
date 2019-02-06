@@ -1,5 +1,6 @@
 import struct
 
+from bxcommon.utils.log_level import LogLevel
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
@@ -37,5 +38,5 @@ class PongBtcMessage(BtcMessage):
                 self._nonce = struct.unpack_from('<Q', self.buf, BTC_HDR_COMMON_OFF)[0]
         return self._nonce
 
-    def should_log_debug(self):
-        return True
+    def log_level(self):
+        return LogLevel.DEBUG

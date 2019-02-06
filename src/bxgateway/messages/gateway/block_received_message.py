@@ -26,3 +26,6 @@ class BlockReceivedMessage(Message):
             off = constants.HDR_COMMON_OFF
             self._block_hash = ObjectHash(self._memoryview[off:off + crypto.SHA256_HASH_LEN])
         return self._block_hash
+
+    def __repr__(self):
+        return "BlockReceivedMessage<block_hash: {}>".format(self.block_hash())

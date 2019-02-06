@@ -123,8 +123,8 @@ class BtcMessageConverter(AbstractMessageConverter):
             raise TypeError("tx_msg is expected to be of type TxMessage")
 
         buf = bytearray(BTC_HDR_COMMON_OFF) + tx_msg.tx_val()
-
-        btc_tx_msg = BtcMessage(self._btc_magic, "tx", len(tx_msg.tx_val()), buf)
+        raw_btc_tx_msg = BtcMessage(self._btc_magic, TxBtcMessage.MESSAGE_TYPE, len(tx_msg.tx_val()), buf)
+        btc_tx_msg = TxBtcMessage(buf=raw_btc_tx_msg.buf)
 
         return btc_tx_msg
 

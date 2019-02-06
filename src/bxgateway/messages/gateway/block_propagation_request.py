@@ -1,5 +1,6 @@
 from bxcommon import constants
 from bxcommon.messages.bloxroute.message import Message
+from bxcommon.utils.log_level import LogLevel
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
 
@@ -23,6 +24,9 @@ class BlockPropagationRequestMessage(Message):
 
         super(BlockPropagationRequestMessage, self).__init__(self.MESSAGE_TYPE, payload_len, self.buf)
         self._blob = None
+
+    def log_level(self):
+        return LogLevel.INFO
 
     def blob(self):
         if self._blob is None:

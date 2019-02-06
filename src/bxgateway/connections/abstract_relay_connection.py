@@ -103,7 +103,7 @@ class AbstractRelayConnection(InternalNodeConnection):
         tx_hash = msg.tx_hash()
 
         if tx_hash in tx_service.txhash_to_sids and not short_id:
-            logger.debug("Transaction has assigned short id!")
+            logger.debug("Transaction has already been seen.")
             return
 
         if short_id:
@@ -125,18 +125,12 @@ class AbstractRelayConnection(InternalNodeConnection):
             self.node.send_msg_to_node(btc_tx_msg)
 
     def msg_txs(self, msg):
-
         transactions = msg.get_txs()
-
-        logger.info("Block recovery status: Received mappings from server. Contains {0} txs."
-                    .format(len(transactions)))
-
         tx_service = self.node.get_tx_service()
 
         for transaction in transactions:
 
             short_id, transaction_hash, transaction_contents = transaction
-
             self.node.block_recovery_service.check_missing_sid(short_id)
 
             if short_id not in tx_service.sid_to_txhash:
@@ -236,6 +230,4 @@ class AbstractRelayConnection(InternalNodeConnection):
             tx_sid = tx_service.get_short_id(tx_hash)
             all_unknown_sids.append(tx_sid)
 
-        logger.debug("Block recovery: Sending GetTxsMessage to relay with {0} unknown tx short ids."
-                     .format(len(all_unknown_sids)))
         return GetTxsMessage(short_ids=all_unknown_sids)

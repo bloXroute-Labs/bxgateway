@@ -84,14 +84,11 @@ class TxBtcMessage(BtcMessage):
 
     def __init__(self, magic=None, version=None, tx_in=None, tx_out=None, lock_time=None, buf=None):
         if buf is None:
-            # TODO: this doesn't allocate correctly
-            # need to allocate for len(tx_in) and len(tx_out) as well + test
-            # and 2*9 is an upper bound for varint, find a precise value
             buf = bytearray(BTC_HDR_COMMON_OFF + 2 * 9 + 8)
             self.buf = buf
 
             off = BTC_HDR_COMMON_OFF
-            struct.pack_into('<I', buf, off, version)
+            struct.pack_into("<I", buf, off, version)
             off += 4
             off += pack_int_to_btcvarint(len(tx_in), buf, off)
 
@@ -109,7 +106,7 @@ class TxBtcMessage(BtcMessage):
                 buf[off:off + size] = rawbytes
                 off += size
 
-            struct.pack_into('<I', buf, off, lock_time)
+            struct.pack_into("<I", buf, off, lock_time)
             off += 4
 
             super(TxBtcMessage, self).__init__(magic, self.MESSAGE_TYPE, off - BTC_HDR_COMMON_OFF, buf)

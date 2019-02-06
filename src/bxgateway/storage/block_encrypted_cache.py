@@ -1,4 +1,4 @@
-from bxcommon.constants import BLOXROUTE_ENCRYPTION_CACHE_TIMEOUT_S
+from bxgateway import gateway_constants
 from bxgateway.storage.encrypted_cache import EncryptedCache
 
 
@@ -19,7 +19,7 @@ def message_blob_to_ciphertext(msg_blob):
 
 class BlockEncryptedCache(EncryptedCache):
     def __init__(self, alarm_queue):
-        super(BlockEncryptedCache, self).__init__(BLOXROUTE_ENCRYPTION_CACHE_TIMEOUT_S, alarm_queue)
+        super(BlockEncryptedCache, self).__init__(gateway_constants.BLOCK_CACHE_TIMEOUT_S, alarm_queue)
 
     def decrypt_ciphertext(self, hash_key, ciphertext):
         """
