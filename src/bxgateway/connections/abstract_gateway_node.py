@@ -64,6 +64,8 @@ class AbstractGatewayNode(AbstractNode):
         self.neutrality_service = NeutralityService(self)
         self.block_queuing_service = BlockQueuingService(self)
 
+        self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers)
+
         # TODO: Remove is_internal_gateway check
         # Long term, we don't want to allow the gateway itself to specify whether it is an internal gateway - this
         # should rather be done via an admin console on the SDN or similar
