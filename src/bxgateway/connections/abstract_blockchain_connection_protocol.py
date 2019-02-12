@@ -6,6 +6,7 @@ from bxcommon.utils import logger, crypto, convert
 from bxcommon.utils.object_hash import ObjectHash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
 class AbstractBlockchainConnectionProtocol(object):
@@ -18,11 +19,17 @@ class AbstractBlockchainConnectionProtocol(object):
         """
         Handle a TX message by broadcasting to the entire network
         """
-        blx_txmsgs = self.connection.message_converter.tx_to_bx_txs(msg, self.connection.network_num)
+        bx_tx_messages = self.connection.message_converter.tx_to_bx_txs(msg, self.connection.network_num)
 
-        for (blx_txmsg, tx_hash, tx_bytes) in blx_txmsgs:
+        for (bx_tx_message, tx_hash, tx_bytes) in bx_tx_messages:
+            if tx_hash in self.connection.node.get_tx_service().txhash_to_contents:
+                gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
+                continue
+
+            gateway_transaction_stats_service.log_transaction_from_blockchain(tx_hash)
+
             # All connections outside of this one is a bloXroute server
-            self.connection.node.broadcast(blx_txmsg, self.connection)
+            self.connection.node.broadcast(bx_tx_message, self.connection)
             self.connection.node.get_tx_service().txhash_to_contents[tx_hash] = tx_bytes
 
     def msg_block(self, msg):

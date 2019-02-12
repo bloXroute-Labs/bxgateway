@@ -21,6 +21,7 @@ from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
 class BtcRelayConnectionTest(AbstractTestCase):
@@ -38,6 +39,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         self.gateway_node.send_msg_to_node = MagicMock()
         self.sut.enqueue_msg = MagicMock()
+        gateway_transaction_stats_service.set_node(self.gateway_node)
 
     def btc_transactions(self):
         return [TxBtcMessage(self.MAGIC, self.VERSION, [], [], i) for i in xrange(10)]

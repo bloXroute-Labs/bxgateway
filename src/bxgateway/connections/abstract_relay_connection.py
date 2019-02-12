@@ -7,11 +7,13 @@ from bxcommon.constants import BLOXROUTE_HELLO_MESSAGES, HDR_COMMON_OFF, NULL_TX
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
+from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import crypto, logger, convert
 from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
 class AbstractRelayConnection(InternalNodeConnection):
@@ -101,28 +103,37 @@ class AbstractRelayConnection(InternalNodeConnection):
 
         short_id = msg.short_id()
         tx_hash = msg.tx_hash()
+        tx_val = msg.tx_val()
 
         if tx_hash in tx_service.txhash_to_sids and not short_id:
+            gateway_transaction_stats_service.log_duplicate_transaction_from_relay()
             logger.debug("Transaction has already been seen.")
             return
 
+        gateway_transaction_stats_service.log_transaction_from_relay(tx_hash,
+                                                                     short_id is not None,
+                                                                     tx_val == TxMessage.EMPTY_TX_VAL)
         if short_id:
             tx_service.assign_short_id(tx_hash, short_id)
             self.node.block_recovery_service.check_missing_sid(short_id)
+        else:
+            logger.info("transaction had no short id: {}".format(msg))
 
         if tx_hash in tx_service.txhash_to_contents:
             logger.debug("Transaction has been seen, but short id newly assigned.")
+            if tx_val != TxMessage.EMPTY_TX_VAL:
+                gateway_transaction_stats_service.log_redundant_transaction_content()
             return
 
-        logger.debug("Adding hash value to tx service and forwarding it to node")
-        tx_service.txhash_to_contents[tx_hash] = msg.tx_val()
+        if tx_val != TxMessage.EMPTY_TX_VAL:
+            logger.debug("Adding hash value to tx service and forwarding it to node")
+            tx_service.txhash_to_contents[tx_hash] = msg.tx_val()
+            self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
+            self._msg_broadcast_retry()
 
-        self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
-        self._msg_broadcast_retry()
-
-        if self.node.node_conn is not None:
-            btc_tx_msg = self.message_converter.bx_tx_to_tx(msg)
-            self.node.send_msg_to_node(btc_tx_msg)
+            if self.node.node_conn is not None:
+                btc_tx_msg = self.message_converter.bx_tx_to_tx(msg)
+                self.node.send_msg_to_node(btc_tx_msg)
 
     def msg_txs(self, msg):
         transactions = msg.get_txs()

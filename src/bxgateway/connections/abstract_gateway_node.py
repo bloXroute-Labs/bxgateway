@@ -20,6 +20,7 @@ from bxgateway.storage.block_encrypted_cache import BlockEncryptedCache
 from bxgateway.testing.lossy_relay_connection import LossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.testing.unencrypted_block_cache import UnencryptedCache
+from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
 class AbstractGatewayNode(AbstractNode):
@@ -91,6 +92,9 @@ class AbstractGatewayNode(AbstractNode):
         self._tx_service = TransactionService(self)
 
         self._preferred_gateway_connection = None
+
+        self.init_transaction_stat_logging()
+
 
     @abstractmethod
     def get_blockchain_connection_cls(self):
@@ -294,3 +298,9 @@ class AbstractGatewayNode(AbstractNode):
     def record_mem_stats(self):
         self._tx_service.log_tx_service_mem_stats(self.opts.blockchain_network_num)
         return super(AbstractGatewayNode, self).record_mem_stats()
+
+    def init_transaction_stat_logging(self):
+        gateway_transaction_stats_service.set_node(self)
+        self.alarm_queue.register_alarm(gateway_transaction_stats_service.interval,
+                                        gateway_transaction_stats_service.flush_info)
+
