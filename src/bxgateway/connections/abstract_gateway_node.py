@@ -17,7 +17,6 @@ from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.storage.block_encrypted_cache import BlockEncryptedCache
-from bxgateway.testing.lossy_relay_connection import LossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.testing.unencrypted_block_cache import UnencryptedCache
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
@@ -280,12 +279,6 @@ class AbstractGatewayNode(AbstractNode):
             if len(self.peer_gateways) < self.opts.min_peer_gateways:
                 self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
                                                 self._send_request_for_gateway_peers)
-
-    def _get_relay_connection_cls(self):
-        if TestModes.DROPPING_TXS in self.opts.test_mode:
-            return LossyRelayConnection
-        else:
-            return self.RELAY_CONNECTION_CLS
 
     def _find_active_connection(self, outbound_peers):
         for peer in outbound_peers:

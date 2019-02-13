@@ -1,18 +1,19 @@
 import datetime
-import time
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
-from bxcommon.constants import BLOXROUTE_HELLO_MESSAGES, HDR_COMMON_OFF, NULL_TX_SID
+from bxcommon.constants import BLOXROUTE_HELLO_MESSAGES, HDR_COMMON_OFF
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import crypto, logger, convert
 from bxcommon.utils.object_hash import ObjectHash
-from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
+from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -103,25 +104,39 @@ class AbstractRelayConnection(InternalNodeConnection):
 
         short_id = msg.short_id()
         tx_hash = msg.tx_hash()
+        network_num = msg.network_num()
         tx_val = msg.tx_val()
 
         if tx_hash in tx_service.txhash_to_sids and not short_id:
             gateway_transaction_stats_service.log_duplicate_transaction_from_relay()
+            tx_stats.add_tx_by_hash_event(tx_hash,
+                                          TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
+                                          network_num=network_num, short_id=short_id, peer=self.peer_desc)
             logger.debug("Transaction has already been seen.")
             return
 
+        tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER,
+                                      network_num=network_num, short_id=short_id, peer=self.peer_desc,
+                                      is_compact_transaction=(tx_val == TxMessage.EMPTY_TX_VAL))
         gateway_transaction_stats_service.log_transaction_from_relay(tx_hash,
                                                                      short_id is not None,
                                                                      tx_val == TxMessage.EMPTY_TX_VAL)
         if short_id:
+            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SHORT_ID_STORED_BY_GATEWAY,
+                                          network_num=network_num, short_id=short_id)
             tx_service.assign_short_id(tx_hash, short_id)
             self.node.block_recovery_service.check_missing_sid(short_id)
         else:
+            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SHORT_ID_EMPTY_IN_MSG_FROM_RELAY,
+                                          network_num=network_num, short_id=short_id, peer=self.peer_desc)
             logger.info("transaction had no short id: {}".format(msg))
 
         if tx_hash in tx_service.txhash_to_contents:
             logger.debug("Transaction has been seen, but short id newly assigned.")
             if tx_val != TxMessage.EMPTY_TX_VAL:
+                tx_stats.add_tx_by_hash_event(tx_hash,
+                                              TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
+                                              network_num=network_num, short_id=short_id, peer=self.peer_desc)
                 gateway_transaction_stats_service.log_redundant_transaction_content()
             return
 
@@ -135,22 +150,32 @@ class AbstractRelayConnection(InternalNodeConnection):
                 btc_tx_msg = self.message_converter.bx_tx_to_tx(msg)
                 self.node.send_msg_to_node(btc_tx_msg)
 
+            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
+                                          network_num=network_num, short_id=short_id)
+
     def msg_txs(self, msg):
         transactions = msg.get_txs()
         tx_service = self.node.get_tx_service()
 
-        for transaction in transactions:
+        tx_stats.add_txs_by_short_ids_event(map(lambda x: x[0], transactions),
+                                            TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REPLY_RECEIVED_BY_GATEWAY_FROM_RELAY,
+                                            network_num=self.node.network_num,
+                                            peer=self.peer_desc,
+                                            found_tx_hashes=map(lambda x: convert.bytes_to_hex(x[1].binary),
+                                                                transactions))
 
-            short_id, transaction_hash, transaction_contents = transaction
+        for transaction in transactions:
+            short_id, tx_hash, transaction_contents = transaction
+
             self.node.block_recovery_service.check_missing_sid(short_id)
 
             if short_id not in tx_service.sid_to_txhash:
-                tx_service.assign_short_id(transaction_hash, short_id)
+                tx_service.assign_short_id(tx_hash, short_id)
 
-            self.node.block_recovery_service.check_missing_tx_hash(transaction_hash)
+            self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
-            if transaction_hash not in tx_service.txhash_to_contents:
-                tx_service.txhash_to_contents[transaction_hash] = transaction_contents
+            if tx_hash not in tx_service.txhash_to_contents:
+                tx_service.txhash_to_contents[tx_hash] = transaction_contents
 
         self._msg_broadcast_retry()
 
@@ -213,6 +238,11 @@ class AbstractRelayConnection(InternalNodeConnection):
                                                       unknown_hashes_count=len(unknown_hashes))
             gettxs_message = self._create_unknown_txs_message(unknown_sids, unknown_hashes)
             self.enqueue_msg(gettxs_message)
+            tx_stats.add_txs_by_short_ids_event(unknown_sids,
+                                                TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
+                                                network_num=self.node.network_num,
+                                                peer=self.peer_desc,
+                                                block_hash=convert.bytes_to_hex(block_hash.binary))
 
             if recovered:
                 # for now, just allow retry.

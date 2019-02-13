@@ -1,11 +1,14 @@
-import datetime
 from abc import ABCMeta
+
+import datetime
 
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.utils import logger, crypto, convert
 from bxcommon.utils.object_hash import ObjectHash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
+from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -23,13 +26,24 @@ class AbstractBlockchainConnectionProtocol(object):
 
         for (bx_tx_message, tx_hash, tx_bytes) in bx_tx_messages:
             if tx_hash in self.connection.node.get_tx_service().txhash_to_contents:
+                tx_stats.add_tx_by_hash_event(tx_hash,
+                                              TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
+                                              network_num=self.connection.network_num,
+                                              peer=self.connection.peer_desc)
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
                 continue
 
+            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE,
+                                          network_num=self.connection.network_num,
+                                          peer=self.connection.peer_desc)
             gateway_transaction_stats_service.log_transaction_from_blockchain(tx_hash)
 
             # All connections outside of this one is a bloXroute server
-            self.connection.node.broadcast(bx_tx_message, self.connection)
+            broadcast_peers = self.connection.node.broadcast(bx_tx_message, self.connection)
+            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
+                                          network_num=self.connection.network_num,
+                                          peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),
+                                                    broadcast_peers))
             self.connection.node.get_tx_service().txhash_to_contents[tx_hash] = tx_bytes
 
     def msg_block(self, msg):
@@ -50,7 +64,8 @@ class AbstractBlockchainConnectionProtocol(object):
             return
 
         compress_start = datetime.datetime.utcnow()
-        bx_block, block_info = self.connection.message_converter.block_to_bx_block(msg, self.connection.node.get_tx_service())
+        bx_block, block_info = self.connection.message_converter.block_to_bx_block(msg,
+                                                                                   self.connection.node.get_tx_service())
         compress_end = datetime.datetime.utcnow()
 
         bx_block_hash = crypto.double_sha256(bx_block)

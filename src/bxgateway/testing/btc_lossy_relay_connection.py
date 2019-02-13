@@ -1,10 +1,10 @@
 from bxcommon.utils import logger
-from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
+from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 
 
-class LossyRelayConnection(AbstractRelayConnection):
-    def __init__(self, sock, address, node, from_me=False, setup=False):
-        super(LossyRelayConnection, self).__init__(sock, address, node, setup)
+class BtcLossyRelayConnection(BtcRelayConnection):
+    def __init__(self, sock, address, node, from_me=False):
+        super(BtcLossyRelayConnection, self).__init__(sock, address, node, from_me=from_me)
 
         logger.debug("Test mode: Client is started in test mode. Simulating dropped transactions.")
 
@@ -21,7 +21,7 @@ class LossyRelayConnection(AbstractRelayConnection):
             self.tx_drop_counter = 0
             logger.debug("Test mode: Dropping transaction message.")
         else:
-            super(LossyRelayConnection, self).msg_tx(msg)
+            super(BtcLossyRelayConnection, self).msg_tx(msg)
 
     def msg_txs(self, msg):
         self.tx_unknown_txs_drop_counter += 1
@@ -31,4 +31,4 @@ class LossyRelayConnection(AbstractRelayConnection):
             self.tx_unknown_txs_drop_counter = 0
             logger.debug("Test mode: Dropping unknown txs message.")
         else:
-            super(LossyRelayConnection, self).msg_txs(msg)
+            super(BtcLossyRelayConnection, self).msg_txs(msg)

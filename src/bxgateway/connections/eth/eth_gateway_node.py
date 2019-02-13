@@ -6,6 +6,8 @@ from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
+from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
+from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 
 
@@ -29,7 +31,10 @@ class EthGatewayNode(AbstractGatewayNode):
         return EthNodeDiscoveryConnection if self._is_in_local_discovery() else EthNodeConnection
 
     def get_relay_connection_cls(self):
-        return EthRelayConnection
+        if TestModes.DROPPING_TXS in self.opts.test_mode:
+            return EthLossyRelayConnection
+        else:
+            return EthRelayConnection
 
     def get_remote_blockchain_connection_cls(self):
         return EthRemoteConnection
