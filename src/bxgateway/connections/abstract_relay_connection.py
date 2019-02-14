@@ -47,7 +47,7 @@ class AbstractRelayConnection(InternalNodeConnection):
         """
 
         block_stats.add_block_event(msg,
-                                    BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_PEER,
+                                    BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                     network_num=self.network_num,
                                     peer=self.peer_desc,
                                     connection_type=self.CONNECTION_TYPE)
@@ -69,7 +69,12 @@ class AbstractRelayConnection(InternalNodeConnection):
             logger.debug("Received encrypted block. Storing.")
             self.node.in_progress_blocks.add_ciphertext(msg_hash, cipherblob)
             block_received_message = BlockReceivedMessage(msg_hash)
-            self.node.broadcast(block_received_message, self, connection_type=ConnectionType.GATEWAY)
+            conns = self.node.broadcast(block_received_message, self, connection_type=ConnectionType.GATEWAY)
+            block_stats.add_block_event_by_block_hash(msg_hash,
+                                                      BlockStatEventType.ENC_BLOCK_SENT_BLOCK_RECEIPT,
+                                                      network_num=self.network_num,
+                                                      peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),
+                                                                conns))
 
     def msg_key(self, message):
         """
@@ -80,7 +85,7 @@ class AbstractRelayConnection(InternalNodeConnection):
         msg_hash = message.msg_hash()
 
         block_stats.add_block_event_by_block_hash(msg_hash,
-                                                  BlockStatEventType.ENC_BLOCK_KEY_RECEIVED_BY_GATEWAY_FROM_PEER,
+                                                  BlockStatEventType.ENC_BLOCK_KEY_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                                   network_num=self.network_num,
                                                   peer=self.peer_desc,
                                                   connection_type=self.CONNECTION_TYPE)

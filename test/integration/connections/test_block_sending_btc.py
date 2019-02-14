@@ -6,6 +6,7 @@ from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.helpers import get_gateway_opts
 from bxcommon.utils import convert
+from bxcommon.utils.buffers.output_buffer import OutputBuffer
 from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -32,17 +33,17 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
 
         # key not available until receipt
         key_not_yet_available = self.node1.get_bytes_to_send(self.relay_fileno)
-        self.assertIsNone(key_not_yet_available)
+        self.assertEqual(OutputBuffer.EMPTY, key_not_yet_available)
 
         # send receipt
         helpers.receive_node_message(self.node2, self.relay_fileno, relayed_block)
         block_receipt = self.node2.get_bytes_to_send(self.gateway_fileno)
-        self.assertIsNotNone(block_receipt)
+        self.assertNotEqual(OutputBuffer.EMPTY, bytearray(block_receipt.tobytes()))
 
         # send key
         helpers.receive_node_message(self.node1, self.gateway_fileno, block_receipt)
         key_message = self.node1.get_bytes_to_send(self.relay_fileno)
-        self.assertIsNotNone(key_message)
+        self.assertNotEqual(OutputBuffer.EMPTY, bytearray(key_message.tobytes()))
 
         helpers.receive_node_message(self.node2, self.relay_fileno, key_message)
         bytes_to_blockchain = self.node2.get_bytes_to_send(self.blockchain_fileno)

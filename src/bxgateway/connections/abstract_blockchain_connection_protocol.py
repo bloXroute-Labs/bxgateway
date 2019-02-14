@@ -1,6 +1,5 @@
-from abc import ABCMeta
-
 import datetime
+from abc import ABCMeta
 
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.utils import logger, crypto, convert
@@ -106,6 +105,6 @@ class AbstractBlockchainConnectionProtocol(object):
         key_message = KeyMessage(ObjectHash(block_hash), key, self.connection.network_num)
         conns = self.connection.node.broadcast(key_message, self.connection)
         block_stats.add_block_event_by_block_hash(block_hash,
-                                                  BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_PEER,
+                                                  BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self.connection.network_num,
                                                   peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))

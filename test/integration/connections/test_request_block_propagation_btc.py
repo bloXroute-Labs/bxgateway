@@ -3,6 +3,7 @@ import time
 from mock import MagicMock
 
 from bxcommon.test_utils import helpers
+from bxcommon.utils.buffers.output_buffer import OutputBuffer
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway import gateway_constants
 from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
@@ -45,7 +46,7 @@ class RequestBlockPropagationBtcTest(AbstractBtcGatewayIntegrationTest):
         # receive key, but already seen so dont forward to blockchain
         helpers.receive_node_message(self.node1, self.relay_fileno, key_message)
         bytes_to_blockchain = self.node1.get_bytes_to_send(self.blockchain_fileno)
-        self.assertIsNone(bytes_to_blockchain)
+        self.assertEqual(OutputBuffer.EMPTY, bytes_to_blockchain)
 
         # clear blocks seen, rereceive
         self.node1.blocks_seen = ExpiringSet(self.node1.alarm_queue,

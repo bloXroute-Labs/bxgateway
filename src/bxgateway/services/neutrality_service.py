@@ -155,6 +155,6 @@ class NeutralityService(object):
         key_message = KeyMessage(cipher_hash, key, self._node.network_num)
         conns = self._node.broadcast(key_message, None)
         block_stats.add_block_event_by_block_hash(cipher_hash,
-                                                  BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_PEER,
+                                                  BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
                                                   peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))
