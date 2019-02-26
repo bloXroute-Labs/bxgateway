@@ -192,10 +192,12 @@ class AbstractRelayConnection(InternalNodeConnection):
             self.node.block_recovery_service.clean_up_recovered_blocks()
 
     def _handle_decrypted_block(self, bx_block, encrypted_block_hash_hex=None, recovered=False):
+        transaction_service = self.node.get_tx_service()
         decompress_start = datetime.datetime.utcnow()
         # TODO: determine if a real block or test block. Discard if test block.
-        block_message, block_hash, unknown_sids, unknown_hashes = \
-            self.message_converter.bx_block_to_block(bx_block, self.node.get_tx_service())
+        block_message, block_hash, all_sids, unknown_sids, unknown_hashes = \
+            self.message_converter.bx_block_to_block(bx_block, transaction_service)
+
         decompress_end = datetime.datetime.utcnow()
 
         if recovered:
@@ -227,6 +229,8 @@ class AbstractRelayConnection(InternalNodeConnection):
 
             self.node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self.node.blocks_seen.add(block_hash)
+            transaction_service.track_seen_short_ids(all_sids)
+
         else:
             if block_hash in self.node.block_queuing_service and not recovered:
                 logger.debug("Handling already queued block again. Ignoring.")

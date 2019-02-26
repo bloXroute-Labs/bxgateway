@@ -12,8 +12,7 @@ from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.testing.mocks.mock_btc_messages import btc_block, RealBtcBlocks
-from bxgateway.testing.unencrypted_block_cache import UnencryptedCache
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+from bxcommon.testing.unencrypted_block_cache import UnencryptedCache
 
 
 @patch("bxcommon.constants.OUTPUT_BUFFER_MIN_SIZE", 0)

@@ -84,6 +84,7 @@ class AbstractBlockchainConnectionProtocol(object):
         self.connection.node.block_recovery_service.cancel_recovery_for_block(block_hash)
         self.connection.node.block_queuing_service.remove(block_hash)
         self.connection.node.blocks_seen.add(block_hash)
+        self.connection.node.get_tx_service().track_seen_short_ids(block_info[2])
 
     def msg_proxy_request(self, msg):
         """
@@ -102,7 +103,7 @@ class AbstractBlockchainConnectionProtocol(object):
         Sends out the decryption key for a block hash.
         """
         key = self.connection.node.in_progress_blocks.get_encryption_key(block_hash)
-        key_message = KeyMessage(ObjectHash(block_hash), key, self.connection.network_num)
+        key_message = KeyMessage(ObjectHash(block_hash), self.connection.network_num, key)
         conns = self.connection.node.broadcast(key_message, self.connection)
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,

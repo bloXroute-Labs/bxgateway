@@ -1,9 +1,9 @@
 import collections
 import hashlib
-import time
 
 import rlp
 
+from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.services.transaction_service import TransactionService
@@ -24,7 +24,7 @@ from bxgateway.testing.mocks import mock_eth_messages
 class EthMessageConverterTests(AbstractTestCase):
 
     def setUp(self):
-        self.tx_service = TransactionService(MockNode("127.0.0.1", 123))
+        self.tx_service = TransactionService(MockNode("127.0.0.1", 123), 0)
         self.message_parser = EthMessageConverter()
         self.test_network_num = 12345
 
@@ -104,6 +104,7 @@ class EthMessageConverterTests(AbstractTestCase):
         txs_bytes = []
         txs_hashes = []
         short_ids = []
+        used_short_ids = []
 
         tx_count = 10
 
@@ -120,6 +121,7 @@ class EthMessageConverterTests(AbstractTestCase):
             if i % 2 == 0:
                 self.tx_service.assign_short_id(tx_hash, i)
                 short_ids.append(i)
+                used_short_ids.append(i)
             else:
                 short_ids.append(0)
 
@@ -141,11 +143,14 @@ class EthMessageConverterTests(AbstractTestCase):
 
         self.assertEqual(len(txs), block_info[0])
         self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info[1])
+        self.assertEqual(used_short_ids, block_info[2])
 
         self.assertTrue(bx_block_msg)
         self.assertIsInstance(bx_block_msg, bytearray)
 
-        compact_block = rlp.decode(bx_block_msg, CompactBlock)
+        parsed_short_ids, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
+            bx_block_msg, 0)
+        compact_block = rlp.decode(bx_block_msg[short_ids_len:], CompactBlock)
         self.assertTrue(compact_block)
         self.assertIsInstance(compact_block, CompactBlock)
 
@@ -154,17 +159,19 @@ class EthMessageConverterTests(AbstractTestCase):
 
         self.assertEqual(len(compact_block.transactions), len(block.transactions))
 
+        short_tx_index = 0
+
         for tx, short_tx, i in zip(block.transactions, compact_block.transactions, range(1, tx_count)):
             self.assertIsInstance(tx, Transaction)
             self.assertIsInstance(short_tx, ShortTransaction)
 
             if i % 2 == 0:
                 self.assertEqual(0, short_tx.full_transaction)
-                self.assertEqual(short_ids[i - 1], short_tx.short_id)
+                self.assertEqual(short_ids[i - 1], parsed_short_ids[short_tx_index])
                 self.assertEqual(short_tx.transaction_bytes, bytes())
+                short_tx_index += 1
             else:
                 self.assertEqual(1, short_tx.full_transaction)
-                self.assertEqual(0, short_tx.short_id)
                 self.assertEqual(short_tx.transaction_bytes, txs_bytes[i - 1])
 
         self.assertEqual(compact_block.chain_difficulty, block_msg.chain_difficulty)
@@ -185,7 +192,8 @@ class EthMessageConverterTests(AbstractTestCase):
         self.assertTrue(bx_block_msg)
         self.assertIsInstance(bx_block_msg, bytearray)
 
-        compact_block = rlp.decode(bx_block_msg, CompactBlock)
+        _, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(bx_block_msg, 0)
+        compact_block = rlp.decode(bx_block_msg[short_ids_len:], CompactBlock)
         self.assertTrue(compact_block)
         self.assertIsInstance(compact_block, CompactBlock)
 
@@ -198,6 +206,7 @@ class EthMessageConverterTests(AbstractTestCase):
         tx_count = 100
         txs = []
         short_txs = []
+        short_ids = []
 
         for i in range(1, tx_count):
             tx = mock_eth_messages.get_dummy_transaction(1)
@@ -209,7 +218,8 @@ class EthMessageConverterTests(AbstractTestCase):
             self.tx_service.assign_short_id(tx_hash, i)
             self.tx_service.txhash_to_contents[tx_hash] = tx_bytes
 
-            short_tx = ShortTransaction(0, i, bytes())
+            short_tx = ShortTransaction(0, bytes())
+            short_ids.append(i)
             short_txs.append(short_tx)
 
         dummy_chain_difficulty = 2000000
@@ -223,12 +233,14 @@ class EthMessageConverterTests(AbstractTestCase):
                                      dummy_chain_difficulty)
 
         compact_block_bytes = rlp.encode(compact_block, CompactBlock)
-        compact_block_hash_bytes = hashlib.sha256(compact_block_bytes).digest()
+        compact_block_msg_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
+        compact_block_msg_bytes.extend(compact_block_bytes)
+        compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
         compact_block_hash = ObjectHash(compact_block_hash_bytes)
 
-        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, compact_block_bytes)
+        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, compact_block_msg_bytes)
 
-        block_msg, block_hash, unknown_tx_sids, unknown_tx_hashes = self.message_parser.bx_block_to_block(
+        block_msg, block_hash, short_ids, unknown_tx_sids, unknown_tx_hashes = self.message_parser.bx_block_to_block(
             bx_block_msg.blob(), self.tx_service)
 
         self.assertTrue(block_msg)
@@ -253,6 +265,7 @@ class EthMessageConverterTests(AbstractTestCase):
         tx_count = 10
         txs = []
         short_txs = []
+        short_ids = []
 
         for i in range(1, tx_count):
             tx = mock_eth_messages.get_dummy_transaction(1)
@@ -266,10 +279,11 @@ class EthMessageConverterTests(AbstractTestCase):
                 self.tx_service.assign_short_id(tx_hash, i)
                 self.tx_service.txhash_to_contents[tx_hash] = tx_bytes
 
-                short_tx = ShortTransaction(0, i, bytes())
+                short_tx = ShortTransaction(0, bytes())
                 short_txs.append(short_tx)
+                short_ids.append(i)
             else:
-                short_tx = ShortTransaction(1, 0, tx_bytes)
+                short_tx = ShortTransaction(1, tx_bytes)
                 short_txs.append(short_tx)
 
         dummy_chain_difficulty = 20
@@ -283,12 +297,14 @@ class EthMessageConverterTests(AbstractTestCase):
                                      dummy_chain_difficulty)
 
         compact_block_bytes = rlp.encode(compact_block, CompactBlock)
-        compact_block_hash_bytes = hashlib.sha256(compact_block_bytes).digest()
+        compact_block_msg_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
+        compact_block_msg_bytes.extend(compact_block_bytes)
+        compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
         compact_block_hash = ObjectHash(compact_block_hash_bytes)
 
-        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, compact_block_bytes)
+        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, compact_block_msg_bytes)
 
-        block_msg, block_hash, unknown_tx_sids, unknown_tx_hashes = self.message_parser.bx_block_to_block(
+        block_msg, block_hash, short_ids, unknown_tx_sids, unknown_tx_hashes = self.message_parser.bx_block_to_block(
             bx_block_msg.blob(), self.tx_service)
 
         self.assertTrue(block_msg)
@@ -344,7 +360,7 @@ class EthMessageConverterTests(AbstractTestCase):
         self.assertEqual(len(txs), block_info[0])
         self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info[1])
 
-        converted_block_msg, _, _, _ = self.message_parser.bx_block_to_block(bx_block_msg, self.tx_service)
+        converted_block_msg, _, _, _, _ = self.message_parser.bx_block_to_block(bx_block_msg, self.tx_service)
         self.assertIsNotNone(converted_block_msg)
 
         converted_block_msg_bytes = converted_block_msg.rawbytes()

@@ -39,7 +39,7 @@ class AbstractMessageConverter(object):
 
         :param block_msg: blockchain new block message
         :param tx_service: Transactions service
-        :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash)
+        :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash, short ids)
         """
 
         pass
@@ -53,7 +53,7 @@ class AbstractMessageConverter(object):
 
         :param bx_block_msg: internal broadcast message bytes
         :param tx_service: Transactions service
-        :return: tuple (new block message, block hash, unknown transaction short ids, unknown transaction hashes)
+        :return: tuple (new block message, block hash, all short ids, unknown transaction short ids, unknown transaction hashes)
         """
 
         pass

@@ -30,7 +30,7 @@ class MockGatewayNode(AbstractGatewayNode):
         self.send_to_node_messages = []
         super(MockGatewayNode, self).__init__(opts)
 
-        self._tx_service = TransactionService(self)
+        self._tx_service = TransactionService(self, 0)
 
     def broadcast(self, msg, requester=None, prepend_to_queue=False, network_num=None,
                   connection_type=ConnectionType.RELAY):

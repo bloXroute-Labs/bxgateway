@@ -152,7 +152,7 @@ class NeutralityService(object):
 
     def _send_key(self, cipher_hash):
         key = self._node.in_progress_blocks.get_encryption_key(bytes(cipher_hash.binary))
-        key_message = KeyMessage(cipher_hash, key, self._node.network_num)
+        key_message = KeyMessage(cipher_hash, self._node.network_num, key)
         conns = self._node.broadcast(key_message, None)
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,

@@ -86,7 +86,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.gateway_node.send_msg_to_node.assert_not_called()
         self.assertEqual(1, len(self.gateway_node.in_progress_blocks))
 
-        key_message = KeyMessage(ObjectHash(block_hash), key, self.TEST_NETWORK_NUM)
+        key_message = KeyMessage(ObjectHash(block_hash), self.TEST_NETWORK_NUM, key)
         self.sut.msg_key(key_message)
 
         self.gateway_node.send_msg_to_node.assert_called_once()
@@ -108,7 +108,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         block_hash = btc_block.block_hash()
         transactions = self.bx_transactions()
 
-        unknown_sid_transaction_service = TransactionService(MockNode(LOCALHOST, 8999))
+        unknown_sid_transaction_service = TransactionService(MockNode(LOCALHOST, 8999), 0)
         for i, transaction in enumerate(transactions):
             unknown_sid_transaction_service.assign_short_id(transaction.tx_hash(), i)
             unknown_sid_transaction_service.txhash_to_contents[transaction.tx_hash()] = transaction.tx_val()
@@ -118,7 +118,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         unknown_key, unknown_cipher = symmetric_encrypt(unknown_short_id_block)
         unknown_block_hash = crypto.double_sha256(unknown_cipher)
         unknown_message = BroadcastMessage(ObjectHash(unknown_block_hash), self.TEST_NETWORK_NUM, unknown_cipher)
-        unknown_key_message = KeyMessage(ObjectHash(unknown_block_hash), unknown_key, self.TEST_NETWORK_NUM)
+        unknown_key_message = KeyMessage(ObjectHash(unknown_block_hash), self.TEST_NETWORK_NUM, unknown_key)
 
         local_transaction_service = self.gateway_node.get_tx_service()
         for i, transaction in enumerate(transactions):
@@ -130,7 +130,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         known_key, known_cipher = symmetric_encrypt(known_short_id_block)
         known_block_hash = crypto.double_sha256(known_cipher)
         known_message = BroadcastMessage(ObjectHash(known_block_hash), self.TEST_NETWORK_NUM, known_cipher)
-        known_key_message = KeyMessage(ObjectHash(known_block_hash), known_key, self.TEST_NETWORK_NUM)
+        known_key_message = KeyMessage(ObjectHash(known_block_hash), self.TEST_NETWORK_NUM, known_key)
 
         self.sut.msg_broadcast(unknown_message)
         self.sut.msg_key(unknown_key_message)
@@ -158,7 +158,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         self.gateway_node.send_msg_to_node.assert_not_called()
 
-        key_message = KeyMessage(ObjectHash(block_hash), key, self.TEST_NETWORK_NUM)
+        key_message = KeyMessage(ObjectHash(block_hash), self.TEST_NETWORK_NUM, key)
         self.sut.msg_key(key_message)
 
         # handle duplicate broadcasts
@@ -240,7 +240,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         transactions = self.btc_transactions()
 
         # assign short ids that the local connection won't know about until it gets the txs message
-        remote_transaction_service = TransactionService(MockNode(LOCALHOST, 8999))
+        remote_transaction_service = TransactionService(MockNode(LOCALHOST, 8999), 0)
         short_id_mapping = {}
         for i, transaction in enumerate(transactions):
             remote_transaction_service.assign_short_id(transaction.tx_hash(), i)
@@ -255,7 +255,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         key, ciphertext = symmetric_encrypt(bx_block)
         block_hash = crypto.double_sha256(ciphertext)
-        key_message = KeyMessage(ObjectHash(block_hash), key, DEFAULT_NETWORK_NUM)
+        key_message = KeyMessage(ObjectHash(block_hash), DEFAULT_NETWORK_NUM, key)
         broadcast_message = BroadcastMessage(ObjectHash(block_hash), DEFAULT_NETWORK_NUM, ciphertext)
 
         self.sut.msg_broadcast(broadcast_message)
@@ -287,7 +287,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         transactions = self.btc_transactions()
 
         # assign short ids that the local connection won't know about until it gets the txs message
-        remote_transaction_service1 = TransactionService(MockNode(LOCALHOST, 8998))
+        remote_transaction_service1 = TransactionService(MockNode(LOCALHOST, 8998), 0)
         short_id_mapping1 = {}
         for i, transaction in enumerate(transactions):
             remote_transaction_service1.assign_short_id(transaction.tx_hash(), i + 1)
@@ -303,7 +303,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
             self.assertEqual(transaction_hash, stored_hash)
             self.assertEqual(tx_info[2], stored_content)
 
-        remote_transaction_service2 = TransactionService(MockNode(LOCALHOST, 8999))
+        remote_transaction_service2 = TransactionService(MockNode(LOCALHOST, 8999), 0)
         short_id_mapping2 = {}
         for i, transaction in enumerate(transactions):
             remote_transaction_service2.assign_short_id(transaction.tx_hash(), i + 101)

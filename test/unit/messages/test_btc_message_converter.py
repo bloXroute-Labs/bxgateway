@@ -2,15 +2,15 @@ from mock import MagicMock
 
 from bxcommon.constants import NULL_TX_SID
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
-from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import ObjectHash
+from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
+from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
@@ -68,7 +68,7 @@ class BtcMessageConverterTests(AbstractTestCase):
 
         txns = [TxBtcMessage(magic, version, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in xrange(10)]
         txn_hashes = map(lambda x: BtcObjectHash(buf=crypto.bitcoin_hash(x), length=SHA256_HASH_LEN), txns)
-        short_ids = [i for i in xrange(5)]
+        short_ids = [i for i in xrange(1, 6)]
 
         btc_block = BlockBtcMessage(magic, version, prev_block, merkle_root, timestamp, bits, nonce, txns)
         block_hash = btc_block.block_hash()
@@ -83,7 +83,7 @@ class BtcMessageConverterTests(AbstractTestCase):
 
         # return a transaction's info for assigned sids
         def get_transaction(sid):
-            return txn_hashes[sid * 2], txns[sid * 2]
+            return txn_hashes[(sid - 1) * 2], txns[(sid - 1) * 2]
 
         tx_service = MagicMock()
         tx_service.get_short_id = get_short_id
@@ -92,11 +92,13 @@ class BtcMessageConverterTests(AbstractTestCase):
         bloxroute_block, block_info = self.btc_message_converter.block_to_bx_block(btc_block, tx_service)
         self.assertEqual(10, block_info[0])
         self.assertEqual("5a77d1e9612d350b3734f6282259b7ff0a3f87d62cfef5f35e91a5604c0490a3", block_info[1])
+        self.assertEqual(short_ids, block_info[2])
 
         # TODO: if we convert bloxroute block to a class, add some tests here
 
-        parsed_btc_block, parsed_block_hash, _, _ = self.btc_message_converter.bx_block_to_block(bloxroute_block,
-                                                                                                 tx_service)
+        parsed_btc_block, parsed_block_hash, all_sids, _, _ = self.btc_message_converter.bx_block_to_block(
+            bloxroute_block,
+            tx_service)
         self.assertIsNotNone(parsed_btc_block)
         self.assertEqual(version, parsed_btc_block.version())
         self.assertEqual(magic, parsed_btc_block.magic())
@@ -109,3 +111,4 @@ class BtcMessageConverterTests(AbstractTestCase):
         self.assertEqual(btc_block.checksum(), parsed_btc_block.checksum())
         self.assertEqual(block_hash, parsed_btc_block.block_hash())
         self.assertEqual(block_hash.binary, parsed_block_hash.binary)
+        self.assertEqual(all_sids, short_ids)

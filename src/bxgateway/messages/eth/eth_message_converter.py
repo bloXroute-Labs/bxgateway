@@ -1,5 +1,6 @@
 from collections import deque
 
+from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import logger, convert
 from bxcommon.utils.object_hash import ObjectHash
@@ -118,6 +119,8 @@ class EthMessageConverter(AbstractMessageConverter):
 
         uncles_full_bytes = block_itm_bytes[txs_itm_start + txs_itm_len:]
 
+        used_short_ids = []
+
         # creating transactions content
         content_size = 0
         buf = deque()
@@ -137,24 +140,22 @@ class EthMessageConverter(AbstractMessageConverter):
 
             if short_id <= 0:
                 is_full_tx_bytes = rlp_utils.encode_int(1)
-                short_id_bytes = rlp_utils.encode_int(0)
                 tx_content_bytes = tx_bytes
             else:
                 is_full_tx_bytes = rlp_utils.encode_int(0)
-                short_id_bytes = rlp_utils.encode_int(short_id)
+                used_short_ids.append(short_id)
                 tx_content_bytes = bytes()
 
-            short_tx_content_prefix = rlp_utils.get_length_prefix_str(len(tx_content_bytes))
+            tx_content_prefix = rlp_utils.get_length_prefix_str(len(tx_content_bytes))
 
-            short_tx_content_size = len(is_full_tx_bytes) + len(short_id_bytes) + \
-                                    len(short_tx_content_prefix) + len(tx_content_bytes)
+            short_tx_content_size = len(is_full_tx_bytes) + \
+                                    len(tx_content_prefix) + len(tx_content_bytes)
 
             short_tx_content_prefix_bytes = rlp_utils.get_length_prefix_list(short_tx_content_size)
 
             buf.append(short_tx_content_prefix_bytes)
             buf.append(is_full_tx_bytes)
-            buf.append(short_id_bytes)
-            buf.append(short_tx_content_prefix)
+            buf.append(tx_content_prefix)
             buf.append(tx_content_bytes)
 
             content_size += len(short_tx_content_prefix_bytes) + short_tx_content_size
@@ -180,6 +181,9 @@ class EthMessageConverter(AbstractMessageConverter):
         buf.appendleft(compact_block_msg_prefix)
         content_size += len(compact_block_msg_prefix)
 
+        short_ids_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(used_short_ids)
+        buf.appendleft(short_ids_bytes)
+
         # Parse it into the bloXroute message format and send it along
         block = bytearray(content_size)
         off = 0
@@ -188,7 +192,7 @@ class EthMessageConverter(AbstractMessageConverter):
             block[off:next_off] = blob
             off = next_off
 
-        return block, (tx_count, convert.bytes_to_hex(prev_block_bytes))
+        return block, (tx_count, convert.bytes_to_hex(prev_block_bytes), used_short_ids)
 
     def bx_block_to_block(self, block, tx_service):
         """
@@ -205,7 +209,12 @@ class EthMessageConverter(AbstractMessageConverter):
             raise TypeError("Type bytearray is expected for arg block_bytes but was {0}"
                             .format(type(block)))
 
-        block_bytes = block if isinstance(block, memoryview) else memoryview(block)
+        block_msg_bytes = block if isinstance(block, memoryview) else memoryview(block)
+
+        short_ids, short_ids_bytes_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
+            block_msg_bytes, 0)
+
+        block_bytes = block_msg_bytes[short_ids_bytes_len:]
 
         _, block_itm_len, block_itm_start = rlp_utils.consume_length_prefix(block_bytes, 0)
         block_itm_bytes = block_bytes[block_itm_start:]
@@ -227,6 +236,7 @@ class EthMessageConverter(AbstractMessageConverter):
         full_diff_bytes = block_itm_bytes[block_uncles_start + block_uncles_len:]
 
         # parse statistics variables
+        short_tx_index = 0
         unknown_tx_sids = []
         unknown_tx_hashes = []
 
@@ -247,22 +257,22 @@ class EthMessageConverter(AbstractMessageConverter):
             is_full_tx_start = 0
             is_full_tx, is_full_tx_len, = rlp_utils.decode_int(tx_bytes, is_full_tx_start)
 
-            short_id_start = is_full_tx_start + is_full_tx_len
-            short_id, short_id_len = rlp_utils.decode_int(tx_bytes, short_id_start)
-
             _, tx_content_len, tx_content_start = rlp_utils.consume_length_prefix(tx_bytes,
-                                                                                  short_id_start + short_id_len)
+                                                                                  is_full_tx_start + is_full_tx_len)
             tx_content_bytes = tx_bytes[tx_content_start:tx_content_start + tx_content_len]
 
             if is_full_tx:
                 tx_bytes = tx_content_bytes
             else:
+                short_id = short_ids[short_tx_index]
                 tx_hash, tx_bytes = tx_service.get_transaction(short_id)
 
                 if tx_hash is None:
                     unknown_tx_sids.append(short_id)
                 elif tx_bytes is None:
                     unknown_tx_hashes.append(tx_hash)
+
+                short_tx_index += 1
 
             if tx_bytes is not None and not unknown_tx_sids and not unknown_tx_hashes:
                 buf.append(tx_bytes)
@@ -305,9 +315,9 @@ class EthMessageConverter(AbstractMessageConverter):
             logger.debug("Successfully parsed block broadcast message. {0} transactions in block"
                          .format(tx_count))
 
-            return block_msg, block_hash, unknown_tx_sids, unknown_tx_hashes
+            return block_msg, block_hash, short_ids, unknown_tx_sids, unknown_tx_hashes
         else:
             logger.warn("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in block: {2}"
                         .format(len(unknown_tx_sids), len(unknown_tx_hashes), tx_count))
 
-            return None, block_hash, unknown_tx_sids, unknown_tx_hashes
+            return None, block_hash, short_ids, unknown_tx_sids, unknown_tx_hashes

@@ -9,6 +9,7 @@ from bxcommon.connections.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.services import sdn_http_service
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
 from bxcommon.utils import logger
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway import gateway_constants
@@ -16,9 +17,8 @@ from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
-from bxgateway.storage.block_encrypted_cache import BlockEncryptedCache
 from bxgateway.testing.test_modes import TestModes
-from bxgateway.testing.unencrypted_block_cache import UnencryptedCache
+from bxcommon.testing.unencrypted_block_cache import UnencryptedCache
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -88,7 +88,7 @@ class AbstractGatewayNode(AbstractNode):
 
         # offset SDN calls so all the peers aren't queued up at the same time
         self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS + 2, self._send_request_for_gateway_peers)
-        self._tx_service = TransactionService(self)
+        self._tx_service = TransactionService(self, self.network_num)
 
         self._preferred_gateway_connection = None
 
@@ -289,7 +289,7 @@ class AbstractGatewayNode(AbstractNode):
         return None
 
     def record_mem_stats(self):
-        self._tx_service.log_tx_service_mem_stats(self.opts.blockchain_network_num)
+        self._tx_service.log_tx_service_mem_stats()
         return super(AbstractGatewayNode, self).record_mem_stats()
 
     def init_transaction_stat_logging(self):

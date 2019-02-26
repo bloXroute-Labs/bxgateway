@@ -7,6 +7,7 @@ from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import LOCALHOST, DEFAULT_NETWORK_NUM
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockOpts
@@ -17,8 +18,6 @@ from bxgateway.messages.gateway.block_propagation_request import BlockPropagatio
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
 from bxgateway.services.neutrality_service import NeutralityService
-from bxgateway.storage.block_encrypted_cache import BlockEncryptedCache
-
 
 from bxgateway.services.blockchain_sync_service import BlockchainSyncService
 
