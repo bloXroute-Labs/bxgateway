@@ -2,10 +2,15 @@ import time
 
 from mock import MagicMock
 
+from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
+from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.test_utils import helpers
 from bxcommon.utils.buffers.output_buffer import OutputBuffer
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway import gateway_constants
+from bxgateway.messages.gateway.block_holding_message import BlockHoldingMessage
+from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
+from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.testing.mocks.mock_btc_messages import btc_block
 
@@ -18,30 +23,34 @@ class RequestBlockPropagationBtcTest(AbstractBtcGatewayIntegrationTest):
         # propagate block
         helpers.receive_node_message(self.node1, self.blockchain_fileno, block)
         relayed_block = self.node1.get_bytes_to_send(self.relay_fileno)
-        self.assertIsNotNone(relayed_block)
+        self.assertIn(BroadcastMessage.MESSAGE_TYPE, relayed_block.tobytes())
+
+        block_hold_request = self.node1.get_bytes_to_send(self.gateway_fileno)
+        self.assertIn(BlockHoldingMessage.MESSAGE_TYPE, block_hold_request.tobytes())
+        self.clear_all_buffers()
 
         # receipt timeout
         time.time = MagicMock(return_value=time.time() + gateway_constants.NEUTRALITY_BROADCAST_BLOCK_TIMEOUT_S)
         self.node1.alarm_queue.fire_alarms()
         block_prop_request = self.node1.get_bytes_to_send(self.gateway_fileno)
-        self.assertIsNotNone(block_prop_request)
+        self.assertIn(BlockPropagationRequestMessage.MESSAGE_TYPE, block_prop_request.tobytes())
         self.clear_all_buffers()
 
         # get new block to send
         helpers.receive_node_message(self.node2, self.gateway_fileno, block_prop_request)
         new_relayed_block = self.node2.get_bytes_to_send(self.relay_fileno)
-        self.assertIsNotNone(new_relayed_block)
+        self.assertIn(BroadcastMessage.MESSAGE_TYPE, new_relayed_block.tobytes())
         helpers.clear_node_buffer(self.node2, self.relay_fileno)
 
         # receive new block
         helpers.receive_node_message(self.node1, self.relay_fileno, new_relayed_block)
         block_receipt = self.node1.get_bytes_to_send(self.gateway_fileno)
-        self.assertIsNotNone(self.gateway_fileno)
+        self.assertIn(BlockReceivedMessage.MESSAGE_TYPE, block_receipt.tobytes())
 
         # receive block receipt
         helpers.receive_node_message(self.node2, self.gateway_fileno, block_receipt)
         key_message = self.node2.get_bytes_to_send(self.relay_fileno)
-        self.assertIsNotNone(key_message)
+        self.assertIn(KeyMessage.MESSAGE_TYPE, key_message.tobytes())
 
         # receive key, but already seen so dont forward to blockchain
         helpers.receive_node_message(self.node1, self.relay_fileno, key_message)

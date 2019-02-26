@@ -17,7 +17,7 @@ class BtcConnectionProtocolTest(AbstractTestCase):
 
     def setUp(self):
         self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_btc_args=True))
-        self.node.neutrality_service = MagicMock()
+        self.node.block_processing_service = MagicMock()
 
         self.connection = MagicMock()
         self.connection.node = self.node
@@ -31,4 +31,4 @@ class BtcConnectionProtocolTest(AbstractTestCase):
         txns = [TxBtcMessage(0, 0, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in xrange(10)]
         message = BlockBtcMessage(0, 0, self.HASH, self.HASH, 0, 0, 0, txns)
         self.sut.msg_block(message)
-        self.node.neutrality_service.propagate_block_to_network.assert_called_once()
+        self.node.block_processing_service.queue_block_for_processing.assert_called_once()

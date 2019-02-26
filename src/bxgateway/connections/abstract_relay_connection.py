@@ -200,6 +200,8 @@ class AbstractRelayConnection(InternalNodeConnection):
 
         decompress_end = datetime.datetime.utcnow()
 
+        self.node.block_processing_service.cancel_hold_timeout(block_hash, self)
+
         if recovered:
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_RECOVERY_COMPLETED,

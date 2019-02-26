@@ -37,7 +37,8 @@ class GatewayConnection(InternalNodeConnection):
             GatewayMessageType.HELLO: self.msg_hello,
             BloxrouteMessageType.ACK: self.msg_ack,
             GatewayMessageType.BLOCK_RECEIVED: self.msg_block_received,
-            GatewayMessageType.BLOCK_PROPAGATION_REQUEST: self.msg_block_propagation_request
+            GatewayMessageType.BLOCK_PROPAGATION_REQUEST: self.msg_block_propagation_request,
+            GatewayMessageType.BLOCK_HOLDING: self.msg_block_holding,
         }
         self.version_manager = gateway_version_manager
         self.protocol_version = self.version_manager.CURRENT_PROTOCOL_VERSION
@@ -148,6 +149,10 @@ class GatewayConnection(InternalNodeConnection):
                                                   BlockStatEventType.BX_BLOCK_PROPAGATION_REQUESTED_BY_PEER,
                                                   network_num=self.network_num)
         self.node.neutrality_service.propagate_block_to_network(bx_block, self)
+
+    def msg_block_holding(self, msg):
+        block_hash = msg.block_hash()
+        self.node.block_processing_service.place_hold(block_hash, self)
 
     def _initialize_ordered_handshake(self):
         self.ordering = random.getrandbits(constants.UL_INT_SIZE_IN_BYTES * 8)

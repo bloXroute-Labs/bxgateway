@@ -11,12 +11,16 @@ from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockOpts
-from bxcommon.utils.alarm import AlarmQueue
+from bxcommon.utils import crypto
+from bxcommon.utils.alarm_queue import AlarmQueue
+from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.gateway_connection import GatewayConnection
+from bxgateway.messages.gateway.block_holding_message import BlockHoldingMessage
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
+from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.neutrality_service import NeutralityService
 
 from bxgateway.services.blockchain_sync_service import BlockchainSyncService
@@ -31,6 +35,7 @@ def create_node(ip=LOCALHOST, port=8000):
     node.in_progress_blocks = BlockEncryptedCache(AlarmQueue())
     node.neutrality_service = MagicMock(spec=NeutralityService)
     node.blockchain_sync_service = MagicMock(spec=BlockchainSyncService)
+    node.block_processing_service = MagicMock(spec=BlockProcessingService)
     node.alarm_queue = None
     return node
 
@@ -38,6 +43,7 @@ def create_node(ip=LOCALHOST, port=8000):
 class GatewayConnectionTest(AbstractTestCase):
     def setUp(self):
         self.node = create_node(LOCALHOST, 8000)
+        self.connection = self._create_connection(1, LOCALHOST, 8000, True)
 
     def _create_connection(self, fileno=1, ip=LOCALHOST, port=8001, from_me=True, node=None):
         if node is None:
@@ -228,7 +234,12 @@ class GatewayConnectionTest(AbstractTestCase):
     def test_msg_block_propagation_request(self):
         block = helpers.generate_bytearray(30)
         message = BlockPropagationRequestMessage(block)
-        connection = self._create_connection(1, LOCALHOST, 8000, True)
 
-        connection.msg_block_propagation_request(message)
+        self.connection.msg_block_propagation_request(message)
         self.node.neutrality_service.propagate_block_to_network.assert_called_once()
+
+    def test_msg_block_hold(self):
+        block_hash = ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        message = BlockHoldingMessage(block_hash)
+        self.connection.msg_block_holding(message)
+        self.node.block_processing_service.place_hold.assert_called_once_with(block_hash, self.connection)

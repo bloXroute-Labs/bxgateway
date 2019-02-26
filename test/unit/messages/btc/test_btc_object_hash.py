@@ -1,10 +1,11 @@
 import unittest
 
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
-class ObjectHashTests(unittest.TestCase):
+class ObjectHashTests(AbstractTestCase):
     length1 = 32
     length2 = 64
     to_31 = bytearray([i for i in range(length1)])

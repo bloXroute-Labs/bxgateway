@@ -3,7 +3,7 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.node_type import NodeType
 from bxcommon.constants import DEFAULT_NETWORK_NUM
 from bxcommon.services.transaction_service import TransactionService
-from bxcommon.utils.alarm import AlarmQueue
+from bxcommon.utils.alarm_queue import AlarmQueue
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
@@ -32,7 +32,7 @@ class MockGatewayNode(AbstractGatewayNode):
 
         self._tx_service = TransactionService(self, 0)
 
-    def broadcast(self, msg, requester=None, prepend_to_queue=False, network_num=None,
+    def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, network_num=None,
                   connection_type=ConnectionType.RELAY):
         self.broadcast_messages.append((msg, connection_type))
         return []

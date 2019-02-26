@@ -14,6 +14,7 @@ from bxcommon.utils import logger
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway import gateway_constants
 from bxgateway.connections.gateway_connection import GatewayConnection
+from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
@@ -63,6 +64,7 @@ class AbstractGatewayNode(AbstractNode):
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
         self.neutrality_service = NeutralityService(self)
         self.block_queuing_service = BlockQueuingService(self)
+        self.block_processing_service = BlockProcessingService(self)
 
         self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers)
 

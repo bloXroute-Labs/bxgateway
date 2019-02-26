@@ -63,7 +63,6 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
 
         self.clear_all_buffers()
 
-
     def clear_all_buffers(self):
         helpers.clear_node_buffer(self.node1, self.blockchain_fileno)
         helpers.clear_node_buffer(self.node1, self.relay_fileno)
@@ -71,4 +70,3 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
         helpers.clear_node_buffer(self.node2, self.blockchain_fileno)
         helpers.clear_node_buffer(self.node2, self.relay_fileno)
         helpers.clear_node_buffer(self.node2, self.gateway_fileno)
-

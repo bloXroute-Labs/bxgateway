@@ -12,16 +12,9 @@ from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import ObjectHash
 from bxgateway import gateway_constants
 from bxgateway.gateway_constants import NeutralityPolicy
-from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
-from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
-from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
-from bxgateway.messages.eth.serializers.block import Block
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 from bxgateway.services.neutrality_service import NeutralityService
-from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 def mock_connection(message_converter=None, connection_type=None):

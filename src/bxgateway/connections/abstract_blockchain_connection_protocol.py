@@ -1,8 +1,7 @@
-import datetime
 from abc import ABCMeta
 
 from bxcommon.messages.bloxroute.key_message import KeyMessage
-from bxcommon.utils import logger, crypto, convert
+from bxcommon.utils import logger
 from bxcommon.utils.object_hash import ObjectHash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
@@ -61,30 +60,10 @@ class AbstractBlockchainConnectionProtocol(object):
                                                       network_num=self.connection.network_num)
             logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
             return
+        else:
+            self.connection.node.blocks_seen.add(block_hash)
 
-        compress_start = datetime.datetime.utcnow()
-        bx_block, block_info = self.connection.message_converter.block_to_bx_block(msg,
-                                                                                   self.connection.node.get_tx_service())
-        compress_end = datetime.datetime.utcnow()
-
-        bx_block_hash = crypto.double_sha256(bx_block)
-        block_stats.add_block_event_by_block_hash(block_hash,
-                                                  BlockStatEventType.BLOCK_COMPRESSED,
-                                                  start_date_time=compress_start,
-                                                  end_date_time=compress_end,
-                                                  network_num=self.connection.network_num,
-                                                  original_size=len(msg.rawbytes()),
-                                                  compressed_size=len(bx_block),
-                                                  compressed_hash=convert.bytes_to_hex(bx_block_hash),
-                                                  txs_count=block_info[0],
-                                                  prev_block_hash=block_info[1])
-
-        self.connection.node.neutrality_service.propagate_block_to_network(bx_block, self.connection, block_hash)
-
-        self.connection.node.block_recovery_service.cancel_recovery_for_block(block_hash)
-        self.connection.node.block_queuing_service.remove(block_hash)
-        self.connection.node.blocks_seen.add(block_hash)
-        self.connection.node.get_tx_service().track_seen_short_ids(block_info[2])
+        self.connection.node.block_processing_service.queue_block_for_processing(msg, self.connection)
 
     def msg_proxy_request(self, msg):
         """
