@@ -113,13 +113,13 @@ class GatewayConnection(InternalNodeConnection):
             if connection.ordering > ordering:
                 logger.debug("Connection already exists, with higher priority. Dropping connection {} and keeping {}."
                              .format(self.fileno, connection.fileno))
-                self.mark_for_close()
+                self.mark_for_close(force_destroy_now=True)
                 connection.state |= ConnectionState.ESTABLISHED
                 connection.enqueue_msg(connection.ack_message)
             else:
                 logger.debug("Connection already exists, with lower priority. Dropping connection {} and keeping {}."
                              .format(connection.fileno, self.fileno))
-                connection.mark_for_close()
+                connection.mark_for_close(force_destroy_now=True)
                 self.state |= ConnectionState.ESTABLISHED
                 self.enqueue_msg(self.ack_message)
                 self.node.connection_pool.update_port(port, self)

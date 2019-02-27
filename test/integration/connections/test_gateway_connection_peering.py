@@ -159,7 +159,7 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
 
             # connection is cleaned up from byipaddr but not byfileno
             self.assertEqual(1, len(self.main_gateway.connection_pool))
-            self.assertEqual(2, len(list(self.main_gateway.connection_pool.items())))
+            self.assertEqual(1, len(list(self.main_gateway.connection_pool.items())))
 
             # peer thread should cleanup completely
             integration_helpers.wait_while(lambda: len(self.peer_gateway.connection_pool) > 1)
@@ -195,9 +195,9 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             self.assertTrue(peer_initiated_connection.is_active())
             self.assertTrue(peer_initiated_connection_on_peer.is_active())
 
-            # connection is cleaned up from byipaddr but not byfileno
+            # connection is cleaned up
             self.assertEqual(1, len(self.main_gateway.connection_pool))
-            self.assertEqual(2, len(list(self.main_gateway.connection_pool.items())))
+            self.assertEqual(1, len(list(self.main_gateway.connection_pool.items())))
 
             # peer thread will cleanup dead connection later
             integration_helpers.wait_while(lambda: len(self.peer_gateway.connection_pool) > 2)
@@ -234,9 +234,9 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             self.assertTrue(peer_initiated_connection.state & ConnectionState.MARK_FOR_CLOSE)
             self.assertTrue(peer_initiated_connection_on_peer.state & ConnectionState.MARK_FOR_CLOSE)
 
-            # connection is not cleaned up yet
-            self.assertEqual(2, len(self.main_gateway.connection_pool))
-            self.assertEqual(2, len(list(self.main_gateway.connection_pool.items())))
+            # connection is cleaned up
+            self.assertEqual(1, len(self.main_gateway.connection_pool))
+            self.assertEqual(1, len(list(self.main_gateway.connection_pool.items())))
 
             # peer thread should cleanup completely
             integration_helpers.wait_while(lambda: len(self.peer_gateway.connection_pool) > 1)

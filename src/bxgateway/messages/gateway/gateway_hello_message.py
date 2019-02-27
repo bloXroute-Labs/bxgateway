@@ -73,3 +73,6 @@ class GatewayHelloMessage(VersionMessage):
         if self._node_id is None:
             self._unpack_buffer()
         return self._node_id
+
+    def __repr__(self):
+        return "GatewayHelloMessage<ip: {}, port: {}, ordering: {}>".format(self.ip(), self.port(), self.ordering())

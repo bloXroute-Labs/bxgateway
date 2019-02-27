@@ -72,13 +72,12 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
     def test_gateway_peer_get_more_peers_when_too_few_gateways(self):
         peer_gateways = [
-            OutboundPeerModel(LOCALHOST, 8001)
+            OutboundPeerModel(LOCALHOST, 8001),
         ]
         node = GatewayNode(helpers.get_gateway_opts(8000, peer_gateways=peer_gateways, min_peer_gateways=2))
         node.peer_gateways.add(OutboundPeerModel(LOCALHOST, 8002))
-
         sdn_http_service.fetch_gateway_peers = MagicMock(return_value=[
-            OutboundPeerModel(LOCALHOST, 8003)
+            OutboundPeerModel(LOCALHOST, 8003, "12345")
         ])
 
         node.on_connection_added(MockSocketConnection(), LOCALHOST, 8002, True)
@@ -91,7 +90,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         sdn_http_service.fetch_gateway_peers.assert_has_calls([call(node.opts.node_id), call(node.opts.node_id)])
         self.assertEqual(2, len(node.outbound_peers))
         self.assertIn(OutboundPeerModel(LOCALHOST, 8001), node.outbound_peers)
-        self.assertIn(OutboundPeerModel(LOCALHOST, 8003), node.outbound_peers)
+        self.assertIn(OutboundPeerModel(LOCALHOST, 8003, "12345"), node.outbound_peers)
 
     def test_get_preferred_gateway_connection_opts(self):
         opts_peer_gateways = [
@@ -123,4 +122,3 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         bloxroute_connection.mark_for_close()
         self.assertEqual(other_connection, node.get_preferred_gateway_connection())
-

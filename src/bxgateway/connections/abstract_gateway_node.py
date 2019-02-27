@@ -274,9 +274,14 @@ class AbstractGatewayNode(AbstractNode):
                 self.peer_gateways.add(gateway_peer)
 
     def _remove_gateway_peer(self, ip, port):
-        outbound_peer = OutboundPeerModel(ip, port)
-        if outbound_peer in self.peer_gateways:
-            self.peer_gateways.remove(OutboundPeerModel(ip, port))
+        gateway_to_remove = None
+        for peer_gateway in self.peer_gateways:
+            if ip == peer_gateway.ip and port == peer_gateway.port:
+                gateway_to_remove = peer_gateway
+                break
+
+        if gateway_to_remove is not None:
+            self.peer_gateways.remove(gateway_to_remove)
             self.outbound_peers = self._get_all_peers()
             if len(self.peer_gateways) < self.opts.min_peer_gateways:
                 self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
