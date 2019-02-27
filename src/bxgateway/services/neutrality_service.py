@@ -135,13 +135,14 @@ class NeutralityService(object):
         Called after a timeout. This invalidates all future bx_block receipts.
         """
         bx_block_hash = crypto.double_sha256(bx_block)
+        hex_bx_block_hash = convert.bytes_to_hex(bx_block_hash)
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_PROPAGATION_NEEDED,
                                                   network_num=self._node.network_num,
-                                                  compressed_block_hash=convert.bytes_to_hex(bx_block_hash))
+                                                  compressed_block_hash=hex_bx_block_hash)
 
         logger.warn("Did not receive receipts for: {}. Propagating compressed block to other gateways: {}"
-                    .format(cipher_hash, bx_block_hash))
+                    .format(cipher_hash, hex_bx_block_hash))
         self._send_key(cipher_hash)
 
         request = BlockPropagationRequestMessage(bx_block)

@@ -80,6 +80,9 @@ class BlockBtcMessage(BtcMessage):
         return self._merkle_root
 
     def timestamp(self):
+        """
+        :return: seconds since epoch
+        """
         if self._version is None:
             self.version()
         return self._timestamp

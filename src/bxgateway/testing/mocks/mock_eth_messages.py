@@ -20,7 +20,10 @@ def get_dummy_transaction(nonce):
         7 * nonce)
 
 
-def get_dummy_block_header(nonce):
+def get_dummy_block_header(nonce, timestamp=None):
+    if timestamp is None:
+        timestamp = 5 * nonce
+
     # create BlockHeader object with dummy values multiplied by nonce to be able generate txs with different value
     return BlockHeader(
         helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
@@ -34,7 +37,7 @@ def get_dummy_block_header(nonce):
         2 * nonce,
         3 * nonce,
         4 * nonce,
-        5 * nonce,
+        timestamp,
         helpers.generate_bytearray(100 * nonce),
         helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
         helpers.generate_bytearray(nonce)
@@ -54,9 +57,12 @@ def get_dummy_transient_block_body(nonce):
         ])
 
 
-def get_dummy_block(nonce):
+def get_dummy_block(nonce, header=None):
+    if header is None:
+        header = get_dummy_block_header(nonce)
+
     return Block(
-        get_dummy_block_header(nonce),
+        header,
         [
             get_dummy_transaction(1),
             get_dummy_transaction(2),
@@ -67,3 +73,4 @@ def get_dummy_block(nonce):
             get_dummy_block_header(2)
         ]
     )
+

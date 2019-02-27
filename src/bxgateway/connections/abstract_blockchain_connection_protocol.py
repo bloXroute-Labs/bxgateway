@@ -1,3 +1,4 @@
+import time
 from abc import ABCMeta
 
 from bxcommon.messages.bloxroute.key_message import KeyMessage
@@ -7,6 +8,7 @@ from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxgateway import gateway_constants
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -60,9 +62,14 @@ class AbstractBlockchainConnectionProtocol(object):
                                                       network_num=self.connection.network_num)
             logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
             return
-        else:
-            self.connection.node.blocks_seen.add(block_hash)
 
+        max_time_offset = self.connection.node.opts.blockchain_block_interval * self.connection.node.opts.blockchain_ignore_block_interval_count
+        if time.time() - msg.timestamp() >= max_time_offset:
+            logger.debug("Received block {} more than {} seconds after it was created ({}). Ignoring."
+                         .format(block_hash, max_time_offset, msg.timestamp()))
+            return
+
+        self.connection.node.blocks_seen.add(block_hash)
         self.connection.node.block_processing_service.queue_block_for_processing(msg, self.connection)
 
     def msg_proxy_request(self, msg):
