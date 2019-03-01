@@ -46,15 +46,18 @@ class NeutralityService(object):
                                                                                                             bx_block))
             self._alarms[cipher_hash] = alarm_id
 
-    def record_block_receipt(self, cipher_hash):
+    def record_block_receipt(self, cipher_hash, connection):
         """
         Records a receipt of a block hash. Releases key if threshold reached.
         :param cipher_hash encrypted block ObjectHash
+        :param connection posting block received receipt
         """
         if cipher_hash in self._receipt_tracker:
             self._receipt_tracker[cipher_hash] += 1
             block_stats.add_block_event_by_block_hash(cipher_hash,
                                                       BlockStatEventType.ENC_BLOCK_RECEIVED_BLOCK_RECEIPT,
+                                                      peer=(connection.peer_desc, connection.CONNECTION_TYPE),
+                                                      receipt_count=self._receipt_tracker[cipher_hash],
                                                       network_num=self._node.network_num)
 
             if self._are_enough_receipts_received(cipher_hash):
@@ -136,17 +139,20 @@ class NeutralityService(object):
         """
         bx_block_hash = crypto.double_sha256(bx_block)
         hex_bx_block_hash = convert.bytes_to_hex(bx_block_hash)
-        block_stats.add_block_event_by_block_hash(cipher_hash,
-                                                  BlockStatEventType.ENC_BLOCK_PROPAGATION_NEEDED,
-                                                  network_num=self._node.network_num,
-                                                  compressed_block_hash=hex_bx_block_hash)
 
-        logger.warn("Did not receive receipts for: {}. Propagating compressed block to other gateways: {}"
+        logger.warn("Did not receive enough receipts for: {}. Propagating compressed block to other gateways: {}"
                     .format(cipher_hash, hex_bx_block_hash))
         self._send_key(cipher_hash)
 
         request = BlockPropagationRequestMessage(bx_block)
-        self._node.broadcast(request, None, connection_type=ConnectionType.GATEWAY)
+        conns = self._node.broadcast(request, None, connection_type=ConnectionType.GATEWAY)
+        block_stats.add_block_event_by_block_hash(cipher_hash,
+                                                  BlockStatEventType.ENC_BLOCK_PROPAGATION_NEEDED,
+                                                  network_num=self._node.network_num,
+                                                  compressed_block_hash=hex_bx_block_hash,
+                                                  receipt_count=self._receipt_tracker[cipher_hash],
+                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))
+
         del self._receipt_tracker[cipher_hash]
         del self._alarms[cipher_hash]
         return constants.CANCEL_ALARMS

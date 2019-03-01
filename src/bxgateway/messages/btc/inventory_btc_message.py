@@ -18,6 +18,10 @@ class InventoryType(object):
     MSG_WITNESS_BLOCK = MSG_BLOCK | MSG_WITNESS_FLAG
     MSG_WITNESS_TX = MSG_TX | MSG_WITNESS_FLAG
 
+    @classmethod
+    def is_block(cls, inventory_type):
+        return inventory_type != 0 and inventory_type != InventoryType.MSG_TX and inventory_type != InventoryType.MSG_WITNESS_TX
+
 
 class InventoryBtcMessage(BtcMessage):
     def __init__(self, magic=None, inv_vect=None, command=None, request_witness_data=False, buf=None):
@@ -40,7 +44,7 @@ class InventoryBtcMessage(BtcMessage):
                 buf[off:off + 32] = inv_item[1].get_big_endian()
                 off += 32
 
-            BtcMessage.__init__(self, magic, command, off - BTC_HDR_COMMON_OFF, buf)
+            super(InventoryBtcMessage, self).__init__(magic, command, off - BTC_HDR_COMMON_OFF, buf)
         else:
             self.buf = buf
             self._memoryview = memoryview(buf)

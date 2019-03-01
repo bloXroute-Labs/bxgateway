@@ -67,7 +67,7 @@ class GetHeadersBtcMessage(DataBtcMessage):
     def __init__(self, magic=None, version=None, hashes=None, hash_stop=None, buf=None):
         if hashes is None:
             hashes = []
-        DataBtcMessage.__init__(self, magic, version, hashes, hash_stop, self.MESSAGE_TYPE, buf)
+        super(GetHeadersBtcMessage, self).__init__(magic, version, hashes, hash_stop, self.MESSAGE_TYPE, buf)
 
 
 class GetBlocksBtcMessage(DataBtcMessage):
@@ -76,4 +76,4 @@ class GetBlocksBtcMessage(DataBtcMessage):
     def __init__(self, magic=None, version=None, hashes=None, hash_stop=None, buf=None):
         if hashes is None:
             hashes = []
-        DataBtcMessage.__init__(self, magic, version, hashes, hash_stop, self.MESSAGE_TYPE, buf)
+        super(GetBlocksBtcMessage, self).__init__(magic, version, hashes, hash_stop, self.MESSAGE_TYPE, buf)

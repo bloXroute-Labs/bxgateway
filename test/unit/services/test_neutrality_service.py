@@ -23,6 +23,7 @@ def mock_connection(message_converter=None, connection_type=None):
     connection = MagicMock()
     connection.message_converter = message_converter
     connection.CONNECTION_TYPE = connection_type
+    connection.peer_desc = "127.0.0.1 8000"
     return connection
 
 
@@ -30,6 +31,7 @@ class NeutralityServiceTest(AbstractTestCase):
     BYTE_BLOCK = helpers.generate_bytearray(30)
     BLOCK_HASH = ObjectHash(crypto.double_sha256("123"))
     KEY_HASH = crypto.double_sha256("234")
+    MOCK_CONNECTION = mock_connection(connection_type=ConnectionType.GATEWAY)
 
     def setUp(self):
         self.node = MockGatewayNode(helpers.get_gateway_opts(8000,
@@ -51,10 +53,10 @@ class NeutralityServiceTest(AbstractTestCase):
 
         self.neutrality_service.register_for_block_receipts(self.BLOCK_HASH, self.BYTE_BLOCK)
 
-        self.neutrality_service.record_block_receipt(self.BLOCK_HASH)
+        self.neutrality_service.record_block_receipt(self.BLOCK_HASH, self.MOCK_CONNECTION)
         self.assertEqual(0, len(self.node.broadcast_messages))
 
-        self.neutrality_service.record_block_receipt(self.BLOCK_HASH)
+        self.neutrality_service.record_block_receipt(self.BLOCK_HASH, self.MOCK_CONNECTION)
         self.assertEqual(1, len(self.node.broadcast_messages))
 
         self._assert_broadcast_key()
@@ -85,13 +87,13 @@ class NeutralityServiceTest(AbstractTestCase):
 
         self.neutrality_service.register_for_block_receipts(self.BLOCK_HASH, self.BYTE_BLOCK)
 
-        self.neutrality_service.record_block_receipt(self.BLOCK_HASH)
+        self.neutrality_service.record_block_receipt(self.BLOCK_HASH, self.MOCK_CONNECTION)
         self.assertEqual(0, len(self.node.broadcast_messages))
-        self.neutrality_service.record_block_receipt(self.BLOCK_HASH)
+        self.neutrality_service.record_block_receipt(self.BLOCK_HASH, self.MOCK_CONNECTION)
         self.assertEqual(0, len(self.node.broadcast_messages))
-        self.neutrality_service.record_block_receipt(self.BLOCK_HASH)
+        self.neutrality_service.record_block_receipt(self.BLOCK_HASH, self.MOCK_CONNECTION)
         self.assertEqual(0, len(self.node.broadcast_messages))
-        self.neutrality_service.record_block_receipt(self.BLOCK_HASH)
+        self.neutrality_service.record_block_receipt(self.BLOCK_HASH, self.MOCK_CONNECTION)
         self.assertEqual(1, len(self.node.broadcast_messages))
 
         self._assert_broadcast_key()
