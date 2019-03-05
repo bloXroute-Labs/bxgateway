@@ -183,6 +183,7 @@ class EthMessageConverter(AbstractMessageConverter):
 
         short_ids_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(used_short_ids)
         buf.appendleft(short_ids_bytes)
+        content_size += len(short_ids_bytes)
 
         # Parse it into the bloXroute message format and send it along
         block = bytearray(content_size)
