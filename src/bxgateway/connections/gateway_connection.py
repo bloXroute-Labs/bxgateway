@@ -6,6 +6,7 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
+from bxcommon.services import sdn_http_service
 from bxcommon.utils import logger, crypto, convert
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
@@ -78,6 +79,10 @@ class GatewayConnection(InternalNodeConnection):
         if peer_id is None:
             logger.warn("Hello message without peer_id received from {}".format(self))
         self.peer_id = peer_id
+
+        if not self.from_me:
+            logger.debug("{0} connection established with {1}".format(self.CONNECTION_TYPE, self.peer_id))
+            sdn_http_service.submit_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)
 
         if self.node.connection_exists(ip, port):
             connection = self.node.connection_pool.get_by_ipport(ip, port)
@@ -163,3 +168,10 @@ class GatewayConnection(InternalNodeConnection):
     def _update_port_info(self, new_port):
         self.peer_port = new_port
         self.peer_desc = "%s %d" % (self.peer_ip, self.peer_port)
+
+    def mark_for_close(self, force_destroy_now=False):
+        super(GatewayConnection, self).mark_for_close(force_destroy_now=force_destroy_now)
+
+        if not self.from_me:
+            logger.debug("{0} connection with {1} closed".format(self.CONNECTION_TYPE, self.peer_id))
+            sdn_http_service.delete_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)
