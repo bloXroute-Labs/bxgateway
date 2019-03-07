@@ -73,7 +73,6 @@ class BlockProcessingService(object):
         if block_hash in self._holds.contents:
             hold = self._holds.contents[block_hash]
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_HELD_BLOCK,
-                                                      timeout_already_scheduled=hold.alarm is not None,
                                                       network_num=connection.network_num,
                                                       peer=connection.peer_desc)
 
