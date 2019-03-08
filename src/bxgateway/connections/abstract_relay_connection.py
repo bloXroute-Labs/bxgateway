@@ -112,7 +112,7 @@ class AbstractRelayConnection(InternalNodeConnection):
         network_num = msg.network_num()
         tx_val = msg.tx_val()
 
-        if tx_hash in tx_service.txhash_to_sids and not short_id:
+        if tx_service.has_transaction_short_id(tx_hash) and not short_id:
             gateway_transaction_stats_service.log_duplicate_transaction_from_relay()
             tx_stats.add_tx_by_hash_event(tx_hash,
                                           TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
@@ -136,7 +136,7 @@ class AbstractRelayConnection(InternalNodeConnection):
                                           network_num=network_num, short_id=short_id, peer=self.peer_desc)
             logger.info("transaction had no short id: {}".format(msg))
 
-        if tx_hash in tx_service.txhash_to_contents:
+        if tx_service.has_transaction_contents(tx_hash):
             logger.debug("Transaction has been seen, but short id newly assigned.")
             if tx_val != TxMessage.EMPTY_TX_VAL:
                 tx_stats.add_tx_by_hash_event(tx_hash,
@@ -147,7 +147,7 @@ class AbstractRelayConnection(InternalNodeConnection):
 
         if tx_val != TxMessage.EMPTY_TX_VAL:
             logger.debug("Adding hash value to tx service and forwarding it to node")
-            tx_service.txhash_to_contents[tx_hash] = msg.tx_val()
+            tx_service.set_transaction_contents(tx_hash, msg.tx_val())
             self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
             self._msg_broadcast_retry()
 
@@ -174,13 +174,13 @@ class AbstractRelayConnection(InternalNodeConnection):
 
             self.node.block_recovery_service.check_missing_sid(short_id)
 
-            if short_id not in tx_service.sid_to_txhash:
+            if  not tx_service.has_short_id(short_id):
                 tx_service.assign_short_id(tx_hash, short_id)
 
             self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
-            if tx_hash not in tx_service.txhash_to_contents:
-                tx_service.txhash_to_contents[tx_hash] = transaction_contents
+            if not tx_service.has_transaction_contents(tx_hash):
+                tx_service.set_transaction_contents(tx_hash, transaction_contents)
 
         self._msg_broadcast_retry()
 

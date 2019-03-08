@@ -216,7 +216,7 @@ class EthMessageConverterTests(AbstractTestCase):
             tx_hash = hashlib.sha256(tx_bytes)
 
             self.tx_service.assign_short_id(tx_hash, i)
-            self.tx_service.txhash_to_contents[tx_hash] = tx_bytes
+            self.tx_service.set_transaction_contents(tx_hash, tx_bytes)
 
             short_tx = ShortTransaction(0, bytes())
             short_ids.append(i)
@@ -277,7 +277,7 @@ class EthMessageConverterTests(AbstractTestCase):
                 tx_hash = hashlib.sha256(tx_bytes)
 
                 self.tx_service.assign_short_id(tx_hash, i)
-                self.tx_service.txhash_to_contents[tx_hash] = tx_bytes
+                self.tx_service.set_transaction_contents(tx_hash, tx_bytes)
 
                 short_tx = ShortTransaction(0, bytes())
                 short_txs.append(short_tx)
@@ -343,7 +343,7 @@ class EthMessageConverterTests(AbstractTestCase):
             txs_hashes.append(tx_hash)
 
             self.tx_service.assign_short_id(tx_hash, i)
-            self.tx_service.txhash_to_contents[tx_hash] = tx_bytes
+            self.tx_service.set_transaction_contents(tx_hash, tx_bytes)
             short_ids.append(i)
 
         block = Block(mock_eth_messages.get_dummy_block_header(100), txs, [mock_eth_messages.get_dummy_block_header(2)])

@@ -25,7 +25,7 @@ class AbstractBlockchainConnectionProtocol(object):
         bx_tx_messages = self.connection.message_converter.tx_to_bx_txs(msg, self.connection.network_num)
 
         for (bx_tx_message, tx_hash, tx_bytes) in bx_tx_messages:
-            if tx_hash in self.connection.node.get_tx_service().txhash_to_contents:
+            if self.connection.node.get_tx_service().has_transaction_contents(tx_hash):
                 tx_stats.add_tx_by_hash_event(tx_hash,
                                               TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                               network_num=self.connection.network_num,
@@ -44,7 +44,7 @@ class AbstractBlockchainConnectionProtocol(object):
                                           network_num=self.connection.network_num,
                                           peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),
                                                     broadcast_peers))
-            self.connection.node.get_tx_service().txhash_to_contents[tx_hash] = tx_bytes
+            self.connection.node.get_tx_service().set_transaction_contents(tx_hash, tx_bytes)
 
     def msg_block(self, msg):
         """
