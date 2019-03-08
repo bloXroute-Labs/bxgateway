@@ -1,138 +1,222 @@
+from collections import defaultdict
+
 from bxcommon import constants
-from bxcommon.utils import logger
+from bxcommon.utils import logger, crypto
 from bxcommon.utils.expiration_queue import ExpirationQueue
+from bxcommon.utils.object_hash import ObjectHash
 
 
 class BlockRecoveryService(object):
     """
-    Logic to handle scenario when gateway receives block with transaction sid and hash
-    that it is not aware of.
+    Service class that handles blocks gateway receives with unknown transaction short ids are contents.
+
+    Attributes
+    ----------
+    recovered blocks: queue to which recovered blocks are pushed to
+    _alarm_queue: reference to alarm queue to schedule cleanup on
+
+    _bx_block_hash_to_sids: map of compressed block hash to its set of unknown short ids
+    _bx_block_hash_to_tx_hashes: map of compressed block hash to its set of unknown transaction hashes
+    _bx_block_hash_to_block_hash: map of compressed block hash to its original block hash
+    _bx_block_hash_to_block: map of compressed block hash to its compressed byte representation
+    _block_hash_to_bx_block_hashes: map of original block hash to compressed block hashes waiting for recovery
+    _sid_to_bx_block_hashes: map of short id to compressed block hashes waiting for recovery
+    _tx_hash_to_bx_block_hashes: map of transaction hash to block hashes waiting for recovery
+
+    _cleanup_scheduled: whether block recovery has an alarm scheduled to clean up recovering blocks
+    _blocks_expiration_queue: queue to trigger expiration of waiting for block recovery
     """
 
     def __init__(self, alarm_queue):
-        self.alarm_queue = alarm_queue
-
-        # block hash -> set of sids
-        self.block_hash_to_sids = {}
-
-        # block hash -> set of tx hashes
-        self.block_hash_to_tx_hashes = {}
-
-        self.block_hash_to_block = {}
-
-        self.blocks_expiration_queue = ExpirationQueue(constants.MISSING_BLOCK_EXPIRE_TIME)
-
-        self.sid_to_block_hash = {}
-        self.tx_hash_to_block_hash = {}
-
         self.recovered_blocks = []
 
-        self.cleanup_scheduled = False
+        self._alarm_queue = alarm_queue
 
-    def add_block(self, block, block_hash, unknown_tx_sids, unknown_tx_contents):
+        self._bx_block_hash_to_sids = {}
+        self._bx_block_hash_to_tx_hashes = {}
+        self._bx_block_hash_to_block_hash = {}
+        self._bx_block_hash_to_block = {}
+        self._block_hash_to_bx_block_hashes = defaultdict(set)
+        self._sid_to_bx_block_hashes = defaultdict(set)
+        self._tx_hash_to_bx_block_hashes = defaultdict(set)
+
+        self._cleanup_scheduled = False
+        self._blocks_expiration_queue = ExpirationQueue(constants.MISSING_BLOCK_EXPIRE_TIME)
+
+    def add_block(self, bx_block, block_hash, unknown_tx_sids, unknown_tx_hashes):
+        """
+        Adds a block that needs to recovery. Tracks unknown short ids and contents as they come in.
+        :param bx_block: bytearray representation of compressed block
+        :param block_hash: original ObjectHash of block
+        :param unknown_tx_sids: list of unknown short ids
+        :param unknown_tx_hashes: list of unknown tx ObjectHashes
+        """
         logger.debug("Recovering block with {} unknown short ids and {} contents: {}"
-                     .format(len(unknown_tx_sids), len(unknown_tx_contents), block_hash))
+                     .format(len(unknown_tx_sids), len(unknown_tx_hashes), block_hash))
+        bx_block_hash = ObjectHash(crypto.double_sha256(bx_block))
 
-        self.block_hash_to_block[block_hash] = block
+        self._bx_block_hash_to_block[bx_block_hash] = bx_block
+        self._bx_block_hash_to_block_hash[bx_block_hash] = block_hash
+        self._bx_block_hash_to_sids[bx_block_hash] = set(unknown_tx_sids)
+        self._bx_block_hash_to_tx_hashes[bx_block_hash] = set(unknown_tx_hashes)
 
-        self.blocks_expiration_queue.add(block_hash)
-
-        self.block_hash_to_sids[block_hash] = set()
-        self.block_hash_to_tx_hashes[block_hash] = set()
-
+        self._block_hash_to_bx_block_hashes[block_hash].add(bx_block_hash)
         for sid in unknown_tx_sids:
-            self.sid_to_block_hash[sid] = block_hash
-            self.block_hash_to_sids[block_hash].add(sid)
+            self._sid_to_bx_block_hashes[sid].add(bx_block_hash)
+        for tx_hash in unknown_tx_hashes:
+            self._tx_hash_to_bx_block_hashes[tx_hash].add(bx_block_hash)
 
-        for tx_hash in unknown_tx_contents:
-            self.tx_hash_to_block_hash[tx_hash] = block_hash
-            self.block_hash_to_tx_hashes[block_hash].add(tx_hash)
-
+        self._blocks_expiration_queue.add(bx_block_hash)
         self._schedule_cleanup()
 
     def check_missing_sid(self, sid):
-        if sid in self.sid_to_block_hash:
+        """
+        Resolves recovering blocks depend on sid.
+        :param sid: SID info that has been processed
+        """
+        if sid in self._sid_to_bx_block_hashes:
             logger.debug("Resolved previously unknown short id: {0}.".format(sid))
 
-            block_hash = self.sid_to_block_hash[sid]
+            bx_block_hashes = self._sid_to_bx_block_hashes[sid]
+            for bx_block_hash in bx_block_hashes:
+                if bx_block_hash in self._bx_block_hash_to_sids:
+                    if sid in self._bx_block_hash_to_sids[bx_block_hash]:
+                        self._bx_block_hash_to_sids[bx_block_hash].discard(sid)
+                        self._check_if_recovered(bx_block_hash)
 
-            if block_hash in self.block_hash_to_sids:
-                if sid in self.block_hash_to_sids[block_hash]:
-                    self.block_hash_to_sids[block_hash].discard(sid)
-
-            del self.sid_to_block_hash[sid]
-
-            self._check_if_recovered(block_hash)
+            del self._sid_to_bx_block_hashes[sid]
 
     def check_missing_tx_hash(self, tx_hash):
-        if tx_hash in self.tx_hash_to_block_hash:
+        """
+        Resolves recovering blocks depend on transaction hash.
+        :param tx_hash: transaction info that has been processed
+        """
+        if tx_hash in self._tx_hash_to_bx_block_hashes:
             logger.debug("Resolved previously unknown transaction hash {0}.".format(tx_hash))
 
-            block_hash = self.tx_hash_to_block_hash[tx_hash]
+            bx_block_hashes = self._tx_hash_to_bx_block_hashes[tx_hash]
+            for bx_block_hash in bx_block_hashes:
+                if bx_block_hash in self._bx_block_hash_to_tx_hashes:
+                    if tx_hash in self._bx_block_hash_to_tx_hashes[bx_block_hash]:
+                        self._bx_block_hash_to_tx_hashes[bx_block_hash].discard(tx_hash)
+                        self._check_if_recovered(bx_block_hash)
 
-            if block_hash in self.block_hash_to_tx_hashes:
-                if tx_hash in self.block_hash_to_tx_hashes[block_hash]:
-                    self.block_hash_to_tx_hashes[block_hash].discard(tx_hash)
-
-            del self.tx_hash_to_block_hash[tx_hash]
-
-            self._check_if_recovered(block_hash)
+            del self._tx_hash_to_bx_block_hashes[tx_hash]
 
     def cancel_recovery_for_block(self, block_hash):
-        if block_hash in self.block_hash_to_block:
+        """
+        Cancels recovery for all compressed blocks matching a block hash
+        :param block_hash: ObjectHash
+        """
+        if block_hash in self._block_hash_to_bx_block_hashes:
             logger.debug("Cancelled block recovery for block: {}".format(block_hash))
-            self._remove_not_recovered_block(block_hash)
+            self._remove_recovered_block_hash(block_hash)
 
     def cleanup_old_blocks(self, clean_up_time=None):
+        """
+        Cleans up old compressed blocks awaiting recovery.
+        :param clean_up_time:
+        """
         logger.info("Cleaning up block recovery.")
-        num_blocks_awaiting_recovery = len(self.block_hash_to_block)
-        self.blocks_expiration_queue.remove_expired(current_time=clean_up_time,
-                                                    remove_callback=self._remove_not_recovered_block)
+        num_blocks_awaiting_recovery = len(self._bx_block_hash_to_block)
+        self._blocks_expiration_queue.remove_expired(current_time=clean_up_time,
+                                                     remove_callback=self._remove_not_recovered_block)
         logger.info("Cleaned up {} blocks awaiting recovery."
-                    .format(len(self.block_hash_to_block) - num_blocks_awaiting_recovery))
+                    .format(num_blocks_awaiting_recovery - len(self._bx_block_hash_to_block)))
 
-        if self.block_hash_to_block:
+        if self._bx_block_hash_to_block:
             return constants.MISSING_BLOCK_EXPIRE_TIME
 
         # disable clean up until receive the next block with unknown tx
-        self.cleanup_scheduled = False
+        self._cleanup_scheduled = False
         return 0
 
     def clean_up_recovered_blocks(self):
+        """
+        Cleans up blocks that have finished recovery.
+        :return:
+        """
         logger.debug("Cleaning up {} recovered blocks."
                      .format(len(self.recovered_blocks)))
         del self.recovered_blocks[:]
 
-    def _check_if_recovered(self, block_hash):
-        if self._is_block_recovered(block_hash):
-            logger.debug("Recovered block: {}".format(block_hash))
-            block = self.block_hash_to_block[block_hash]
-            self._remove_not_recovered_block(block_hash)
-            self.recovered_blocks.append(block)
+    def _check_if_recovered(self, bx_block_hash):
+        """
+        Checks if a compressed block has received all short ids and transaction hashes necessary to recover.
+        Adds block to recovered blocks if so.
+        :param bx_block_hash: ObjectHash
+        :return:
+        """
+        if self._is_block_recovered(bx_block_hash):
+            logger.debug("Recovered block: {}".format(bx_block_hash))
+            bx_block = self._bx_block_hash_to_block[bx_block_hash]
+            block_hash = self._bx_block_hash_to_block_hash[bx_block_hash]
+            self._remove_recovered_block_hash(block_hash)
+            self.recovered_blocks.append(bx_block)
 
-    def _is_block_recovered(self, block_hash):
-        return len(self.block_hash_to_sids[block_hash]) == 0 and len(self.block_hash_to_tx_hashes[block_hash]) == 0
+    def _is_block_recovered(self, bx_block_hash):
+        """
+        Indicates if a compressed block has received all short ids and transaction hashes necessary to recover.
+        :param bx_block_hash: ObjectHash
+        :return:
+        """
+        return len(self._bx_block_hash_to_sids[bx_block_hash]) == 0 and len(self._bx_block_hash_to_tx_hashes[bx_block_hash]) == 0
 
-    def _remove_not_recovered_block(self, block_hash):
-        if block_hash in self.block_hash_to_block:
-            logger.debug("Block has failed recovery: {}".format(block_hash))
+    def _remove_recovered_block_hash(self, block_hash):
+        """
+        Removes all compressed blocks awaiting recovery that are matches to a recovered block hash.
+        :param block_hash: ObjectHash
+        :return:
+        """
+        if block_hash in self._block_hash_to_bx_block_hashes:
+            for bx_block_hash in self._block_hash_to_bx_block_hashes[block_hash]:
+                if bx_block_hash in self._bx_block_hash_to_block:
+                    self._remove_sid_and_tx_mapping_for_bx_block_hash(bx_block_hash)
+                    del self._bx_block_hash_to_block[bx_block_hash]
+                    del self._bx_block_hash_to_block_hash[bx_block_hash]
+            del self._block_hash_to_bx_block_hashes[block_hash]
 
-            del self.block_hash_to_block[block_hash]
+    def _remove_sid_and_tx_mapping_for_bx_block_hash(self, bx_block_hash):
+        """
+        Removes all short id and transaction mapping for a compressed block.
+        :param bx_block_hash:
+        :return:
+        """
+        if bx_block_hash not in self._bx_block_hash_to_block:
+            raise ValueError("Can't remove mapping for a block that isn't being recovered.")
 
-            for sid in self.block_hash_to_sids[block_hash]:
-                if sid in self.sid_to_block_hash:
-                    del self.sid_to_block_hash[sid]
+        for sid in self._bx_block_hash_to_sids[bx_block_hash]:
+            if sid in self._sid_to_bx_block_hashes:
+                self._sid_to_bx_block_hashes[sid].discard(bx_block_hash)
+                if len(self._sid_to_bx_block_hashes[sid]) == 0:
+                    del self._sid_to_bx_block_hashes[sid]
+        del self._bx_block_hash_to_sids[bx_block_hash]
 
-            del self.block_hash_to_sids[block_hash]
+        for tx_hash in self._bx_block_hash_to_tx_hashes[bx_block_hash]:
+            if tx_hash in self._tx_hash_to_bx_block_hashes:
+                self._tx_hash_to_bx_block_hashes[tx_hash].discard(bx_block_hash)
+                if len(self._tx_hash_to_bx_block_hashes[tx_hash]) == 0:
+                    del self._tx_hash_to_bx_block_hashes[tx_hash]
+        del self._bx_block_hash_to_tx_hashes[bx_block_hash]
 
-            for tx_hash in self.block_hash_to_tx_hashes[block_hash]:
-                if tx_hash in self.tx_hash_to_block_hash:
-                    del self.tx_hash_to_block_hash[tx_hash]
+    def _remove_not_recovered_block(self, bx_block_hash):
+        """
+        Removes compressed block that has not recovered.
+        :param bx_block_hash: ObjectHash
+        """
+        if bx_block_hash in self._bx_block_hash_to_block:
+            logger.debug("Block has failed recovery: {}".format(bx_block_hash))
 
-            del self.block_hash_to_tx_hashes[block_hash]
+            self._remove_sid_and_tx_mapping_for_bx_block_hash(bx_block_hash)
+            del self._bx_block_hash_to_block[bx_block_hash]
+
+            block_hash = self._bx_block_hash_to_block_hash.pop(bx_block_hash)
+            self._block_hash_to_bx_block_hashes[block_hash].discard(bx_block_hash)
+            if len(self._block_hash_to_bx_block_hashes[block_hash]) == 0:
+                del self._block_hash_to_bx_block_hashes[block_hash]
 
     def _schedule_cleanup(self):
-        if not self.cleanup_scheduled and self.block_hash_to_block:
+        if not self._cleanup_scheduled and self._bx_block_hash_to_block:
             logger.debug("Scheduling block recovery cleanup in {} seconds.".format(constants.MISSING_BLOCK_EXPIRE_TIME))
-            self.alarm_queue.register_alarm(constants.MISSING_BLOCK_EXPIRE_TIME, self.cleanup_old_blocks)
-            self.cleanup_scheduled = True
+            self._alarm_queue.register_alarm(constants.MISSING_BLOCK_EXPIRE_TIME, self.cleanup_old_blocks)
+            self._cleanup_scheduled = True

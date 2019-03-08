@@ -4,8 +4,11 @@ import time
 from mock import MagicMock
 
 from bxcommon import constants
+from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_alarm_queue import MockAlarmQueue
+from bxcommon.utils import crypto
+from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 
 
@@ -22,6 +25,7 @@ class BlockRecoveryManagerTest(AbstractTestCase):
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
         self.blocks = []
         self.block_hashes = []
+        self.bx_block_hashes = []
         self.unknown_tx_sids = []
         self.unknown_tx_hashes = []
 
@@ -37,8 +41,8 @@ class BlockRecoveryManagerTest(AbstractTestCase):
 
         self.block_recovery_service.check_missing_sid(sid)
 
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_sids[self.block_hashes[0]]), 2)
-        self.assertNotIn(sid, self.block_recovery_service.sid_to_block_hash)
+        self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_sids[self.bx_block_hashes[0]]), 2)
+        self.assertNotIn(sid, self.block_recovery_service._sid_to_bx_block_hashes)
 
     def test_check_missing_tx_hash(self):
         self._add_block()
@@ -47,20 +51,14 @@ class BlockRecoveryManagerTest(AbstractTestCase):
 
         self.block_recovery_service.check_missing_tx_hash(tx_hash)
 
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_tx_hashes[self.block_hashes[0]]), 1)
-        self.assertNotIn(tx_hash, self.block_recovery_service.tx_hash_to_block_hash)
+        self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_tx_hashes[self.bx_block_hashes[0]]), 1)
+        self.assertNotIn(tx_hash, self.block_recovery_service._tx_hash_to_bx_block_hashes)
 
     def test_cancel_recovery_for_block(self):
         self._add_block()
 
         self.block_recovery_service.cancel_recovery_for_block(self.block_hashes[0])
-
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_block), 0)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_sids), 0)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_tx_hashes), 0)
-
-        self.assertEqual(len(self.block_recovery_service.sid_to_block_hash), 0)
-        self.assertEqual(len(self.block_recovery_service.tx_hash_to_block_hash), 0)
+        self._assert_no_blocks_awaiting_recovery()
 
     def test_recovered_blocks__sids_arrive_first(self):
         self._add_block()
@@ -73,13 +71,7 @@ class BlockRecoveryManagerTest(AbstractTestCase):
         for tx_hash in self.unknown_tx_hashes[0]:
             self.block_recovery_service.check_missing_tx_hash(tx_hash)
 
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_block), 0)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_sids), 0)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_tx_hashes), 0)
-
-        self.assertEqual(len(self.block_recovery_service.sid_to_block_hash), 0)
-        self.assertEqual(len(self.block_recovery_service.tx_hash_to_block_hash), 0)
-
+        self._assert_no_blocks_awaiting_recovery()
         self.assertEqual(len(self.block_recovery_service.recovered_blocks), 1)
         self.assertEqual(self.block_recovery_service.recovered_blocks[0], self.blocks[0])
 
@@ -94,19 +86,12 @@ class BlockRecoveryManagerTest(AbstractTestCase):
         for sid in self.unknown_tx_sids[0]:
             self.block_recovery_service.check_missing_sid(sid)
 
-        # Verify that no txs all blocks missing
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_block), 0)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_sids), 0)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_tx_hashes), 0)
-        self.assertEqual(len(self.block_recovery_service.sid_to_block_hash), 0)
-        self.assertEqual(len(self.block_recovery_service.tx_hash_to_block_hash), 0)
-
-        # Verify that message is ready for retry
+        self._assert_no_blocks_awaiting_recovery()
         self.assertEqual(len(self.block_recovery_service.recovered_blocks), 1)
         self.assertEqual(self.block_recovery_service.recovered_blocks[0], self.blocks[0])
 
     def test_clean_up_old_blocks__single_block(self):
-        self.assertFalse(self.block_recovery_service.cleanup_scheduled)
+        self.assertFalse(self.block_recovery_service._cleanup_scheduled)
         self.assertEqual(len(self.alarm_queue.alarms), 0)
 
         # Adding missing message
@@ -117,17 +102,18 @@ class BlockRecoveryManagerTest(AbstractTestCase):
         self.assertEqual(self.alarm_queue.alarms[0][0], constants.MISSING_BLOCK_EXPIRE_TIME)
         self.assertEqual(self.alarm_queue.alarms[0][1], self.block_recovery_service.cleanup_old_blocks)
 
-        self.assertTrue(self.block_recovery_service.cleanup_scheduled)
+        self.assertTrue(self.block_recovery_service._cleanup_scheduled)
 
         # Run clean up before message expires and check that it is still there
         self.block_recovery_service.cleanup_old_blocks(time.time() + constants.MISSING_BLOCK_EXPIRE_TIME / 2)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_block), 1)
-        self.assertTrue(self.block_recovery_service.cleanup_scheduled)
+        self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_block), 1)
+        self.assertTrue(self.block_recovery_service._cleanup_scheduled)
 
         # Run clean up after message expires and check that it is removed
         self.block_recovery_service.cleanup_old_blocks(time.time() + constants.MISSING_BLOCK_EXPIRE_TIME + 1)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_block), 0)
-        self.assertFalse(self.block_recovery_service.cleanup_scheduled)
+        self._assert_no_blocks_awaiting_recovery()
+        self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_block), 0)
+        self.assertFalse(self.block_recovery_service._cleanup_scheduled)
 
     def test_clean_up_recovered_blocks(self):
         self.assertTrue(len(self.block_recovery_service.recovered_blocks) == 0)
@@ -145,7 +131,7 @@ class BlockRecoveryManagerTest(AbstractTestCase):
         self.assertEqual(len(self.block_recovery_service.recovered_blocks), 0)
 
     def test_clean_up_old_blocks__multiple_blocks(self):
-        self.assertFalse(self.block_recovery_service.cleanup_scheduled)
+        self.assertFalse(self.block_recovery_service._cleanup_scheduled)
         self.assertEqual(len(self.alarm_queue.alarms), 0)
 
         # Adding to blocks with 2 seconds difference between them
@@ -160,59 +146,124 @@ class BlockRecoveryManagerTest(AbstractTestCase):
 
         # Verify that both blocks are there before the first one expires
         self.block_recovery_service.cleanup_old_blocks(time.time() + constants.MISSING_BLOCK_EXPIRE_TIME / 2)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_block), 2)
+        self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_block), 2)
 
         # Verify that first block is remove and the second left 2 seconds before second block expires
         self.block_recovery_service.cleanup_old_blocks(time.time() + constants.MISSING_BLOCK_EXPIRE_TIME - 2)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_block), 1)
+        self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_block), 1)
 
-        self.assertTrue(self.block_recovery_service.cleanup_scheduled)
+        self.assertTrue(self.block_recovery_service._cleanup_scheduled)
 
         # verify that the latest block left
-        self.assertNotIn(self.block_hashes[0], self.block_recovery_service.block_hash_to_block)
-        self.assertIn(self.block_hashes[1], self.block_recovery_service.block_hash_to_block)
-        self.assertTrue(self.block_recovery_service.cleanup_scheduled)
+        self.assertNotIn(self.bx_block_hashes[0], self.block_recovery_service._bx_block_hash_to_block)
+        self.assertIn(self.bx_block_hashes[1], self.block_recovery_service._bx_block_hash_to_block)
+        self.assertTrue(self.block_recovery_service._cleanup_scheduled)
 
     def _add_block(self, existing_block_count=0):
-        self.block_hashes.append(os.urandom(32))
-
-        self.blocks.append(_create_block())
+        bx_block = _create_block()
+        self.blocks.append(bx_block)
+        self.block_hashes.append(ObjectHash(os.urandom(32)))
+        self.bx_block_hashes.append(ObjectHash(crypto.double_sha256(bx_block)))
 
         sid_base = existing_block_count * 10
         self.unknown_tx_sids.append([sid_base + 1, sid_base + 2, sid_base + 3])
         self.unknown_tx_hashes.append([os.urandom(32), os.urandom(32)])
 
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_block), existing_block_count)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_sids), existing_block_count)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_tx_hashes), existing_block_count)
-
-        self.assertEqual(len(self.block_recovery_service.blocks_expiration_queue), existing_block_count)
-
-        self.assertEqual(len(self.block_recovery_service.sid_to_block_hash), existing_block_count * 3)
-        self.assertEqual(len(self.block_recovery_service.tx_hash_to_block_hash), existing_block_count * 2)
+        self.assertEqual(existing_block_count, len(self.block_recovery_service._bx_block_hash_to_block))
+        self.assertEqual(existing_block_count, len(self.block_recovery_service._bx_block_hash_to_sids))
+        self.assertEqual(existing_block_count, len(self.block_recovery_service._bx_block_hash_to_tx_hashes))
+        self.assertEqual(existing_block_count, len(self.block_recovery_service._bx_block_hash_to_block_hash))
+        self.assertEqual(existing_block_count, len(self.block_recovery_service._blocks_expiration_queue))
+        self.assertEqual(existing_block_count * 3, len(self.block_recovery_service._sid_to_bx_block_hashes))
+        self.assertEqual(existing_block_count * 2, len(self.block_recovery_service._tx_hash_to_bx_block_hashes))
 
         self.block_recovery_service \
             .add_block(self.blocks[-1], self.block_hashes[-1], self.unknown_tx_sids[-1][:],
                        self.unknown_tx_hashes[-1][:])
 
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_block), existing_block_count + 1)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_sids), existing_block_count + 1)
-        self.assertEqual(len(self.block_recovery_service.block_hash_to_tx_hashes), existing_block_count + 1)
+        self.assertEqual(existing_block_count + 1, len(self.block_recovery_service._bx_block_hash_to_block))
+        self.assertEqual(existing_block_count + 1, len(self.block_recovery_service._bx_block_hash_to_sids))
+        self.assertEqual(existing_block_count + 1, len(self.block_recovery_service._bx_block_hash_to_tx_hashes))
+        self.assertEqual(existing_block_count + 1, len(self.block_recovery_service._bx_block_hash_to_block_hash))
+        self.assertEqual(existing_block_count + 1, len(self.block_recovery_service._blocks_expiration_queue))
+        self.assertEqual(existing_block_count * 3 + 3, len(self.block_recovery_service._sid_to_bx_block_hashes))
+        self.assertEqual(existing_block_count * 2 + 2, len(self.block_recovery_service._tx_hash_to_bx_block_hashes))
 
-        self.assertEqual(len(self.block_recovery_service.blocks_expiration_queue), existing_block_count + 1)
+        self.assertEqual(self.blocks[-1], self.block_recovery_service._bx_block_hash_to_block[self.bx_block_hashes[-1]])
 
-        self.assertEqual(len(self.block_recovery_service.sid_to_block_hash), existing_block_count * 3 + 3)
-        self.assertEqual(len(self.block_recovery_service.tx_hash_to_block_hash), existing_block_count * 2 + 2)
-
-        self.assertEqual(self.block_recovery_service.block_hash_to_block[self.block_hashes[-1]], self.blocks[-1])
-
-        self.assertEqual(self.block_recovery_service.block_hash_to_sids[self.block_hashes[-1]],
-                         set(self.unknown_tx_sids[-1]))
-        self.assertEqual(self.block_recovery_service.block_hash_to_tx_hashes[self.block_hashes[-1]],
-                         set(self.unknown_tx_hashes[-1]))
+        self.assertEqual(set(self.unknown_tx_sids[-1]),
+                         self.block_recovery_service._bx_block_hash_to_sids[self.bx_block_hashes[-1]])
+        self.assertEqual(set(self.unknown_tx_hashes[-1]),
+                         self.block_recovery_service._bx_block_hash_to_tx_hashes[self.bx_block_hashes[-1]])
 
         for sid in self.unknown_tx_sids[-1]:
-            self.assertEqual(self.block_recovery_service.sid_to_block_hash[sid], self.block_hashes[-1])
+            self.assertIn(self.bx_block_hashes[-1], self.block_recovery_service._sid_to_bx_block_hashes[sid])
 
         for tx_hash in self.unknown_tx_hashes[-1]:
-            self.assertEqual(self.block_recovery_service.tx_hash_to_block_hash[tx_hash], self.block_hashes[-1])
+            self.assertIn(self.bx_block_hashes[-1], self.block_recovery_service._tx_hash_to_bx_block_hashes[tx_hash])
+
+    def test_multiple_compressed_versions_need_recovery(self):
+        block_hash = ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+
+        bx_block_1_v1 = helpers.generate_bytearray(100)
+        bx_block_1_v1_hash = ObjectHash(crypto.double_sha256(bx_block_1_v1))
+        unknown_sids_v1 = [i for i in xrange(10)]
+        unknown_hashes_v1 = [ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)) for i in xrange(10)]
+
+        bx_block_1_v2 = helpers.generate_bytearray(100)
+        bx_block_1_v2_hash = ObjectHash(crypto.double_sha256(bx_block_1_v2))
+        unknown_sids_v2 = [i for i in xrange(5, 15)]
+        unknown_hashes_v2 = unknown_hashes_v1[5:]
+        unknown_hashes_v2.extend(ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)) for i in xrange(5))
+
+        self.block_recovery_service.add_block(bx_block_1_v1, block_hash, unknown_sids_v1, unknown_hashes_v1)
+        self.assertEqual(1, len(self.block_recovery_service._bx_block_hash_to_sids))
+        self.assertEqual(10, len(self.block_recovery_service._bx_block_hash_to_sids[bx_block_1_v1_hash]))
+        self.assertEqual(1, len(self.block_recovery_service._bx_block_hash_to_tx_hashes))
+        self.assertEqual(10, len(self.block_recovery_service._bx_block_hash_to_tx_hashes[bx_block_1_v1_hash]))
+        self.assertEqual(1, len(self.block_recovery_service._bx_block_hash_to_block))
+        self.assertEqual(10, len(self.block_recovery_service._sid_to_bx_block_hashes))
+        self.assertEqual(10, len(self.block_recovery_service._tx_hash_to_bx_block_hashes))
+
+        self.block_recovery_service.check_missing_sid(unknown_sids_v1[0])
+        self.block_recovery_service.check_missing_sid(unknown_sids_v1[1])
+        self.block_recovery_service.check_missing_tx_hash(unknown_hashes_v1[0])
+
+        self.assertEqual(8, len(self.block_recovery_service._bx_block_hash_to_sids[bx_block_1_v1_hash]))
+        self.assertEqual(9, len(self.block_recovery_service._bx_block_hash_to_tx_hashes[bx_block_1_v1_hash]))
+        self.assertEqual(8, len(self.block_recovery_service._sid_to_bx_block_hashes))
+        self.assertEqual(9, len(self.block_recovery_service._tx_hash_to_bx_block_hashes))
+        self.assertEqual(0, len(self.block_recovery_service.recovered_blocks))
+
+        self.block_recovery_service.add_block(bx_block_1_v2, block_hash, unknown_sids_v2, unknown_hashes_v2)
+
+        self.assertEqual(10, len(self.block_recovery_service._bx_block_hash_to_sids[bx_block_1_v2_hash]))
+        self.assertEqual(10, len(self.block_recovery_service._bx_block_hash_to_tx_hashes[bx_block_1_v2_hash]))
+        self.assertEqual(13, len(self.block_recovery_service._sid_to_bx_block_hashes))
+        self.assertEqual(14, len(self.block_recovery_service._tx_hash_to_bx_block_hashes))
+        self.assertEqual(0, len(self.block_recovery_service.recovered_blocks))
+
+        for unknown_sid in unknown_sids_v2:
+            self.block_recovery_service.check_missing_sid(unknown_sid)
+        for unknown_hash in unknown_hashes_v2:
+            self.block_recovery_service.check_missing_tx_hash(unknown_hash)
+
+        # recovering one block should cancel recovery for the second
+        self.assertNotIn(block_hash, self.block_recovery_service._bx_block_hash_to_sids)
+        self.assertNotIn(block_hash, self.block_recovery_service._bx_block_hash_to_tx_hashes)
+        self.assertEqual(0, len(self.block_recovery_service._sid_to_bx_block_hashes))
+        self.assertEqual(0, len(self.block_recovery_service._tx_hash_to_bx_block_hashes))
+        self.assertEqual(1, len(self.block_recovery_service.recovered_blocks))
+
+        self._assert_no_blocks_awaiting_recovery()
+
+    def _assert_no_blocks_awaiting_recovery(self):
+        self.assertEqual(0, len(self.block_recovery_service._bx_block_hash_to_block))
+        self.assertEqual(0, len(self.block_recovery_service._bx_block_hash_to_sids))
+        self.assertEqual(0, len(self.block_recovery_service._bx_block_hash_to_tx_hashes))
+        self.assertEqual(0, len(self.block_recovery_service._bx_block_hash_to_block_hash))
+
+        self.assertEqual(0, len(self.block_recovery_service._sid_to_bx_block_hashes))
+        self.assertEqual(0, len(self.block_recovery_service._tx_hash_to_bx_block_hashes))
+        self.assertEqual(0, len(self.block_recovery_service._block_hash_to_bx_block_hashes))
+

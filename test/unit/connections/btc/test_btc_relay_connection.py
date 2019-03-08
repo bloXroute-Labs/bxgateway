@@ -137,16 +137,14 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         self.assertEqual(1, len(self.gateway_node.block_queuing_service))
         self.assertEqual(True, self.gateway_node.block_queuing_service._blocks[block_hash][0])
-        self.assertIn(block_hash, self.gateway_node.block_recovery_service.block_hash_to_sids)
-        self.assertIn(block_hash, self.gateway_node.block_recovery_service.block_hash_to_tx_hashes)
+        self.assertEqual(1, len(self.gateway_node.block_recovery_service._block_hash_to_bx_block_hashes))
         self.assertNotIn(block_hash, self.gateway_node.blocks_seen.contents)
 
         self.sut.msg_broadcast(known_message)
         self.sut.msg_key(known_key_message)
 
         self.assertEqual(0, len(self.gateway_node.block_queuing_service))
-        self.assertNotIn(block_hash, self.gateway_node.block_recovery_service.block_hash_to_sids)
-        self.assertNotIn(block_hash, self.gateway_node.block_recovery_service.block_hash_to_tx_hashes)
+        self.assertEqual(0, len(self.gateway_node.block_recovery_service._block_hash_to_bx_block_hashes))
         self.assertIn(block_hash, self.gateway_node.blocks_seen.contents)
 
     def test_msg_key_wait_for_broadcast(self):
