@@ -47,11 +47,9 @@ class AbstractGatewayNode(AbstractNode):
 
     def __init__(self, opts):
         super(AbstractGatewayNode, self).__init__(opts)
-
         self.opts = opts
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
-
         self.node_conn = None  # Connection object for the blockchain node
         self.node_msg_queue = deque()
         self.blocks_seen = ExpiringSet(self.alarm_queue, gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S)
@@ -65,6 +63,11 @@ class AbstractGatewayNode(AbstractNode):
         self.neutrality_service = NeutralityService(self)
         self.block_queuing_service = BlockQueuingService(self)
         self.block_processing_service = BlockProcessingService(self)
+
+        # TODO next sprint
+        # if not self.opts.peer_relays:
+        #     self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
+        #                                     self.send_request_for_relay_traffic_in_geo_location)
 
         if not self.opts.peer_relays:
             self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers)
@@ -96,7 +99,6 @@ class AbstractGatewayNode(AbstractNode):
         self._preferred_gateway_connection = None
 
         self.init_transaction_stat_logging()
-
 
     @abstractmethod
     def get_blockchain_connection_cls(self):
@@ -158,15 +160,24 @@ class AbstractGatewayNode(AbstractNode):
 
     def send_request_for_relay_peers(self):
         """
-        Requests relay peers from SDN. Merges list with provided command line relays.
+        Requests potential relay peers from SDN. Merges list with provided command line relays.
         """
-        peer_relays = sdn_http_service.fetch_relay_peers(self.opts.node_id)
-        logger.trace("Processing updated peer relays: {}".format(peer_relays))
-        self.peer_relays = set(self.opts.peer_relays + peer_relays)
+        potential_relay_peers = sdn_http_service.fetch_potential_relay_peers(self.opts.node_id)
+        best_relay_match = []
+        if potential_relay_peers:
+            logger.debug("Potential relay peers: {}".
+                         format(", ".join([node.node_id for node in potential_relay_peers])))
+
+            # TODO for now takes the first relay from the list until decide the best way to get peers latency
+            best_relay_peer = potential_relay_peers[0]
+            logger.debug("best peer match to node {} is: {}".format(self.opts.node_id, best_relay_peer))
+            best_relay_match.append(best_relay_peer)
+
+        self.peer_relays = set(best_relay_match + self.opts.peer_relays)
         self.on_updated_peers(self._get_all_peers())
 
         # Try again later.
-        if not peer_relays:
+        if not potential_relay_peers:
             return constants.SDN_CONTACT_RETRY_SECONDS
 
     def _send_request_for_gateway_peers(self):
@@ -266,6 +277,10 @@ class AbstractGatewayNode(AbstractNode):
                 or connection_type == ConnectionType.BLOCKCHAIN_NODE
                 or (ip == self.opts.remote_blockchain_ip and port == self.opts.remote_blockchain_port))
 
+    # TODO next sprint
+    # def send_request_for_relay_traffic_in_geo_location(self):
+    #     sdn_http_service.sort_geo_location_traffic(self.opts.node_id)
+
     def _get_all_peers(self):
         return list(self.peer_gateways.union(self.peer_relays))
 
@@ -304,4 +319,3 @@ class AbstractGatewayNode(AbstractNode):
         gateway_transaction_stats_service.set_node(self)
         self.alarm_queue.register_alarm(gateway_transaction_stats_service.interval,
                                         gateway_transaction_stats_service.flush_info)
-

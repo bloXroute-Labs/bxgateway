@@ -31,7 +31,6 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
         self.peer_port = helpers.get_free_port()
 
         sdn_http_service.fetch_gateway_peers = MagicMock(return_value=[])
-        sdn_http_service.fetch_relay_peers = MagicMock(return_value=[])
 
         self.main_opts = helpers.get_gateway_opts(self.main_port, node_id="main",
                                                   peer_gateways=[OutboundPeerModel(LOCALHOST, self.peer_port)])
