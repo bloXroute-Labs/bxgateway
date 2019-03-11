@@ -69,12 +69,6 @@ class AbstractGatewayNode(AbstractNode):
         if not self.opts.peer_relays:
             self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers)
 
-        # TODO: Remove is_internal_gateway check
-        # Long term, we don't want to allow the gateway itself to specify whether it is an internal gateway - this
-        # should rather be done via an admin console on the SDN or similar
-        if opts.is_internal_gateway:
-            sdn_http_service.set_node_as_internal_gateway(self.opts.node_id)
-
         self.remote_blockchain_ip = None
         self.remote_blockchain_port = None
         if opts.connect_to_remote_blockchain:
