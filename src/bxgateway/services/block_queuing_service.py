@@ -38,7 +38,6 @@ class BlockQueuingService(object):
         :param block_msg: Block message instance (can be None if waiting for recovery flag is set to True
         :param waiting_for_recovery: flag indicating if gateway is waiting for recovery of the block
         """
-
         if not isinstance(block_hash, ObjectHash):
             raise TypeError("block_hash is expected of type ObjectHash but was {}.".format(type(block_hash)))
 
@@ -55,6 +54,9 @@ class BlockQueuingService(object):
                 (self._last_block_sent_time is None or (
                         time.time() - self._last_block_sent_time > gateway_constants.MIN_INTERVAL_BETWEEN_BLOCKS_S)):
             self._node.send_msg_to_node(block_msg)
+            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
+                                                      network_num=self._node.network_num,
+                                                      block_size=len(block_msg.rawbytes()))
             self._last_block_sent_time = time.time()
             return
 

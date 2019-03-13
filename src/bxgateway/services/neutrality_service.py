@@ -76,6 +76,13 @@ class NeutralityService(object):
         :param block_hash: original block hash, only provided if this is the original block
         :return: broadcast message
         """
+        if self._node.opts.encrypt_blocks:
+            broadcast_msg = self._propagate_encrypted_block_to_network(bx_block, connection, block_hash)
+        else:
+            broadcast_msg = self._propagate_unencrypted_block_to_network(bx_block, connection, block_hash)
+        return broadcast_msg
+
+    def _propagate_encrypted_block_to_network(self, bx_block, connection, block_hash):
         if block_hash is None:
             block_hash = "Unknown"
             requested_by_peer = True
@@ -95,15 +102,30 @@ class NeutralityService(object):
                                                   encrypted_size=len(encrypted_block))
 
         cipher_hash = ObjectHash(raw_cipher_hash)
-        broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, encrypted_block)
+        broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, True, encrypted_block)
 
         conns = self._node.broadcast(broadcast_message, connection)
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
                                                   requested_by_peer=requested_by_peer,
-                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))
+                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns),
+                                                  more_info="encrypted")
         self.register_for_block_receipts(cipher_hash, bx_block)
+        return broadcast_message
+
+    def _propagate_unencrypted_block_to_network(self, bx_block, connection, block_hash):
+        if block_hash is None:
+            raise ValueError("Block hash is required to propagate unencrypted block")
+
+        broadcast_message = BroadcastMessage(block_hash, self._node.network_num, False, bx_block)
+        conns = self._node.broadcast(broadcast_message, connection)
+        block_stats.add_block_event_by_block_hash(block_hash,
+                                                  BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
+                                                  network_num=self._node.network_num,
+                                                  requested_by_peer=False,
+                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns),
+                                                  more_info="unencrypted")
         return broadcast_message
 
     def _are_enough_receipts_received(self, cipher_hash):

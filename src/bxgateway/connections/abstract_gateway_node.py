@@ -18,8 +18,6 @@ from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
-from bxgateway.testing.test_modes import TestModes
-from bxcommon.testing.unencrypted_block_cache import UnencryptedCache
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -54,10 +52,7 @@ class AbstractGatewayNode(AbstractNode):
         self.node_msg_queue = deque()
         self.blocks_seen = ExpiringSet(self.alarm_queue, gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S)
 
-        if TestModes.DISABLE_ENCRYPTION in self.opts.test_mode:
-            self.in_progress_blocks = UnencryptedCache(self.alarm_queue)
-        else:
-            self.in_progress_blocks = BlockEncryptedCache(self.alarm_queue)
+        self.in_progress_blocks = BlockEncryptedCache(self.alarm_queue)
 
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
         self.neutrality_service = NeutralityService(self)

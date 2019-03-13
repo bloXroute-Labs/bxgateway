@@ -115,7 +115,9 @@ class NeutralityServiceTest(AbstractTestCase):
         self.assertEqual(GatewayMessageType.BLOCK_PROPAGATION_REQUEST, block_request_message.msg_type())
         self.assertEqual(self.BYTE_BLOCK, block_request_message.blob())
 
-    def test_propagate_block_to_network(self):
+    def test_propagate_block_to_network_encrypted_block(self):
+        self.node.opts.encrypt_blocks = True
+
         block_message = helpers.generate_bytearray(50)
         connection = MockConnection(1, (LOCALHOST, 9000), self.node)
         self.neutrality_service.propagate_block_to_network(block_message, connection)
@@ -129,6 +131,22 @@ class NeutralityServiceTest(AbstractTestCase):
         self.assertEqual(cache_item.payload,
                          crypto.symmetric_decrypt(cache_item.key, broadcast_message.blob().tobytes()))
         self.assertIn(broadcast_message.msg_hash(), self.neutrality_service._receipt_tracker)
+
+    def test_propagate_block_to_network_unencrypted_block(self):
+        self.node.opts.encrypt_blocks = False
+
+        block_message = helpers.generate_bytearray(50)
+        block_hash = ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        connection = MockConnection(1, (LOCALHOST, 9000), self.node)
+        self.neutrality_service.propagate_block_to_network(block_message, connection, block_hash)
+
+        self.assertEqual(1, len(self.node.broadcast_messages))
+        broadcast_message, connection_type = self.node.broadcast_messages[0]
+        self.assertEqual(ConnectionType.RELAY, connection_type)
+        self.assertEqual(block_hash, broadcast_message.msg_hash())
+
+        self.assertFalse(self.node.in_progress_blocks._cache.has_key(block_hash))
+        self.assertNotIn(broadcast_message.msg_hash(), self.neutrality_service._receipt_tracker)
 
     def _add_num_gateway_connections(self, count):
         for i in xrange(count):

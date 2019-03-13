@@ -76,6 +76,10 @@ def get_opts():
                             help="If gateway should proxy messages from a remote bloXroute owned blockchain node",
                             type=convert.str_to_bool,
                             default=True)
+    arg_parser.add_argument("--encrypt-blocks",
+                            help="If gateway should encrypt blocks",
+                            type=convert.str_to_bool,
+                            default=False)
     arg_parser.add_argument("--peer-relays",
                             help="(TEST ONLY) Optional relays peer ip/ports that will always be connected to. "
                                  "Should be in the format ip1:port1,ip2:port2,...",
@@ -83,7 +87,7 @@ def get_opts():
                             default="")
     arg_parser.add_argument("--test-mode",
                             help="(TEST ONLY) Test modes to run. Possible values: {0}".format(
-                                [TestModes.DISABLE_ENCRYPTION, TestModes.DROPPING_TXS]
+                                [TestModes.DROPPING_TXS]
                             ),
                             default="",
                             nargs="*")

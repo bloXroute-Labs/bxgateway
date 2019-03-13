@@ -53,11 +53,18 @@ class AbstractRelayConnection(InternalNodeConnection):
                                     connection_type=self.CONNECTION_TYPE)
 
         msg_hash = msg.msg_hash()
+        is_encrypted = msg.is_encrypted()
+
+        if not is_encrypted:
+            block = msg.blob()
+            self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
+            return
 
         cipherblob = msg.blob()
         if msg_hash != ObjectHash(crypto.double_sha256(cipherblob)):
             logger.warn("Received a message with inconsistent hashes. Dropping.")
             return
+
         if self.node.in_progress_blocks.has_encryption_key_for_hash(msg_hash):
             logger.debug("Already had key for received block. Sending block to node.")
             block = self.node.in_progress_blocks.decrypt_ciphertext(msg_hash, cipherblob)

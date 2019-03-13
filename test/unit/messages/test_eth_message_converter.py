@@ -238,7 +238,7 @@ class EthMessageConverterTests(AbstractTestCase):
         compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
         compact_block_hash = ObjectHash(compact_block_hash_bytes)
 
-        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, compact_block_msg_bytes)
+        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, True, compact_block_msg_bytes)
 
         block_msg, block_hash, short_ids, unknown_tx_sids, unknown_tx_hashes = self.message_parser.bx_block_to_block(
             bx_block_msg.blob(), self.tx_service)
@@ -302,7 +302,7 @@ class EthMessageConverterTests(AbstractTestCase):
         compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
         compact_block_hash = ObjectHash(compact_block_hash_bytes)
 
-        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, compact_block_msg_bytes)
+        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, True, compact_block_msg_bytes)
 
         block_msg, block_hash, short_ids, unknown_tx_sids, unknown_tx_hashes = self.message_parser.bx_block_to_block(
             bx_block_msg.blob(), self.tx_service)
