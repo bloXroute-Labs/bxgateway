@@ -168,7 +168,7 @@ class AbstractGatewayNode(AbstractNode):
             logger.debug("best peer match to node {} is: {}".format(self.opts.node_id, best_relay_peer))
             best_relay_match.append(best_relay_peer)
 
-        self.peer_relays = set(best_relay_match + self.opts.peer_relays)
+        self._add_relay_peers(set(best_relay_match))
         self.on_updated_peers(self._get_all_peers())
 
         # Try again later.
@@ -254,6 +254,8 @@ class AbstractGatewayNode(AbstractNode):
     def destroy_conn(self, conn, retry_connection=False):
         if not retry_connection and conn.CONNECTION_TYPE == ConnectionType.GATEWAY:
             self._remove_gateway_peer(conn.peer_ip, conn.peer_port)
+        if not retry_connection and conn.CONNECTION_TYPE == ConnectionType.RELAY:
+            self._remove_relay_peer(conn.peer_ip, conn.peer_port)
         super(AbstractGatewayNode, self).destroy_conn(conn, retry_connection)
 
     def on_failed_connection_retry(self, ip, port, connection_type):
@@ -297,6 +299,25 @@ class AbstractGatewayNode(AbstractNode):
             if len(self.peer_gateways) < self.opts.min_peer_gateways:
                 self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
                                                 self._send_request_for_gateway_peers)
+
+    def _add_relay_peers(self, relay_peers):
+        for relay_peer in relay_peers:
+            if relay_peer.ip != self.opts.external_ip or relay_peer.port != self.opts.external_port:
+                self.peer_relays.add(relay_peer)
+
+    def _remove_relay_peer(self, ip, port):
+        relay_to_remove = None
+        for peer_relay in self.peer_relays:
+            if ip == peer_relay.ip and port == peer_relay.port:
+                relay_to_remove = peer_relay
+                break
+
+        if relay_to_remove is not None:
+            self.peer_relays.remove(relay_to_remove)
+            self.outbound_peers = self._get_all_peers()
+            if len(self.peer_relays) < gateway_constants.MIN_PEER_RELAYS:
+                self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
+                                                self.send_request_for_relay_peers)
 
     def _find_active_connection(self, outbound_peers):
         for peer in outbound_peers:
