@@ -68,10 +68,16 @@ class AbstractRelayConnection(InternalNodeConnection):
         if self.node.in_progress_blocks.has_encryption_key_for_hash(msg_hash):
             logger.debug("Already had key for received block. Sending block to node.")
             block = self.node.in_progress_blocks.decrypt_ciphertext(msg_hash, cipherblob)
-            block_stats.add_block_event(msg,
-                                        BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
-                                        network_num=self.network_num)
-            self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
+
+            if block is not None:
+                block_stats.add_block_event(msg,
+                                            BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
+                                            network_num=self.network_num)
+                self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
+            else:
+                block_stats.add_block_event(msg,
+                                            BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
+                                            network_num=self.network_num)
         else:
             logger.debug("Received encrypted block. Storing.")
             self.node.in_progress_blocks.add_ciphertext(msg_hash, cipherblob)
@@ -100,10 +106,16 @@ class AbstractRelayConnection(InternalNodeConnection):
         if self.node.in_progress_blocks.has_ciphertext_for_hash(msg_hash):
             logger.debug("Cipher text found. Decrypting and sending to node.")
             block = self.node.in_progress_blocks.decrypt_and_get_payload(msg_hash, key)
-            block_stats.add_block_event_by_block_hash(msg_hash,
-                                                      BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
-                                                      network_num=self.network_num)
-            self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
+
+            if block is not None:
+                block_stats.add_block_event_by_block_hash(msg_hash,
+                                                          BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
+                                                          network_num=self.network_num)
+                self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
+            else:
+                block_stats.add_block_event_by_block_hash(msg_hash,
+                                                          BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
+                                                          network_num=self.network_num)
         else:
             logger.debug("No cipher text found on key message. Storing.")
             self.node.in_progress_blocks.add_key(msg_hash, key)
