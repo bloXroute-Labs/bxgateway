@@ -5,15 +5,17 @@ from mock import patch, MagicMock
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.test_utils import helpers
-from bxcommon.utils import convert
+from bxcommon.utils import convert, crypto
 from bxcommon.utils.buffers.output_buffer import OutputBuffer
 from bxcommon.utils.object_hash import ObjectHash
+from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.gateway.block_holding_message import BlockHoldingMessage
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.testing.mocks.mock_btc_messages import btc_block, RealBtcBlocks
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 @patch("bxcommon.constants.OUTPUT_BUFFER_MIN_SIZE", 0)
@@ -21,9 +23,20 @@ from bxgateway.testing.mocks.mock_btc_messages import btc_block, RealBtcBlocks
 @patch("bxgateway.gateway_constants.NEUTRALITY_EXPECTED_RECEIPT_COUNT", 1)
 @patch("bxgateway.gateway_constants.NEUTRALITY_POLICY", NeutralityPolicy.RECEIPT_COUNT)
 class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
+    def _populate_transaction_services(self, block):
+        if len(block.txns()) > 0:
+            first_transaction = block.txns()[0]
+            first_transaction_hash = BtcObjectHash(crypto.bitcoin_hash(first_transaction), length=BTC_SHA_HASH_LEN)
+            self.node1.get_tx_service().assign_short_id(first_transaction_hash, 1)
+            self.node1.get_tx_service().set_transaction_contents(first_transaction_hash, first_transaction)
+            self.node2.get_tx_service().assign_short_id(first_transaction_hash, 1)
+            self.node2.get_tx_service().set_transaction_contents(first_transaction_hash, first_transaction)
+
     def send_received_block_and_key(self, block=None):
         if block is None:
             block = btc_block()
+
+        self._populate_transaction_services(block)
 
         # propagate block
         helpers.receive_node_message(self.node1, self.blockchain_fileno, block.rawbytes())
@@ -60,6 +73,29 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
     def test_send_receive_block_and_key_encrypted(self):
         send_block = btc_block(time.time())
         received_block = self.send_received_block_and_key(send_block)
+        self.assertEqual(send_block.magic(), received_block.magic())
+        self.assertEqual(send_block.version(), received_block.version())
+        self.assertEqual(send_block.timestamp(), received_block.timestamp())
+        self.assertEqual(send_block.bits(), received_block.bits())
+        self.assertEqual(send_block.nonce(), received_block.nonce())
+
+    def test_send_receive_block_decrypted(self):
+        self.node1.opts.encrypt_blocks = False
+        send_block = btc_block(time.time())
+        self._populate_transaction_services(send_block)
+
+        # propagate block
+        helpers.receive_node_message(self.node1, self.blockchain_fileno, send_block.rawbytes())
+        relayed_block = self.node1.get_bytes_to_send(self.relay_fileno)
+        self.assertIn(BroadcastMessage.MESSAGE_TYPE, relayed_block.tobytes())
+        self.node1.on_bytes_sent(self.relay_fileno, len(relayed_block))
+
+        # block directly propagated
+        helpers.receive_node_message(self.node2, self.relay_fileno, relayed_block)
+        bytes_to_blockchain = self.node2.get_bytes_to_send(self.blockchain_fileno)
+        self.assertEqual(len(send_block.rawbytes()), len(bytes_to_blockchain))
+
+        received_block = BlockBtcMessage(buf=bytearray(bytes_to_blockchain))
         self.assertEqual(send_block.magic(), received_block.magic())
         self.assertEqual(send_block.version(), received_block.version())
         self.assertEqual(send_block.timestamp(), received_block.timestamp())

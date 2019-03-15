@@ -40,3 +40,4 @@ def btc_block(timestamp=None, real_block=None):
 def btc_version_message():
     return VersionBtcMessage(12345, 12345, LISTEN_ON_IP_ADDRESS, 1000, LISTEN_ON_IP_ADDRESS,
                              1000, 1, 2, "bloxroute")
+

@@ -1,7 +1,7 @@
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import convert
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE
-from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
+from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, get_next_tx_size
 
 
 class BtcMessagesUtilTests(AbstractTestCase):
@@ -13,7 +13,7 @@ class BtcMessagesUtilTests(AbstractTestCase):
 
         off = BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE
 
-        tx_count, size = btcvarint_to_int(block_bytes, off)
+        tx_count, size = btc_varint_to_int(block_bytes, off)
         self.assertEqual(65, tx_count)
 
         off += size

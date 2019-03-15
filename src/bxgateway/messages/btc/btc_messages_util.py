@@ -2,13 +2,12 @@ import socket
 import struct
 
 from bxcommon import constants
-from bxgateway.btc_constants import BTC_IP_ADDR_PORT_SIZE, TX_SEGWIT_FLAG_VALUE, TX_VERSION_LEN, TX_SEGWIT_FLAG_LEN, \
-    TX_LOCK_TIME_LEN
+from bxgateway import btc_constants
 
 
 def ipaddrport_to_btcbytearray(ip_addr, ip_port):
     try:
-        buf = bytearray(BTC_IP_ADDR_PORT_SIZE)
+        buf = bytearray(btc_constants.BTC_IP_ADDR_PORT_SIZE)
         buf[10] = 0xff
         buf[11] = 0xff
         buf[12:16] = socket.inet_pton(socket.AF_INET, ip_addr)
@@ -16,7 +15,7 @@ def ipaddrport_to_btcbytearray(ip_addr, ip_port):
         buf[17] = (ip_port & 0xFF)
     except socket.error:
         try:
-            buf = bytearray(BTC_IP_ADDR_PORT_SIZE)
+            buf = bytearray(btc_constants.BTC_IP_ADDR_PORT_SIZE)
             buf[0:16] = socket.inet_pton(socket.AF_INET6, ip_addr)
             buf[16] = ((ip_port >> 8) & 0xFF)
             buf[17] = (ip_port & 0xFF)
@@ -34,22 +33,22 @@ def btcbytearray_to_ipaddrport(btcbytearray):
 
 
 # pack the value into a varint, return how many bytes it took
-def pack_int_to_btcvarint(val, buf, off):
+def pack_int_to_btc_varint(val, buf, off):
     if val < 253:
-        struct.pack_into('B', buf, off, val)
+        struct.pack_into("B", buf, off, val)
         return 1
     elif val <= 65535:
-        struct.pack_into('<BH', buf, off, 0xfd, val)
+        struct.pack_into("<BH", buf, off, btc_constants.BTC_VARINT_SHORT_INDICATOR, val)
         return 3
     elif val <= 4294967295:
-        struct.pack_into('<BI', buf, off, 0xfe, val)
+        struct.pack_into("<BI", buf, off, btc_constants.BTC_VARINT_INT_INDICATOR, val)
         return 5
     else:
-        struct.pack_into('<BQ', buf, off, 0xff, val)
+        struct.pack_into("<BQ", buf, off, btc_constants.BTC_VARINT_LONG_INDICATOR, val)
         return 9
 
 
-def get_sizeof_btcvarint(val):
+def get_sizeof_btc_varint(val):
     if val < 253:
         return 1
     elif val <= 65535:
@@ -60,28 +59,28 @@ def get_sizeof_btcvarint(val):
         return 9
 
 
-def btcvarint_to_int(buf, off):
+def btc_varint_to_int(buf, off):
     """
     Converts a varint to a regular integer in a buffer bytearray.
     https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
     """
-    if not isinstance(buf, (bytearray, memoryview, bytes)):
-        raise ValueError("buf must be of type bytearray, memoryview, or bytes, not {}".format(type(buf)))
+    if not isinstance(buf, memoryview):
+        buf = memoryview(buf)
 
-    if buf[off] == 0xff:
-        return struct.unpack_from('<Q', buf, off + 1)[0], 9
-    elif buf[off] == 0xfe:
-        return struct.unpack_from('<I', buf, off + 1)[0], 5
-    elif buf[off] == 0xfd:
-        return struct.unpack_from('<H', buf, off + 1)[0], 3
+    if buf[off] == btc_constants.BTC_VARINT_LONG_INDICATOR_AS_BYTEARRAY:
+        return struct.unpack_from("<Q", buf, off + 1)[0], 9
+    elif buf[off] == btc_constants.BTC_VARINT_INT_INDICATOR_AS_BYTEARRAY:
+        return struct.unpack_from("<I", buf, off + 1)[0], 5
+    elif buf[off] == btc_constants.BTC_VARINT_SHORT_INDICATOR_AS_BYTEARRAY:
+        return struct.unpack_from("<H", buf, off + 1)[0], 3
     else:
-        return struct.unpack_from('B', buf, off)[0], 1
+        return struct.unpack_from("B", buf, off)[0], 1
 
 
 def get_next_tx_size(buf, off, tail=-1):
     segwit_flag, = struct.unpack_from(">h", buf, off + 4)
 
-    if segwit_flag == TX_SEGWIT_FLAG_VALUE:
+    if segwit_flag == btc_constants.TX_SEGWIT_FLAG_VALUE:
         return get_next_segwit_tx_size(buf, off, tail)
     else:
         return get_next_non_segwit_tx_size(buf, off, tail)
@@ -92,53 +91,55 @@ def get_next_non_segwit_tx_size(buf, off, tail=-1):
     Returns the size of the next transaction in the.
     Returns -1 if there's a parsing error or the end goes beyond the tail.
     """
-    end = off + TX_VERSION_LEN
+    end = off + btc_constants.TX_VERSION_LEN
 
     io_size, _, _ = _get_tx_io_count_and_size(buf, end, tail)
 
-    if io_size < 0 :
+    if io_size < 0:
         return -1
 
-    end += io_size + TX_LOCK_TIME_LEN
+    end += io_size + btc_constants.TX_LOCK_TIME_LEN
 
     if end > tail > 0:
         return -1
 
     return end - off
+
 
 def get_next_segwit_tx_size(buf, off, tail=-1):
     """
     Returns the size of the next transaction in the.
     Returns -1 if there's a parsing error or the end goes beyond the tail.
     """
-    end = off + TX_VERSION_LEN + TX_SEGWIT_FLAG_LEN
+    end = off + btc_constants.TX_VERSION_LEN + btc_constants.TX_SEGWIT_FLAG_LEN
 
     io_size, txin_c, _ = _get_tx_io_count_and_size(buf, end, tail)
 
-    if io_size < 0 :
+    if io_size < 0:
         return -1
 
     end += io_size
 
     for _ in xrange(txin_c):
-        witness_count, size = btcvarint_to_int(buf, end)
+        witness_count, size = btc_varint_to_int(buf, end)
         end += size
 
         for _ in xrange(witness_count):
-            witness_len, size = btcvarint_to_int(buf, end)
+            witness_len, size = btc_varint_to_int(buf, end)
             end += size + witness_len
 
-    end += TX_LOCK_TIME_LEN
+    end += btc_constants.TX_LOCK_TIME_LEN
 
     if end > tail > 0:
         return -1
 
     return end - off
 
+
 def _get_tx_io_count_and_size(buf, start, tail):
     end = start
 
-    txin_c, size = btcvarint_to_int(buf, end)
+    txin_c, size = btc_varint_to_int(buf, end)
     end += size
 
     if end > tail > 0:
@@ -146,20 +147,20 @@ def _get_tx_io_count_and_size(buf, start, tail):
 
     for _ in xrange(txin_c):
         end += 36
-        script_len, size = btcvarint_to_int(buf, end)
+        script_len, size = btc_varint_to_int(buf, end)
         end += size + script_len + 4
 
         if end > tail > 0:
             return -1
 
-    txout_c, size = btcvarint_to_int(buf, end)
+    txout_c, size = btc_varint_to_int(buf, end)
     end += size
     for _ in xrange(txout_c):
         end += 8
-        script_len, size = btcvarint_to_int(buf, end)
+        script_len, size = btc_varint_to_int(buf, end)
         end += size + script_len
 
         if end > tail > 0:
             return -1
 
-    return  end - start, txin_c, txout_c
+    return end - start, txin_c, txout_c

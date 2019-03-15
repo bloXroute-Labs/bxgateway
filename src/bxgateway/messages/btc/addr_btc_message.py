@@ -3,7 +3,7 @@ import struct
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import ipaddrport_to_btcbytearray, pack_int_to_btcvarint
+from bxgateway.messages.btc.btc_messages_util import ipaddrport_to_btcbytearray, pack_int_to_btc_varint
 
 
 # the addr argument should be an array of (timestamp, ipaddr, port) triples
@@ -18,7 +18,7 @@ class AddrBtcMessage(BtcMessage):
             self.buf = buf
 
             off = BTC_HDR_COMMON_OFF
-            off += pack_int_to_btcvarint(len(addrs), buf, off)
+            off += pack_int_to_btc_varint(len(addrs), buf, off)
 
             for triplet in addrs:
                 # pack the timestamp

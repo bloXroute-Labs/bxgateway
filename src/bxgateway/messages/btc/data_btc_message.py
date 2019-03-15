@@ -3,7 +3,7 @@ import struct
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, pack_int_to_btcvarint
+from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, pack_int_to_btc_varint
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
@@ -18,7 +18,7 @@ class DataBtcMessage(BtcMessage):
             off = BTC_HDR_COMMON_OFF
             struct.pack_into("<I", buf, off, version)
             off += 4
-            off += pack_int_to_btcvarint(len(hashes), buf, off)
+            off += pack_int_to_btc_varint(len(hashes), buf, off)
 
             for hash_val in hashes:
                 buf[off:off + 32] = hash_val.get_big_endian()
@@ -44,13 +44,13 @@ class DataBtcMessage(BtcMessage):
     def hash_count(self):
         if self._hash_count is None:
             off = BTC_HDR_COMMON_OFF + 4
-            self._hash_count, size = btcvarint_to_int(self.buf, off)
+            self._hash_count, size = btc_varint_to_int(self.buf, off)
 
         return self._hash_count
 
     def __iter__(self):
         off = BTC_HDR_COMMON_OFF + 4  # For the version field.
-        b_count, size = btcvarint_to_int(self.buf, off)
+        b_count, size = btc_varint_to_int(self.buf, off)
         off += size
 
         for i in xrange(b_count):

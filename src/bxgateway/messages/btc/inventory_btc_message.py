@@ -3,7 +3,7 @@ import struct
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, pack_int_to_btcvarint
+from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, pack_int_to_btc_varint
 
 
 # an inv_vect is an array of (type, hash) tuples
@@ -31,7 +31,7 @@ class InventoryBtcMessage(BtcMessage):
             self.buf = buf
 
             off = BTC_HDR_COMMON_OFF
-            off += pack_int_to_btcvarint(len(inv_vect), buf, off)
+            off += pack_int_to_btc_varint(len(inv_vect), buf, off)
 
             for inv_item in inv_vect:
 
@@ -53,7 +53,7 @@ class InventoryBtcMessage(BtcMessage):
 
     def count(self):
         off = BTC_HDR_COMMON_OFF
-        num_items, size = btcvarint_to_int(self.buf, off)
+        num_items, size = btc_varint_to_int(self.buf, off)
         return num_items
 
     def _inv_type_to_witness_inv_type(self, inv_type):
@@ -67,7 +67,7 @@ class InventoryBtcMessage(BtcMessage):
 
     def __iter__(self):
         off = BTC_HDR_COMMON_OFF
-        num_items, size = btcvarint_to_int(self.buf, off)
+        num_items, size = btc_varint_to_int(self.buf, off)
         off += size
         self._num_items = num_items
 

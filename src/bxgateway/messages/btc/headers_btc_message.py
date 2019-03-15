@@ -3,7 +3,7 @@ import struct
 from bxgateway.btc_constants import BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN, BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, pack_int_to_btcvarint
+from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, pack_int_to_btc_varint
 from bxcommon.utils import crypto
 
 
@@ -47,7 +47,7 @@ class BlockHeader(object):
             self._merkle_root = self._memoryview[off:off + 32]
             off += 32
             self._timestamp, self._bits, self._nonce = struct.unpack_from('<III', self.buf, off)
-            self._txn_count, size = btcvarint_to_int(self.buf, off)
+            self._txn_count, size = btc_varint_to_int(self.buf, off)
         return self._version
 
     def prev_block(self):
@@ -92,7 +92,7 @@ class HeadersBtcMessage(BtcMessage):
             self.buf = buf
 
             off = BTC_HDR_COMMON_OFF
-            off += pack_int_to_btcvarint(len(headers), buf, off)
+            off += pack_int_to_btc_varint(len(headers), buf, off)
             for header in headers:
                 buf[off:off + 81] = header
                 off += 81
@@ -109,13 +109,13 @@ class HeadersBtcMessage(BtcMessage):
     def hash_count(self):
         if self._header_count is None:
             off = BTC_HDR_COMMON_OFF
-            self._header_count, size = btcvarint_to_int(self.buf, off)
+            self._header_count, size = btc_varint_to_int(self.buf, off)
 
         return self._header_count
 
     def __iter__(self):
         off = BTC_HDR_COMMON_OFF
-        self._header_count, size = btcvarint_to_int(self.buf, off)
+        self._header_count, size = btc_varint_to_int(self.buf, off)
         off += size
         for _ in xrange(self._header_count):
             yield self._memoryview[off:off + 81]

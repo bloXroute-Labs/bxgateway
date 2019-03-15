@@ -4,7 +4,7 @@ from bxcommon.utils.log_level import LogLevel
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size, pack_int_to_btcvarint
+from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, get_next_tx_size, pack_int_to_btc_varint
 from bxcommon.utils import crypto, convert
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
@@ -29,7 +29,7 @@ class BlockBtcMessage(BtcMessage):
             off += 32
             struct.pack_into('<III', buf, off, timestamp, bits, nonce)
             off += 12
-            off += pack_int_to_btcvarint(len(txns), buf, off)
+            off += pack_int_to_btc_varint(len(txns), buf, off)
 
             for tx in txns:
                 buf[off:off + len(tx)] = tx
@@ -61,7 +61,7 @@ class BlockBtcMessage(BtcMessage):
             off += 32
             self._timestamp, self._bits, self._nonce = struct.unpack_from('<III', self.buf, off)
             off += 12
-            self._txn_count, size = btcvarint_to_int(self.buf, off)
+            self._txn_count, size = btc_varint_to_int(self.buf, off)
             off += size
             self._tx_offset = off
 

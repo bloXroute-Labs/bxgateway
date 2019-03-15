@@ -6,11 +6,9 @@ from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import crypto, logger, convert
 from bxgateway import btc_constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter
-from bxgateway.btc_constants import BTC_SHA_HASH_LEN, BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, \
-    BTC_SHORT_ID_INDICATOR_LENGTH
+from bxgateway.messages.btc import btc_messages_util
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message import BtcMessage
-from bxgateway.messages.btc.btc_messages_util import btcvarint_to_int, get_next_tx_size
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
@@ -35,7 +33,7 @@ class BtcMessageConverter(AbstractMessageConverter):
         buf.append(header)
 
         for tx in btc_block_msg.txns():
-            tx_hash = BtcObjectHash(buf=crypto.double_sha256(tx), length=BTC_SHA_HASH_LEN)
+            tx_hash = BtcObjectHash(buf=crypto.double_sha256(tx), length=btc_constants.BTC_SHA_HASH_LEN)
             short_id = tx_service.get_short_id(tx_hash)
             if short_id == NULL_TX_SID:
                 buf.append(tx)
@@ -63,7 +61,12 @@ class BtcMessageConverter(AbstractMessageConverter):
     def bx_block_to_block(self, bx_block, tx_service):
         """
         Uncompresses a bx_block from a broadcast bx_block message and converts to a raw BTC bx_block.
+
+        bx_block must be a memoryview, since memoryview[offset] returns a bytearray, while bytearray[offset] returns
+        a byte.
         """
+        if not isinstance(bx_block, memoryview):
+            bx_block = memoryview(bx_block)
 
         # Initialize tracking of transaction and SID mapping
         block_pieces = deque()
@@ -75,14 +78,14 @@ class BtcMessageConverter(AbstractMessageConverter):
         short_ids, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(bx_block, 0)
 
         # Compute block header hash
-        block_header_size = short_ids_len + BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE
+        block_header_size = short_ids_len + btc_constants.BTC_HDR_COMMON_OFF + btc_constants.BTC_BLOCK_HDR_SIZE
         block_hash = BtcObjectHash(
-            buf=crypto.bitcoin_hash(bx_block[short_ids_len + BTC_HDR_COMMON_OFF:block_header_size]),
-            length=BTC_SHA_HASH_LEN)
+            buf=crypto.bitcoin_hash(bx_block[short_ids_len + btc_constants.BTC_HDR_COMMON_OFF:block_header_size]),
+            length=btc_constants.BTC_SHA_HASH_LEN)
         offset += block_header_size
 
         # Add header piece
-        _, txn_count_size = btcvarint_to_int(bx_block, block_header_size)
+        _, txn_count_size = btc_messages_util.btc_varint_to_int(bx_block, block_header_size)
         offset += txn_count_size
         block_pieces.append(bx_block[short_ids_len:offset])
 
@@ -90,7 +93,7 @@ class BtcMessageConverter(AbstractMessageConverter):
         off = offset
         short_tx_index = 0
         while off < len(bx_block):
-            if bx_block[off] == btc_constants.BTC_SHORT_ID_INDICATOR:
+            if bx_block[off] == btc_constants.BTC_SHORT_ID_INDICATOR_AS_BYTEARRAY:
                 sid = short_ids[short_tx_index]
                 tx_hash, tx = tx_service.get_transaction(sid)
 
@@ -98,10 +101,10 @@ class BtcMessageConverter(AbstractMessageConverter):
                     unknown_tx_sids.append(sid)
                 elif tx is None:
                     unknown_tx_hashes.append(tx_hash)
-                off += BTC_SHORT_ID_INDICATOR_LENGTH
+                off += btc_constants.BTC_SHORT_ID_INDICATOR_LENGTH
                 short_tx_index += 1
             else:
-                tx_size = get_next_tx_size(bx_block, off)
+                tx_size = btc_messages_util.get_next_tx_size(bx_block, off)
                 tx = bx_block[off:off + tx_size]
                 off += tx_size
 
@@ -133,7 +136,7 @@ class BtcMessageConverter(AbstractMessageConverter):
         if not isinstance(tx_msg, TxMessage):
             raise TypeError("tx_msg is expected to be of type TxMessage")
 
-        buf = bytearray(BTC_HDR_COMMON_OFF) + tx_msg.tx_val()
+        buf = bytearray(btc_constants.BTC_HDR_COMMON_OFF) + tx_msg.tx_val()
         raw_btc_tx_msg = BtcMessage(self._btc_magic, TxBtcMessage.MESSAGE_TYPE, len(tx_msg.tx_val()), buf)
         btc_tx_msg = TxBtcMessage(buf=raw_btc_tx_msg.buf)
 
