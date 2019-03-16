@@ -1,15 +1,18 @@
 from collections import deque
+import struct
 
 from bxcommon.constants import NULL_TX_SID
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import crypto, logger, convert
+from bxcommon import constants
 from bxgateway import btc_constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.btc import btc_messages_util
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
+from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
@@ -44,7 +47,10 @@ class BtcMessageConverter(AbstractMessageConverter):
                 size += 1
 
         serialized_short_ids = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
-        buf.appendleft(serialized_short_ids)
+        buf.append(serialized_short_ids)
+        size += constants.C_SIZE_T_SIZE_IN_BYTES
+        offset_buf = struct.pack("@Q", size)
+        buf.appendleft(offset_buf)
         size += len(serialized_short_ids)
 
         block = bytearray(size)
@@ -54,9 +60,16 @@ class BtcMessageConverter(AbstractMessageConverter):
             block[off:next_off] = blob
             off = next_off
 
-        prev_block_hash = convert.bytes_to_hex(btc_block_msg.prev_block().full_string())
-
-        return block, (btc_block_msg.txn_count(), prev_block_hash, short_ids)
+        prev_block_hash = convert.bytes_to_hex(btc_block_msg.prev_block().binary)
+        bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
+        block_info = BlockInfo(
+            btc_block_msg.txn_count(),
+            btc_block_msg.block_hash(),
+            bx_block_hash,
+            prev_block_hash,
+            short_ids
+        )
+        return block, block_info
 
     def bx_block_to_block(self, bx_block, tx_service):
         """
@@ -75,24 +88,35 @@ class BtcMessageConverter(AbstractMessageConverter):
         unknown_tx_sids = []
         unknown_tx_hashes = []
 
-        short_ids, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(bx_block, 0)
+        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block)
+        short_ids, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
+            bx_block,
+            block_offsets.short_id_offset
+        )
 
         # Compute block header hash
-        block_header_size = short_ids_len + btc_constants.BTC_HDR_COMMON_OFF + btc_constants.BTC_BLOCK_HDR_SIZE
+        block_header_size = \
+            block_offsets.block_begin_offset + \
+            btc_constants.BTC_HDR_COMMON_OFF + \
+            btc_constants.BTC_BLOCK_HDR_SIZE
         block_hash = BtcObjectHash(
-            buf=crypto.bitcoin_hash(bx_block[short_ids_len + btc_constants.BTC_HDR_COMMON_OFF:block_header_size]),
+            buf=crypto.bitcoin_hash(
+                bx_block[
+                    block_offsets.block_begin_offset + btc_constants.BTC_HDR_COMMON_OFF:
+                    block_header_size
+                ]),
             length=btc_constants.BTC_SHA_HASH_LEN)
         offset += block_header_size
 
         # Add header piece
         _, txn_count_size = btc_messages_util.btc_varint_to_int(bx_block, block_header_size)
         offset += txn_count_size
-        block_pieces.append(bx_block[short_ids_len:offset])
+        block_pieces.append(bx_block[block_offsets.block_begin_offset:offset])
 
         # Add transaction pieces
         off = offset
         short_tx_index = 0
-        while off < len(bx_block):
+        while off < block_offsets.short_id_offset:
             if bx_block[off] == btc_constants.BTC_SHORT_ID_INDICATOR_AS_BYTEARRAY:
                 sid = short_ids[short_tx_index]
                 tx_hash, tx = tx_service.get_transaction(sid)

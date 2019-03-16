@@ -4,6 +4,7 @@ from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.block_hash_message import BlockHashMessage
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
+from bxgateway.utils.block_info import BlockInfo
 
 
 class MockBlockMessage(BlockHashMessage):
@@ -20,7 +21,7 @@ class MockMessageConverter(AbstractMessageConverter):
         return bx_tx_msg
 
     def block_to_bx_block(self, block_msg, tx_service):
-        return block_msg.rawbytes(), (0, convert.bytes_to_hex(self.PREV_BLOCK.binary), [])
+        return block_msg.rawbytes(), BlockInfo(0, convert.bytes_to_hex(self.PREV_BLOCK.binary), None, None, [])
 
     def bx_block_to_block(self, bx_block_msg, tx_service):
         block_message = MockBlockMessage(buf=bx_block_msg)

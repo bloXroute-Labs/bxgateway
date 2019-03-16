@@ -128,8 +128,6 @@ class BlockProcessingService(object):
         bx_block, block_info = connection.message_converter.block_to_bx_block(block_message,
                                                                               self._node.get_tx_service())
         compress_end = datetime.datetime.utcnow()
-
-        bx_block_hash = crypto.double_sha256(bx_block)
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.BLOCK_COMPRESSED,
                                                   start_date_time=compress_start,
@@ -137,13 +135,13 @@ class BlockProcessingService(object):
                                                   network_num=connection.network_num,
                                                   original_size=len(block_message.rawbytes()),
                                                   compressed_size=len(bx_block),
-                                                  compressed_hash=convert.bytes_to_hex(bx_block_hash),
-                                                  txs_count=block_info[0],
-                                                  prev_block_hash=block_info[1])
+                                                  compressed_hash=block_info.compressed_block_hash,
+                                                  txs_count=block_info.txn_count,
+                                                  prev_block_hash=block_info.prev_block_hash)
 
         connection.node.neutrality_service.propagate_block_to_network(bx_block, connection, block_hash)
 
         connection.node.block_recovery_service.cancel_recovery_for_block(block_hash)
         connection.node.block_queuing_service.remove(block_hash)
         connection.node.blocks_seen.add(block_hash)
-        connection.node.get_tx_service().track_seen_short_ids(block_info[2])
+        connection.node.get_tx_service().track_seen_short_ids(block_info.short_ids)

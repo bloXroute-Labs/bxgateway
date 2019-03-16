@@ -1,14 +1,17 @@
 from collections import deque
+import struct
 
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import logger, convert
 from bxcommon.utils.object_hash import ObjectHash
+from bxcommon import constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.eth import rlp_utils
+from bxgateway.utils.block_info import BlockInfo
 
 
 class EthMessageConverter(AbstractMessageConverter):
@@ -182,7 +185,10 @@ class EthMessageConverter(AbstractMessageConverter):
         content_size += len(compact_block_msg_prefix)
 
         short_ids_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(used_short_ids)
-        buf.appendleft(short_ids_bytes)
+        buf.append(short_ids_bytes)
+        content_size += constants.C_SIZE_T_SIZE_IN_BYTES
+        offset_buf = struct.pack("@Q", content_size)
+        buf.appendleft(offset_buf)
         content_size += len(short_ids_bytes)
 
         # Parse it into the bloXroute message format and send it along
@@ -193,7 +199,8 @@ class EthMessageConverter(AbstractMessageConverter):
             block[off:next_off] = blob
             off = next_off
 
-        return block, (tx_count, convert.bytes_to_hex(prev_block_bytes), used_short_ids)
+        return block, BlockInfo(tx_count, block_msg.block_hash(), convert.bytes_to_hex(block),
+                                convert.bytes_to_hex(prev_block_bytes), used_short_ids)
 
     def bx_block_to_block(self, block, tx_service):
         """
@@ -212,10 +219,13 @@ class EthMessageConverter(AbstractMessageConverter):
 
         block_msg_bytes = block if isinstance(block, memoryview) else memoryview(block)
 
+        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(block)
         short_ids, short_ids_bytes_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
-            block_msg_bytes, 0)
+            block,
+            block_offsets.short_id_offset
+        )
 
-        block_bytes = block_msg_bytes[short_ids_bytes_len:]
+        block_bytes = block_msg_bytes[block_offsets.block_begin_offset: block_offsets.short_id_offset]
 
         _, block_itm_len, block_itm_start = rlp_utils.consume_length_prefix(block_bytes, 0)
         block_itm_bytes = block_bytes[block_itm_start:]

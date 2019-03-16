@@ -1,5 +1,6 @@
 import collections
 import hashlib
+import struct
 
 import rlp
 
@@ -10,6 +11,7 @@ from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils import convert
+from bxcommon import constants
 from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
@@ -142,15 +144,19 @@ class EthMessageConverterTests(AbstractTestCase):
         bx_block_msg, block_info = self.message_parser.block_to_bx_block(block_msg, self.tx_service)
 
         self.assertEqual(len(txs), block_info[0])
-        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info[1])
-        self.assertEqual(used_short_ids, block_info[2])
+        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info.prev_block_hash)
+        self.assertEqual(used_short_ids, block_info.short_ids)
 
         self.assertTrue(bx_block_msg)
         self.assertIsInstance(bx_block_msg, bytearray)
 
+        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block_msg)
         parsed_short_ids, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
-            bx_block_msg, 0)
-        compact_block = rlp.decode(bx_block_msg[short_ids_len:], CompactBlock)
+            bx_block_msg, block_offsets.short_id_offset)
+        compact_block = rlp.decode(
+            bx_block_msg[block_offsets.block_begin_offset: block_offsets.short_id_offset],
+            CompactBlock
+        )
         self.assertTrue(compact_block)
         self.assertIsInstance(compact_block, CompactBlock)
 
@@ -187,13 +193,20 @@ class EthMessageConverterTests(AbstractTestCase):
         bx_block_msg, block_info = self.message_parser.block_to_bx_block(block_msg, self.tx_service)
 
         self.assertEqual(0, block_info[0])
-        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info[1])
+        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info.prev_block_hash)
 
         self.assertTrue(bx_block_msg)
         self.assertIsInstance(bx_block_msg, bytearray)
 
-        _, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(bx_block_msg, 0)
-        compact_block = rlp.decode(bx_block_msg[short_ids_len:], CompactBlock)
+        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block_msg)
+        _, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
+            bx_block_msg,
+            block_offsets.short_id_offset
+        )
+        compact_block = rlp.decode(
+            bx_block_msg[block_offsets.block_begin_offset: block_offsets.short_id_offset],
+            CompactBlock
+        )
         self.assertTrue(compact_block)
         self.assertIsInstance(compact_block, CompactBlock)
 
@@ -232,8 +245,11 @@ class EthMessageConverterTests(AbstractTestCase):
                                      ],
                                      dummy_chain_difficulty)
 
-        compact_block_bytes = rlp.encode(compact_block, CompactBlock)
-        compact_block_msg_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
+        compact_block_msg_bytes = bytearray(constants.C_SIZE_T_SIZE_IN_BYTES)
+        compact_block_msg_bytes.extend(rlp.encode(compact_block, CompactBlock))
+        short_ids_offset = len(compact_block_msg_bytes)
+        struct.pack_into("@Q", compact_block_msg_bytes, 0, short_ids_offset)
+        compact_block_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
         compact_block_msg_bytes.extend(compact_block_bytes)
         compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
         compact_block_hash = ObjectHash(compact_block_hash_bytes)
@@ -296,8 +312,11 @@ class EthMessageConverterTests(AbstractTestCase):
                                      ],
                                      dummy_chain_difficulty)
 
-        compact_block_bytes = rlp.encode(compact_block, CompactBlock)
-        compact_block_msg_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
+        compact_block_msg_bytes = bytearray(constants.C_SIZE_T_SIZE_IN_BYTES)
+        compact_block_msg_bytes.extend(rlp.encode(compact_block, CompactBlock))
+        short_ids_offset = len(compact_block_msg_bytes)
+        struct.pack_into("@Q", compact_block_msg_bytes, 0, short_ids_offset)
+        compact_block_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
         compact_block_msg_bytes.extend(compact_block_bytes)
         compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
         compact_block_hash = ObjectHash(compact_block_hash_bytes)
@@ -358,7 +377,7 @@ class EthMessageConverterTests(AbstractTestCase):
         self.assertIsNotNone(bx_block_msg)
 
         self.assertEqual(len(txs), block_info[0])
-        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info[1])
+        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info.prev_block_hash)
 
         converted_block_msg, _, _, _, _ = self.message_parser.bx_block_to_block(bx_block_msg, self.tx_service)
         self.assertIsNotNone(converted_block_msg)
