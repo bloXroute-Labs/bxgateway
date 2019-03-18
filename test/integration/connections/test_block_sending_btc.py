@@ -11,7 +11,7 @@ from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxgateway.messages.gateway.block_holding_message import BlockHoldingMessage
+from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.testing.mocks.mock_btc_messages import btc_block, RealBtcBlocks
@@ -40,14 +40,19 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
 
         # propagate block
         helpers.receive_node_message(self.node1, self.blockchain_fileno, block.rawbytes())
+
+        block_hold_request_relay = self.node1.get_bytes_to_send(self.relay_fileno)
+        self.assertIn(BlockHoldingMessage.MESSAGE_TYPE, block_hold_request_relay.tobytes())
+        self.node1.on_bytes_sent(self.relay_fileno, len(block_hold_request_relay))
+
         relayed_block = self.node1.get_bytes_to_send(self.relay_fileno)
         self.assertIn(BroadcastMessage.MESSAGE_TYPE, relayed_block.tobytes())
         self.node1.on_bytes_sent(self.relay_fileno, len(relayed_block))
 
         # block hold sent out
-        block_hold_request = self.node1.get_bytes_to_send(self.gateway_fileno)
-        self.assertIsNotNone(block_hold_request)
-        self.assertIn(BlockHoldingMessage.MESSAGE_TYPE, block_hold_request.tobytes())
+        block_hold_request_gateway = self.node1.get_bytes_to_send(self.gateway_fileno)
+        self.assertIsNotNone(block_hold_request_gateway)
+        self.assertIn(BlockHoldingMessage.MESSAGE_TYPE, block_hold_request_gateway.tobytes())
         self.clear_all_buffers()
 
         # key not available until receipt
@@ -86,6 +91,11 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
 
         # propagate block
         helpers.receive_node_message(self.node1, self.blockchain_fileno, send_block.rawbytes())
+
+        block_hold_msg = self.node1.get_bytes_to_send(self.relay_fileno)
+        self.assertIn(BlockHoldingMessage.MESSAGE_TYPE, block_hold_msg.tobytes())
+        self.node1.on_bytes_sent(self.relay_fileno, len(block_hold_msg))
+
         relayed_block = self.node1.get_bytes_to_send(self.relay_fileno)
         self.assertIn(BroadcastMessage.MESSAGE_TYPE, relayed_block.tobytes())
         self.node1.on_bytes_sent(self.relay_fileno, len(relayed_block))
@@ -137,14 +147,19 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         block = btc_block()
         block_hash = block.block_hash()
 
-        helpers.receive_node_message(self.node1, self.gateway_fileno, BlockHoldingMessage(block_hash).rawbytes())
+        block_hold_msg_bytes = BlockHoldingMessage(block_hash, 1).rawbytes()
+        helpers.receive_node_message(self.node1, self.gateway_fileno, block_hold_msg_bytes)
         helpers.receive_node_message(self.node1, self.blockchain_fileno, block.rawbytes())
-        relayed_block = self.node1.get_bytes_to_send(self.relay_fileno)
-        self.assertEqual(OutputBuffer.EMPTY, relayed_block)
+        bytes_to_send = self.node1.get_bytes_to_send(self.relay_fileno)
+        self.assertEqual(bytes_to_send, block_hold_msg_bytes)
         self.assertEqual(1, len(self.node1.block_processing_service._holds.contents))
 
         # node 2 encrypts and sends over block
         helpers.receive_node_message(self.node2, self.blockchain_fileno, block.rawbytes())
+        block_hold_request_relay = self.node2.get_bytes_to_send(self.relay_fileno)
+        self.assertIn(BlockHoldingMessage.MESSAGE_TYPE, block_hold_request_relay.tobytes())
+        self.node2.on_bytes_sent(self.relay_fileno, len(block_hold_request_relay))
+
         relayed_block = self.node2.get_bytes_to_send(self.relay_fileno)
         self.assertIn(BroadcastMessage.MESSAGE_TYPE, relayed_block.tobytes())
         self.node2.on_bytes_sent(self.relay_fileno, len(relayed_block))
@@ -168,12 +183,14 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
     def test_block_hold_timeout(self):
         block = btc_block()
         block_hash = block.block_hash()
+        block_hold_msg_bytes = BlockHoldingMessage(block_hash, 1).rawbytes()
 
-        helpers.receive_node_message(self.node1, self.gateway_fileno, BlockHoldingMessage(block_hash).rawbytes())
+        helpers.receive_node_message(self.node1, self.gateway_fileno, block_hold_msg_bytes)
         helpers.receive_node_message(self.node1, self.blockchain_fileno, block.rawbytes())
-        relayed_block = self.node1.get_bytes_to_send(self.relay_fileno)
-        self.assertEqual(OutputBuffer.EMPTY, relayed_block)
+        block_hold_msg_bytes_to_send = self.node1.get_bytes_to_send(self.relay_fileno)
+        self.assertEqual(block_hold_msg_bytes_to_send, block_hold_msg_bytes)
         self.assertEqual(1, len(self.node1.block_processing_service._holds.contents))
+        self.node1.on_bytes_sent(self.relay_fileno, len(block_hold_msg_bytes_to_send))
 
         time.time = MagicMock(
             return_value=time.time() + self.node1.block_processing_service._compute_hold_timeout(block))

@@ -2,7 +2,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto, convert
 from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
-from bxgateway.block_hash_message import BlockHashMessage
+from bxcommon.messages.bloxroute.block_hash_message import BlockHashMessage
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.block_info import BlockInfo
 

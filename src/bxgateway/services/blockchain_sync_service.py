@@ -67,7 +67,7 @@ class BlockchainSyncService(object):
     def _retry_request_with_broadcast(self, command, message):
         if self.am_waiting_for_remote_callback(self.callback_mapping[command]):
             self.node.broadcast(BlockchainSyncRequestMessage(command, message.rawbytes()),
-                                connection_type=ConnectionType.GATEWAY)
+                                connection_types=[ConnectionType.GATEWAY])
 
         return constants.CANCEL_ALARMS
 

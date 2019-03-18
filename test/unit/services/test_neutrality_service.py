@@ -110,8 +110,8 @@ class NeutralityServiceTest(AbstractTestCase):
         block_request_messages = filter(lambda broadcasted:
                                         broadcasted[0].msg_type() == GatewayMessageType.BLOCK_PROPAGATION_REQUEST,
                                         self.node.broadcast_messages)
-        block_request_message, connection_type = block_request_messages[0]
-        self.assertEqual(ConnectionType.GATEWAY, connection_type)
+        block_request_message, connection_types = block_request_messages[0]
+        self.assertEqual(ConnectionType.GATEWAY, connection_types[0])
         self.assertEqual(GatewayMessageType.BLOCK_PROPAGATION_REQUEST, block_request_message.msg_type())
         self.assertEqual(self.BYTE_BLOCK, block_request_message.blob())
 
@@ -123,8 +123,8 @@ class NeutralityServiceTest(AbstractTestCase):
         self.neutrality_service.propagate_block_to_network(block_message, connection)
 
         self.assertEqual(1, len(self.node.broadcast_messages))
-        broadcast_message, connection_type = self.node.broadcast_messages[0]
-        self.assertEqual(ConnectionType.RELAY, connection_type)
+        broadcast_message, connection_types = self.node.broadcast_messages[0]
+        self.assertEqual(ConnectionType.RELAY, connection_types[0])
 
         raw_block_hash = bytes(broadcast_message.msg_hash().binary)
         cache_item = self.node.in_progress_blocks._cache.get(raw_block_hash)
@@ -141,8 +141,8 @@ class NeutralityServiceTest(AbstractTestCase):
         self.neutrality_service.propagate_block_to_network(block_message, connection, block_hash)
 
         self.assertEqual(1, len(self.node.broadcast_messages))
-        broadcast_message, connection_type = self.node.broadcast_messages[0]
-        self.assertEqual(ConnectionType.RELAY, connection_type)
+        broadcast_message, connection_types = self.node.broadcast_messages[0]
+        self.assertEqual([ConnectionType.RELAY], connection_types)
         self.assertEqual(block_hash, broadcast_message.msg_hash())
 
         self.assertFalse(self.node.in_progress_blocks._cache.has_key(block_hash))
@@ -156,7 +156,7 @@ class NeutralityServiceTest(AbstractTestCase):
     def _assert_broadcast_key(self):
         key_messages = filter(lambda broadcasted: broadcasted[0].msg_type() == BloxrouteMessageType.KEY,
                               self.node.broadcast_messages)
-        key_message, connection_type = key_messages[0]
-        self.assertEqual(ConnectionType.RELAY, connection_type)
+        key_message, connection_types = key_messages[0]
+        self.assertEqual(ConnectionType.RELAY, connection_types[0])
         self.assertEqual(BloxrouteMessageType.KEY, key_message.msg_type())
         self.assertEqual(self.KEY_HASH, key_message.key())

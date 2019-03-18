@@ -1,17 +1,17 @@
-from collections import deque
 import struct
+from collections import deque
 
+from bxcommon import constants
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.utils import logger, convert
+from bxcommon.utils import logger, convert, crypto
 from bxcommon.utils.object_hash import ObjectHash
-from bxcommon import constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
+from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.eth import rlp_utils
-from bxgateway.utils.block_info import BlockInfo
 
 
 class EthMessageConverter(AbstractMessageConverter):
@@ -199,8 +199,9 @@ class EthMessageConverter(AbstractMessageConverter):
             block[off:next_off] = blob
             off = next_off
 
-        return block, BlockInfo(tx_count, block_msg.block_hash(), convert.bytes_to_hex(block),
-                                convert.bytes_to_hex(prev_block_bytes), used_short_ids)
+        bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
+        return block, BlockInfo(tx_count, block_msg.block_hash(), bx_block_hash, convert.bytes_to_hex(prev_block_bytes),
+                                used_short_ids)
 
     def bx_block_to_block(self, block, tx_service):
         """

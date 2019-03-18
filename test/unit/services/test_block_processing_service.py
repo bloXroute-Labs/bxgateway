@@ -10,7 +10,7 @@ from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnectio
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.object_hash import ObjectHash
-from bxgateway.messages.gateway.block_holding_message import BlockHoldingMessage
+from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
@@ -41,8 +41,8 @@ class BlockHoldingServiceTest(AbstractTestCase):
 
         self.assertEqual(2, len(self.sut._holds.contents))
         self.assertEqual(2, len(self.node.broadcast_messages))
-        self.assertEqual(BlockHoldingMessage(hash1), self.node.broadcast_messages[0][0])
-        self.assertEqual(BlockHoldingMessage(hash2), self.node.broadcast_messages[1][0])
+        self.assertEqual(BlockHoldingMessage(hash1, network_num=1), self.node.broadcast_messages[0][0])
+        self.assertEqual(BlockHoldingMessage(hash2, network_num=1), self.node.broadcast_messages[1][0])
 
     def test_place_hold_block_seen(self):
         hash1 = ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
@@ -76,7 +76,7 @@ class BlockHoldingServiceTest(AbstractTestCase):
 
         broadcasted_messages = self.node.broadcast_messages
         self.assertEqual(1, len(broadcasted_messages))
-        self.assertEqual(BlockHoldingMessage(block_hash), broadcasted_messages[0][0])
+        self.assertEqual(BlockHoldingMessage(block_hash, network_num=1), broadcasted_messages[0][0])
 
     def test_queue_block_hold_exists_until_cancelled(self):
         block_hash = ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))

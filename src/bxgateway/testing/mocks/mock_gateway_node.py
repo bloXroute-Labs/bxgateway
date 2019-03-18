@@ -33,8 +33,11 @@ class MockGatewayNode(AbstractGatewayNode):
         self._tx_service = TransactionService(self, 0)
 
     def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, network_num=None,
-                  connection_type=ConnectionType.RELAY):
-        self.broadcast_messages.append((msg, connection_type))
+                  connection_types=None, exclude_relays=False):
+        if connection_types is None:
+            connection_types = [ConnectionType.RELAY]
+
+        self.broadcast_messages.append((msg, connection_types))
         return []
 
     def send_msg_to_node(self, msg):

@@ -7,7 +7,7 @@ from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.services import sdn_http_service
-from bxcommon.utils import logger, crypto, convert
+from bxcommon.utils import logger, crypto
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
@@ -39,7 +39,8 @@ class GatewayConnection(InternalNodeConnection):
             BloxrouteMessageType.ACK: self.msg_ack,
             GatewayMessageType.BLOCK_RECEIVED: self.msg_block_received,
             GatewayMessageType.BLOCK_PROPAGATION_REQUEST: self.msg_block_propagation_request,
-            GatewayMessageType.BLOCK_HOLDING: self.msg_block_holding,
+            BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding,
+            BloxrouteMessageType.KEY: self.msg_key
         }
         self.version_manager = gateway_version_manager
         self.protocol_version = self.version_manager.CURRENT_PROTOCOL_VERSION
@@ -159,6 +160,13 @@ class GatewayConnection(InternalNodeConnection):
     def msg_block_holding(self, msg):
         block_hash = msg.block_hash()
         self.node.block_processing_service.place_hold(block_hash, self)
+
+    def msg_key(self, msg):
+        """
+        Handles key message receive from bloXroute.
+        Looks for the encrypted block and decrypts; otherwise stores for later.
+        """
+        self.node.block_processing_service.process_block_key(msg, self)
 
     def _initialize_ordered_handshake(self):
         self.ordering = random.getrandbits(constants.UL_INT_SIZE_IN_BYTES * 8)

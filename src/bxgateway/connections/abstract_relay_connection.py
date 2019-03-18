@@ -1,19 +1,12 @@
-import datetime
-
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.constants import BLOXROUTE_HELLO_MESSAGES, HDR_COMMON_OFF
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
-from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.utils import crypto, logger, convert
-from bxcommon.utils.object_hash import ObjectHash
-from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
-from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxcommon.utils import logger, convert
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -36,6 +29,7 @@ class AbstractRelayConnection(InternalNodeConnection):
             BloxrouteMessageType.KEY: self.msg_key,
             BloxrouteMessageType.TRANSACTION: self.msg_tx,
             BloxrouteMessageType.TRANSACTIONS: self.msg_txs,
+            BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding
         }
 
         self.message_converter = None
@@ -45,80 +39,14 @@ class AbstractRelayConnection(InternalNodeConnection):
         Handle broadcast message receive from bloXroute.
         This is typically an encrypted block.
         """
+        self.node.block_processing_service.process_block_broadcast(msg, self)
 
-        block_stats.add_block_event(msg,
-                                    BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
-                                    network_num=self.network_num,
-                                    peer=self.peer_desc,
-                                    connection_type=self.CONNECTION_TYPE)
-
-        msg_hash = msg.msg_hash()
-        is_encrypted = msg.is_encrypted()
-
-        if not is_encrypted:
-            block = msg.blob()
-            self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
-            return
-
-        cipherblob = msg.blob()
-        if msg_hash != ObjectHash(crypto.double_sha256(cipherblob)):
-            logger.warn("Received a message with inconsistent hashes. Dropping.")
-            return
-
-        if self.node.in_progress_blocks.has_encryption_key_for_hash(msg_hash):
-            logger.debug("Already had key for received block. Sending block to node.")
-            block = self.node.in_progress_blocks.decrypt_ciphertext(msg_hash, cipherblob)
-
-            if block is not None:
-                block_stats.add_block_event(msg,
-                                            BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
-                                            network_num=self.network_num)
-                self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
-            else:
-                block_stats.add_block_event(msg,
-                                            BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
-                                            network_num=self.network_num)
-        else:
-            logger.debug("Received encrypted block. Storing.")
-            self.node.in_progress_blocks.add_ciphertext(msg_hash, cipherblob)
-            block_received_message = BlockReceivedMessage(msg_hash)
-            conns = self.node.broadcast(block_received_message, self, connection_type=ConnectionType.GATEWAY)
-            block_stats.add_block_event_by_block_hash(msg_hash,
-                                                      BlockStatEventType.ENC_BLOCK_SENT_BLOCK_RECEIPT,
-                                                      network_num=self.network_num,
-                                                      peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),
-                                                                conns))
-
-    def msg_key(self, message):
+    def msg_key(self, msg):
         """
         Handles key message receive from bloXroute.
         Looks for the encrypted block and decrypts; otherwise stores for later.
         """
-        key = message.key()
-        msg_hash = message.msg_hash()
-
-        block_stats.add_block_event_by_block_hash(msg_hash,
-                                                  BlockStatEventType.ENC_BLOCK_KEY_RECEIVED_BY_GATEWAY_FROM_NETWORK,
-                                                  network_num=self.network_num,
-                                                  peer=self.peer_desc,
-                                                  connection_type=self.CONNECTION_TYPE)
-
-        if self.node.in_progress_blocks.has_ciphertext_for_hash(msg_hash):
-            logger.debug("Cipher text found. Decrypting and sending to node.")
-            block = self.node.in_progress_blocks.decrypt_and_get_payload(msg_hash, key)
-
-            if block is not None:
-                block_stats.add_block_event_by_block_hash(msg_hash,
-                                                          BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
-                                                          network_num=self.network_num)
-                self._handle_decrypted_block(block, encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
-            else:
-                block_stats.add_block_event_by_block_hash(msg_hash,
-                                                          BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
-                                                          network_num=self.network_num)
-        else:
-            logger.debug("No cipher text found on key message. Storing.")
-            self.node.in_progress_blocks.add_key(msg_hash, key)
+        self.node.block_processing_service.process_block_key(msg, self)
 
     def msg_tx(self, msg):
         """
@@ -168,7 +96,7 @@ class AbstractRelayConnection(InternalNodeConnection):
             logger.debug("Adding hash value to tx service and forwarding it to node")
             tx_service.set_transaction_contents(tx_hash, msg.tx_val())
             self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
-            self._msg_broadcast_retry()
+            self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
 
             if self.node.node_conn is not None:
                 btc_tx_msg = self.message_converter.bx_tx_to_tx(msg)
@@ -193,7 +121,7 @@ class AbstractRelayConnection(InternalNodeConnection):
 
             self.node.block_recovery_service.check_missing_sid(short_id)
 
-            if  not tx_service.has_short_id(short_id):
+            if not tx_service.has_short_id(short_id):
                 tx_service.assign_short_id(tx_hash, short_id)
 
             self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
@@ -201,104 +129,12 @@ class AbstractRelayConnection(InternalNodeConnection):
             if not tx_service.has_transaction_contents(tx_hash):
                 tx_service.set_transaction_contents(tx_hash, transaction_contents)
 
-        self._msg_broadcast_retry()
+        self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
 
-    def _msg_broadcast_retry(self):
-        if self.node.block_recovery_service.recovered_blocks:
-            for msg in self.node.block_recovery_service.recovered_blocks:
-                self._handle_decrypted_block(msg, recovered=True)
-
-            self.node.block_recovery_service.clean_up_recovered_blocks()
-
-    def _handle_decrypted_block(self, bx_block, encrypted_block_hash_hex=None, recovered=False):
-        transaction_service = self.node.get_tx_service()
-        decompress_start = datetime.datetime.utcnow()
-        # TODO: determine if a real block or test block. Discard if test block.
-        block_message, block_hash, all_sids, unknown_sids, unknown_hashes = \
-            self.message_converter.bx_block_to_block(bx_block, transaction_service)
-
-        decompress_end = datetime.datetime.utcnow()
-
-        self.node.block_processing_service.cancel_hold_timeout(block_hash, self)
-
-        if recovered:
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_RECOVERY_COMPLETED,
-                                                      network_num=self.network_num)
-
-        if encrypted_block_hash_hex is None:
-            encrypted_block_hash_hex = "Unknown"
-
-        if block_hash in self.node.blocks_seen.contents:
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_IGNORE_SEEN,
-                                                      start_date_time=decompress_start,
-                                                      end_date_time=decompress_end,
-                                                      network_num=self.network_num,
-                                                      encrypted_block_hash=encrypted_block_hash_hex)
-            return
-
-        if block_message is not None:
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_SUCCESS,
-                                                      start_date_time=decompress_start,
-                                                      end_date_time=decompress_end,
-                                                      network_num=self.network_num,
-                                                      encrypted_block_hash=encrypted_block_hash_hex)
-            if recovered or block_hash in self.node.block_queuing_service:
-                self.node.block_queuing_service.update_recovered_block(block_hash, block_message)
-            else:
-                self.node.block_queuing_service.push(block_hash, block_message)
-
-            self.node.block_recovery_service.cancel_recovery_for_block(block_hash)
-            self.node.blocks_seen.add(block_hash)
-            transaction_service.track_seen_short_ids(all_sids)
-
-        else:
-            if block_hash in self.node.block_queuing_service and not recovered:
-                logger.debug("Handling already queued block again. Ignoring.")
-                return
-
-            self.node.block_recovery_service.add_block(bx_block, block_hash, unknown_sids, unknown_hashes)
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_DECOMPRESSED_WITH_UNKNOWN_TXS,
-                                                      start_date_time=decompress_start,
-                                                      end_date_time=decompress_end,
-                                                      network_num=self.network_num,
-                                                      encrypted_block_hash=encrypted_block_hash_hex,
-                                                      unknown_sids_count=len(unknown_sids),
-                                                      unknown_hashes_count=len(unknown_hashes))
-            gettxs_message = self._create_unknown_txs_message(unknown_sids, unknown_hashes)
-            self.enqueue_msg(gettxs_message)
-            tx_stats.add_txs_by_short_ids_event(unknown_sids,
-                                                TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
-                                                network_num=self.node.network_num,
-                                                peer=self.peer_desc,
-                                                block_hash=convert.bytes_to_hex(block_hash.binary))
-
-            if recovered:
-                # for now, just allow retry.
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.BLOCK_RECOVERY_REPEATED,
-                                                          network_num=self.network_num,
-                                                          request_hash=convert.bytes_to_hex(
-                                                              crypto.double_sha256(gettxs_message.rawbytes())
-                                                          ))
-            else:
-                self.node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.BLOCK_RECOVERY_STARTED,
-                                                          network_num=self.network_num,
-                                                          request_hash=convert.bytes_to_hex(
-                                                              crypto.double_sha256(gettxs_message.rawbytes())))
-
-    def _create_unknown_txs_message(self, unknown_sids, unknown_hashes):
-        all_unknown_sids = []
-        all_unknown_sids.extend(unknown_sids)
-
-        tx_service = self.node.get_tx_service()
-
-        # retrieving sids of txs with unknown contents
-        for tx_hash in unknown_hashes:
-            tx_sid = tx_service.get_short_id(tx_hash)
-            all_unknown_sids.append(tx_sid)
-
-        return GetTxsMessage(short_ids=all_unknown_sids)
+    def msg_block_holding(self, msg):
+        """
+        Block holding request message handler. Places block on hold and broadcasts message to relay and gateway peers.
+        :param msg: Message of type BlockHoldingMessage
+        """
+        block_hash = msg.block_hash()
+        self.node.block_processing_service.place_hold(block_hash, self)

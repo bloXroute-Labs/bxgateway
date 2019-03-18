@@ -1,6 +1,7 @@
 import time
 from abc import ABCMeta
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import ObjectHash
@@ -8,7 +9,6 @@ from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-from bxgateway import gateway_constants
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -90,7 +90,8 @@ class AbstractBlockchainConnectionProtocol(object):
         """
         key = self.connection.node.in_progress_blocks.get_encryption_key(block_hash)
         key_message = KeyMessage(ObjectHash(block_hash), self.connection.network_num, key)
-        conns = self.connection.node.broadcast(key_message, self.connection)
+        conns = self.connection.node.broadcast(key_message, self.connection,
+                                               connection_types=[ConnectionType.RELAY, ConnectionType.GATEWAY])
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self.connection.network_num,

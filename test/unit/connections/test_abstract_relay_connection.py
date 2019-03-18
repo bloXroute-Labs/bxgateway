@@ -20,7 +20,7 @@ class AbstractRelayConnectionTest(AbstractTestCase):
 
         self.connection = AbstractRelayConnection(MockSocketConnection(), ("127.0.0.1", 12345), self.node)
 
-    @patch("bxgateway.connections.abstract_relay_connection.AbstractRelayConnection._handle_decrypted_block")
+    @patch("bxgateway.services.block_processing_service.BlockProcessingService._handle_decrypted_block")
     def test_msg_broadcast_encrypted(self, mock_handle_decrypted_block):
         msg_bytes = helpers.generate_bytearray(50)
         msg_hash = ObjectHash(crypto.double_sha256(msg_bytes))
@@ -34,7 +34,7 @@ class AbstractRelayConnectionTest(AbstractTestCase):
         self.assertIsInstance(self.node.broadcast_messages[0][0], BlockReceivedMessage)
         mock_handle_decrypted_block.assert_not_called()
 
-    @patch("bxgateway.connections.abstract_relay_connection.AbstractRelayConnection._handle_decrypted_block")
+    @patch("bxgateway.services.block_processing_service.BlockProcessingService._handle_decrypted_block")
     def test_msg_broadcast_unencrypted(self, mock_handle_decrypted_block):
         msg_bytes = helpers.generate_bytearray(50)
         msg_hash = ObjectHash(crypto.double_sha256(msg_bytes))

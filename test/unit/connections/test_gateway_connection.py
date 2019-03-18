@@ -16,7 +16,7 @@ from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.gateway_connection import GatewayConnection
-from bxgateway.messages.gateway.block_holding_message import BlockHoldingMessage
+from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
@@ -240,6 +240,6 @@ class GatewayConnectionTest(AbstractTestCase):
 
     def test_msg_block_hold(self):
         block_hash = ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
-        message = BlockHoldingMessage(block_hash)
+        message = BlockHoldingMessage(block_hash, network_num=123)
         self.connection.msg_block_holding(message)
         self.node.block_processing_service.place_hold.assert_called_once_with(block_hash, self.connection)

@@ -1,6 +1,7 @@
 from __future__ import division
 
 import datetime
+import time
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
@@ -89,17 +90,24 @@ class NeutralityService(object):
         else:
             requested_by_peer = False
 
-        encrypt_start = datetime.datetime.utcnow()
+        encrypt_start_datetime = datetime.datetime.utcnow()
+        encrypt_start_timestamp = time.time()
         encrypted_block, raw_cipher_hash = self._node.in_progress_blocks.encrypt_and_add_payload(bx_block)
-        encrypt_end = datetime.datetime.utcnow()
+
+        compressed_size = len(bx_block)
+        encrypted_size = len(encrypted_block)
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.BLOCK_ENCRYPTED,
-                                                  start_date_time=encrypt_start,
-                                                  end_date_time=encrypt_end,
+                                                  start_date_time=encrypt_start_datetime,
+                                                  end_date_time=datetime.datetime.utcnow(),
                                                   network_num=self._node.network_num,
                                                   encrypted_block_hash=convert.bytes_to_hex(raw_cipher_hash),
-                                                  compressed_size=len(bx_block),
-                                                  encrypted_size=len(encrypted_block))
+                                                  compressed_size=compressed_size,
+                                                  encrypted_size=encrypted_size,
+                                                  more_info="{:.2f}ms; {:.2f}%".format(
+                                                      time.time() - encrypt_start_timestamp,
+                                                      100 - float(encrypted_size) / compressed_size * 100
+                                                  ))
 
         cipher_hash = ObjectHash(raw_cipher_hash)
         broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, True, encrypted_block)
@@ -167,7 +175,7 @@ class NeutralityService(object):
         self._send_key(cipher_hash)
 
         request = BlockPropagationRequestMessage(bx_block)
-        conns = self._node.broadcast(request, None, connection_type=ConnectionType.GATEWAY)
+        conns = self._node.broadcast(request, None, connection_types=[ConnectionType.GATEWAY])
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_PROPAGATION_NEEDED,
                                                   network_num=self._node.network_num,
@@ -182,7 +190,7 @@ class NeutralityService(object):
     def _send_key(self, cipher_hash):
         key = self._node.in_progress_blocks.get_encryption_key(bytes(cipher_hash.binary))
         key_message = KeyMessage(cipher_hash, self._node.network_num, key)
-        conns = self._node.broadcast(key_message, None)
+        conns = self._node.broadcast(key_message, None, connection_types=[ConnectionType.RELAY, ConnectionType.GATEWAY])
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,

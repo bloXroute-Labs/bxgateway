@@ -1,11 +1,12 @@
 from bxcommon.constants import MSG_TYPE_LEN
+from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
+from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import create_input_buffer_with_message
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import ObjectHash
 from bxgateway.messages.btc.data_btc_message import GetBlocksBtcMessage
-from bxgateway.messages.gateway.block_holding_message import BlockHoldingMessage
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.messages.gateway.blockchain_sync_request_message import BlockchainSyncRequestMessage
@@ -40,8 +41,8 @@ class GatewayMessageFactoryTest(AbstractTestCase):
                                               GatewayMessageType.BLOCK_RECEIVED, BlockReceivedMessage.PAYLOAD_LENGTH)
         self.get_message_preview_successfully(BlockPropagationRequestMessage(self.BLOCK),
                                               GatewayMessageType.BLOCK_PROPAGATION_REQUEST, len(self.BLOCK))
-        self.get_message_preview_successfully(BlockHoldingMessage(self.HASH),
-                                              GatewayMessageType.BLOCK_HOLDING, BlockHoldingMessage.PAYLOAD_LENGTH)
+        self.get_message_preview_successfully(BlockHoldingMessage(self.HASH, network_num=123),
+                                              BloxrouteMessageType.BLOCK_HOLDING, BlockHoldingMessage.PAYLOAD_LENGTH)
 
         hash_val = BtcObjectHash(buf=crypto.double_sha256("123"), length=crypto.SHA256_HASH_LEN)
         blockchain_message = GetBlocksBtcMessage(12345, 23456, [hash_val], hash_val).rawbytes()
@@ -68,7 +69,8 @@ class GatewayMessageFactoryTest(AbstractTestCase):
         block_recv_message = self.create_message_successfully(BlockReceivedMessage(self.HASH), BlockReceivedMessage)
         self.assertEqual(self.HASH, block_recv_message.block_hash())
 
-        block_holding_message = self.create_message_successfully(BlockHoldingMessage(self.HASH), BlockHoldingMessage)
+        block_holding_message = self.create_message_successfully(BlockHoldingMessage(self.HASH, network_num=123),
+                                                                 BlockHoldingMessage)
         self.assertEqual(self.HASH, block_holding_message.block_hash())
 
         block_propagation_request_message = self.create_message_successfully(BlockPropagationRequestMessage(self.BLOCK),

@@ -19,6 +19,7 @@ from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
@@ -35,6 +36,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.gateway_node = BtcGatewayNode(get_gateway_opts(8000, include_default_btc_args=True))
         self.sut = BtcRelayConnection(MockSocketConnection(), (LOCALHOST, 8001), self.gateway_node)
         self.gateway_node.node_conn = MockConnection(1, (LOCALHOST, 8002), self.gateway_node)
+        self.gateway_node.node_conn.message_converter = BtcMessageConverter(12345)
         self.gateway_node.node_conn.state = ConnectionState.ESTABLISHED
 
         self.gateway_node.send_msg_to_node = MagicMock()

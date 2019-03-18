@@ -1,4 +1,4 @@
-from bxgateway.block_hash_message import BlockHashMessage
+from bxcommon.messages.bloxroute.block_hash_message import BlockHashMessage
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
 
