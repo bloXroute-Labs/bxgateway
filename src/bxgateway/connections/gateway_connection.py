@@ -103,7 +103,7 @@ class GatewayConnection(InternalNodeConnection):
             if connection.ordering == ordering:
                 logger.warn("Duplicate connection orderings could not be resolved. Investigate if this message appears "
                             "repeatedly.")
-                self.node.connection_pool.update_port(port, self)
+                self.node.connection_pool.update_port(self.peer_port, port, self)
                 self._initialize_ordered_handshake()
                 return
 
@@ -128,10 +128,10 @@ class GatewayConnection(InternalNodeConnection):
                 connection.mark_for_close(force_destroy_now=True)
                 self.state |= ConnectionState.ESTABLISHED
                 self.enqueue_msg(self.ack_message)
-                self.node.connection_pool.update_port(port, self)
+                self.node.connection_pool.update_port(self.peer_port, port, self)
         else:
             logger.debug("Connection is only one of its kind. Updating port reference.")
-            self.node.connection_pool.update_port(port, self)
+            self.node.connection_pool.update_port(self.peer_port, port, self)
             self.enqueue_msg(self.ack_message)
             self.state |= ConnectionState.ESTABLISHED
 

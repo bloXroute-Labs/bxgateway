@@ -130,3 +130,4 @@ if __name__ == "__main__":
     opts = get_opts()
     node_type = get_gateway_node_type(opts.blockchain_protocol, opts.blockchain_network)
     node_runner.run_node(PID_FILE_NAME, opts, node_type)
+    

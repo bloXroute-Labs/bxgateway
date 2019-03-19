@@ -100,5 +100,4 @@ class _GatewayTransactionStatsService(StatisticsService):
             **self.transaction_service.get_tx_service_aggregate_stats()
         )
 
-
 gateway_transaction_stats_service = _GatewayTransactionStatsService()
