@@ -59,11 +59,6 @@ class AbstractGatewayNode(AbstractNode):
         self.block_queuing_service = BlockQueuingService(self)
         self.block_processing_service = BlockProcessingService(self)
 
-        # TODO next sprint
-        # if not self.opts.peer_relays:
-        #     self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
-        #                                     self.send_request_for_relay_traffic_in_geo_location)
-
         if not self.opts.peer_relays:
             self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers)
 
@@ -159,15 +154,15 @@ class AbstractGatewayNode(AbstractNode):
         """
         potential_relay_peers = sdn_http_service.fetch_potential_relay_peers(self.opts.node_id)
         best_relay_match = []
-        if potential_relay_peers:
+        if len(potential_relay_peers) != 0:
             logger.debug("Potential relay peers: {}".
                          format(", ".join([node.node_id for node in potential_relay_peers])))
 
             # TODO for now takes the first relay from the list until decide the best way to get peers latency
             best_relay_peer = potential_relay_peers[0]
-            logger.debug("best peer match to node {} is: {}".format(self.opts.node_id, best_relay_peer))
             best_relay_match.append(best_relay_peer)
 
+        logger.debug("Best relay peer to node {} is: {}".format(self.opts.node_id, best_relay_match))
         self._add_relay_peers(set(best_relay_match))
         self.on_updated_peers(self._get_all_peers())
 
@@ -259,12 +254,14 @@ class AbstractGatewayNode(AbstractNode):
         super(AbstractGatewayNode, self).destroy_conn(conn, retry_connection)
 
     def on_failed_connection_retry(self, ip, port, connection_type):
-        super(AbstractGatewayNode, self).on_failed_connection_retry(ip, port, connection_type)
         if connection_type == ConnectionType.GATEWAY:
             sdn_http_service.submit_peer_connection_error_event(self.opts.node_id, ip, port)
             self._remove_gateway_peer(ip, port)
         elif connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
             self.send_request_for_remote_blockchain_peer()
+        elif connection_type == ConnectionType.RELAY:
+            sdn_http_service.submit_peer_connection_error_event(self.opts.node_id, ip, port)
+            self._remove_relay_peer(ip, port)
 
         return 0
 
@@ -273,10 +270,6 @@ class AbstractGatewayNode(AbstractNode):
                 or OutboundPeerModel(ip, port) in self.opts.peer_gateways
                 or connection_type == ConnectionType.BLOCKCHAIN_NODE
                 or (ip == self.opts.remote_blockchain_ip and port == self.opts.remote_blockchain_port))
-
-    # TODO next sprint
-    # def send_request_for_relay_traffic_in_geo_location(self):
-    #     sdn_http_service.sort_geo_location_traffic(self.opts.node_id)
 
     def _get_all_peers(self):
         return list(self.peer_gateways.union(self.peer_relays))
