@@ -63,7 +63,13 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         Handle an inventory message. Since this is the only node the gateway is connected to,
         assume that everything is new and that we want it.
         """
-        getdata = GetDataBtcMessage(magic=msg.magic(), inv_vects=[x for x in msg],
+        inventory_vectors = iter(msg)
+        inventory_requests = []
+        for inventory_type, item_hash in inventory_vectors:
+            if not InventoryType.is_block(inventory_type) or item_hash not in self.connection.node.blocks_seen.contents:
+                inventory_requests.append((inventory_type, item_hash))
+        getdata = GetDataBtcMessage(magic=msg.magic(),
+                                    inv_vects=inventory_requests,
                                     request_witness_data=self.request_witness_data)
         self.connection.enqueue_msg(getdata)
 

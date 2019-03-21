@@ -1,13 +1,20 @@
 import struct
 
-from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
+from bxgateway import btc_constants
+from bxgateway.messages.btc import btc_messages_util
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, pack_int_to_btc_varint
-
-
-# an inv_vect is an array of (type, hash) tuples
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+
+
+def _inv_type_to_witness_inv_type(inv_type):
+    if inv_type == InventoryType.MSG_TX:
+        return InventoryType.MSG_WITNESS_TX
+
+    if inv_type == InventoryType.MSG_BLOCK:
+        return InventoryType.MSG_WITNESS_BLOCK
+
+    return inv_type
 
 
 class InventoryType(object):
@@ -27,24 +34,25 @@ class InventoryBtcMessage(BtcMessage):
     def __init__(self, magic=None, inv_vect=None, command=None, request_witness_data=False, buf=None):
         if buf is None:
             buf = bytearray(
-                BTC_HDR_COMMON_OFF + 9 + 36 * len(inv_vect))  # we conservatively allocate the max space for varint
+                btc_constants.BTC_HDR_COMMON_OFF + 9 + 36 * len(
+                    inv_vect))  # we conservatively allocate the max space for varint
             self.buf = buf
 
-            off = BTC_HDR_COMMON_OFF
-            off += pack_int_to_btc_varint(len(inv_vect), buf, off)
+            off = btc_constants.BTC_HDR_COMMON_OFF
+            off += btc_messages_util.pack_int_to_btc_varint(len(inv_vect), buf, off)
 
             for inv_item in inv_vect:
 
                 inv_type = inv_item[0]
                 if request_witness_data:
-                    inv_type = self._inv_type_to_witness_inv_type(inv_item[0])
+                    inv_type = _inv_type_to_witness_inv_type(inv_item[0])
 
                 struct.pack_into("<L", buf, off, inv_type)
                 off += 4
                 buf[off:off + 32] = inv_item[1].get_big_endian()
                 off += 32
 
-            super(InventoryBtcMessage, self).__init__(magic, command, off - BTC_HDR_COMMON_OFF, buf)
+            super(InventoryBtcMessage, self).__init__(magic, command, off - btc_constants.BTC_HDR_COMMON_OFF, buf)
         else:
             self.buf = buf
             self._memoryview = memoryview(buf)
@@ -52,30 +60,21 @@ class InventoryBtcMessage(BtcMessage):
             self._payload = None
 
     def count(self):
-        off = BTC_HDR_COMMON_OFF
-        num_items, size = btc_varint_to_int(self.buf, off)
+        off = btc_constants.BTC_HDR_COMMON_OFF
+        num_items, size = btc_messages_util.btc_varint_to_int(self.buf, off)
         return num_items
 
-    def _inv_type_to_witness_inv_type(self, inv_type):
-        if inv_type == InventoryType.MSG_TX:
-            return InventoryType.MSG_WITNESS_TX
-
-        if inv_type == InventoryType.MSG_BLOCK:
-            return InventoryType.MSG_WITNESS_BLOCK
-
-        return inv_type
-
     def __iter__(self):
-        off = BTC_HDR_COMMON_OFF
-        num_items, size = btc_varint_to_int(self.buf, off)
+        off = btc_constants.BTC_HDR_COMMON_OFF
+        num_items, size = btc_messages_util.btc_varint_to_int(self.buf, off)
         off += size
         self._num_items = num_items
 
         self._items = list()
         for _ in range(num_items):
-            invtype = struct.unpack_from("<L", self.buf, off)[0]
+            inv_type, = struct.unpack_from("<L", self.buf, off)
             off += 4
-            yield (invtype, BtcObjectHash(buf=self.buf, offset=off, length=BTC_SHA_HASH_LEN))
+            yield (inv_type, BtcObjectHash(buf=self.buf, offset=off, length=btc_constants.BTC_SHA_HASH_LEN))
             off += 32
 
 

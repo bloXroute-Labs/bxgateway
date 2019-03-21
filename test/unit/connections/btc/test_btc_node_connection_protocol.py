@@ -47,6 +47,24 @@ class BtcNodeConnectionProtocolTest(AbstractTestCase):
         self.sut.msg_version(version_msg)
         self.assertTrue(self.sut.request_witness_data)
 
+    def test_get_data_only_new_data(self):
+        seen_block_hash = BtcObjectHash(buf=helpers.generate_bytearray(BTC_SHA_HASH_LEN), length=BTC_SHA_HASH_LEN)
+        not_seen_block_hash = BtcObjectHash(buf=helpers.generate_bytearray(BTC_SHA_HASH_LEN), length=BTC_SHA_HASH_LEN)
+        self.node.blocks_seen.add(seen_block_hash)
+
+        inv_message = InvBtcMessage(magic=123, inv_vects=[
+            (InventoryType.MSG_TX, seen_block_hash),
+            (InventoryType.MSG_BLOCK, not_seen_block_hash),
+            (InventoryType.MSG_BLOCK, seen_block_hash)
+        ])
+        self.sut.msg_inv(inv_message)
+
+        get_data_msg_bytes = self.sut.connection.get_bytes_to_send()
+        get_data_msg = GetDataBtcMessage(buf=get_data_msg_bytes)
+        self.assertEqual(2, get_data_msg.count())
+        self.assertIn((InventoryType.MSG_TX, seen_block_hash), get_data_msg)
+        self.assertIn((InventoryType.MSG_BLOCK, not_seen_block_hash), get_data_msg)
+
     def test_get_data_segwit(self):
         self._test_get_data(True)
 
