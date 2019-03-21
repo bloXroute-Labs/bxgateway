@@ -117,7 +117,7 @@ class BtcMessageConverter(AbstractMessageConverter):
         off = offset
         short_tx_index = 0
         while off < block_offsets.short_id_offset:
-            if bx_block[off] == btc_constants.BTC_SHORT_ID_INDICATOR_AS_BYTEARRAY:
+            if bx_block[off] == btc_constants.BTC_SHORT_ID_INDICATOR:
                 sid = short_ids[short_tx_index]
                 tx_hash, tx = tx_service.get_transaction(sid)
 

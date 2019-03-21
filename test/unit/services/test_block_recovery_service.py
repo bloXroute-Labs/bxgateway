@@ -207,14 +207,14 @@ class BlockRecoveryManagerTest(AbstractTestCase):
 
         bx_block_1_v1 = helpers.generate_bytearray(100)
         bx_block_1_v1_hash = ObjectHash(crypto.double_sha256(bx_block_1_v1))
-        unknown_sids_v1 = [i for i in xrange(10)]
-        unknown_hashes_v1 = [ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)) for i in xrange(10)]
+        unknown_sids_v1 = [i for i in range(10)]
+        unknown_hashes_v1 = [ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)) for i in range(10)]
 
         bx_block_1_v2 = helpers.generate_bytearray(100)
         bx_block_1_v2_hash = ObjectHash(crypto.double_sha256(bx_block_1_v2))
-        unknown_sids_v2 = [i for i in xrange(5, 15)]
+        unknown_sids_v2 = [i for i in range(5, 15)]
         unknown_hashes_v2 = unknown_hashes_v1[5:]
-        unknown_hashes_v2.extend(ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)) for i in xrange(5))
+        unknown_hashes_v2.extend(ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)) for i in range(5))
 
         self.block_recovery_service.add_block(bx_block_1_v1, block_hash, unknown_sids_v1, unknown_hashes_v1)
         self.assertEqual(1, len(self.block_recovery_service._bx_block_hash_to_sids))

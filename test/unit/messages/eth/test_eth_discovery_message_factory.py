@@ -84,7 +84,7 @@ class EthDiscoveryMessageFactoryTests(AbstractTestCase):
     def _create_half_payload_msg_bytes(self):
         msg_bytes, msg_len = self._create_full_msg_bytes()
         # removing few bytes
-        bytes_to_remove = (len(msg_bytes) - eth_constants.MDC_LEN - eth_constants.SIGNATURE_LEN) / 2
+        bytes_to_remove = int((len(msg_bytes) - eth_constants.MDC_LEN - eth_constants.SIGNATURE_LEN) / 2)
         incomplete_msg_bytes = msg_bytes[:len(msg_bytes) - bytes_to_remove]
 
         return incomplete_msg_bytes, msg_len
@@ -92,7 +92,7 @@ class EthDiscoveryMessageFactoryTests(AbstractTestCase):
     def _create_half_msg_bytes(self):
         msg_bytes, msg_len = self._create_full_msg_bytes()
         # removing few bytes
-        bytes_to_remove = len(msg_bytes) / 2
+        bytes_to_remove = int(len(msg_bytes) / 2)
         incomplete_msg_bytes = msg_bytes[:len(msg_bytes) - bytes_to_remove]
 
         return incomplete_msg_bytes, msg_len

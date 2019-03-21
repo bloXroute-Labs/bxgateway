@@ -12,7 +12,7 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BlockchainSyncBtcTest(AbstractTestCase):
-    HASH = BtcObjectHash(binary=crypto.bitcoin_hash("hi"))
+    HASH = BtcObjectHash(binary=crypto.bitcoin_hash(b"hi"))
 
     def setUp(self):
         self.local_node_fileno = 1

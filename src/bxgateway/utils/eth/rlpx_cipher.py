@@ -90,7 +90,7 @@ class RLPxCipher(object):
         ecdh_shared_secret = self._ecc.get_ecdh_key(self._remote_pubkey)
         token = ecdh_shared_secret
         flag = 0x0
-        self._initiator_nonce = crypto_utils.keccak_hash(rlp_utils.int_to_big_endian(random.randint(0, sys.maxint)))
+        self._initiator_nonce = crypto_utils.keccak_hash(rlp_utils.int_to_big_endian(random.randint(0, sys.maxsize)))
         assert len(self._initiator_nonce) == eth_constants.SHA3_LEN_BYTES
 
         token_xor_nonce = crypto_utils.string_xor(token, self._initiator_nonce)

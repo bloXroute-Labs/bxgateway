@@ -21,13 +21,13 @@ class BlockBtcMessage(BtcMessage):
             self.buf = buf
 
             off = BTC_HDR_COMMON_OFF
-            struct.pack_into('<I', buf, off, version)
+            struct.pack_into("<I", buf, off, version)
             off += 4
             buf[off:off + 32] = prev_block.get_little_endian()
             off += 32
             buf[off:off + 32] = merkle_root.get_little_endian()
             off += 32
-            struct.pack_into('<III', buf, off, timestamp, bits, nonce)
+            struct.pack_into("<III", buf, off, timestamp, bits, nonce)
             off += 12
             off += pack_int_to_btc_varint(len(txns), buf, off)
 
@@ -117,7 +117,7 @@ class BlockBtcMessage(BtcMessage):
             self._txns = list()
 
             start = self._tx_offset
-            for _ in xrange(self.txn_count()):
+            for _ in range(self.txn_count()):
                 size = get_next_tx_size(self.buf, start)
                 self._txns.append(self._memoryview[start:start + size])
                 start += size

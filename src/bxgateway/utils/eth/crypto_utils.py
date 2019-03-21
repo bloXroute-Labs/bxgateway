@@ -101,10 +101,10 @@ def encode_signature(v, r, s):
     :return: bytes of ECC signature
     """
 
-    if not isinstance(v, (int, long)) or v not in (27, 28):
+    if not isinstance(v, int) or v not in (27, 28):
         raise ValueError("v is expected to be int or long in range (27, 28)")
 
-    vb, rb, sb = chr(v - 27), bitcoin.encode(r, 256), bitcoin.encode(s, 256)
+    vb, rb, sb = rlp_utils.ascii_chr(v - 27), bitcoin.encode(r, 256), bitcoin.encode(s, 256)
     return _left_0_pad_32(rb) + _left_0_pad_32(sb) + vb
 
 
@@ -229,5 +229,5 @@ def _left_0_pad_32(x):
     :return: padded bytes
     """
 
-    return "\x00" * (32 - len(x)) + x
+    return b"\x00" * (32 - len(x)) + x
 

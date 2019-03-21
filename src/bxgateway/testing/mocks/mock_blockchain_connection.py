@@ -8,7 +8,7 @@ from bxgateway.utils.block_info import BlockInfo
 
 
 class MockBlockMessage(BlockHashMessage):
-    MESSAGE_TYPE = "mockblock"
+    MESSAGE_TYPE = b"mockblock"
 
 
 class MockMessageConverter(AbstractMessageConverter):

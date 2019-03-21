@@ -81,7 +81,7 @@ class BlockQueuingService(object):
 
         is_top_item = self._block_queue[0][0] == block_hash
 
-        for index in xrange(len(self._block_queue)):
+        for index in range(len(self._block_queue)):
             if self._block_queue[index][0] == block_hash:
                 del self._block_queue[index]
                 del self._blocks[block_hash]

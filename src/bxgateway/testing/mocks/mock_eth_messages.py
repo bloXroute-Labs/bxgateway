@@ -12,9 +12,9 @@ def get_dummy_transaction(nonce):
         nonce,
         2 * nonce,
         3 * nonce,
-        helpers.generate_bytearray(eth_constants.ADDRESS_LEN),
+        helpers.generate_bytes(eth_constants.ADDRESS_LEN),
         4 * nonce,
-        helpers.generate_bytearray(15 * nonce),
+        helpers.generate_bytes(15 * nonce),
         5 * nonce,
         6 * nonce,
         7 * nonce)
@@ -26,21 +26,21 @@ def get_dummy_block_header(nonce, timestamp=None):
 
     # create BlockHeader object with dummy values multiplied by nonce to be able generate txs with different value
     return BlockHeader(
-        helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-        helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-        helpers.generate_bytearray(eth_constants.ADDRESS_LEN),
-        helpers.generate_bytearray(eth_constants.MERKLE_ROOT_LEN),
-        helpers.generate_bytearray(eth_constants.MERKLE_ROOT_LEN),
-        helpers.generate_bytearray(eth_constants.MERKLE_ROOT_LEN),
+        helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+        helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+        helpers.generate_bytes(eth_constants.ADDRESS_LEN),
+        helpers.generate_bytes(eth_constants.MERKLE_ROOT_LEN),
+        helpers.generate_bytes(eth_constants.MERKLE_ROOT_LEN),
+        helpers.generate_bytes(eth_constants.MERKLE_ROOT_LEN),
         100 * nonce,
         nonce,
         2 * nonce,
         3 * nonce,
         4 * nonce,
         timestamp,
-        helpers.generate_bytearray(100 * nonce),
-        helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-        helpers.generate_bytearray(nonce)
+        helpers.generate_bytes(100 * nonce),
+        helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+        helpers.generate_bytes(nonce)
     )
 
 

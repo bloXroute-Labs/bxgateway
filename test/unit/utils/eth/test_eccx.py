@@ -40,7 +40,7 @@ class ECCxTests(AbstractTestCase):
         self.assertFalse(another_eccx.verify(signature, msg_hash))
 
     def test_encrypt_decrypt(self):
-        msg = "test message"
+        msg = b"test message"
 
         encrypted_message = self._eccx.encrypt(msg, self._eccx.get_raw_public_key())
         self.assertNotEqual(encrypted_message, msg)

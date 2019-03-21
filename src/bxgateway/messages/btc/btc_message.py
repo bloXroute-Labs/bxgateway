@@ -8,7 +8,7 @@ from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_MAGIC_NUMBERS, BTC_H
 
 
 class BtcMessage(AbstractMessage):
-    MESSAGE_TYPE = "btc"
+    MESSAGE_TYPE = b"btc"
     HEADER_LENGTH = BTC_HDR_COMMON_OFF
 
     def __init__(self, magic=None, command=None, payload_len=None, buf=None):

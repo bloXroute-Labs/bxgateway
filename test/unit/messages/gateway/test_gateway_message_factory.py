@@ -18,7 +18,7 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class GatewayMessageFactoryTest(AbstractTestCase):
-    HASH = ObjectHash(crypto.double_sha256("123"))
+    HASH = ObjectHash(crypto.double_sha256(b"123"))
     BLOCK = helpers.generate_bytearray(30)
 
     def get_message_preview_successfully(self, message, expected_command, expected_payload_length):
@@ -44,7 +44,7 @@ class GatewayMessageFactoryTest(AbstractTestCase):
         self.get_message_preview_successfully(BlockHoldingMessage(self.HASH, network_num=123),
                                               BloxrouteMessageType.BLOCK_HOLDING, BlockHoldingMessage.PAYLOAD_LENGTH)
 
-        hash_val = BtcObjectHash(buf=crypto.double_sha256("123"), length=crypto.SHA256_HASH_LEN)
+        hash_val = BtcObjectHash(buf=crypto.double_sha256(b"123"), length=crypto.SHA256_HASH_LEN)
         blockchain_message = GetBlocksBtcMessage(12345, 23456, [hash_val], hash_val).rawbytes()
         self.get_message_preview_successfully(
             BlockchainSyncRequestMessage(GetBlocksBtcMessage.MESSAGE_TYPE, blockchain_message),
@@ -77,7 +77,7 @@ class GatewayMessageFactoryTest(AbstractTestCase):
                                                                              BlockPropagationRequestMessage)
         self.assertEqual(self.BLOCK, block_propagation_request_message.blob())
 
-        hash_val = BtcObjectHash(buf=crypto.double_sha256("123"), length=crypto.SHA256_HASH_LEN)
+        hash_val = BtcObjectHash(buf=crypto.double_sha256(b"123"), length=crypto.SHA256_HASH_LEN)
         blockchain_message_in = GetBlocksBtcMessage(12345, 23456, [hash_val], hash_val).rawbytes()
         sync_request_message = self.create_message_successfully(
             BlockchainSyncRequestMessage(GetBlocksBtcMessage.MESSAGE_TYPE, blockchain_message_in),

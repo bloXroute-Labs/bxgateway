@@ -67,11 +67,11 @@ def btc_varint_to_int(buf, off):
     if not isinstance(buf, memoryview):
         buf = memoryview(buf)
 
-    if buf[off] == btc_constants.BTC_VARINT_LONG_INDICATOR_AS_BYTEARRAY:
+    if buf[off] == btc_constants.BTC_VARINT_LONG_INDICATOR:
         return struct.unpack_from("<Q", buf, off + 1)[0], 9
-    elif buf[off] == btc_constants.BTC_VARINT_INT_INDICATOR_AS_BYTEARRAY:
+    elif buf[off] == btc_constants.BTC_VARINT_INT_INDICATOR:
         return struct.unpack_from("<I", buf, off + 1)[0], 5
-    elif buf[off] == btc_constants.BTC_VARINT_SHORT_INDICATOR_AS_BYTEARRAY:
+    elif buf[off] == btc_constants.BTC_VARINT_SHORT_INDICATOR:
         return struct.unpack_from("<H", buf, off + 1)[0], 3
     else:
         return struct.unpack_from("B", buf, off)[0], 1
@@ -120,11 +120,11 @@ def get_next_segwit_tx_size(buf, off, tail=-1):
 
     end += io_size
 
-    for _ in xrange(txin_c):
+    for _ in range(txin_c):
         witness_count, size = btc_varint_to_int(buf, end)
         end += size
 
-        for _ in xrange(witness_count):
+        for _ in range(witness_count):
             witness_len, size = btc_varint_to_int(buf, end)
             end += size + witness_len
 
@@ -145,7 +145,7 @@ def _get_tx_io_count_and_size(buf, start, tail):
     if end > tail > 0:
         return -1
 
-    for _ in xrange(txin_c):
+    for _ in range(txin_c):
         end += 36
         script_len, size = btc_varint_to_int(buf, end)
         end += size + script_len + 4
@@ -155,7 +155,7 @@ def _get_tx_io_count_and_size(buf, start, tail):
 
     txout_c, size = btc_varint_to_int(buf, end)
     end += size
-    for _ in xrange(txout_c):
+    for _ in range(txout_c):
         end += 8
         script_len, size = btc_varint_to_int(buf, end)
         end += size + script_len

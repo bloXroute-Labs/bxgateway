@@ -26,7 +26,7 @@ from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_tran
 
 
 class BtcRelayConnectionTest(AbstractTestCase):
-    BTC_HASH = BtcObjectHash(crypto.double_sha256("123"), length=SHA256_HASH_LEN)
+    BTC_HASH = BtcObjectHash(crypto.double_sha256(b"123"), length=SHA256_HASH_LEN)
 
     MAGIC = 12345
     VERSION = 23456
@@ -44,7 +44,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         gateway_transaction_stats_service.set_node(self.gateway_node)
 
     def btc_transactions(self):
-        return [TxBtcMessage(self.MAGIC, self.VERSION, [], [], i) for i in xrange(10)]
+        return [TxBtcMessage(self.MAGIC, self.VERSION, [], [], i) for i in range(10)]
 
     def btc_transactions_bytes(self):
         return [transaction.rawbytes()[BTC_HDR_COMMON_OFF:] for transaction in self.btc_transactions()]
@@ -297,7 +297,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         txs_message_1 = TxsMessage([tx for tx in short_id_mapping1.values()])
         self.sut.msg_txs(txs_message_1)
 
-        for transaction_hash, tx_info in short_id_mapping1.iteritems():
+        for transaction_hash, tx_info in short_id_mapping1.items():
             self.assertEqual(tx_info[0], self.gateway_node.get_tx_service().get_short_id(transaction_hash))
             stored_hash, stored_content = self.gateway_node.get_tx_service().get_transaction(tx_info[0])
             self.assertEqual(transaction_hash, stored_hash)
@@ -313,7 +313,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         txs_message_2 = TxsMessage([tx for tx in short_id_mapping2.values()])
         self.sut.msg_txs(txs_message_2)
 
-        for transaction_hash, tx_info in short_id_mapping2.iteritems():
+        for transaction_hash, tx_info in short_id_mapping2.items():
             stored_hash, stored_content = self.gateway_node.get_tx_service().get_transaction(tx_info[0])
             self.assertEqual(transaction_hash, stored_hash)
             self.assertEqual(tx_info[2], stored_content)

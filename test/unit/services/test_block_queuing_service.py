@@ -270,5 +270,5 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(block_msg2, self.node.send_to_node_messages[0])
 
     def _create_dummy_message(self):
-        return Message(msg_type="dummy", payload_len=SHA256_HASH_LEN,
+        return Message(msg_type=b"dummy", payload_len=SHA256_HASH_LEN,
                        buf=bytearray(helpers.generate_bytearray(HDR_COMMON_OFF + SHA256_HASH_LEN)))

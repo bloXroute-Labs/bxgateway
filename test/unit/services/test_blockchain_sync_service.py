@@ -28,8 +28,8 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 class BlockchainPassThroughServiceTest(AbstractTestCase):
     MAGIC = 12345
     VERSION = 70014
-    HASH1 = BtcObjectHash(binary=crypto.double_sha256("hash1"))
-    HASH2 = BtcObjectHash(binary=crypto.double_sha256("hash2"))
+    HASH1 = BtcObjectHash(binary=crypto.double_sha256(b"hash1"))
+    HASH2 = BtcObjectHash(binary=crypto.double_sha256(b"hash2"))
     HASHES = [HASH1, HASH2]
 
     def setUp(self):
@@ -45,7 +45,7 @@ class BlockchainPassThroughServiceTest(AbstractTestCase):
 
     def test_make_sync_request(self):
         other_connections = []
-        for i in xrange(2, 5):
+        for i in range(2, 5):
             fileno = i
             port = 8000 + i
             connection = MockConnection(fileno, (LOCALHOST, port), self.node)

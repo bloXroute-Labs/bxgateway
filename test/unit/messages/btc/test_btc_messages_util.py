@@ -18,7 +18,7 @@ class BtcMessagesUtilTests(AbstractTestCase):
 
         off += size
 
-        for _ in xrange(tx_count):
+        for _ in range(tx_count):
             tx_size = get_next_tx_size(block_bytes, off)
             off += tx_size
 

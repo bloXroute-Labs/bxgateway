@@ -53,7 +53,7 @@ class DataBtcMessage(BtcMessage):
         b_count, size = btc_varint_to_int(self.buf, off)
         off += size
 
-        for i in xrange(b_count):
+        for i in range(b_count):
             yield BtcObjectHash(buf=self.buf, offset=off, length=BTC_SHA_HASH_LEN)
             off += 32
 

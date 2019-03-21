@@ -9,7 +9,7 @@ class RLPxCipherTests(AbstractRLPxCipherTest):
         self.assertTrue(cipher1)
         self.assertTrue(cipher2)
 
-        dummy_text = "Lorem ipsum"
+        dummy_text = b"Lorem ipsum"
 
         encoded_text = cipher1.aes_encode(dummy_text)
         decoded_text = cipher2.aes_decode(encoded_text)
@@ -17,7 +17,7 @@ class RLPxCipherTests(AbstractRLPxCipherTest):
         self.assertNotEquals(encoded_text, dummy_text)
         self.assertEqual(decoded_text, dummy_text)
 
-        dummy_text2 = "Lorem ipsum 2"
+        dummy_text2 = b"Lorem ipsum 2"
 
         encoded_text2 = cipher2.aes_encode(dummy_text2)
         decoded_text2 = cipher1.aes_decode(encoded_text2)

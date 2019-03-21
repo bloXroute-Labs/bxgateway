@@ -140,7 +140,7 @@ class TxBtcMessage(BtcMessage):
             start = off
             end = off
 
-            for _ in xrange(self._tx_in_count):
+            for _ in range(self._tx_in_count):
                 end += 36
                 script_len, size = btc_varint_to_int(self.buf, end)
                 end += size + script_len + 4
@@ -154,7 +154,7 @@ class TxBtcMessage(BtcMessage):
 
             start = off
             end = off
-            for _ in xrange(self._tx_out_count):
+            for _ in range(self._tx_out_count):
                 end += 8
                 script_len, size = btc_varint_to_int(self.buf, end)
                 end += size + script_len

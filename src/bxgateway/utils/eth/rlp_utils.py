@@ -1,6 +1,7 @@
 import binascii
 import codecs
 import struct
+from math import ceil
 
 from bxcommon.exceptions import ParseError
 from bxcommon.utils import convert
@@ -153,14 +154,7 @@ def big_endian_to_int(value):
     :return: int value
     """
 
-    if len(value) == 1:
-        return ord(value[0])
-    elif len(value) <= 8:
-        if isinstance(value, memoryview):
-            value = value.tobytes()
-        return struct.unpack(">Q", value.rjust(8, "\x00"))[0]
-    else:
-        return int(convert.bytes_to_hex(value), 16)
+    return int.from_bytes(value, byteorder="big")
 
 
 def int_to_big_endian(value):
@@ -171,10 +165,8 @@ def int_to_big_endian(value):
     :return: big ending value
     """
 
-    if value == 0:
-        return b"\x00"
-
-    return _pack_left(value)
+    byte_length = max(ceil(value.bit_length() / 8), 1)
+    return (value).to_bytes(byte_length, byteorder="big")
 
 
 def safe_ord(c):
@@ -199,7 +191,7 @@ def ascii_chr(value):
     :return: char
     """
 
-    return chr(value)
+    return bytes([value])
 
 
 def str_to_bytes(value):
@@ -213,10 +205,7 @@ def str_to_bytes(value):
     if isinstance(value, (bytes, bytearray, memoryview)):
         return bytes(value)
 
-    elif isinstance(value, unicode):
-        return codecs.encode(value, "utf8")
-    else:
-        raise TypeError("Value must be text, bytes, bytearray or memoryview")
+    return bytes(value, "utf-8")
 
 
 def _pack_left(lnum):

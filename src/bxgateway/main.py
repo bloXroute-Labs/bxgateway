@@ -28,7 +28,7 @@ def convert_net_magic(magic):
 
 
 def generate_default_nonce():
-    return random.randint(0, sys.maxint)
+    return random.randint(0, sys.maxsize)
 
 
 def parse_peer_string(peer_string):

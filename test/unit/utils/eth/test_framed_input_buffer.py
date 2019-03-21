@@ -29,7 +29,7 @@ class FramedInputBufferTests(AbstractRLPxCipherTest):
             input_buffer.add_bytes(encrypted_frame_bytes)
 
         # adding some dummy bytes but less than header size len
-        dummy_bytes_len = eth_constants.FRAME_HDR_TOTAL_LEN / 2
+        dummy_bytes_len = int(eth_constants.FRAME_HDR_TOTAL_LEN / 2)
         input_buffer.add_bytes(helpers.generate_bytearray(dummy_bytes_len))
 
         framed_input_buffer = FramedInputBuffer(cipher2)
@@ -64,7 +64,7 @@ class FramedInputBufferTests(AbstractRLPxCipherTest):
             frames_bytes += encrypted_frame_bytes
 
         # adding some dummy bytes but less than header size len
-        dummy_bytes_len = eth_constants.FRAME_HDR_TOTAL_LEN / 2
+        dummy_bytes_len = int(eth_constants.FRAME_HDR_TOTAL_LEN / 2)
         frames_bytes += helpers.generate_bytearray(dummy_bytes_len)
 
         input_buffer = InputBuffer()

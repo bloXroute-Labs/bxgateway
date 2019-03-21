@@ -29,8 +29,8 @@ def mock_connection(message_converter=None, connection_type=None):
 
 class NeutralityServiceTest(AbstractTestCase):
     BYTE_BLOCK = helpers.generate_bytearray(30)
-    BLOCK_HASH = ObjectHash(crypto.double_sha256("123"))
-    KEY_HASH = crypto.double_sha256("234")
+    BLOCK_HASH = ObjectHash(crypto.double_sha256(b"123"))
+    KEY_HASH = crypto.double_sha256(b"234")
     MOCK_CONNECTION = mock_connection(connection_type=ConnectionType.GATEWAY)
 
     def setUp(self):
@@ -107,9 +107,9 @@ class NeutralityServiceTest(AbstractTestCase):
 
         self.assertEqual(2, len(self.node.broadcast_messages))
         self._assert_broadcast_key()
-        block_request_messages = filter(lambda broadcasted:
+        block_request_messages = list(filter(lambda broadcasted:
                                         broadcasted[0].msg_type() == GatewayMessageType.BLOCK_PROPAGATION_REQUEST,
-                                        self.node.broadcast_messages)
+                                        self.node.broadcast_messages))
         block_request_message, connection_types = block_request_messages[0]
         self.assertEqual(ConnectionType.GATEWAY, connection_types[0])
         self.assertEqual(GatewayMessageType.BLOCK_PROPAGATION_REQUEST, block_request_message.msg_type())
@@ -145,17 +145,17 @@ class NeutralityServiceTest(AbstractTestCase):
         self.assertEqual([ConnectionType.RELAY], connection_types)
         self.assertEqual(block_hash, broadcast_message.msg_hash())
 
-        self.assertFalse(self.node.in_progress_blocks._cache.has_key(block_hash))
+        self.assertNotIn(block_hash, self.node.in_progress_blocks._cache)
         self.assertNotIn(broadcast_message.msg_hash(), self.neutrality_service._receipt_tracker)
 
     def _add_num_gateway_connections(self, count):
-        for i in xrange(count):
+        for i in range(count):
             self.node.connection_pool.add(i, LOCALHOST, 8000 + i,
                                           mock_connection(connection_type=ConnectionType.GATEWAY))
 
     def _assert_broadcast_key(self):
-        key_messages = filter(lambda broadcasted: broadcasted[0].msg_type() == BloxrouteMessageType.KEY,
-                              self.node.broadcast_messages)
+        key_messages = list(filter(lambda broadcasted: broadcasted[0].msg_type() == BloxrouteMessageType.KEY,
+                              self.node.broadcast_messages))
         key_message, connection_types = key_messages[0]
         self.assertEqual(ConnectionType.RELAY, connection_types[0])
         self.assertEqual(BloxrouteMessageType.KEY, key_message.msg_type())

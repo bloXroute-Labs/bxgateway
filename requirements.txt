@@ -7,7 +7,7 @@ mock==2.0.0
 # Ethereum dependencies
 ipaddress==1.0.22
 bitcoin==1.1.42
-coincurve==9.0.0
+coincurve==11.0.0
 pycryptodome==3.6.4
 rlp==0.6.0
 pyelliptic==1.5.7

@@ -16,7 +16,7 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BtcConnectionProtocolTest(AbstractTestCase):
-    HASH = BtcObjectHash(binary=crypto.double_sha256("123"))
+    HASH = BtcObjectHash(binary=crypto.double_sha256(b"123"))
 
     def setUp(self):
         self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_btc_args=True))
@@ -31,16 +31,16 @@ class BtcConnectionProtocolTest(AbstractTestCase):
         self.sut = BtcBaseConnectionProtocol(self.connection)
 
     def test_msg_block_success(self):
-        block_timestamp = time.time() + 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
-        txns = [TxBtcMessage(0, 0, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in xrange(10)]
+        block_timestamp = int(time.time()) + 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
+        txns = [TxBtcMessage(0, 0, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in range(10)]
         message = BlockBtcMessage(0, 0, self.HASH, self.HASH, block_timestamp, 0, 0, txns)
 
         self.sut.msg_block(message)
         self.node.block_processing_service.queue_block_for_processing.assert_called_once()
 
     def test_msg_block_too_old(self):
-        block_timestamp = time.time() - 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
-        txns = [TxBtcMessage(0, 0, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in xrange(10)]
+        block_timestamp = int(time.time()) - 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
+        txns = [TxBtcMessage(0, 0, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in range(10)]
         message = BlockBtcMessage(0, 0, self.HASH, self.HASH, 0, block_timestamp, 0, txns)
 
         self.sut.msg_block(message)

@@ -31,7 +31,7 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         version_msg = VersionBtcMessage(self.magic, self.version, connection.peer_ip, connection.peer_port,
                                         connection.node.opts.external_ip, connection.node.opts.external_port,
                                         connection.node.opts.blockchain_nonce, 0,
-                                        str(connection.node.opts.protocol_version),
+                                        str(connection.node.opts.protocol_version).encode("utf-8"),
                                         connection.node.opts.blockchain_services)
         connection.enqueue_msg(version_msg)
 

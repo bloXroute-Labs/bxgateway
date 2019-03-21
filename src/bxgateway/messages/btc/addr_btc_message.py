@@ -42,7 +42,7 @@ class AddrBtcMessage(BtcMessage):
         # count, size = btcvarint_to_int(buf, off)
         # off += size
         #
-        # for i in xrange(count):
+        # for i in range(count):
         #     timestamp = struct.unpack_from('<L', self.buf, off)
         #     off += 4
         #     host, port = btcbytearray_to_ipaddrport(buf[off:off+18])

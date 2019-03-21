@@ -3,7 +3,8 @@ version: 2.1
 executors:
   bloxroute-executor:
     docker:
-    - image: python:2.7.14
+    # TODO: Use AWS repository or create bloxRoute account on Docker Hub
+    - image: sergeyi/circleci-bxgateway:latest
     environment:
       PYTHONPATH: /root/ws/bxcommon/src:/root/ws/bxgateway/src
     working_directory: ~/ws

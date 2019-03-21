@@ -85,7 +85,7 @@ class NeutralityService(object):
 
     def _propagate_encrypted_block_to_network(self, bx_block, connection, block_hash):
         if block_hash is None:
-            block_hash = "Unknown"
+            block_hash = b"Unknown"
             requested_by_peer = True
         else:
             requested_by_peer = False
@@ -143,8 +143,8 @@ class NeutralityService(object):
         enough_by_count = receipt_count >= gateway_constants.NEUTRALITY_EXPECTED_RECEIPT_COUNT
 
         active_gateway_peer_count = len(
-            filter(lambda conn: conn.is_active(),
-                   self._node.connection_pool.get_by_connection_type(ConnectionType.GATEWAY)))
+            list(filter(lambda conn: conn.is_active(),
+                   self._node.connection_pool.get_by_connection_type(ConnectionType.GATEWAY))))
         if active_gateway_peer_count == 0:
             logger.warn("No active gateway peers to get block receipts from.")
             enough_by_percent = False

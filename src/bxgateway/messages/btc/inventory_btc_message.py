@@ -72,7 +72,7 @@ class InventoryBtcMessage(BtcMessage):
         self._num_items = num_items
 
         self._items = list()
-        for _ in xrange(num_items):
+        for _ in range(num_items):
             invtype = struct.unpack_from("<L", self.buf, off)[0]
             off += 4
             yield (invtype, BtcObjectHash(buf=self.buf, offset=off, length=BTC_SHA_HASH_LEN))

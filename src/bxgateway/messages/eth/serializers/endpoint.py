@@ -9,7 +9,7 @@ class Endpoint(object):
 
         ip, udp_port, tcp_port = obj
 
-        ip_address = ipaddress.ip_address(unicode(ip))
+        ip_address = ipaddress.ip_address(ip)
 
         return list((ip_address.packed,
                      rlp.sedes.big_endian_int.serialize(udp_port),

@@ -89,8 +89,8 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             integration_helpers.accept_a_connection(self.main_event_loop, server_socket)
 
             self.assertEqual(2, len(self.main_gateway.connection_pool))
-            peer_connected_port = filter(lambda address: address[1] != self.peer_port,
-                                         self.main_gateway.connection_pool.by_ipport.keys())[0][1]
+            peer_connected_port = list(filter(lambda address: address[1] != self.peer_port,
+                                         self.main_gateway.connection_pool.by_ipport.keys()))[0][1]
             peer_initiated_connection = self.main_gateway.connection_pool.get_by_ipport(LOCALHOST, peer_connected_port)
             main_initiated_connection = self.main_gateway.connection_pool.get_by_ipport(LOCALHOST, self.peer_port)
 
@@ -99,13 +99,13 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
                 lambda: len(self.peer_gateway.connection_pool.by_ipport) < 2
             )
 
-            peer_initiated_connection_on_peer_key = filter(lambda address: address[1] == self.main_port,
-                                                           self.peer_gateway.connection_pool.by_ipport.keys())[0]
+            peer_initiated_connection_on_peer_key = next(filter(lambda address: address[1] == self.main_port,
+                                                           self.peer_gateway.connection_pool.by_ipport.keys()))
             peer_initiated_connection_on_peer = self.peer_gateway.connection_pool.by_ipport[
                 peer_initiated_connection_on_peer_key
             ]
-            main_initiated_connection_on_peer_key = filter(lambda address: address[1] != self.main_port,
-                                                           self.peer_gateway.connection_pool.by_ipport.keys())[0]
+            main_initiated_connection_on_peer_key = next(filter(lambda address: address[1] != self.main_port,
+                                                           self.peer_gateway.connection_pool.by_ipport.keys()))
             main_initiated_connection_on_peer = self.peer_gateway.connection_pool.by_ipport[
                 main_initiated_connection_on_peer_key
             ]

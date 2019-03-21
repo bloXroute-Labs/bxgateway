@@ -15,7 +15,7 @@ from bxgateway.utils.eth import crypto_utils, frame_utils
 
 
 class BlockchainSyncEthTest(AbstractRLPxCipherTest):
-    BLOCK_HASH = helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN)
+    BLOCK_HASH = helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
 
     def setUp(self):
         self.local_node_fileno = 1

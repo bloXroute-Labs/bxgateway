@@ -76,7 +76,7 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         return BlockBtcMessage(buf=bytearray(bytes_to_blockchain))
 
     def test_send_receive_block_and_key_encrypted(self):
-        send_block = btc_block(time.time())
+        send_block = btc_block(int(time.time()))
         received_block = self.send_received_block_and_key(send_block)
         self.assertEqual(send_block.magic(), received_block.magic())
         self.assertEqual(send_block.version(), received_block.version())
@@ -86,7 +86,7 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
 
     def test_send_receive_block_decrypted(self):
         self.node1.opts.encrypt_blocks = False
-        send_block = btc_block(time.time())
+        send_block = btc_block(int(time.time()))
         self._populate_transaction_services(send_block)
 
         # propagate block

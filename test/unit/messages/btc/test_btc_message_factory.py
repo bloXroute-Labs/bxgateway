@@ -1,6 +1,10 @@
 import time
 
 from bxcommon.exceptions import PayloadLenError, ChecksumError
+from bxcommon.test_utils import helpers
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils.helpers import create_input_buffer_with_bytes, create_input_buffer_with_message
+from bxcommon.utils import crypto
 from bxgateway.btc_constants import BTC_HEADER_MINUS_CHECKSUM, BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -16,19 +20,16 @@ from bxgateway.messages.btc.send_headers_btc_message import SendHeadersBtcMessag
 from bxgateway.messages.btc.tx_btc_message import TxIn, TxBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
-from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils.helpers import create_input_buffer_with_bytes, create_input_buffer_with_message
-from bxcommon.utils import crypto
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BtcMessageFactoryTest(AbstractTestCase):
     MAGIC = 12345
     VERSION = 11111
-    HASH = BtcObjectHash(binary=crypto.bitcoin_hash("123"))
+    HASH = BtcObjectHash(binary=crypto.bitcoin_hash(b"123"))
 
-    VERSION_BTC_MESSAGE = VersionBtcMessage(MAGIC, VERSION, "127.0.0.1", 8000, "127.0.0.1", 8001, 123, 0, "hello")
+    VERSION_BTC_MESSAGE = VersionBtcMessage(MAGIC, VERSION, "127.0.0.1", 8000, "127.0.0.1", 8001, 123, 0,
+                                            "hello".encode("utf-8"))
 
     def peek_message_successfully(self, message, expected_command, expected_payload_length):
         is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
@@ -50,7 +51,7 @@ class BtcMessageFactoryTest(AbstractTestCase):
         self.peek_message_successfully(PingBtcMessage(self.MAGIC), PingBtcMessage.MESSAGE_TYPE, 8)
         self.peek_message_successfully(PongBtcMessage(self.MAGIC, 123), PongBtcMessage.MESSAGE_TYPE, 8)
         self.peek_message_successfully(GetAddrBtcMessage(self.MAGIC), GetAddrBtcMessage.MESSAGE_TYPE, 0)
-        self.peek_message_successfully(AddrBtcMessage(self.MAGIC, [(time.time(), "127.0.0.1", 8000)]),
+        self.peek_message_successfully(AddrBtcMessage(self.MAGIC, [(int(time.time()), "127.0.0.1", 8000)]),
                                        AddrBtcMessage.MESSAGE_TYPE, 23)
 
         inv_vector = [(1, self.HASH), (2, self.HASH)]
@@ -71,8 +72,8 @@ class BtcMessageFactoryTest(AbstractTestCase):
                                        BlockBtcMessage.MESSAGE_TYPE, 131)
         self.peek_message_successfully(HeadersBtcMessage(self.MAGIC, [helpers.generate_bytearray(81)] * 2),
                                        HeadersBtcMessage.MESSAGE_TYPE, 163)
-        self.peek_message_successfully(RejectBtcMessage(self.MAGIC, "a message", RejectBtcMessage.REJECT_MALFORMED,
-                                                        "test break", helpers.generate_bytearray(10)),
+        self.peek_message_successfully(RejectBtcMessage(self.MAGIC, b"a message", RejectBtcMessage.REJECT_MALFORMED,
+                                                        b"test break", helpers.generate_bytearray(10)),
                                        RejectBtcMessage.MESSAGE_TYPE, 32)
         self.peek_message_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage.MESSAGE_TYPE, 0)
 
@@ -81,7 +82,7 @@ class BtcMessageFactoryTest(AbstractTestCase):
             create_input_buffer_with_bytes(self.VERSION_BTC_MESSAGE.rawbytes()[:-10])
         )
         self.assertFalse(is_full_message)
-        self.assertEquals("version", command)
+        self.assertEquals(b"version", command)
         self.assertEquals(90, payload_length)
 
         is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
@@ -98,7 +99,7 @@ class BtcMessageFactoryTest(AbstractTestCase):
         self.parse_message_successfully(PingBtcMessage(self.MAGIC), PingBtcMessage)
         self.parse_message_successfully(PongBtcMessage(self.MAGIC, 123), PongBtcMessage)
         self.parse_message_successfully(GetAddrBtcMessage(self.MAGIC), GetAddrBtcMessage)
-        self.parse_message_successfully(AddrBtcMessage(self.MAGIC, [(time.time(), "127.0.0.1", 8000)]), AddrBtcMessage)
+        self.parse_message_successfully(AddrBtcMessage(self.MAGIC, [(int(time.time()), "127.0.0.1", 8000)]), AddrBtcMessage)
 
         inv_vector = [(1, self.HASH), (2, self.HASH)]
         self.parse_message_successfully(InvBtcMessage(self.MAGIC, inv_vector), InvBtcMessage)
@@ -118,8 +119,8 @@ class BtcMessageFactoryTest(AbstractTestCase):
                                         BlockBtcMessage)
         self.parse_message_successfully(HeadersBtcMessage(self.MAGIC, [helpers.generate_bytearray(81)] * 2),
                                         HeadersBtcMessage)
-        self.parse_message_successfully(RejectBtcMessage(self.MAGIC, "a message", RejectBtcMessage.REJECT_MALFORMED,
-                                                         "test break", helpers.generate_bytearray(10)),
+        self.parse_message_successfully(RejectBtcMessage(self.MAGIC, b"a message", RejectBtcMessage.REJECT_MALFORMED,
+                                                         b"test break", helpers.generate_bytearray(10)),
                                         RejectBtcMessage)
         self.parse_message_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage)
 
@@ -128,7 +129,7 @@ class BtcMessageFactoryTest(AbstractTestCase):
             btc_message_factory.create_message_from_buffer(PingBtcMessage(self.MAGIC).rawbytes()[:-1])
 
         ping_message = PingBtcMessage(self.MAGIC)
-        for i in xrange(BTC_HEADER_MINUS_CHECKSUM, BTC_HDR_COMMON_OFF):
+        for i in range(BTC_HEADER_MINUS_CHECKSUM, BTC_HDR_COMMON_OFF):
             ping_message.buf[i] = 0
         with self.assertRaises(ChecksumError):
             btc_message_factory.create_message_from_buffer(ping_message.rawbytes())

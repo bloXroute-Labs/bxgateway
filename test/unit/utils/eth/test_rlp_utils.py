@@ -121,6 +121,6 @@ class RlpUtilsTest(AbstractTestCase):
         self.assertEqual(64, rlp_utils.safe_ord(64))
 
     def test_ascii_chr(self):
-        self.assertEqual("A", rlp_utils.ascii_chr(65))
-        self.assertEqual("a", rlp_utils.ascii_chr(97))
-        self.assertEqual("1", rlp_utils.ascii_chr(49))
+        self.assertEqual(b"A", rlp_utils.ascii_chr(65))
+        self.assertEqual(b"a", rlp_utils.ascii_chr(97))
+        self.assertEqual(b"1", rlp_utils.ascii_chr(49))

@@ -117,6 +117,6 @@ class HeadersBtcMessage(BtcMessage):
         off = BTC_HDR_COMMON_OFF
         self._header_count, size = btc_varint_to_int(self.buf, off)
         off += size
-        for _ in xrange(self._header_count):
+        for _ in range(self._header_count):
             yield self._memoryview[off:off + 81]
             off += 81

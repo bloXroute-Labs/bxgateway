@@ -34,7 +34,7 @@ class BtcMessageConverterTests(AbstractTestCase):
 
         self.assertTrue(btc_tx_msg)
         self.assertEqual(btc_tx_msg.magic(), self.MAGIC)
-        self.assertEqual(btc_tx_msg.command(), "tx")
+        self.assertEqual(btc_tx_msg.command(), b"tx")
         self.assertEqual(btc_tx_msg.payload(), tx)
 
     def test_tx_msg_to_btc_tx_msg__type_error(self):
@@ -62,17 +62,17 @@ class BtcMessageConverterTests(AbstractTestCase):
     def test_btc_block_to_bloxroute_block_and_back_sids_found(self):
         magic = 12345
         version = 23456
-        prev_block_hash = bytearray(crypto.bitcoin_hash("123"))
+        prev_block_hash = bytearray(crypto.bitcoin_hash(b"123"))
         prev_block = BtcObjectHash(prev_block_hash, length=SHA256_HASH_LEN)
-        merkle_root_hash = bytearray(crypto.bitcoin_hash("234"))
+        merkle_root_hash = bytearray(crypto.bitcoin_hash(b"234"))
         merkle_root = BtcObjectHash(merkle_root_hash, length=SHA256_HASH_LEN)
         timestamp = 1
         bits = 2
         nonce = 3
 
-        txns = [TxBtcMessage(magic, version, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in xrange(10)]
-        txn_hashes = map(lambda x: BtcObjectHash(buf=crypto.bitcoin_hash(x), length=SHA256_HASH_LEN), txns)
-        short_ids = [i for i in xrange(1, 6)]
+        txns = [TxBtcMessage(magic, version, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in range(10)]
+        txn_hashes = list(map(lambda x: BtcObjectHash(buf=crypto.bitcoin_hash(x), length=SHA256_HASH_LEN), txns))
+        short_ids = [i for i in range(1, 6)]
 
         btc_block = BlockBtcMessage(magic, version, prev_block, merkle_root, timestamp, bits, nonce, txns)
         block_hash = btc_block.block_hash()

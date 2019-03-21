@@ -40,7 +40,7 @@ class EthMessagesTests(AbstractTestCase):
         self._test_msg_serialization(PongEthDiscoveryMessage,
                                      True,
                                      ("192.1.2.3", 11111, 22222),
-                                     helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
+                                     helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
                                      int(time.time()))
 
     def test_hello_eth_message(self):
@@ -84,15 +84,15 @@ class EthMessagesTests(AbstractTestCase):
                                      False,
                                      # passing few dummy block hashes
                                      [
-                                         BlockHash(helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN), 111),
-                                         BlockHash(helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN), 222),
-                                         BlockHash(helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN), 333)
+                                         BlockHash(helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN), 111),
+                                         BlockHash(helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN), 222),
+                                         BlockHash(helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN), 333)
                                      ])
 
     def test_get_block_headers_eth_message(self):
         self._test_msg_serialization(GetBlockHeadersEthProtocolMessage,
                                      False,
-                                     helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
+                                     helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
                                      111,
                                      222,
                                      0)
@@ -111,9 +111,9 @@ class EthMessagesTests(AbstractTestCase):
                                      False,
                                      # passing randomly generated hashes
                                      [
-                                         helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytearray(eth_constants.BLOCK_HASH_LEN)
+                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
                                      ])
 
     def test_block_bodies_eth_message(self):

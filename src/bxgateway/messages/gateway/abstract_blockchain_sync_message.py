@@ -21,7 +21,7 @@ class AbstractBlockchainSyncMessage(Message):
             buf = bytearray(constants.HDR_COMMON_OFF + constants.MSG_TYPE_LEN + len(payload))
 
             off = constants.HDR_COMMON_OFF
-            struct.pack_into("<12s", buf, off, str(command))
+            struct.pack_into("<12s", buf, off, command)
 
             off += constants.MSG_TYPE_LEN
             buf[off:off + len(payload)] = payload
