@@ -9,7 +9,7 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 def pack_outpoint(hash_val, index, buf, off):
-    return struct.pack_into('<32cI', buf, off, hash_val, index)
+    return struct.pack_into("<32sI", buf, off, hash_val, index)
 
 
 # A transaction input.
@@ -27,9 +27,10 @@ class TxIn(object):
             off += pack_int_to_btc_varint(len(sig_script), buf, off)
             buf[off:off + len(sig_script)] = sig_script
             off += len(sig_script)
-            struct.pack('<I', buf, off, sequence)
+            struct.pack_into("<I", buf, off, sequence)
             off += 4
             self.size = off
+            self.off = 0
         else:
             self.buf = buf
             self.size = length
@@ -49,14 +50,17 @@ class TxIn(object):
 class TxOut(object):
     def __init__(self, value=None, pk_script=None, buf=None, off=None, length=None):
         if buf is None:
-            buf = bytearray(8 + 9 + len(pk_script))
+            pk_script_len = len(pk_script)
+            buf = bytearray(8 + 9 + pk_script_len)
             self.buf = buf
 
             off = 0
-            struct.pack("<Q", buf, off, value)
+            struct.pack_into("<Q", buf, off, value)
             off += 8
-            off += pack_int_to_btc_varint(len(pk_script), buf, off)
-            buf[off:off + len(pk_script)] = pk_script
+            off += pack_int_to_btc_varint(pk_script_len, buf, off)
+            buf[off:off + pk_script_len]= pk_script
+            self.size = off + pk_script_len
+            self.off = 0
         else:
             self.buf = buf
             self.size = length
@@ -84,7 +88,8 @@ class TxBtcMessage(BtcMessage):
 
     def __init__(self, magic=None, version=None, tx_in=None, tx_out=None, lock_time=None, buf=None):
         if buf is None:
-            buf = bytearray(BTC_HDR_COMMON_OFF + 2 * 9 + 8)
+            tot_size = sum([len(x.rawbytes()) for x in tx_in]) + sum([len(x.rawbytes()) for x in tx_out])
+            buf = bytearray(BTC_HDR_COMMON_OFF + 2 * 9 + 8 + tot_size)
             self.buf = buf
 
             off = BTC_HDR_COMMON_OFF
