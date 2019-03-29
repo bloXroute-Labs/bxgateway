@@ -226,7 +226,7 @@ class EthMessageConverterTests(AbstractTestCase):
             txs.append(tx)
 
             tx_bytes = rlp.encode(tx, Transaction)
-            tx_hash = hashlib.sha256(tx_bytes)
+            tx_hash = hashlib.sha256(tx_bytes).digest()
 
             self.tx_service.assign_short_id(tx_hash, i)
             self.tx_service.set_transaction_contents(tx_hash, tx_bytes)
@@ -290,7 +290,7 @@ class EthMessageConverterTests(AbstractTestCase):
             tx_bytes = rlp.encode(tx, Transaction)
 
             if i % 2 == 0:
-                tx_hash = hashlib.sha256(tx_bytes)
+                tx_hash = hashlib.sha256(tx_bytes).digest()
 
                 self.tx_service.assign_short_id(tx_hash, i)
                 self.tx_service.set_transaction_contents(tx_hash, tx_bytes)
