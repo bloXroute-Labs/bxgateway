@@ -70,8 +70,6 @@ def get_opts():
                             type=config.blocking_resolve_ip)
     arg_parser.add_argument("--remote-blockchain-port", help="Remote blockchain node port to proxy messages from",
                             type=int)
-    arg_parser.add_argument("--is-internal-gateway", help="If the node is internally owned.", type=convert.str_to_bool,
-                            default=False)
     arg_parser.add_argument("--connect-to-remote-blockchain",
                             help="If gateway should proxy messages from a remote bloXroute owned blockchain node",
                             type=convert.str_to_bool,
