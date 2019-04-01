@@ -10,7 +10,7 @@ from bxcommon.test_utils.mocks import mock_bx_messages
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import SHA256_HASH_LEN
-from bxcommon.utils.object_hash import ObjectHash
+from bxcommon.utils.object_hash import Sha256ObjectHash
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
@@ -25,7 +25,7 @@ class BtcMessageConverterTests(AbstractTestCase):
     btc_message_converter = BtcMessageConverter(MAGIC)
 
     def test_tx_msg_to_btc_tx_msg__success(self):
-        tx_hash = ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        tx_hash = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
         tx = helpers.generate_bytearray(self.AVERAGE_TX_SIZE)
 
         tx_msg = TxMessage(tx_hash=tx_hash, network_num=12345, tx_val=tx)

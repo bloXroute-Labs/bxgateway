@@ -6,7 +6,7 @@ from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessag
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.utils import crypto, convert, logger
 from bxcommon.utils.expiring_dict import ExpiringDict
-from bxcommon.utils.object_hash import ObjectHash
+from bxcommon.utils.object_hash import Sha256ObjectHash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
@@ -136,24 +136,24 @@ class BlockProcessingService(object):
                                     peer=connection.peer_desc,
                                     connection_type=connection.CONNECTION_TYPE)
 
-        msg_hash = msg.msg_hash()
+        block_hash = msg.block_hash()
         is_encrypted = msg.is_encrypted()
 
         if not is_encrypted:
             block = msg.blob()
             self._handle_decrypted_block(block, connection,
-                                         encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
+                                         encrypted_block_hash_hex=convert.bytes_to_hex(block_hash.binary))
             return
 
         cipherblob = msg.blob()
-        if msg_hash != ObjectHash(crypto.double_sha256(cipherblob)):
+        if block_hash != Sha256ObjectHash(crypto.double_sha256(cipherblob)):
             logger.warn("Received a message with inconsistent hashes. Dropping.")
             return
 
-        if self._node.in_progress_blocks.has_encryption_key_for_hash(msg_hash):
+        if self._node.in_progress_blocks.has_encryption_key_for_hash(block_hash):
             logger.debug("Already had key for received block. Sending block to node.")
             decrypt_start = time.time()
-            block = self._node.in_progress_blocks.decrypt_ciphertext(msg_hash, cipherblob)
+            block = self._node.in_progress_blocks.decrypt_ciphertext(block_hash, cipherblob)
 
             if block is not None:
                 block_stats.add_block_event(msg,
@@ -161,17 +161,17 @@ class BlockProcessingService(object):
                                             network_num=connection.network_num,
                                             more_info="{:.2f}ms".format(time.time() - decrypt_start))
                 self._handle_decrypted_block(block, connection,
-                                             encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
+                                             encrypted_block_hash_hex=convert.bytes_to_hex(block_hash.binary))
             else:
                 block_stats.add_block_event(msg,
                                             BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
                                             network_num=connection.network_num)
         else:
             logger.debug("Received encrypted block. Storing.")
-            self._node.in_progress_blocks.add_ciphertext(msg_hash, cipherblob)
-            block_received_message = BlockReceivedMessage(msg_hash)
+            self._node.in_progress_blocks.add_ciphertext(block_hash, cipherblob)
+            block_received_message = BlockReceivedMessage(block_hash)
             conns = self._node.broadcast(block_received_message, self, connection_types=[ConnectionType.GATEWAY])
-            block_stats.add_block_event_by_block_hash(msg_hash,
+            block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.ENC_BLOCK_SENT_BLOCK_RECEIPT,
                                                       network_num=connection.network_num,
                                                       peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),
@@ -183,40 +183,40 @@ class BlockProcessingService(object):
         Looks for the encrypted block and decrypts; otherwise stores for later.
         """
         key = msg.key()
-        msg_hash = msg.msg_hash()
+        block_hash = msg.block_hash()
 
-        block_stats.add_block_event_by_block_hash(msg_hash,
+        block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                                   network_num=connection.network_num,
                                                   peer=connection.peer_desc,
                                                   connection_type=connection.CONNECTION_TYPE)
 
-        if self._node.in_progress_blocks.has_encryption_key_for_hash(msg_hash):
+        if self._node.in_progress_blocks.has_encryption_key_for_hash(block_hash):
             return
 
-        if self._node.in_progress_blocks.has_ciphertext_for_hash(msg_hash):
+        if self._node.in_progress_blocks.has_ciphertext_for_hash(block_hash):
             logger.debug("Cipher text found. Decrypting and sending to node.")
             decrypt_start = time.time()
-            block = self._node.in_progress_blocks.decrypt_and_get_payload(msg_hash, key)
+            block = self._node.in_progress_blocks.decrypt_and_get_payload(block_hash, key)
 
             if block is not None:
-                block_stats.add_block_event_by_block_hash(msg_hash,
+                block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
                                                           network_num=connection.network_num,
                                                           more_info="{:.2f}ms".format(time.time() - decrypt_start))
                 self._handle_decrypted_block(block, connection,
-                                             encrypted_block_hash_hex=convert.bytes_to_hex(msg_hash.binary))
+                                             encrypted_block_hash_hex=convert.bytes_to_hex(block_hash.binary))
             else:
-                block_stats.add_block_event_by_block_hash(msg_hash,
+                block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
                                                           network_num=connection.network_num)
         else:
             logger.debug("No cipher text found on key message. Storing.")
-            self._node.in_progress_blocks.add_key(msg_hash, key)
+            self._node.in_progress_blocks.add_key(block_hash, key)
 
         conns = self._node.broadcast(msg, connection, connection_types=[ConnectionType.GATEWAY])
         if len(conns) > 0:
-            block_stats.add_block_event_by_block_hash(msg.msg_hash(),
+            block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.ENC_BLOCK_KEY_SENT_BY_GATEWAY_TO_PEERS,
                                                       network_num=self._node.network_num,
                                                       peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),

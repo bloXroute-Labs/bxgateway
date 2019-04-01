@@ -5,7 +5,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import create_input_buffer_with_message
 from bxcommon.utils import crypto
-from bxcommon.utils.object_hash import ObjectHash
+from bxcommon.utils.object_hash import Sha256ObjectHash
 from bxgateway.messages.btc.data_btc_message import GetBlocksBtcMessage
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
@@ -18,7 +18,7 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class GatewayMessageFactoryTest(AbstractTestCase):
-    HASH = ObjectHash(crypto.double_sha256(b"123"))
+    HASH = Sha256ObjectHash(crypto.double_sha256(b"123"))
     BLOCK = helpers.generate_bytearray(30)
 
     def get_message_preview_successfully(self, message, expected_command, expected_payload_length):

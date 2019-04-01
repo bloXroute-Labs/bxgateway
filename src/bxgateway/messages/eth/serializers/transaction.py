@@ -1,6 +1,6 @@
 import rlp
 
-from bxcommon.utils.object_hash import ObjectHash
+from bxcommon.utils.object_hash import Sha256ObjectHash
 from bxgateway import eth_constants
 from bxgateway.utils.eth import crypto_utils
 
@@ -21,4 +21,4 @@ class Transaction(rlp.Serializable):
     def hash(self):
         """Transaction hash"""
         hash_bytes = crypto_utils.keccak_hash(rlp.encode(self))
-        return ObjectHash(hash_bytes)
+        return Sha256ObjectHash(hash_bytes)

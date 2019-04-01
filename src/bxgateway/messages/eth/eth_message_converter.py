@@ -5,7 +5,7 @@ from bxcommon import constants
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import logger, convert, crypto
-from bxcommon.utils.object_hash import ObjectHash
+from bxcommon.utils.object_hash import Sha256ObjectHash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
@@ -42,7 +42,7 @@ class EthMessageConverter(AbstractMessageConverter):
             _, tx_item_length, tx_item_start = rlp_utils.consume_length_prefix(txs_bytes, tx_start_index)
             tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
             tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
-            msg_hash = ObjectHash(tx_hash_bytes)
+            msg_hash = Sha256ObjectHash(tx_hash_bytes)
             bx_tx_msg = TxMessage(tx_hash=msg_hash, network_num=network_num, tx_val=tx_bytes)
             bx_tx_msgs.append((bx_tx_msg, msg_hash, tx_bytes))
 
@@ -138,7 +138,7 @@ class EthMessageConverter(AbstractMessageConverter):
             _, tx_item_length, tx_item_start = rlp_utils.consume_length_prefix(txs_bytes, tx_start_index)
             tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
             tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
-            tx_hash = ObjectHash(tx_hash_bytes)
+            tx_hash = Sha256ObjectHash(tx_hash_bytes)
             short_id = tx_service.get_short_id(tx_hash)
 
             if short_id <= 0:
@@ -235,7 +235,7 @@ class EthMessageConverter(AbstractMessageConverter):
         full_hdr_bytes = block_itm_bytes[0:block_hdr_start + block_hdr_len]
 
         block_hash_bytes = crypto_utils.keccak_hash(full_hdr_bytes)
-        block_hash = ObjectHash(block_hash_bytes)
+        block_hash = Sha256ObjectHash(block_hash_bytes)
 
         _, block_txs_len, block_txs_start = rlp_utils.consume_length_prefix(block_itm_bytes,
                                                                             block_hdr_start + block_hdr_len)

@@ -9,7 +9,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.utils import crypto
-from bxcommon.utils.object_hash import ObjectHash
+from bxcommon.utils.object_hash import Sha256ObjectHash
 from bxgateway import gateway_constants
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
@@ -29,7 +29,7 @@ def mock_connection(message_converter=None, connection_type=None):
 
 class NeutralityServiceTest(AbstractTestCase):
     BYTE_BLOCK = helpers.generate_bytearray(30)
-    BLOCK_HASH = ObjectHash(crypto.double_sha256(b"123"))
+    BLOCK_HASH = Sha256ObjectHash(crypto.double_sha256(b"123"))
     KEY_HASH = crypto.double_sha256(b"234")
     MOCK_CONNECTION = mock_connection(connection_type=ConnectionType.GATEWAY)
 
@@ -126,27 +126,27 @@ class NeutralityServiceTest(AbstractTestCase):
         broadcast_message, connection_types = self.node.broadcast_messages[0]
         self.assertEqual(ConnectionType.RELAY, connection_types[0])
 
-        raw_block_hash = bytes(broadcast_message.msg_hash().binary)
+        raw_block_hash = bytes(broadcast_message.block_hash().binary)
         cache_item = self.node.in_progress_blocks._cache.get(raw_block_hash)
         self.assertEqual(cache_item.payload,
                          crypto.symmetric_decrypt(cache_item.key, broadcast_message.blob().tobytes()))
-        self.assertIn(broadcast_message.msg_hash(), self.neutrality_service._receipt_tracker)
+        self.assertIn(broadcast_message.block_hash(), self.neutrality_service._receipt_tracker)
 
     def test_propagate_block_to_network_unencrypted_block(self):
         self.node.opts.encrypt_blocks = False
 
         block_message = helpers.generate_bytearray(50)
-        block_hash = ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        block_hash = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         connection = MockConnection(1, (LOCALHOST, 9000), self.node)
         self.neutrality_service.propagate_block_to_network(block_message, connection, block_hash)
 
         self.assertEqual(1, len(self.node.broadcast_messages))
         broadcast_message, connection_types = self.node.broadcast_messages[0]
         self.assertEqual([ConnectionType.RELAY], connection_types)
-        self.assertEqual(block_hash, broadcast_message.msg_hash())
+        self.assertEqual(block_hash, broadcast_message.block_hash())
 
         self.assertNotIn(block_hash, self.node.in_progress_blocks._cache)
-        self.assertNotIn(broadcast_message.msg_hash(), self.neutrality_service._receipt_tracker)
+        self.assertNotIn(broadcast_message.block_hash(), self.neutrality_service._receipt_tracker)
 
     def _add_num_gateway_connections(self, count):
         for i in range(count):

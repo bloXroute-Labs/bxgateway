@@ -8,7 +8,7 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.utils import logger, convert, crypto
-from bxcommon.utils.object_hash import ObjectHash
+from bxcommon.utils.object_hash import Sha256ObjectHash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
@@ -109,7 +109,7 @@ class NeutralityService(object):
                                                       100 - float(encrypted_size) / compressed_size * 100
                                                   ))
 
-        cipher_hash = ObjectHash(raw_cipher_hash)
+        cipher_hash = Sha256ObjectHash(raw_cipher_hash)
         broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, True, encrypted_block)
 
         conns = self._node.broadcast(broadcast_message, connection)

@@ -7,7 +7,7 @@ from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert, crypto
 from bxcommon.utils.buffers.output_buffer import OutputBuffer
-from bxcommon.utils.object_hash import ObjectHash
+from bxcommon.utils.object_hash import Sha256ObjectHash
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -126,7 +126,7 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
                          convert.bytes_to_hex(received_block.merkle_root().binary))
         self.assertEqual(38, len(received_block.txns()))
 
-        block_hash_object = ObjectHash(binary=convert.hex_to_bytes(block_hash))
+        block_hash_object = Sha256ObjectHash(binary=convert.hex_to_bytes(block_hash))
         self.assertEqual(1, len(self.node1.blocks_seen.contents))
         self.assertIn(block_hash_object, self.node1.blocks_seen.contents)
         self.assertEqual(1, len(self.node2.blocks_seen.contents))
