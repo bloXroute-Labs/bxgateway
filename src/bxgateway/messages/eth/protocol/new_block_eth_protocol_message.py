@@ -1,6 +1,6 @@
 import rlp
 
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.serializers.block import Block
@@ -42,7 +42,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage):
 
             raw_hash = crypto_utils.keccak_hash(block_hdr_bytes)
 
-            self._block_hash = Sha256ObjectHash(raw_hash)
+            self._block_hash = Sha256Hash(raw_hash)
 
         return self._block_hash
 

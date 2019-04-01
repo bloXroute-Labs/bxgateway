@@ -9,7 +9,7 @@ from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.block_queuing_service import BlockQueuingService
@@ -33,8 +33,8 @@ class BlockHoldingServiceTest(AbstractTestCase):
         self.dummy_connection = MockConnection(0, (LOCALHOST, 9000), self.node)
 
     def test_place_hold(self):
-        hash1 = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
-        hash2 = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        hash1 = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        hash2 = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
 
         self.sut.place_hold(hash1, self.dummy_connection)
         self.sut.place_hold(hash2, self.dummy_connection)
@@ -45,14 +45,14 @@ class BlockHoldingServiceTest(AbstractTestCase):
         self.assertEqual(BlockHoldingMessage(hash2, network_num=1), self.node.broadcast_messages[1][0])
 
     def test_place_hold_block_seen(self):
-        hash1 = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        hash1 = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         self.node.blocks_seen.add(hash1)
         self.sut.place_hold(hash1, self.dummy_connection)
         self.assertEqual(0, len(self.sut._holds.contents))
 
     def test_place_hold_duplicates(self):
-        hash1 = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
-        hash2 = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        hash1 = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        hash2 = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
 
         self.sut.place_hold(hash1, self.dummy_connection)
         time.time = MagicMock(return_value=time.time() + 5)
@@ -67,7 +67,7 @@ class BlockHoldingServiceTest(AbstractTestCase):
         self.assertTrue(hold2.hold_message_time - hold1.hold_message_time >= 5)
 
     def test_queue_block_no_hold(self):
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         block_message = MockBlockMessage(block_hash)
         connection = MockBlockchainConnection(MockSocketConnection(), (LOCALHOST, 8000), self.node)
 
@@ -79,7 +79,7 @@ class BlockHoldingServiceTest(AbstractTestCase):
         self.assertEqual(BlockHoldingMessage(block_hash, network_num=1), broadcasted_messages[0][0])
 
     def test_queue_block_hold_exists_until_cancelled(self):
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         block_message = MockBlockMessage(block_hash)
         connection = MockBlockchainConnection(MockSocketConnection(), (LOCALHOST, 8000), self.node)
 
@@ -97,7 +97,7 @@ class BlockHoldingServiceTest(AbstractTestCase):
         self.assertEqual(AlarmQueue.REMOVED, hold.alarm[-1])
 
     def test_queue_block_holds_exists_until_timeout(self):
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         block_message = MockBlockMessage(block_hash)
         connection = MockBlockchainConnection(MockSocketConnection(), (LOCALHOST, 8000), self.node)
 
@@ -111,7 +111,7 @@ class BlockHoldingServiceTest(AbstractTestCase):
         self._assert_block_propagated(block_hash)
 
     def test_cancel_hold_with_block_from_blockchain(self):
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         block_message = MockBlockMessage(block_hash)
         connection = MockBlockchainConnection(MockSocketConnection(), (LOCALHOST, 8000), self.node)
 
@@ -122,7 +122,7 @@ class BlockHoldingServiceTest(AbstractTestCase):
         self.assertEqual(0, len(self.sut._holds.contents))
 
     def test_cancel_hold_no_block_from_blockchain(self):
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         connection = MockBlockchainConnection(MockSocketConnection(), (LOCALHOST, 8000), self.node)
 
         self.sut.place_hold(block_hash, self.dummy_connection)

@@ -5,7 +5,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
@@ -23,7 +23,7 @@ class AbstractRelayConnectionTest(AbstractTestCase):
     @patch("bxgateway.services.block_processing_service.BlockProcessingService._handle_decrypted_block")
     def test_msg_broadcast_encrypted(self, mock_handle_decrypted_block):
         msg_bytes = helpers.generate_bytearray(50)
-        msg_hash = Sha256ObjectHash(crypto.double_sha256(msg_bytes))
+        msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
 
         broadcast_msg = BroadcastMessage(msg_hash=msg_hash, network_num=1, is_encrypted=True, blob=msg_bytes)
 
@@ -37,7 +37,7 @@ class AbstractRelayConnectionTest(AbstractTestCase):
     @patch("bxgateway.services.block_processing_service.BlockProcessingService._handle_decrypted_block")
     def test_msg_broadcast_unencrypted(self, mock_handle_decrypted_block):
         msg_bytes = helpers.generate_bytearray(50)
-        msg_hash = Sha256ObjectHash(crypto.double_sha256(msg_bytes))
+        msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
 
         broadcast_msg = BroadcastMessage(msg_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
 

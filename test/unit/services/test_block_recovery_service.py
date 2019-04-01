@@ -8,7 +8,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_alarm_queue import MockAlarmQueue
 from bxcommon.utils import crypto
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 
 
@@ -162,8 +162,8 @@ class BlockRecoveryManagerTest(AbstractTestCase):
     def _add_block(self, existing_block_count=0):
         bx_block = _create_block()
         self.blocks.append(bx_block)
-        self.block_hashes.append(Sha256ObjectHash(os.urandom(32)))
-        self.bx_block_hashes.append(Sha256ObjectHash(crypto.double_sha256(bx_block)))
+        self.block_hashes.append(Sha256Hash(os.urandom(32)))
+        self.bx_block_hashes.append(Sha256Hash(crypto.double_sha256(bx_block)))
 
         sid_base = existing_block_count * 10
         self.unknown_tx_sids.append([sid_base + 1, sid_base + 2, sid_base + 3])
@@ -203,18 +203,18 @@ class BlockRecoveryManagerTest(AbstractTestCase):
             self.assertIn(self.bx_block_hashes[-1], self.block_recovery_service._tx_hash_to_bx_block_hashes[tx_hash])
 
     def test_multiple_compressed_versions_need_recovery(self):
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
 
         bx_block_1_v1 = helpers.generate_bytearray(100)
-        bx_block_1_v1_hash = Sha256ObjectHash(crypto.double_sha256(bx_block_1_v1))
+        bx_block_1_v1_hash = Sha256Hash(crypto.double_sha256(bx_block_1_v1))
         unknown_sids_v1 = [i for i in range(10)]
-        unknown_hashes_v1 = [Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)) for i in range(10)]
+        unknown_hashes_v1 = [Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)) for i in range(10)]
 
         bx_block_1_v2 = helpers.generate_bytearray(100)
-        bx_block_1_v2_hash = Sha256ObjectHash(crypto.double_sha256(bx_block_1_v2))
+        bx_block_1_v2_hash = Sha256Hash(crypto.double_sha256(bx_block_1_v2))
         unknown_sids_v2 = [i for i in range(5, 15)]
         unknown_hashes_v2 = unknown_hashes_v1[5:]
-        unknown_hashes_v2.extend(Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)) for i in range(5))
+        unknown_hashes_v2.extend(Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)) for i in range(5))
 
         self.block_recovery_service.add_block(bx_block_1_v1, block_hash, unknown_sids_v1, unknown_hashes_v1)
         self.assertEqual(1, len(self.block_recovery_service._bx_block_hash_to_sids))

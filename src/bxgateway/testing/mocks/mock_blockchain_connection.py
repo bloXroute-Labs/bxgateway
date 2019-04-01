@@ -1,6 +1,6 @@
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto, convert
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxcommon.messages.bloxroute.block_hash_message import BlockHashMessage
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
@@ -12,7 +12,7 @@ class MockBlockMessage(BlockHashMessage):
 
 
 class MockMessageConverter(AbstractMessageConverter):
-    PREV_BLOCK = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+    PREV_BLOCK = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
 
     def tx_to_bx_txs(self, tx_msg, network_num):
         return [(tx_msg, tx_msg.tx_hash(), tx_msg.tx_val())]

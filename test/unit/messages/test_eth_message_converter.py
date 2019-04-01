@@ -12,7 +12,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils import convert
 from bxcommon import constants
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
@@ -86,7 +86,7 @@ class EthMessageConverterTests(AbstractTestCase):
 
         tx_bytes = rlp.encode(tx, Transaction)
         tx_hash_bytes = hashlib.sha256(tx_bytes).digest()
-        tx_hash = Sha256ObjectHash(tx_hash_bytes)
+        tx_hash = Sha256Hash(tx_hash_bytes)
 
         bx_tx_message = TxMessage(tx_hash=tx_hash, network_num=self.test_network_num, tx_val=tx_bytes)
 
@@ -252,7 +252,7 @@ class EthMessageConverterTests(AbstractTestCase):
         compact_block_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
         compact_block_msg_bytes.extend(compact_block_bytes)
         compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
-        compact_block_hash = Sha256ObjectHash(compact_block_hash_bytes)
+        compact_block_hash = Sha256Hash(compact_block_hash_bytes)
 
         bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, True, compact_block_msg_bytes)
 
@@ -319,7 +319,7 @@ class EthMessageConverterTests(AbstractTestCase):
         compact_block_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
         compact_block_msg_bytes.extend(compact_block_bytes)
         compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
-        compact_block_hash = Sha256ObjectHash(compact_block_hash_bytes)
+        compact_block_hash = Sha256Hash(compact_block_hash_bytes)
 
         bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, True, compact_block_msg_bytes)
 

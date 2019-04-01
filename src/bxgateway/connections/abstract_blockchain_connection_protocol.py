@@ -4,7 +4,7 @@ from abc import ABCMeta
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.utils import logger
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
@@ -89,7 +89,7 @@ class AbstractBlockchainConnectionProtocol(object):
         Sends out the decryption key for a block hash.
         """
         key = self.connection.node.in_progress_blocks.get_encryption_key(block_hash)
-        key_message = KeyMessage(Sha256ObjectHash(block_hash), self.connection.network_num, key)
+        key_message = KeyMessage(Sha256Hash(block_hash), self.connection.network_num, key)
         conns = self.connection.node.broadcast(key_message, self.connection,
                                                connection_types=[ConnectionType.RELAY, ConnectionType.GATEWAY])
         block_stats.add_block_event_by_block_hash(block_hash,

@@ -6,7 +6,7 @@ from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessag
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.utils import crypto, convert, logger
 from bxcommon.utils.expiring_dict import ExpiringDict
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
@@ -146,7 +146,7 @@ class BlockProcessingService(object):
             return
 
         cipherblob = msg.blob()
-        if block_hash != Sha256ObjectHash(crypto.double_sha256(cipherblob)):
+        if block_hash != Sha256Hash(crypto.double_sha256(cipherblob)):
             logger.warn("Received a message with inconsistent hashes. Dropping.")
             return
 

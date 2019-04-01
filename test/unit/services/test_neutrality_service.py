@@ -9,7 +9,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.utils import crypto
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import gateway_constants
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
@@ -29,7 +29,7 @@ def mock_connection(message_converter=None, connection_type=None):
 
 class NeutralityServiceTest(AbstractTestCase):
     BYTE_BLOCK = helpers.generate_bytearray(30)
-    BLOCK_HASH = Sha256ObjectHash(crypto.double_sha256(b"123"))
+    BLOCK_HASH = Sha256Hash(crypto.double_sha256(b"123"))
     KEY_HASH = crypto.double_sha256(b"234")
     MOCK_CONNECTION = mock_connection(connection_type=ConnectionType.GATEWAY)
 
@@ -136,7 +136,7 @@ class NeutralityServiceTest(AbstractTestCase):
         self.node.opts.encrypt_blocks = False
 
         block_message = helpers.generate_bytearray(50)
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         connection = MockConnection(1, (LOCALHOST, 9000), self.node)
         self.neutrality_service.propagate_block_to_network(block_message, connection, block_hash)
 

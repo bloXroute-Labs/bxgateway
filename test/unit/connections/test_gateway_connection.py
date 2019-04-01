@@ -13,7 +13,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockOpts
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
@@ -239,7 +239,7 @@ class GatewayConnectionTest(AbstractTestCase):
         self.node.neutrality_service.propagate_block_to_network.assert_called_once()
 
     def test_msg_block_hold(self):
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         message = BlockHoldingMessage(block_hash, network_num=123)
         self.connection.msg_block_holding(message)
         self.node.block_processing_service.place_hold.assert_called_once_with(block_hash, self.connection)

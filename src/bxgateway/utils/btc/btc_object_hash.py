@@ -1,11 +1,11 @@
 import struct
 
 from bxcommon.utils import convert
-from bxcommon.utils.object_hash import Sha256ObjectHash, PARTIAL_HASH_LENGTH
+from bxcommon.utils.object_hash import Sha256Hash, PARTIAL_HASH_LENGTH
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 
 
-class BtcObjectHash(Sha256ObjectHash):
+class BtcObjectHash(Sha256Hash):
     def __init__(self, buf=None, offset=0, length=0, binary=None):
 
         from_binary = binary is not None and len(binary) == BTC_SHA_HASH_LEN

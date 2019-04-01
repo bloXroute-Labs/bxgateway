@@ -3,7 +3,7 @@ from collections import deque
 
 from bxcommon import constants
 from bxcommon.utils import logger
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
@@ -38,7 +38,7 @@ class BlockQueuingService(object):
         :param block_msg: Block message instance (can be None if waiting for recovery flag is set to True
         :param waiting_for_recovery: flag indicating if gateway is waiting for recovery of the block
         """
-        if not isinstance(block_hash, Sha256ObjectHash):
+        if not isinstance(block_hash, Sha256Hash):
             raise TypeError("block_hash is expected of type ObjectHash but was {}.".format(type(block_hash)))
 
         if block_msg is None and not waiting_for_recovery:
@@ -73,7 +73,7 @@ class BlockQueuingService(object):
         :param block_hash: block hash
         """
 
-        if not isinstance(block_hash, Sha256ObjectHash):
+        if not isinstance(block_hash, Sha256Hash):
             raise TypeError("block_hash is expected of type ObjectHash but was {}.".format(type(block_hash)))
 
         if block_hash not in self._blocks:
@@ -115,7 +115,7 @@ class BlockQueuingService(object):
         :param block_msg: recovered block message
         """
 
-        if not isinstance(block_hash, Sha256ObjectHash):
+        if not isinstance(block_hash, Sha256Hash):
             raise TypeError("block_hash is expected of type ObjectHash but was {}.".format(type(block_hash)))
 
         if block_msg is None:

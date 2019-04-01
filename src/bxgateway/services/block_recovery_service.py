@@ -3,7 +3,7 @@ from collections import defaultdict
 from bxcommon import constants
 from bxcommon.utils import logger, crypto
 from bxcommon.utils.expiration_queue import ExpirationQueue
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 
 
 class BlockRecoveryService(object):
@@ -53,7 +53,7 @@ class BlockRecoveryService(object):
         """
         logger.debug("Recovering block with {} unknown short ids and {} contents: {}"
                      .format(len(unknown_tx_sids), len(unknown_tx_hashes), block_hash))
-        bx_block_hash = Sha256ObjectHash(crypto.double_sha256(bx_block))
+        bx_block_hash = Sha256Hash(crypto.double_sha256(bx_block))
 
         self._bx_block_hash_to_block[bx_block_hash] = bx_block
         self._bx_block_hash_to_block_hash[bx_block_hash] = block_hash

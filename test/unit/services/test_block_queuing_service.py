@@ -7,7 +7,7 @@ from bxcommon.messages.bloxroute.message import Message
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils.crypto import SHA256_HASH_LEN
-from bxcommon.utils.object_hash import Sha256ObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.gateway_constants import MIN_INTERVAL_BETWEEN_BLOCKS_S, NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
@@ -28,7 +28,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
     def test_push_arguments_validation(self):
         self.assertRaises(TypeError, self.block_queuing_service.push, helpers.generate_bytearray(SHA256_HASH_LEN))
         self.assertRaises(ValueError, self.block_queuing_service.push,
-                          Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN)), None, False)
+                          Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN)), None, False)
 
     def test_remove_arguments_validation(self):
         self.assertRaises(TypeError, self.block_queuing_service.remove, helpers.generate_bytearray(SHA256_HASH_LEN))
@@ -37,10 +37,10 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertRaises(TypeError, self.block_queuing_service.update_recovered_block,
                           helpers.generate_bytearray(SHA256_HASH_LEN), Mock())
         self.assertRaises(ValueError, self.block_queuing_service.update_recovered_block,
-                          Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN)), None)
+                          Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN)), None)
 
     def test_block_added_to_empty_queue(self):
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg = self._create_dummy_message()
 
         self.block_queuing_service.push(block_hash, block_msg, waiting_for_recovery=False)
@@ -52,7 +52,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
     def test_block_added_when_node_is_not_ready(self):
         self.node.node_conn = None
 
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg = self._create_dummy_message()
 
         self.block_queuing_service.push(block_hash, block_msg, waiting_for_recovery=False)
@@ -88,19 +88,19 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(0, len(self.block_queuing_service))
 
     def test_waiting_recovery_block_to_empty_queue(self):
-        block_hash = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
 
         self.block_queuing_service.push(block_hash, None, waiting_for_recovery=True)
         self.assertEqual(0, len(self.node.send_to_node_messages))
         self.assertEqual(1, len(self.block_queuing_service))
 
     def test_waiting_recovery__timeout(self):
-        block_hash1 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash1 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
 
-        block_hash2 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash2 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg2 = self._create_dummy_message()
 
-        block_hash3 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash3 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg3 = self._create_dummy_message()
 
         self.block_queuing_service.push(block_hash1, None, waiting_for_recovery=True)
@@ -124,13 +124,13 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(block_msg2, self.node.send_to_node_messages[0])
 
     def test_last_block_is_recovered(self):
-        block_hash1 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash1 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg1 = self._create_dummy_message()
 
-        block_hash2 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash2 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg2 = self._create_dummy_message()
 
-        block_hash3 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash3 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg3 = self._create_dummy_message()
 
         self.block_queuing_service.push(block_hash1, block_msg1, waiting_for_recovery=False)
@@ -163,13 +163,13 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(block_msg3, self.node.send_to_node_messages[0])
 
     def test_top_block_is_recovered(self):
-        block_hash1 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash1 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg1 = self._create_dummy_message()
 
-        block_hash2 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash2 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg2 = self._create_dummy_message()
 
-        block_hash3 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash3 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg3 = self._create_dummy_message()
 
         self.block_queuing_service.push(block_hash1, None, waiting_for_recovery=True)
@@ -205,12 +205,12 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(block_msg3, self.node.send_to_node_messages[0])
 
     def test_waiting_recovery_top_block_is_removed(self):
-        block_hash1 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash1 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
 
-        block_hash2 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash2 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg2 = self._create_dummy_message()
 
-        block_hash3 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash3 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg3 = self._create_dummy_message()
 
         self.block_queuing_service.push(block_hash1, None, waiting_for_recovery=True)
@@ -234,13 +234,13 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(block_msg3, self.node.send_to_node_messages[0])
 
     def test_waiting_recovery_last_block_is_removed(self):
-        block_hash1 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash1 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg1 = self._create_dummy_message()
 
-        block_hash2 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash2 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg2 = self._create_dummy_message()
 
-        block_hash3 = Sha256ObjectHash(helpers.generate_bytearray(SHA256_HASH_LEN))
+        block_hash3 = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         block_msg3 = self._create_dummy_message()
 
         self.block_queuing_service.push(block_hash1, block_msg1, waiting_for_recovery=False)
