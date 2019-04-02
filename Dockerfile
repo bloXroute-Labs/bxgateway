@@ -5,7 +5,8 @@ RUN addgroup -g 502 -S bxgateway \
  && adduser -u 502 -S -G bxgateway bxgateway \
  && mkdir -p /app/bxgateway/src \
  && mkdir -p /app/bxcommon/src \
- && chown -R bxgateway:bxgateway /app/bxgateway /app/bxgateway
+ && mkdir -p /app/bxextensions \
+ && chown -R bxgateway:bxgateway /app/bxgateway /app/bxcommon /app/bxextensions
 
 RUN apk update \
  && apk add --no-cache \
@@ -34,7 +35,8 @@ COPY bxgateway/docker-entrypoint.sh /usr/local/bin/
 
 COPY --chown=bxgateway:bxgateway bxgateway/src /app/bxgateway/src
 COPY --chown=bxgateway:bxgateway bxcommon/src /app/bxcommon/src
+COPY --chown=bxgateway:bxgateway bxextensions/release/alpine-3.8.1 /app/bxextensions
 
 WORKDIR /app/bxgateway
-ENV PYTHONPATH=/app/bxcommon/src/:/app/bxgateway/src/
+ENV PYTHONPATH=/app/bxcommon/src/:/app/bxgateway/src/:/app/bxextensions/
 ENTRYPOINT ["/sbin/tini", "--", "/bin/sh", "/usr/local/bin/docker-entrypoint.sh"]

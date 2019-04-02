@@ -6,7 +6,6 @@ from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
-from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import get_gateway_opts
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
@@ -19,8 +18,9 @@ from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
+import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
+from bxgateway.services.btc_transaction_service import BtcTransactionService
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
@@ -36,7 +36,9 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.gateway_node = BtcGatewayNode(get_gateway_opts(8000, include_default_btc_args=True))
         self.sut = BtcRelayConnection(MockSocketConnection(), (LOCALHOST, 8001), self.gateway_node)
         self.gateway_node.node_conn = MockConnection(1, (LOCALHOST, 8002), self.gateway_node)
-        self.gateway_node.node_conn.message_converter = BtcMessageConverter(12345)
+        self.gateway_node.node_conn.message_converter = converter_factory.create_btc_message_converter(
+            12345, self.gateway_node.opts
+        )
         self.gateway_node.node_conn.state = ConnectionState.ESTABLISHED
 
         self.gateway_node.send_msg_to_node = MagicMock()
@@ -110,7 +112,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         block_hash = btc_block.block_hash()
         transactions = self.bx_transactions()
 
-        unknown_sid_transaction_service = TransactionService(MockNode(LOCALHOST, 8999), 0)
+        unknown_sid_transaction_service = BtcTransactionService(MockNode(LOCALHOST, 8999), 0)
         for i, transaction in enumerate(transactions):
             unknown_sid_transaction_service.assign_short_id(transaction.tx_hash(), i)
             unknown_sid_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx_val())
@@ -240,7 +242,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         transactions = self.btc_transactions()
 
         # assign short ids that the local connection won't know about until it gets the txs message
-        remote_transaction_service = TransactionService(MockNode(LOCALHOST, 8999), 0)
+        remote_transaction_service = BtcTransactionService(MockNode(LOCALHOST, 8999), 0)
         short_id_mapping = {}
         for i, transaction in enumerate(transactions):
             remote_transaction_service.assign_short_id(transaction.tx_hash(), i)
@@ -287,7 +289,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         transactions = self.btc_transactions()
 
         # assign short ids that the local connection won't know about until it gets the txs message
-        remote_transaction_service1 = TransactionService(MockNode(LOCALHOST, 8998), 0)
+        remote_transaction_service1 = BtcTransactionService(MockNode(LOCALHOST, 8998), 0)
         short_id_mapping1 = {}
         for i, transaction in enumerate(transactions):
             remote_transaction_service1.assign_short_id(transaction.tx_hash(), i + 1)
@@ -303,7 +305,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
             self.assertEqual(transaction_hash, stored_hash)
             self.assertEqual(tx_info[2], stored_content)
 
-        remote_transaction_service2 = TransactionService(MockNode(LOCALHOST, 8999), 0)
+        remote_transaction_service2 = BtcTransactionService(MockNode(LOCALHOST, 8999), 0)
         short_id_mapping2 = {}
         for i, transaction in enumerate(transactions):
             remote_transaction_service2.assign_short_id(transaction.tx_hash(), i + 101)

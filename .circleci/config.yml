@@ -6,51 +6,96 @@ executors:
     # TODO: Use AWS repository or create bloxRoute account on Docker Hub
     - image: sergeyi/circleci-bxgateway:latest
     environment:
-      PYTHONPATH: /root/ws/bxcommon/src:/root/ws/bxgateway/src
+      PYTHONPATH: /root/ws/bxcommon/src:/root/ws/bxgateway/src:/root/ws/bxextensions
     working_directory: ~/ws
 
 jobs:
+  initialize:
+    executor: bloxroute-executor
+    working_directory: ~/ws
+    steps:
+      - attach_workspace:
+          at: ~/ws
+      - checkout:
+          path:
+            "bxgateway"
+      - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
+          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
+      - save_cache: # special step to save dependency cache
+          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
+          paths:
+            - "venv"
+      - run:
+          name: install bxcommon
+          command: |
+             cd ~/ws/bxgateway
+             branchName=$(git rev-parse --abbrev-ref HEAD)
+
+             cd ~/ws
+             { # try
+                 echo "Trying to clone identical branch name '$branchName' from bxcommon."
+                 git clone -b $branchName --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+             } || { # catch
+                 echo "Trying bxcommon develop branch, could not find identical branch name '$branchName'"
+                 git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+             }
+             cd bxcommon
+             bxcommonBranch=$(git rev-parse --abbrev-ref HEAD)
+             echo "Resolved branch $bxcommonBranch for bxcommon."
+      - run:
+          name: Install bxextensions dependency
+          command: |
+            { # try
+                echo "Trying to clone identical branch name '$CIRCLE_BRANCH' from bxextensions."
+                git clone -b $CIRCLE_BRANCH --single-branch --depth=1 --recursive git@github.com:bloXroute-Labs/bxextensions.git
+            } || { # catch
+                echo "Trying bxextensions develop branch, could not find identical branch name '$CIRCLE_BRANCH'."
+                git clone -b develop --single-branch --depth=1 --recursive git@github.com:bloXroute-Labs/bxextensions.git
+            }
+      - run: # install and activate virtual environment with pip
+          name: installing virtual env
+          command: |
+            python -m virtualenv venv
+            . venv/bin/activate
+            pip install -r bxgateway/requirements.txt
+            pip install -r bxcommon/requirements.txt
+      - persist_to_workspace:
+          root: .
+          paths:
+            - venv
+            - bxextensions
+            - bxcommon
+            - bxgateway
+
+  build_extensions:
+    executor: bloxroute-executor
+    working_directory: ~/ws
+    steps:
+      - attach_workspace:
+          at: ~/ws
+      - run:
+          name: install dependencies
+          command: |
+            apk add --no-cache build-base musl automake autoconf libtool openssl-dev cmake
+      - run:
+          name: build extensions
+          command: |
+            . venv/bin/activate
+            cd bxextensions
+            python build_extensions.py
+      - persist_to_workspace:
+          root: .
+          paths:
+            - venv
+            - bxextensions
+            - bxcommon
+            - bxgateway
+
   test:
     executor: bloxroute-executor
     steps:
     - attach_workspace:
         at: ~/ws
-    - checkout:
-        path:
-          "bxgateway"
-    - run:
-        name: Try to clone the corresponding bxcommon branch to this branch, or bxcommon/develop.
-        command: |
-          cd ~/ws/bxgateway
-          branchName=$(git rev-parse --abbrev-ref HEAD)
-
-          cd ~/ws
-          { # try
-              echo "Trying to clone identical branch name '$branchName' from bxgateway."
-              git clone -b $branchName --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
-          } || { # catch
-              echo "Trying bxcommon develop branch, could not find identical branch name '$branchName' in bxgateway."
-              git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
-          }
-          cd bxcommon
-          bxcommonBranch=$(git rev-parse --abbrev-ref HEAD)
-          echo "Resolved branch $bxcommonBranch for bxcommon."
-    - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
-        key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
-    - run: # install and activate virtual environment with pip
-        command: |
-          python -m virtualenv venv
-          . venv/bin/activate
-          pip install -r bxgateway/requirements.txt
-          pip install -r bxcommon/requirements.txt
-    - save_cache: # special step to save dependency cache
-        key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
-        paths:
-        - "venv"
-    - persist_to_workspace:
-        root: .
-        paths:
-        - venv
     - run: # run tests
         name: Unit Tests
         command: |
@@ -106,21 +151,11 @@ jobs:
                 echo "Trying bxrelay develop branch, could not find identical branch name '$CIRCLE_BRANCH  in bxrelay."
                 git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxrelay.git
             }
-            { # try
-                echo "Trying to clone identical branch name '$CIRCLE_BRANCH  from bxgateway."
-                git clone -b $CIRCLE_BRANCH --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
-            } || { # catch
-                echo "Trying bxgateway develop branch, could not find identical branch name '$CIRCLE_BRANCH  in bxrelay."
-                git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
-            }
       - run:
           name: Initialize virtualenv
           command: |
-            python -m virtualenv venv
             . venv/bin/activate
-            pip install -r bxcommon/requirements.txt
             pip install -r bxrelay/requirements.txt
-            pip install -r bxgateway/requirements.txt
       - run:
           name: Integration Test
           command: |
@@ -128,6 +163,7 @@ jobs:
             cd bxe2e/test/integration
             PYTHONPATH=$PYTHONPATH:/root/ws/bxe2e/src:/root/ws/bxrelay/src \
             python -m unittest discover --verbose
+
   build:
     working_directory: ~/ws
     docker:
@@ -139,23 +175,6 @@ jobs:
       - checkout:
           path:
             "bxgateway"
-      - run:
-          name: Try to clone the corresponding bxcommon branch to this branch, or bxcommon/develop.
-          command: |
-            cd ~/ws/bxgateway
-            branchName=$(git rev-parse --abbrev-ref HEAD)
-
-            cd ~/ws
-            { # try
-                echo "Trying to clone identical branch name '$branchName' from bxgateway."
-                git clone -b $branchName --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
-            } || { # catch
-                echo "Trying bxcommon develop branch, could not find identical branch name '$branchName' in bxgateway."
-                git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
-            }
-            cd bxcommon
-            bxcommonBranch=$(git rev-parse --abbrev-ref HEAD)
-            echo "Resolved branch $bxcommonBranch for bxcommon."
       - run:
           name: Install dependencies
           command: |
@@ -202,6 +221,16 @@ workflows:
 
   test-build:
     jobs:
-    - build
-    - test
-    - e2e
+      - initialize
+      - build:
+          requires:
+            - initialize
+      - build_extensions:
+          requires:
+            - initialize
+      - test:
+          requires:
+            - build_extensions
+      - e2e:
+          requires:
+            - build_extensions

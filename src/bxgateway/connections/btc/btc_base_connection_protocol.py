@@ -1,7 +1,7 @@
 from bxgateway import btc_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
-from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
+import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway.messages.btc.btc_message_factory import btc_message_factory
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.ping_btc_message import PingBtcMessage
@@ -19,7 +19,10 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         connection.hello_messages = btc_constants.BTC_HELLO_MESSAGES
         connection.header_size = btc_constants.BTC_HDR_COMMON_OFF
         connection.message_factory = btc_message_factory
-        connection.message_converter = BtcMessageConverter(self.magic)
+        connection.message_converter = converter_factory.create_btc_message_converter(
+            self.magic,
+            connection.node.opts
+        )
         connection.message_handlers = {
             BtcMessageType.PING: self.msg_ping,
             BtcMessageType.PONG: self.msg_pong,

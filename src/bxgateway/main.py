@@ -9,7 +9,7 @@ import argparse
 import random
 import sys
 
-from bxcommon import node_runner
+from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, config, convert
 from bxgateway import btc_constants
@@ -111,6 +111,16 @@ def get_opts():
                             help="Public key of remote bloXroute owned Ethereum node for encrypted communication "
                                  "during chainstate sync ",
                             type=str)
+
+    arg_parser.add_argument(
+        "--use-extensions",
+        help="If true than the gateway will use the extension module for "
+             "some tasks like block compression (default: {0})".format(
+                constants.USE_EXTENSION_MODULES
+             ),
+        default=constants.USE_EXTENSION_MODULES,
+        type=convert.str_to_bool
+    )
 
     gateway_args, unknown = arg_parser.parse_known_args()
 

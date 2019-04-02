@@ -1,28 +1,46 @@
-from mock import MagicMock
+from argparse import Namespace
+import functools
 
-from bxcommon.constants import NULL_TX_SID, LOCALHOST
-from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
+from mock import MagicMock
+from collections import defaultdict
+import os
+import random
+
+from bxcommon.constants import NULL_TX_SID, USE_EXTENSION_MODULES, LOCALHOST
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils.mocks import mock_bx_messages
-from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
+from bxcommon.utils import convert
+from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxgateway.messages.btc.btc_message_converter import BtcMessageConverter
+import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+import task_pool_executor as tpe
+
+
+def with_extensions(func):
+    @functools.wraps(func)
+    def run_with_extensions(self, *args, **kwargs):
+        try:
+            self._enable_extensions()
+            func(self, *args, **kwargs)
+        finally:
+            self._restore_extensions_flag()
+    return run_with_extensions
 
 
 class BtcMessageConverterTests(AbstractTestCase):
     AVERAGE_TX_SIZE = 250
     MAGIC = 123
 
-    btc_message_converter = BtcMessageConverter(MAGIC)
+    def setUp(self):
+        self.opts = Namespace()
+        self.opts.use_extensions = USE_EXTENSION_MODULES
+        self.btc_message_converter = converter_factory.create_btc_message_converter(self.MAGIC, opts=self.opts)
 
     def test_tx_msg_to_btc_tx_msg__success(self):
         tx_hash = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
@@ -91,6 +109,14 @@ class BtcMessageConverterTests(AbstractTestCase):
 
         tx_service = MagicMock()
         tx_service.get_short_id = get_short_id
+        tx_service.cpp_tx_hash_to_short_ids = tpe.Sha256ToShortIDMap()
+        for index, tx_hash in enumerate(txn_hashes):
+            short_id = get_short_id(tx_hash)
+            if short_id == NULL_TX_SID:
+                continue
+            sha = tpe.Sha256(tpe.InputBytes(tx_hash.binary))
+            tx_service.cpp_tx_hash_to_short_ids[sha] = short_id
+
         tx_service.get_transaction = get_transaction
 
         bloxroute_block, block_info = self.btc_message_converter.block_to_bx_block(btc_block, tx_service)
@@ -117,3 +143,57 @@ class BtcMessageConverterTests(AbstractTestCase):
         self.assertEqual(block_hash, parsed_btc_block.block_hash())
         self.assertEqual(block_hash.binary, parsed_block_hash.binary)
         self.assertEqual(all_sids, short_ids)
+
+    @with_extensions
+    def test_plain_compression(self):
+        tx_service, parsed_block, btc_message_converter = self._init()
+        ref_block, ref_block_info = self.btc_message_converter.block_to_bx_block(parsed_block, tx_service)
+        bx_block, block_info = btc_message_converter.block_to_bx_block(parsed_block, tx_service)
+        self.assertEqual(bx_block, ref_block)
+
+    @with_extensions
+    def test_partial_compression(self):
+        tx_service, parsed_block, btc_message_converter = self._init()
+        transactions_short = parsed_block.txns()[:]
+        random.shuffle(transactions_short)
+        transactions_short = transactions_short[:int(len(transactions_short) * 0.9)]
+        for short_id, txn in enumerate(transactions_short):
+            bx_tx_hash = BtcObjectHash(buf=crypto.double_sha256(txn),
+                                       length=BTC_SHA_HASH_LEN)
+            tx_service.assign_short_id(bx_tx_hash, short_id + 1)
+        bx_block, block_info = btc_message_converter.block_to_bx_block(parsed_block, tx_service)
+        ref_block, _ = self.btc_message_converter.block_to_bx_block(parsed_block, tx_service)
+        self.assertEqual(bx_block, ref_block)
+
+    def _enable_extensions(self):
+        self.opts.use_extensions = True
+
+    def _restore_extensions_flag(self):
+        self.opts.use_extensions = USE_EXTENSION_MODULES
+
+    def _init(self):
+        root_dir = os.path.dirname(os.path.abspath(__file__))
+        with open(os.path.join(root_dir, "sample_block.txt")) as sample_file:
+            btc_block = sample_file.read().strip("\n")
+        magic = "12345"
+        tx_service = MagicMock()
+        tx_service._tx_hash_to_short_ids = defaultdict(set)
+        tx_service.cpp_tx_hash_to_short_ids = tpe.Sha256ToShortIDMap()
+
+        def get_short_id(tx_hash):
+            if tx_hash in tx_service._tx_hash_to_short_ids:
+                return tx_service._tx_hash_to_short_ids[tx_hash]
+            else:
+                return NULL_TX_SID
+
+        def assign_short_id(tx_hash, short_id):
+            tx_service._tx_hash_to_short_ids[tx_hash] = short_id
+            cpp_hash = tpe.Sha256(tpe.InputBytes(tx_hash.binary))
+            tx_service.cpp_tx_hash_to_short_ids[cpp_hash] = short_id
+
+        tx_service.get_short_id = get_short_id
+        tx_service.assign_short_id = assign_short_id
+        btc_message_converter = converter_factory.create_btc_message_converter(magic, self.opts)
+        buf = bytearray(convert.hex_to_bytes(btc_block))
+        parsed_block = BlockBtcMessage(buf=buf)
+        return tx_service, parsed_block, btc_message_converter
