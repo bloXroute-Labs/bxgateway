@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 from collections import deque
-
 from bxcommon import constants
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_state import ConnectionState
@@ -19,6 +18,7 @@ from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxgateway.utils.network_latency import get_best_relay_by_ping_latency
 
 
 class AbstractGatewayNode(AbstractNode):
@@ -152,8 +152,9 @@ class AbstractGatewayNode(AbstractNode):
             logger.debug("Potential relay peers: {}".
                          format(", ".join([node.node_id for node in potential_relay_peers])))
 
-            # TODO for now takes the first relay from the list until decide the best way to get peers latency
-            best_relay_peer = potential_relay_peers[0]
+            best_relay_peer = get_best_relay_by_ping_latency(potential_relay_peers)
+            if not best_relay_peer:
+                best_relay_peer = potential_relay_peers[0]
             best_relay_match.append(best_relay_peer)
 
         logger.debug("Best relay peer to node {} is: {}".format(self.opts.node_id, best_relay_match))
@@ -322,3 +323,5 @@ class AbstractGatewayNode(AbstractNode):
         gateway_transaction_stats_service.set_node(self)
         self.alarm_queue.register_alarm(gateway_transaction_stats_service.interval,
                                         gateway_transaction_stats_service.flush_info)
+
+
