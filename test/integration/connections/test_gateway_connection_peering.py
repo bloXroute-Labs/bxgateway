@@ -163,9 +163,9 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             # peer thread should cleanup completely
             integration_helpers.wait_while(lambda: len(self.peer_gateway.connection_pool) > 1)
 
-            self.assertEquals(peer_initiated_connection,
+            self.assertEqual(peer_initiated_connection,
                               self.main_gateway.connection_pool.get_by_ipport(LOCALHOST, self.peer_port))
-            self.assertEquals(peer_initiated_connection_on_peer,
+            self.assertEqual(peer_initiated_connection_on_peer,
                               self.peer_gateway.connection_pool.get_by_ipport(LOCALHOST, self.main_port))
 
         self._test_gateway_to_gateway_connection_resolution(peer_initiated_equal_then_higher)
@@ -201,9 +201,9 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             # peer thread will cleanup dead connection later
             integration_helpers.wait_while(lambda: len(self.peer_gateway.connection_pool) > 2)
 
-            self.assertEquals(peer_initiated_connection,
+            self.assertEqual(peer_initiated_connection,
                               self.main_gateway.connection_pool.get_by_ipport(LOCALHOST, self.peer_port))
-            self.assertEquals(peer_initiated_connection_on_peer,
+            self.assertEqual(peer_initiated_connection_on_peer,
                               self.peer_gateway.connection_pool.get_by_ipport(LOCALHOST, self.main_port))
 
         self._test_gateway_to_gateway_connection_resolution(peer_initiated_higher)
@@ -240,9 +240,9 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             # peer thread should cleanup completely
             integration_helpers.wait_while(lambda: len(self.peer_gateway.connection_pool) > 1)
 
-            self.assertEquals(main_initiated_connection,
+            self.assertEqual(main_initiated_connection,
                               self.main_gateway.connection_pool.get_by_ipport(LOCALHOST, self.peer_port))
-            self.assertEquals(main_initiated_connection_on_peer,
+            self.assertEqual(main_initiated_connection_on_peer,
                               self.peer_gateway.connection_pool.get_by_ipport(LOCALHOST, self.main_port))
 
         self._test_gateway_to_gateway_connection_resolution(peer_initiated_lower)

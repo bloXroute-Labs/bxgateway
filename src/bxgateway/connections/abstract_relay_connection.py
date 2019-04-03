@@ -117,7 +117,7 @@ class AbstractRelayConnection(InternalNodeConnection):
                                                                 transactions))
 
         for transaction in transactions:
-            short_id, tx_hash, transaction_contents = transaction
+            tx_hash, transaction_contents, short_id = transaction
 
             self.node.block_recovery_service.check_missing_sid(short_id)
 

@@ -82,8 +82,8 @@ class BtcMessageFactoryTest(AbstractTestCase):
             create_input_buffer_with_bytes(self.VERSION_BTC_MESSAGE.rawbytes()[:-10])
         )
         self.assertFalse(is_full_message)
-        self.assertEquals(b"version", command)
-        self.assertEquals(90, payload_length)
+        self.assertEqual(b"version", command)
+        self.assertEqual(90, payload_length)
 
         is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
             create_input_buffer_with_bytes(self.VERSION_BTC_MESSAGE.rawbytes()[:1])

@@ -16,6 +16,7 @@ class AbstractMessageConverter(object):
         Converts blockchain transactions message to internal transaction message
 
         :param tx_msg: blockchain transactions message
+        :param network_num: blockchain network number
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 

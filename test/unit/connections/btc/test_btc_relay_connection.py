@@ -6,6 +6,7 @@ from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
+from bxcommon.models.transaction_info import TransactionInfo
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import get_gateway_opts
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
@@ -195,7 +196,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
             self.assertTrue(self.gateway_node.get_tx_service().has_transaction_short_id(transaction_hash))
             self.assertEqual(i + 1, self.gateway_node.get_tx_service().get_short_id(transaction_hash))
 
-            stored_hash, stored_content = self.gateway_node.get_tx_service().get_transaction(i + 1)
+            stored_hash, stored_content, _ = self.gateway_node.get_tx_service().get_transaction(i + 1)
             self.assertEqual(transaction_hash, stored_hash)
             self.assertEqual(transaction.tx_val(), stored_content)
 
@@ -216,11 +217,11 @@ class BtcRelayConnectionTest(AbstractTestCase):
             self.assertTrue(self.gateway_node.get_tx_service().has_transaction_contents(transaction_hash))
             self.assertTrue(self.gateway_node.get_tx_service().has_transaction_short_id(transaction_hash))
 
-            stored_hash, stored_content = self.gateway_node.get_tx_service().get_transaction(i + 1)
+            stored_hash, stored_content, _ = self.gateway_node.get_tx_service().get_transaction(i + 1)
             self.assertEqual(transaction_hash, stored_hash)
             self.assertEqual(transaction.tx_val(), stored_content)
 
-            stored_hash2, stored_content2 = self.gateway_node.get_tx_service().get_transaction(i + 21)
+            stored_hash2, stored_content2, _ = self.gateway_node.get_tx_service().get_transaction(i + 21)
             self.assertEqual(transaction_hash, stored_hash2)
             self.assertEqual(transaction.tx_val(), stored_content2)
 
@@ -247,7 +248,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         for i, transaction in enumerate(transactions):
             remote_transaction_service.assign_short_id(transaction.tx_hash(), i)
             remote_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx())
-            short_id_mapping[transaction.tx_hash()] = (i, transaction.tx_hash(), transaction.tx())
+            short_id_mapping[transaction.tx_hash()] = TransactionInfo(transaction.tx_hash(), transaction.tx(), i)
 
         bx_block = bytes(self.sut.message_converter.block_to_bx_block(btc_block, remote_transaction_service)[0])
 
@@ -294,28 +295,28 @@ class BtcRelayConnectionTest(AbstractTestCase):
         for i, transaction in enumerate(transactions):
             remote_transaction_service1.assign_short_id(transaction.tx_hash(), i + 1)
             remote_transaction_service1.set_transaction_contents(transaction.tx_hash(), transaction.tx())
-            short_id_mapping1[transaction.tx_hash()] = (i + 1, transaction.tx_hash(), transaction.tx())
+            short_id_mapping1[transaction.tx_hash()] = TransactionInfo(transaction.tx_hash(), transaction.tx(), i + 1)
 
         txs_message_1 = TxsMessage([tx for tx in short_id_mapping1.values()])
         self.sut.msg_txs(txs_message_1)
 
         for transaction_hash, tx_info in short_id_mapping1.items():
-            self.assertEqual(tx_info[0], self.gateway_node.get_tx_service().get_short_id(transaction_hash))
-            stored_hash, stored_content = self.gateway_node.get_tx_service().get_transaction(tx_info[0])
+            self.assertEqual(tx_info.short_id, self.gateway_node.get_tx_service().get_short_id(transaction_hash))
+            stored_hash, stored_content, _ = self.gateway_node.get_tx_service().get_transaction(tx_info.short_id)
             self.assertEqual(transaction_hash, stored_hash)
-            self.assertEqual(tx_info[2], stored_content)
+            self.assertEqual(tx_info.contents, stored_content)
 
         remote_transaction_service2 = BtcTransactionService(MockNode(LOCALHOST, 8999), 0)
         short_id_mapping2 = {}
         for i, transaction in enumerate(transactions):
             remote_transaction_service2.assign_short_id(transaction.tx_hash(), i + 101)
             remote_transaction_service2.set_transaction_contents(transaction.tx_hash(), transaction.tx())
-            short_id_mapping2[transaction.tx_hash()] = (i + 101, transaction.tx_hash(), transaction.tx())
+            short_id_mapping2[transaction.tx_hash()] = TransactionInfo(transaction.tx_hash(), transaction.tx(), i + 101)
 
         txs_message_2 = TxsMessage([tx for tx in short_id_mapping2.values()])
         self.sut.msg_txs(txs_message_2)
 
         for transaction_hash, tx_info in short_id_mapping2.items():
-            stored_hash, stored_content = self.gateway_node.get_tx_service().get_transaction(tx_info[0])
+            stored_hash, stored_content, _ = self.gateway_node.get_tx_service().get_transaction(tx_info.short_id)
             self.assertEqual(transaction_hash, stored_hash)
-            self.assertEqual(tx_info[2], stored_content)
+            self.assertEqual(tx_info.contents, stored_content)

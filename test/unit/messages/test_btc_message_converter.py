@@ -1,25 +1,26 @@
-from argparse import Namespace
 import functools
-
-from mock import MagicMock
-from collections import defaultdict
 import os
 import random
+from argparse import Namespace
+from collections import defaultdict
 
-from bxcommon.constants import NULL_TX_SID, USE_EXTENSION_MODULES, LOCALHOST
+import task_pool_executor as tpe
+from bxcommon.models.transaction_info import TransactionInfo
+from mock import MagicMock
+
+import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
+from bxcommon.constants import NULL_TX_SID, USE_EXTENSION_MODULES
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.utils import convert
 from bxcommon.utils import crypto
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import Sha256Hash
-from bxcommon.utils import convert
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
-import task_pool_executor as tpe
 
 
 def with_extensions(func):
@@ -30,6 +31,7 @@ def with_extensions(func):
             func(self, *args, **kwargs)
         finally:
             self._restore_extensions_flag()
+
     return run_with_extensions
 
 
@@ -105,7 +107,7 @@ class BtcMessageConverterTests(AbstractTestCase):
 
         # return a transaction's info for assigned sids
         def get_transaction(sid):
-            return txn_hashes[(sid - 1) * 2], txns[(sid - 1) * 2]
+            return TransactionInfo(txn_hashes[(sid - 1) * 2], txns[(sid - 1) * 2], sid)
 
         tx_service = MagicMock()
         tx_service.get_short_id = get_short_id

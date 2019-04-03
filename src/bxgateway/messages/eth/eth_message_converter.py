@@ -23,6 +23,7 @@ class EthMessageConverter(AbstractMessageConverter):
         The code is optimized and does not make copies of bytes
 
         :param tx_msg: Ethereum transaction message
+        :param network_num: blockchain network number
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 
@@ -277,7 +278,7 @@ class EthMessageConverter(AbstractMessageConverter):
                 tx_bytes = tx_content_bytes
             else:
                 short_id = short_ids[short_tx_index]
-                tx_hash, tx_bytes = tx_service.get_transaction(short_id)
+                tx_hash, tx_bytes, _ = tx_service.get_transaction(short_id)
 
                 if tx_hash is None:
                     unknown_tx_sids.append(short_id)
