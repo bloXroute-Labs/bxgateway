@@ -16,6 +16,9 @@ def get_ping_latency(ip):
             ping_latency = PING_TIMEOUT_S * 1000
     except subprocess.TimeoutExpired:
         ping_latency = PING_TIMEOUT_S * 1000
+    except Exception as ex:
+        logger.error(f"Error getting ping command output for IP:{ip}, Error:{str(ex)}")
+        ping_latency = PING_TIMEOUT_S * 1000
 
     return ping_latency
 
