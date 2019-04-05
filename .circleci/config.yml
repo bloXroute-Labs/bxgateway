@@ -3,10 +3,10 @@ version: 2.1
 executors:
   bloxroute-executor:
     docker:
-    # TODO: Use AWS repository or create bloxRoute account on Docker Hub
-    - image: sergeyi/circleci-bxgateway:latest
+    # TODO: Use AWS repository or create bloXroute account on Docker Hub
+    - image: circleci/python:3.7
     environment:
-      PYTHONPATH: /root/ws/bxcommon/src:/root/ws/bxgateway/src:/root/ws/bxextensions
+      PYTHONPATH: /home/circleci/ws/bxcommon/src:/home/circleci/ws/bxgateway/src:/home/circleci/ws/bxextensions
     working_directory: ~/ws
 
 jobs:
@@ -58,7 +58,9 @@ jobs:
             python -m virtualenv venv
             . venv/bin/activate
             pip install -r bxgateway/requirements.txt
+            pip install -r bxgateway/requirements-dev.txt
             pip install -r bxcommon/requirements.txt
+            pip install -r bxcommon/requirements-dev.txt
       - persist_to_workspace:
           root: .
           paths:
@@ -66,7 +68,6 @@ jobs:
             - bxextensions
             - bxcommon
             - bxgateway
-
   build_extensions:
     executor: bloxroute-executor
     working_directory: ~/ws
@@ -76,7 +77,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            apk add --no-cache build-base musl automake autoconf libtool openssl-dev cmake
+            sudo apt install build-essential automake autogen autoconf libtool libtool-bin libssl-dev cmake
       - run:
           name: build extensions
           command: |
@@ -90,41 +91,53 @@ jobs:
             - bxextensions
             - bxcommon
             - bxgateway
-
+  check:
+    executor: bloxroute-executor
+    working_directory: ~/ws
+    steps:
+      - attach_workspace:
+          at: ~/ws
+      - run:
+          name: Lint Score
+          command: |
+            . venv/bin/activate
+            cd bxgateway
+            # The || exit 0 bypasses not failing the build for <10 score
+            pylint src/bxgateway --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" --rcfile=../bxcommon/pylintrc || exit 0
+      - run:
+          name: Static Analysis
+          command: |
+            . venv/bin/activate
+            cd bxgateway
+            # remove dev configuration
+            rm .pyre_configuration
+            pyre --local-configuration .pyre_configuration.circle check
   test:
     executor: bloxroute-executor
     steps:
     - attach_workspace:
         at: ~/ws
-    - run: # run tests
+    - run:
         name: Unit Tests
         command: |
           . venv/bin/activate
           cd bxgateway/test/unit
           python -m unittest discover --verbose
-    - run: # check coverage
-        name: Check Coverage
-        command: |
-          . venv/bin/activate
-          cd bxgateway/test/unit
-          coverage run --source=/root/ws/bxgateway/src -m unittest discover && coverage report --fail-under=01
-    - run: # run tests
+    - run:
         name: Integration Tests
         command: |
           . venv/bin/activate
           cd bxgateway/test/integration
           python -m unittest discover --verbose
-    - run: # run pylint
-        name: Lint Score
+    - run:
+        name: Check Coverage
         command: |
           . venv/bin/activate
-          cd bxgateway
-          # The || exit 0 bypasses not failing the build for <10 score
-          PYTHONPATH=../bxcommon/src/ pylint src/bxgateway --msg-template="{path}:{line}: [{msg_id}({symbol}), {obj}] {msg}" --rcfile=../bxcommon/pylintrc || exit 0
+          cd bxgateway/test/unit
+          coverage run --source=/home/circleci/ws/bxgateway/src -m unittest discover && coverage report --fail-under=01
     - store_artifacts:
         path: test-reports/
         destination: tr1
-
   e2e:
     executor: bloxroute-executor
     steps:
@@ -156,12 +169,13 @@ jobs:
           command: |
             . venv/bin/activate
             pip install -r bxrelay/requirements.txt
+            pip install -r bxrelay/requirements-dev.txt
       - run:
           name: Integration Test
           command: |
             . venv/bin/activate
             cd bxe2e/test/integration
-            PYTHONPATH=$PYTHONPATH:/root/ws/bxe2e/src:/root/ws/bxrelay/src \
+            PYTHONPATH=$PYTHONPATH:/home/circleci/ws/bxe2e/src:/home/circleci/ws/bxrelay/src \
             python -m unittest discover --verbose
 
   build:
@@ -228,6 +242,9 @@ workflows:
       - build_extensions:
           requires:
             - initialize
+      - check:
+          requires:
+            - build_extensions
       - test:
           requires:
             - build_extensions

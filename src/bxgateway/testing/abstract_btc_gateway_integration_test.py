@@ -14,6 +14,7 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
     Abstract test class that setups up two gateways and allow test cases to pass messages back and forth.
     """
 
+    # pyre-ignore
     def setUp(self):
         self.reinitialize_gateways(helpers.get_gateway_opts(9000, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
                                                             include_default_btc_args=True),

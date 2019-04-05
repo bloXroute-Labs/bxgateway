@@ -1,5 +1,5 @@
 from bxcommon.services.transaction_service import TransactionService
-import task_pool_executor as tpe
+import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
 
 
 class BtcTransactionService(TransactionService):

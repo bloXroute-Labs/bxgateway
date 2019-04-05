@@ -2,7 +2,7 @@ from collections import deque, namedtuple
 import time
 
 from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter
-import task_pool_executor as tpe
+import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
 
 from bxgateway.utils.block_info import BlockInfo
 

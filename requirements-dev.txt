@@ -1,0 +1,5 @@
+pylint==1.9.2
+coverage==4.3.4
+mock==2.0.0
+pyre-check==0.0.21
+pywatchman==1.4.1 # because of a bug in pyre-check
