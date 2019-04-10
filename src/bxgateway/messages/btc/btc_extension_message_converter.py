@@ -1,3 +1,4 @@
+import datetime
 from collections import deque, namedtuple
 import time
 
@@ -25,6 +26,8 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         self.compression_tasks = deque()
 
     def block_to_bx_block(self, btc_block_msg, tx_service):
+        compress_start_datetime = datetime.datetime.utcnow()
+        compress_start_timestamp = time.time()
         try:
             tsk = self.compression_tasks.pop()
         except IndexError:
@@ -38,12 +41,22 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         wait_for_task(tsk)
         bx_block = tsk.bx_block()
         block = memoryview(bx_block)
+
+        compressed_size = len(block)
+        original_size = len(btc_block_msg.rawbytes())
+
         block_info = BlockInfo(
-            tsk.txn_count(),
             tsk.block_hash().hex_string(),
+            tsk.short_ids(),
+            compress_start_datetime,
+            datetime.datetime.utcnow(),
+            (time.time() - compress_start_timestamp) * 1000,
+            tsk.txn_count(),
             tsk.compressed_block_hash().hex_string(),
             tsk.prev_block_hash().hex_string(),
-            tsk.short_ids()
+            original_size,
+            compressed_size,
+            100 - float(compressed_size) / original_size * 100
         )
         self.compression_tasks.append(tsk)
         return block, block_info

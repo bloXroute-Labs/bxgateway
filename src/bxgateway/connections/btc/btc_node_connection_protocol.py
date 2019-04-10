@@ -80,7 +80,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 block_stats.add_block_event_by_block_hash(object_hash,
                                                           BlockStatEventType.REMOTE_BLOCK_REQUESTED_BY_GATEWAY,
                                                           network_num=self.connection.network_num,
-                                                          blockchain_protocol=self.connection.node.opts.blockchain_protocol,
-                                                          blockchain_network=self.connection.node.opts.blockchain_network)
+                                                          more_info="Protocol: {}, Network: {}".format(
+                                                              self.connection.node.opts.blockchain_protocol,
+                                                              self.connection.node.opts.blockchain_network))
 
         return self.msg_proxy_request(msg)

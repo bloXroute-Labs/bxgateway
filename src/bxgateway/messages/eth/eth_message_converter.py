@@ -1,4 +1,6 @@
+import datetime
 import struct
+import time
 from collections import deque
 
 from bxcommon import constants
@@ -98,6 +100,8 @@ class EthMessageConverter(AbstractMessageConverter):
             raise TypeError("Type NewBlockEthProtocolMessage is expected for arg block_msg but was {0}"
                             .format(type(block_msg)))
 
+        compress_start_datetime = datetime.datetime.utcnow()
+        compress_start_timestamp = time.time()
         msg_bytes = memoryview(block_msg.rawbytes())
 
         _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(msg_bytes, 0)
@@ -201,8 +205,13 @@ class EthMessageConverter(AbstractMessageConverter):
             off = next_off
 
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
-        return block, BlockInfo(tx_count, block_msg.block_hash(), bx_block_hash, convert.bytes_to_hex(prev_block_bytes),
-                                used_short_ids)
+        original_size = len(block_msg.rawbytes())
+
+        block_info = BlockInfo(block_msg.block_hash(), used_short_ids, compress_start_datetime,
+                               datetime.datetime.utcnow(), (time.time() - compress_start_timestamp) * 1000,
+                               tx_count, bx_block_hash, convert.bytes_to_hex(prev_block_bytes), original_size,
+                               content_size, 100 - float(content_size) / original_size * 100)
+        return block, block_info
 
     def bx_block_to_block(self, block, tx_service):
         """
@@ -218,6 +227,9 @@ class EthMessageConverter(AbstractMessageConverter):
         if not isinstance(block, (bytearray, memoryview)):
             raise TypeError("Type bytearray is expected for arg block_bytes but was {0}"
                             .format(type(block)))
+
+        decompress_start_datetime = datetime.datetime.utcnow()
+        decompress_start_timestamp = time.time()
 
         block_msg_bytes = block if isinstance(block, memoryview) else memoryview(block)
 
@@ -328,9 +340,20 @@ class EthMessageConverter(AbstractMessageConverter):
             logger.debug("Successfully parsed block broadcast message. {0} transactions in block"
                          .format(tx_count))
 
-            return block_msg, block_hash, short_ids, unknown_tx_sids, unknown_tx_hashes
+            bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
+            compressed_size = len(block)
+
+            block_info = BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
+                                   (time.time() - decompress_start_timestamp) * 1000, tx_count, bx_block_hash,
+                                   convert.bytes_to_hex(block_msg.get_previous_block().binary),
+                                   len(block_msg.rawbytes()), compressed_size,
+                                   100 - float(compressed_size) / content_size * 100)
+
+            return block_msg, block_info, unknown_tx_sids, unknown_tx_hashes
         else:
             logger.warn("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in block: {2}"
                         .format(len(unknown_tx_sids), len(unknown_tx_hashes), tx_count))
 
-            return None, block_hash, short_ids, unknown_tx_sids, unknown_tx_hashes
+            return None, BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
+                                   (time.time() - decompress_start_timestamp) * 1000, None, None, None, None, None,
+                                   None), unknown_tx_sids, unknown_tx_hashes

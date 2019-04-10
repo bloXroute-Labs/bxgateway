@@ -8,6 +8,7 @@ from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.services import sdn_http_service
 from bxcommon.utils import logger, crypto
+from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
@@ -154,7 +155,7 @@ class GatewayConnection(InternalNodeConnection):
         block_stats.add_block_event_by_block_hash(bx_block_hash,
                                                   BlockStatEventType.BX_BLOCK_PROPAGATION_REQUESTED_BY_PEER,
                                                   network_num=self.network_num,
-                                                  peer=self.peer_desc)
+                                                  more_info=stats_format.connection(self))
         self.node.neutrality_service.propagate_block_to_network(bx_block, self)
 
     def msg_block_holding(self, msg):

@@ -5,6 +5,7 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
@@ -53,8 +54,9 @@ class AbstractBlockchainConnectionProtocol(object):
         block_hash = msg.block_hash()
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
                                                   network_num=self.connection.network_num,
-                                                  blockchain_protocol=self.connection.node.opts.blockchain_protocol,
-                                                  blockchain_network=self.connection.node.opts.blockchain_network)
+                                                  more_info="Protocol: {}, Network: {}".format(
+                                                      self.connection.node.opts.blockchain_protocol,
+                                                      self.connection.node.opts.blockchain_network))
 
         if block_hash in self.connection.node.blocks_seen.contents:
             block_stats.add_block_event_by_block_hash(block_hash,
@@ -95,4 +97,4 @@ class AbstractBlockchainConnectionProtocol(object):
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self.connection.network_num,
-                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))
+                                                  more_info=stats_format.connections(conns))

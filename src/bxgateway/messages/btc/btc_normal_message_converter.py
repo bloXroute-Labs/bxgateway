@@ -1,4 +1,6 @@
+import datetime
 import struct
+import time
 from collections import deque
 
 from bxcommon import constants
@@ -16,6 +18,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         """
         Compresses a Bitcoin block's transactions and packs it into a bloXroute block.
         """
+        compress_start_datetime = datetime.datetime.utcnow()
+        compress_start_timestamp = time.time()
         size = 0
         buf = deque()
         short_ids = []
@@ -50,11 +54,19 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
 
         prev_block_hash = convert.bytes_to_hex(btc_block_msg.prev_block().binary)
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
+        original_size = len(btc_block_msg.rawbytes())
+
         block_info = BlockInfo(
-            btc_block_msg.txn_count(),
             btc_block_msg.block_hash(),
+            short_ids,
+            compress_start_datetime,
+            datetime.datetime.utcnow(),
+            (time.time() - compress_start_timestamp) * 1000,
+            btc_block_msg.txn_count(),
             bx_block_hash,
             prev_block_hash,
-            short_ids
+            original_size,
+            size,
+            100 - float(size) / original_size * 100
         )
         return block, block_info

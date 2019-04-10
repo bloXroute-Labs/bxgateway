@@ -56,7 +56,7 @@ class BlockQueuingService(object):
             self._node.send_msg_to_node(block_msg)
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
                                                       network_num=self._node.network_num,
-                                                      block_size=len(block_msg.rawbytes()))
+                                                      more_info="{} bytes".format(len(block_msg.rawbytes())))
             self._last_block_sent_time = time.time()
             return
 
@@ -178,7 +178,7 @@ class BlockQueuingService(object):
         self._last_block_sent_time = time.time()
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
                                                   network_num=self._node.network_num,
-                                                  block_size=len(block_msg.rawbytes()))
+                                                  more_info="{} bytes".format(len(block_msg.rawbytes())))
 
         self._schedule_alarm_for_next_item()
 

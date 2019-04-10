@@ -54,7 +54,7 @@ class AbstractMessageConverter(object):
 
         :param bx_block_msg: internal broadcast message bytes
         :param tx_service: Transactions service
-        :return: tuple (new block message, block hash, all short ids, unknown transaction short ids, unknown transaction hashes)
+        :return: tuple (new block message, block info, unknown transaction short ids, unknown transaction hashes)
         """
 
         pass

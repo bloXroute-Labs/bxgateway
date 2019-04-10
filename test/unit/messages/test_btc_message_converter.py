@@ -122,17 +122,17 @@ class BtcMessageConverterTests(AbstractTestCase):
         tx_service.get_transaction = get_transaction
 
         bloxroute_block, block_info = self.btc_message_converter.block_to_bx_block(btc_block, tx_service)
-        self.assertEqual(10, block_info[0])
+        self.assertEqual(10, block_info.txn_count)
         self.assertEqual("5a77d1e9612d350b3734f6282259b7ff0a3f87d62cfef5f35e91a5604c0490a3",
                          block_info.prev_block_hash)
         self.assertEqual(short_ids, list(block_info.short_ids))
 
         # TODO: if we convert bloxroute block to a class, add some tests here
 
-        parsed_btc_block, parsed_block_hash, all_sids, _, _ = self.btc_message_converter.bx_block_to_block(
+        parsed_btc_block, block_info, _, _ = self.btc_message_converter.bx_block_to_block(
             bloxroute_block,
             tx_service)
-        self.assertIsNotNone(parsed_btc_block)
+        self.assertIsNotNone(block_info)
         self.assertEqual(version, parsed_btc_block.version())
         self.assertEqual(magic, parsed_btc_block.magic())
         self.assertEqual(prev_block_hash, parsed_btc_block.prev_block().get_little_endian())
@@ -143,8 +143,8 @@ class BtcMessageConverterTests(AbstractTestCase):
         self.assertEqual(len(txns), parsed_btc_block.txn_count())
         self.assertEqual(btc_block.checksum(), parsed_btc_block.checksum())
         self.assertEqual(block_hash, parsed_btc_block.block_hash())
-        self.assertEqual(block_hash.binary, parsed_block_hash.binary)
-        self.assertEqual(all_sids, short_ids)
+        self.assertEqual(block_hash.binary, block_info.block_hash.binary)
+        self.assertEqual(block_info.short_ids, short_ids)
 
     @with_extensions
     def test_plain_compression(self):

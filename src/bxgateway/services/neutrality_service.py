@@ -9,8 +9,10 @@ from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.utils import logger, convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxgateway import gateway_constants
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
@@ -57,9 +59,10 @@ class NeutralityService(object):
             self._receipt_tracker[cipher_hash] += 1
             block_stats.add_block_event_by_block_hash(cipher_hash,
                                                       BlockStatEventType.ENC_BLOCK_RECEIVED_BLOCK_RECEIPT,
-                                                      peer=(connection.peer_desc, connection.CONNECTION_TYPE),
-                                                      receipt_count=self._receipt_tracker[cipher_hash],
-                                                      network_num=self._node.network_num)
+                                                      network_num=self._node.network_num,
+                                                      more_info="{}, {} receipts".format(
+                                                          stats_format.connection(connection),
+                                                          self._receipt_tracker[cipher_hash]))
 
             if self._are_enough_receipts_received(cipher_hash):
                 logger.info("Received enough block receipt messages. Releasing key for block with hash: {}"
@@ -69,25 +72,27 @@ class NeutralityService(object):
                 del self._receipt_tracker[cipher_hash]
                 del self._alarms[cipher_hash]
 
-    def propagate_block_to_network(self, bx_block, connection, block_hash=None):
+    def propagate_block_to_network(self, bx_block, connection, block_info=None):
         """
         Propagates encrypted block to bloXroute network and starts listening for block receipts.
         :param bx_block: compressed block
         :param connection: connection initiating propagation
-        :param block_hash: original block hash, only provided if this is the original block
+        :param block_info: original block hash, only provided if this is the original block
         :return: broadcast message
         """
         if self._node.opts.encrypt_blocks:
-            broadcast_msg = self._propagate_encrypted_block_to_network(bx_block, connection, block_hash)
+            broadcast_msg = self._propagate_encrypted_block_to_network(bx_block, connection, block_info)
         else:
-            broadcast_msg = self._propagate_unencrypted_block_to_network(bx_block, connection, block_hash)
+            broadcast_msg = self._propagate_unencrypted_block_to_network(bx_block, connection, block_info)
         return broadcast_msg
 
-    def _propagate_encrypted_block_to_network(self, bx_block, connection, block_hash):
-        if block_hash is None:
+    def _propagate_encrypted_block_to_network(self, bx_block, connection, block_info):
+
+        if block_info is None or block_info.block_hash is None:
             block_hash = b"Unknown"
             requested_by_peer = True
         else:
+            block_hash = block_info.block_hash
             requested_by_peer = False
 
         encrypt_start_datetime = datetime.datetime.utcnow()
@@ -96,18 +101,20 @@ class NeutralityService(object):
 
         compressed_size = len(bx_block)
         encrypted_size = len(encrypted_block)
+
+        encryption_details = "Encryption: {}; Size change: {}->{}bytes, {}".format(
+            stats_format.timespan(encrypt_start_timestamp, time.time()),
+            compressed_size, encrypted_size,
+            stats_format.ratio(encrypted_size, compressed_size))
+
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.BLOCK_ENCRYPTED,
                                                   start_date_time=encrypt_start_datetime,
                                                   end_date_time=datetime.datetime.utcnow(),
                                                   network_num=self._node.network_num,
-                                                  encrypted_block_hash=convert.bytes_to_hex(raw_cipher_hash),
-                                                  compressed_size=compressed_size,
-                                                  encrypted_size=encrypted_size,
-                                                  more_info="{:.2f}ms; {:.2f}%".format(
-                                                      time.time() - encrypt_start_timestamp,
-                                                      100 - float(encrypted_size) / compressed_size * 100
-                                                  ))
+                                                  matching_block_hash=convert.bytes_to_hex(raw_cipher_hash),
+                                                  matching_block_type=StatBlockType.ENCRYPTED.value,
+                                                  more_info=encryption_details)
 
         cipher_hash = Sha256Hash(raw_cipher_hash)
         broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, True, encrypted_block)
@@ -117,24 +124,35 @@ class NeutralityService(object):
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
                                                   requested_by_peer=requested_by_peer,
-                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns),
-                                                  more_info="encrypted")
+                                                  more_info="Peers: {}; {}; {}; Requested by peer: {}".format(
+                                                      stats_format.connections(conns), encryption_details,
+                                                      self._format_block_info_stats(block_info), requested_by_peer))
         self.register_for_block_receipts(cipher_hash, bx_block)
         return broadcast_message
 
-    def _propagate_unencrypted_block_to_network(self, bx_block, connection, block_hash):
-        if block_hash is None:
-            raise ValueError("Block hash is required to propagate unencrypted block")
+    def _propagate_unencrypted_block_to_network(self, bx_block, connection, block_info):
+        if block_info is None:
+            raise ValueError("Block info is required to propagate unencrypted block")
 
-        broadcast_message = BroadcastMessage(block_hash, self._node.network_num, False, bx_block)
+        broadcast_message = BroadcastMessage(block_info.block_hash, self._node.network_num, False, bx_block)
         conns = self._node.broadcast(broadcast_message, connection)
-        block_stats.add_block_event_by_block_hash(block_hash,
+        block_stats.add_block_event_by_block_hash(block_info.block_hash,
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
                                                   requested_by_peer=False,
                                                   peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns),
-                                                  more_info="unencrypted")
+                                                  more_info="Peers: {}; Unencrypted; {}".format(
+                                                      stats_format.connections(conns),
+                                                      self._format_block_info_stats(block_info)))
         return broadcast_message
+
+    def _format_block_info_stats(self, block_info):
+        if block_info is None:
+            return ""
+
+        return "Compression: {}, {}" \
+            .format(stats_format.duration(block_info.duration_ms),
+                    stats_format.percentage(block_info.compression_rate))
 
     def _are_enough_receipts_received(self, cipher_hash):
         neutrality_policy = gateway_constants.NEUTRALITY_POLICY
@@ -144,7 +162,7 @@ class NeutralityService(object):
 
         active_gateway_peer_count = len(
             list(filter(lambda conn: conn.is_active(),
-                   self._node.connection_pool.get_by_connection_type(ConnectionType.GATEWAY))))
+                        self._node.connection_pool.get_by_connection_type(ConnectionType.GATEWAY))))
         if active_gateway_peer_count == 0:
             logger.warn("No active gateway peers to get block receipts from.")
             enough_by_percent = False
@@ -180,8 +198,9 @@ class NeutralityService(object):
                                                   BlockStatEventType.ENC_BLOCK_PROPAGATION_NEEDED,
                                                   network_num=self._node.network_num,
                                                   compressed_block_hash=hex_bx_block_hash,
-                                                  receipt_count=self._receipt_tracker[cipher_hash],
-                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))
+                                                  more_info="Peers: {}, {} receipts".format(
+                                                      stats_format.connections(conns),
+                                                      self._receipt_tracker[cipher_hash]))
 
         del self._receipt_tracker[cipher_hash]
         del self._alarms[cipher_hash]
@@ -194,4 +213,4 @@ class NeutralityService(object):
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
-                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))
+                                                  more_info=stats_format.connections(conns))
