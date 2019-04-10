@@ -1,22 +1,26 @@
-from mock import patch
-from unittest import skip
+import struct
 
-from bxcommon.test_utils import helpers
-from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
-from bxgateway.testing import spies
-from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
+from mock import patch, MagicMock
+
+from bxcommon import constants
+from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import LOCALHOST
+from bxcommon.test_utils import helpers
+from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
-from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
-from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage, TxIn, TxOut
+from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
+from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
+from bxgateway.testing import spies
+from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
-import struct
+
 
 def get_object_hash(bytearr):
     return BtcObjectHash(bytearr, 0, 32)
+
 
 # Transforms a bytearray with a BTCMessage into something else.
 class MessageTransformations:
@@ -63,7 +67,8 @@ class TestBadSendingBtcTest(AbstractBtcGatewayIntegrationTest):
                                         13, 0, bytearray("hello", "utf-8"), 0).rawbytes()) + \
             bytearray(VerAckBtcMessage(100).rawbytes())
 
-        inps = [TxIn(prev_outpoint_hash=bytearray("0" * 32, "utf-8"), prev_out_index=10, sig_script=bytearray(1000), sequence=32)]
+        inps = [TxIn(prev_outpoint_hash=bytearray("0" * 32, "utf-8"), prev_out_index=10, sig_script=bytearray(1000),
+                     sequence=32)]
         outs = [TxOut(value=10, pk_script=bytearray(1000))]
 
         self.txmsg = bytearray(TxBtcMessage(magic=100, version=0, tx_in=inps, tx_out=outs, lock_time=12345).rawbytes())
@@ -72,27 +77,62 @@ class TestBadSendingBtcTest(AbstractBtcGatewayIntegrationTest):
                                                   txns=[bytearray(64)] * 32000, nonce=34).rawbytes())
         self.transform = MessageTransformations()
 
-    @skip("Unresolved bug")
-    def test_nullbytes(self):
+    def test_null_bytes(self):
         bytes_to_send = bytearray(100)
         helpers.receive_node_message(self.gateway_node, self.local_node_fileno, bytes_to_send)
+        self._verify_connection_closed()
 
-    @skip("Unresolved bug")
-    def test_handshakenullbytes(self):
+    def test_handshake_null_bytes(self):
         bytes_to_send = self.handshake + bytearray(100)
         helpers.receive_node_message(self.gateway_node, self.local_node_fileno, bytes_to_send)
+        self._verify_connection_closed()
 
-    @skip("Unresolved bug")
-    def test_badpayloadlen(self):
+    def test_bad_payload_len(self):
         bytes_to_send = self.handshake + self.transform.change_payloadlen(self.txmsg, 5901) + self.blockmsg
         helpers.receive_node_message(self.gateway_node, self.local_node_fileno, bytes_to_send)
+        self._verify_connection_closed()
 
-    @skip("Unresolved bug")
-    def test_badchecksum(self):
+    def test_bad_checksum(self):
         bytes_to_send = self.handshake + self.transform.change_checksum(self.txmsg, 1)
         helpers.receive_node_message(self.gateway_node, self.local_node_fileno, bytes_to_send)
+        self._verify_recovery_after_bad_message()
 
-    @skip("Unresolved bug")
-    def test_badpayload(self):
-        bytes_to_send = self.handshake + self.transform.change_payload(self.txmsg, bytearray(10000))
+    def test_bad_payload(self):
+        bytes_to_send = self.handshake + self.transform.change_payload(self.txmsg, bytearray(len(self.txmsg) - 24))
         helpers.receive_node_message(self.gateway_node, self.local_node_fileno, bytes_to_send)
+        self._verify_recovery_after_bad_message()
+
+    def test_unknown_message(self):
+        bytes_to_send = self.handshake + self.transform.change_msgtype(self.txmsg, "dummy_msg".encode("utf-8"))
+        helpers.receive_node_message(self.gateway_node, self.local_node_fileno, bytes_to_send)
+        self._verify_recovery_after_bad_message()
+
+    def test_drops_connection_after_multiple_recoverable_bad_messages(self):
+        helpers.receive_node_message(self.gateway_node, self.local_node_fileno, self.handshake)
+        bytes_to_send = self.gateway_node.get_bytes_to_send(self.local_node_fileno)
+
+        # send bad message
+        for i in range(constants.MAX_BAD_MESSAGES):
+            helpers.receive_node_message(self.gateway_node, self.local_node_fileno,
+                                         self.transform.change_msgtype(self.txmsg, "dummy_msg".encode("utf-8")))
+        self._verify_recovery_after_bad_message()
+
+        # send more bad messages
+        for i in range(constants.MAX_BAD_MESSAGES + 1):
+            helpers.receive_node_message(self.gateway_node, self.local_node_fileno,
+                                         self.transform.change_msgtype(self.txmsg, "dummy_msg".encode("utf-8")))
+        self._verify_connection_closed()
+
+    def _verify_recovery_after_bad_message(self):
+        self.assertTrue(self.btc_node_connection.state & ConnectionState.MARK_FOR_CLOSE == 0)
+
+        gateway_bytes_to_send = self.gateway_node.get_bytes_to_send(self.local_node_fileno)
+        self.assertTrue(len(gateway_bytes_to_send) > 0)
+        self.gateway_node.on_bytes_sent(self.local_node_fileno, len(gateway_bytes_to_send))
+
+        self.assertTrue(self.btc_node_connection.num_bad_messages > 0)
+        helpers.receive_node_message(self.gateway_node, self.local_node_fileno, self.txmsg)
+        self.assertEqual(0, self.btc_node_connection.num_bad_messages)
+
+    def _verify_connection_closed(self):
+        self.assertTrue(self.btc_node_connection.state & ConnectionState.MARK_FOR_CLOSE > 0)
