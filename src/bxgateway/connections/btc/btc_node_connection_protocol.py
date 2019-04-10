@@ -68,10 +68,11 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         for inventory_type, item_hash in inventory_vectors:
             if not InventoryType.is_block(inventory_type) or item_hash not in self.connection.node.blocks_seen.contents:
                 inventory_requests.append((inventory_type, item_hash))
-        getdata = GetDataBtcMessage(magic=msg.magic(),
-                                    inv_vects=inventory_requests,
-                                    request_witness_data=self.request_witness_data)
-        self.connection.enqueue_msg(getdata)
+        if inventory_requests:
+            getdata = GetDataBtcMessage(magic=msg.magic(),
+                                        inv_vects=inventory_requests,
+                                        request_witness_data=self.request_witness_data)
+            self.connection.enqueue_msg(getdata)
 
     def msg_getdata(self, msg):
         # type: (GetDataBtcMessage) -> None
