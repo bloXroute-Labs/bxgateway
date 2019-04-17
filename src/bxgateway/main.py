@@ -122,6 +122,13 @@ def get_opts():
         type=convert.str_to_bool
     )
 
+    arg_parser.add_argument(
+        "--import-extensions",
+        help="If true than the gateway will import all C++ extensions dependencies on start up",
+        default=False,
+        type=convert.str_to_bool
+    )
+
     gateway_args, unknown = arg_parser.parse_known_args()
 
     args = cli.merge_args(gateway_args, common_args)
