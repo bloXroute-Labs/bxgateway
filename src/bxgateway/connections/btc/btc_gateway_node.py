@@ -5,12 +5,15 @@ from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
-from bxgateway.services.btc_transaction_service import BtcTransactionService
 
 
 class BtcGatewayNode(AbstractGatewayNode):
     def __init__(self, opts):
         super(BtcGatewayNode, self).__init__(opts)
+
+        if opts.use_extensions or opts.import_extensions:
+            from bxgateway.services.btc_transaction_service import BtcTransactionService
+
         if opts.use_extensions:
             self._tx_service = BtcTransactionService(self, self.network_num)
         else:
