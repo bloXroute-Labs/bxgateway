@@ -42,6 +42,7 @@ class BtcMessageConverterTests(AbstractTestCase):
     def setUp(self):
         self.opts = Namespace()
         self.opts.use_extensions = USE_EXTENSION_MODULES
+        self.opts.import_extensions = USE_EXTENSION_MODULES
         self.btc_message_converter = converter_factory.create_btc_message_converter(self.MAGIC, opts=self.opts)
 
     def test_tx_msg_to_btc_tx_msg__success(self):
