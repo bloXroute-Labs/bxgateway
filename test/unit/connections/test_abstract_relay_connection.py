@@ -1,6 +1,16 @@
-from mock import patch
+import time
 
+from mock import patch, MagicMock
+
+from bxcommon import constants
+from bxcommon.connections.connection_state import ConnectionState
+from bxcommon.messages.bloxroute import protocol_version
+from bxcommon.messages.bloxroute.ack_message import AckMessage
+from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
+from bxcommon.messages.bloxroute.hello_message import HelloMessage
+from bxcommon.messages.bloxroute.message import Message
+from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -19,6 +29,7 @@ class AbstractRelayConnectionTest(AbstractTestCase):
                                                              include_default_eth_args=True))
 
         self.connection = AbstractRelayConnection(MockSocketConnection(), ("127.0.0.1", 12345), self.node)
+        self.connection.state = ConnectionState.INITIALIZED
 
     @patch("bxgateway.services.block_processing_service.BlockProcessingService._handle_decrypted_block")
     def test_msg_broadcast_encrypted(self, mock_handle_decrypted_block):
@@ -47,3 +58,39 @@ class AbstractRelayConnectionTest(AbstractTestCase):
         self.assertEqual(0, len(self.node.broadcast_messages))
 
         mock_handle_decrypted_block.assert_called_once()
+
+    def test_ping_pong(self):
+        hello_msg = HelloMessage(protocol_version=protocol_version.PROTOCOL_VERSION, network_num=1)
+        self.connection.add_received_bytes(hello_msg.rawbytes())
+        self.connection.process_message()
+
+        hello_msg_bytes = self.connection.get_bytes_to_send()
+        self.assertTrue(len(hello_msg_bytes) > 0)
+        self.connection.advance_sent_bytes(len(hello_msg_bytes))
+
+        ack_msg = AckMessage()
+        self.connection.add_received_bytes(ack_msg.rawbytes())
+        self.connection.process_message()
+
+        ack_msg_bytes = self.connection.get_bytes_to_send()
+        self.assertTrue(len(ack_msg_bytes) > 0)
+        self.connection.advance_sent_bytes(len(ack_msg_bytes))
+
+        ping_msg = PingMessage(nonce=12345)
+        self.connection.add_received_bytes(ping_msg.rawbytes())
+        self.connection.process_message()
+
+        pong_msg_bytes = self.connection.get_bytes_to_send()
+        self.assertTrue(len(pong_msg_bytes) > 0)
+
+        msg_type, payload_len = Message.unpack(pong_msg_bytes[:Message.HEADER_LENGTH])
+        self.assertEqual(BloxrouteMessageType.PONG, msg_type)
+        self.connection.advance_sent_bytes(len(pong_msg_bytes))
+
+        time.time = MagicMock(return_value=time.time() + constants.PING_INTERVAL_S)
+        self.node.alarm_queue.fire_alarms()
+
+        ping_msg_bytes =  self.connection.get_bytes_to_send()
+        self.assertTrue(len(ping_msg_bytes) > 0)
+        msg_type, payload_len = Message.unpack(ping_msg_bytes[:Message.HEADER_LENGTH])
+        self.assertEqual(BloxrouteMessageType.PING, msg_type)
