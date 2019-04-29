@@ -1,9 +1,11 @@
 import struct
 
 from bxcommon.utils import convert
+from bxgateway import btc_constants
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class RejectBtcMessage(BtcMessage):
@@ -38,7 +40,7 @@ class RejectBtcMessage(BtcMessage):
             self._magic = self._command = self._payload_len = self._checksum = None
             self._payload = None
 
-        self._message = self._ccode = self._reason = self._data = None
+        self._message = self._ccode = self._reason = self._data = self._obj_hash = None
 
     def message(self):
         if self._message is None:
@@ -50,6 +52,9 @@ class RejectBtcMessage(BtcMessage):
             self._reason = struct.unpack_from('%dp' % (len(self.buf) - off,), self.buf, off)[0]
             off += len(self._reason) + 1
             self._data = self.buf[off:]
+
+            self._obj_hash = BtcObjectHash(buf=self.buf, offset=len(self.buf) - btc_constants.BTC_SHA_HASH_LEN,
+                                           length=btc_constants.BTC_SHA_HASH_LEN)
         return self._message
 
     def ccode(self):
@@ -67,6 +72,11 @@ class RejectBtcMessage(BtcMessage):
             self.message()
         return self._data
 
+    def obj_hash(self):
+        if self._obj_hash is None:
+            self.message()
+        return self._obj_hash
+
     def __repr__(self):
-        return "RejectBtcMessage<message: {}, ccode: {}, reason: {}, data: {}".format(
-            self.message(), self.ccode(), self.reason(), convert.bytes_to_hex(self.data()))
+        return "RejectBtcMessage<message: {}, ccode: {}, reason: {}, obj hash {}".format(
+            self.message(), self.ccode(), self.reason(), convert.bytes_to_hex(self.obj_hash().binary))
