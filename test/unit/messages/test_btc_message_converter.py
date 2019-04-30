@@ -127,6 +127,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         self.assertEqual("5a77d1e9612d350b3734f6282259b7ff0a3f87d62cfef5f35e91a5604c0490a3",
                          block_info.prev_block_hash)
         self.assertEqual(short_ids, list(block_info.short_ids))
+        self.assertEqual(btc_block.block_hash(), block_info.block_hash)
 
         # TODO: if we convert bloxroute block to a class, add some tests here
 
