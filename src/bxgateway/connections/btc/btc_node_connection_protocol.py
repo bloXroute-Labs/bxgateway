@@ -8,7 +8,7 @@ from bxgateway import gateway_constants
 from bxgateway.btc_constants import NODE_WITNESS_SERVICE_FLAG
 from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnectionProtocol
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType
+from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType, InvBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 
@@ -25,6 +25,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             BtcMessageType.GET_BLOCKS: self.msg_proxy_request,
             BtcMessageType.GET_HEADERS: self.msg_proxy_request,
             BtcMessageType.GET_DATA: self.msg_getdata,
+            BtcMessageType.REJECT: self.msg_reject,
+
         })
 
         self.request_witness_data = False
@@ -83,5 +85,11 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                                                           network_num=self.connection.network_num,
                                                           blockchain_protocol=self.connection.node.opts.blockchain_protocol,
                                                           blockchain_network=self.connection.node.opts.blockchain_network)
-
         return self.msg_proxy_request(msg)
+
+    def msg_reject(self, msg):
+        # Send inv message to the send in case of rejected block
+        # remaining sync communication will proxy to remote blockchain node
+        if msg.message() == BtcMessageType.BLOCK:
+            inv_msg = InvBtcMessage(magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, msg.obj_hash())])
+            self.connection.node.send_msg_to_node(inv_msg)

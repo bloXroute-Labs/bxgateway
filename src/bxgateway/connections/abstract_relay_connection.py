@@ -24,6 +24,8 @@ class AbstractRelayConnection(InternalNodeConnection):
         self.header_size = HDR_COMMON_OFF
         self.message_handlers = {
             BloxrouteMessageType.HELLO: self.msg_hello,
+            BloxrouteMessageType.PING: self.msg_ping,
+            BloxrouteMessageType.PONG: self.msg_pong,
             BloxrouteMessageType.ACK: self.msg_ack,
             BloxrouteMessageType.BROADCAST: self.msg_broadcast,
             BloxrouteMessageType.KEY: self.msg_key,

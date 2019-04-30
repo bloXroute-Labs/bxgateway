@@ -18,7 +18,7 @@ class BtcRemoteConnectionProtocol(BtcBaseConnectionProtocol):
             BtcMessageType.VERSION: self.msg_version,
             BtcMessageType.BLOCK: self.msg_block,
             BtcMessageType.HEADERS: self.msg_proxy_response,
-            BtcMessageType.INVENTORY: self.msg_proxy_response,
+            BtcMessageType.INVENTORY: self.msg_inv,
         })
 
     def msg_version(self, _msg):
@@ -50,3 +50,7 @@ class BtcRemoteConnectionProtocol(BtcBaseConnectionProtocol):
                                                   blockchain_protocol=self.connection.node.opts.blockchain_protocol,
                                                   blockchain_network=self.connection.node.opts.blockchain_network)
         return self.msg_proxy_response(msg)
+
+    def msg_inv(self, msg):
+        # Ignoring INV messages from REMOTE NODE to make sure it does not send new blocks to Bitcoin node
+        pass
