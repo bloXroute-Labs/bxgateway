@@ -2,10 +2,13 @@ import datetime
 from collections import deque, namedtuple
 import time
 
-from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter
-import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
+from bxcommon.utils import convert
 
+from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter
 from bxgateway.utils.block_info import BlockInfo
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+
+import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
 
 CompressionTaskData = namedtuple("CompressionTaskData", ["task", "return_array"])
 
@@ -44,9 +47,12 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
 
         compressed_size = len(block)
         original_size = len(btc_block_msg.rawbytes())
+        block_hash = BtcObjectHash(
+            binary=convert.hex_to_bytes(tsk.block_hash().hex_string())
+        )
 
         block_info = BlockInfo(
-            tsk.block_hash().hex_string(),
+            block_hash,
             tsk.short_ids(),
             compress_start_datetime,
             datetime.datetime.utcnow(),
