@@ -29,3 +29,5 @@ class BtcTransactionService(TransactionService):
                         del self._tx_hash_to_contents[transaction_cache_key]
                 else:
                     short_ids.remove(short_id)
+
+        self._tx_assignment_expire_queue.remove(short_id)
