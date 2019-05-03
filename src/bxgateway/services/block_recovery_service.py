@@ -69,7 +69,7 @@ class BlockRecoveryService(object):
         self._blocks_expiration_queue.add(bx_block_hash)
         self._schedule_cleanup()
 
-    def check_missing_sid(self, sid):
+    def check_missing_sid(self, sid: int) -> bool:
         """
         Resolves recovering blocks depend on sid.
         :param sid: SID info that has been processed
@@ -85,6 +85,9 @@ class BlockRecoveryService(object):
                         self._check_if_recovered(bx_block_hash)
 
             del self._sid_to_bx_block_hashes[sid]
+            return True
+        else:
+            return False
 
     def check_missing_tx_hash(self, tx_hash):
         """
