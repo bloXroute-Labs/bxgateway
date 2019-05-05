@@ -24,7 +24,11 @@ class BtcTransactionService(TransactionService):
                     del self._tx_hash_to_short_ids[transaction_hash]
                     cpp_hash = tpe.Sha256(tpe.InputBytes(transaction_hash.binary))
                     del self.cpp_tx_hash_to_short_ids[cpp_hash]
+
                     if transaction_hash in self._tx_hash_to_contents:
+                        self._total_tx_contents_size -= len(self._tx_hash_to_contents[transaction_hash])
                         del self._tx_hash_to_contents[transaction_hash]
                 else:
                     short_ids.remove(short_id)
+
+        self._tx_assignment_expire_queue.remove(short_id)
