@@ -42,6 +42,7 @@ class BtcMessageConverterTests(AbstractTestCase):
     def setUp(self):
         self.opts = Namespace()
         self.opts.use_extensions = USE_EXTENSION_MODULES
+        self.opts.import_extensions = USE_EXTENSION_MODULES
         self.btc_message_converter = converter_factory.create_btc_message_converter(self.MAGIC, opts=self.opts)
 
     def test_tx_msg_to_btc_tx_msg__success(self):
@@ -126,6 +127,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         self.assertEqual("5a77d1e9612d350b3734f6282259b7ff0a3f87d62cfef5f35e91a5604c0490a3",
                          block_info.prev_block_hash)
         self.assertEqual(short_ids, list(block_info.short_ids))
+        self.assertEqual(btc_block.block_hash(), block_info.block_hash)
 
         # TODO: if we convert bloxroute block to a class, add some tests here
 
