@@ -6,6 +6,7 @@ from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
+from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.services import sdn_http_service
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
@@ -246,6 +247,9 @@ class AbstractGatewayNode(AbstractNode):
             self._remove_gateway_peer(conn.peer_ip, conn.peer_port)
         if not retry_connection and conn.CONNECTION_TYPE == ConnectionType.RELAY:
             self._remove_relay_peer(conn.peer_ip, conn.peer_port)
+        if conn.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
+            sdn_http_service.submit_peer_connection_event(NodeEventType.BLOCKCHAIN_NODE_CONN_ERR, self.opts.node_id,
+                                                          conn.peer_ip, conn.peer_port)
         super(AbstractGatewayNode, self).destroy_conn(conn, retry_connection)
 
     def on_failed_connection_retry(self, ip, port, connection_type):
@@ -259,6 +263,14 @@ class AbstractGatewayNode(AbstractNode):
             self._remove_relay_peer(ip, port)
 
         return 0
+
+    def on_connection_initialized(self, fileno):
+        super(AbstractGatewayNode, self).on_connection_initialized(fileno)
+
+        conn = self.connection_pool.get_by_fileno(fileno)
+        if conn and conn.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
+            sdn_http_service.submit_peer_connection_event(NodeEventType.BLOCKCHAIN_NODE_CONN_ESTABLISHED,
+                                                          self.opts.node_id, conn.peer_ip, conn.peer_port)
 
     def should_retry_connection(self, ip, port, connection_type):
         return (super(AbstractGatewayNode, self).should_retry_connection(ip, port, connection_type)
