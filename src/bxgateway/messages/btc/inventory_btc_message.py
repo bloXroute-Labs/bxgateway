@@ -1,5 +1,6 @@
 import struct
 
+from bxcommon.utils.log_level import LogLevel
 from bxgateway import btc_constants
 from bxgateway.messages.btc import btc_messages_util
 from bxgateway.messages.btc.btc_message import BtcMessage
@@ -76,6 +77,9 @@ class InventoryBtcMessage(BtcMessage):
             off += 4
             yield (inv_type, BtcObjectHash(buf=self.buf, offset=off, length=btc_constants.BTC_SHA_HASH_LEN))
             off += 32
+
+    def log_level(self):
+        return LogLevel.INFO
 
 
 class InvBtcMessage(InventoryBtcMessage):

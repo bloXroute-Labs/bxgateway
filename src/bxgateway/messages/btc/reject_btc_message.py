@@ -1,6 +1,7 @@
 import struct
 
 from bxcommon.utils import convert
+from bxcommon.utils.log_level import LogLevel
 from bxgateway import btc_constants
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage
@@ -76,6 +77,9 @@ class RejectBtcMessage(BtcMessage):
         if self._obj_hash is None:
             self.message()
         return self._obj_hash
+
+    def log_level(self):
+        return LogLevel.INFO
 
     def __repr__(self):
         return "RejectBtcMessage<message: {}, ccode: {}, reason: {}, obj hash {}".format(
