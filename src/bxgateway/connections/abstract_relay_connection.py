@@ -5,6 +5,7 @@ from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageT
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import logger, convert
+from bxcommon.utils.buffers.output_buffer import OutputBuffer
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
@@ -15,6 +16,10 @@ class AbstractRelayConnection(InternalNodeConnection):
 
     def __init__(self, sock, address, node, from_me=False):
         super(AbstractRelayConnection, self).__init__(sock, address, node, from_me=from_me)
+
+        # TODO: Temporarily disable buffering for gateway to relay connection.
+        #       Need to enable buffering only for transactions and disable for blocks
+        self.outputbuf = OutputBuffer()
 
         hello_msg = HelloMessage(protocol_version=self.protocol_version, network_num=self.network_num,
                                  node_id=self.node.opts.node_id)
