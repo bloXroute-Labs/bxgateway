@@ -1,5 +1,6 @@
 import struct
 
+from bxcommon.utils import convert
 from bxcommon.utils.log_level import LogLevel
 from bxgateway import btc_constants
 from bxgateway.messages.btc import btc_messages_util
@@ -80,6 +81,14 @@ class InventoryBtcMessage(BtcMessage):
 
     def log_level(self):
         return LogLevel.INFO
+
+    def __repr__(self):
+        return "InventoryBtcMessage<type: {}, length: {}, items: ({})>".format(self.MESSAGE_TYPE, len(self.rawbytes()),
+                                                                               self._inv_vector_to_str())
+
+    def _inv_vector_to_str(self):
+        return ", ".join(
+            map(lambda inv_item: "{}: {}".format(inv_item[0], convert.bytes_to_hex(inv_item[1].binary)), self))
 
 
 class InvBtcMessage(InventoryBtcMessage):
