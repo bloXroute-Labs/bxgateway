@@ -84,10 +84,10 @@ class BlockProcessingService(object):
         """
         block_hash = block_message.block_hash()
         if block_hash in self._holds.contents:
-            hold = self._holds.contents[block_hash]
+            hold: BlockHold = self._holds.contents[block_hash]
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_HELD_BLOCK,
                                                       network_num=connection.network_num,
-                                                      more_info=stats_format.connection(connection))
+                                                      more_info=stats_format.connection(hold.holding_connection))
 
             if hold.alarm is None:
                 hold.alarm = self._node.alarm_queue.register_alarm(gateway_constants.BLOCK_HOLDING_TIMEOUT_S,
