@@ -183,4 +183,5 @@ class GatewayConnection(InternalNodeConnection):
 
         if not self.from_me:
             logger.debug("{0} connection with {1} closed".format(self.CONNECTION_TYPE, self.peer_id))
-            sdn_http_service.delete_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)
+            if self.peer_id:
+                sdn_http_service.delete_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)
