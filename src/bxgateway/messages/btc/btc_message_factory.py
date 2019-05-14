@@ -3,6 +3,7 @@ from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
+from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.messages.btc.data_btc_message import GetBlocksBtcMessage, GetHeadersBtcMessage
 from bxgateway.messages.btc.get_addr_btc_message import GetAddrBtcMessage
 from bxgateway.messages.btc.headers_btc_message import HeadersBtcMessage
@@ -10,6 +11,7 @@ from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InvB
 from bxgateway.messages.btc.ping_btc_message import PingBtcMessage
 from bxgateway.messages.btc.pong_btc_message import PongBtcMessage
 from bxgateway.messages.btc.reject_btc_message import RejectBtcMessage
+from bxgateway.messages.btc.send_compact_btc_message import SendCompactBtcMessage
 from bxgateway.messages.btc.send_headers_btc_message import SendHeadersBtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
@@ -34,6 +36,7 @@ class _BtcMessageFactory(AbstractMessageFactory):
         BtcMessageType.HEADERS: HeadersBtcMessage,
         BtcMessageType.REJECT: RejectBtcMessage,
         BtcMessageType.SEND_HEADERS: SendHeadersBtcMessage,
+        BtcMessageType.COMPACT_BLOCK: CompactBlockBtcMessage
     }
 
     def __init__(self):

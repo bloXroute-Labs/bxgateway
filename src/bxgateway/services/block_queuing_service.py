@@ -6,6 +6,7 @@ from bxcommon.utils import logger
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway.messages.btc.inventory_btc_message import InventoryType, InvBtcMessage
 from bxgateway import gateway_constants
 
 
@@ -53,6 +54,8 @@ class BlockQueuingService(object):
                 len(self._block_queue) == 0 and \
                 (self._last_block_sent_time is None or (
                         time.time() - self._last_block_sent_time > gateway_constants.MIN_INTERVAL_BETWEEN_BLOCKS_S)):
+            inv_msg = InvBtcMessage(magic=block_msg.magic(), inv_vects=[(InventoryType.MSG_BLOCK, block_hash)])
+            self._node.send_msg_to_node(inv_msg)   
             self._node.send_msg_to_node(block_msg)
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
                                                       network_num=self._node.network_num,

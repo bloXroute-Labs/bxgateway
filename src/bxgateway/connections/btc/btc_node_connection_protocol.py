@@ -9,6 +9,7 @@ from bxgateway.btc_constants import NODE_WITNESS_SERVICE_FLAG
 from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnectionProtocol
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType, InvBtcMessage
+from bxgateway.messages.btc.send_compact_btc_message import SendCompactBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 
@@ -26,6 +27,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             BtcMessageType.GET_HEADERS: self.msg_proxy_request,
             BtcMessageType.GET_DATA: self.msg_getdata,
             BtcMessageType.REJECT: self.msg_reject,
+            BtcMessageType.COMPACT_BLOCK: self.msg_compact_block
 
         })
 
@@ -48,6 +50,12 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         self.connection.state |= ConnectionState.ESTABLISHED
         reply = VerAckBtcMessage(self.magic)
         self.connection.enqueue_msg(reply)
+
+        send_compact_msg = SendCompactBtcMessage(self.magic, on_flag=True, version=1)
+
+        logger.info("Sending SENDCMPCT message")
+        self.connection.node.alarm_queue.register_alarm(2, self.connection.enqueue_msg, send_compact_msg)
+
         self.connection.node.alarm_queue.register_alarm(gateway_constants.BLOCKCHAIN_PING_INTERVAL_S,
                                                         self.connection.send_ping)
 
@@ -88,8 +96,11 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 block_stats.add_block_event_by_block_hash(object_hash,
                                                           BlockStatEventType.REMOTE_BLOCK_REQUESTED_BY_GATEWAY,
                                                           network_num=self.connection.network_num,
-                                                          blockchain_protocol=self.connection.node.opts.blockchain_protocol,
-                                                          blockchain_network=self.connection.node.opts.blockchain_network)
+                                                          more_info="Protocol: {}, Network: {}".format(
+                                                              self.connection.node.opts.blockchain_protocol,
+                                                              self.connection.node.opts.blockchain_network))
+            inv_msg = InvBtcMessage(magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, object_hash)])
+            self.connection.node.send_msg_to_node(inv_msg)
         return self.msg_proxy_request(msg)
 
     def msg_reject(self, msg):
@@ -98,3 +109,11 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         if msg.message() == BtcMessageType.BLOCK:
             inv_msg = InvBtcMessage(magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, msg.obj_hash())])
             self.connection.node.send_msg_to_node(inv_msg)
+
+    def msg_compact_block(self, msg):
+        logger.info("Compact block message is received. Block hash: {}", msg.block_hash())
+        get_data_msg = GetDataBtcMessage(magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())])
+        self.connection.node.send_msg_to_node(get_data_msg)
+
+        inv_msg = InvBtcMessage(magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())])
+        self.connection.node.send_msg_to_node(inv_msg)

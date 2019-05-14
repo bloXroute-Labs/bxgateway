@@ -9,6 +9,7 @@ from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxgateway.messages.btc.inventory_btc_message import InventoryType, InvBtcMessage
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -71,6 +72,9 @@ class AbstractBlockchainConnectionProtocol(object):
 
         self.connection.node.blocks_seen.add(block_hash)
         self.connection.node.block_processing_service.queue_block_for_processing(msg, self.connection)
+
+        inv_msg = InvBtcMessage(magic=self.connection.node.opts.blockchain_net_magic, inv_vects=[(InventoryType.MSG_BLOCK, block_hash)])
+        self.connection.node.send_msg_to_node(inv_msg)
 
     def msg_proxy_request(self, msg):
         """
