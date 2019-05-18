@@ -54,8 +54,6 @@ class BlockQueuingService(object):
                 len(self._block_queue) == 0 and \
                 (self._last_block_sent_time is None or (
                         time.time() - self._last_block_sent_time > gateway_constants.MIN_INTERVAL_BETWEEN_BLOCKS_S)):
-            inv_msg = InvBtcMessage(magic=block_msg.magic(), inv_vects=[(InventoryType.MSG_BLOCK, block_hash)])
-            self._node.send_msg_to_node(inv_msg)   
             self._node.send_msg_to_node(block_msg)
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
                                                       network_num=self._node.network_num,

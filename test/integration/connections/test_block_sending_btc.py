@@ -13,6 +13,7 @@ from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
+from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.testing.mocks.mock_btc_messages import btc_block, RealBtcBlocks
@@ -177,8 +178,8 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
 
         # receive key and lift hold
         helpers.receive_node_message(self.node1, self.relay_fileno, key_message)
-        no_block_message = self.node1.get_bytes_to_send(self.blockchain_fileno)
-        self.assertEqual(OutputBuffer.EMPTY, no_block_message)
+        inv_message = self.node1.get_bytes_to_send(self.blockchain_fileno)
+        self.assertIn(InvBtcMessage.MESSAGE_TYPE, inv_message.tobytes())
         self.assertEqual(0, len(self.node1.block_processing_service._holds.contents))
 
     def test_block_hold_timeout(self):
@@ -217,4 +218,5 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
 
         helpers.receive_node_message(self.node2, self.relay_fileno, key_message)
         bytes_to_blockchain = self.node2.get_bytes_to_send(self.blockchain_fileno)
-        self.assertEqual(len(block.rawbytes()), len(bytes_to_blockchain))
+        block_bytes = block.rawbytes().tobytes()
+        self.assertEqual(block_bytes, bytes_to_blockchain[0:len(block_bytes)].tobytes())

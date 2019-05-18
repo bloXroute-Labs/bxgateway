@@ -6,12 +6,17 @@ from bxgateway.messages.btc.btc_message_type import BtcMessageType
 
 
 class SendCompactBtcMessage(BtcMessage):
+    """
+    Message sent by Bitcoin nodes after initial handshake to notify if the peer would like to know about new blocks
+    with Compact Block messages instead of Inv messages
+    """
+
     MESSAGE_TYPE = BtcMessageType.SEND_COMPACT
 
     ON_FLAG_LEN = 1
     VERSION_LEN = 8
 
-    def __init__(self, magic=None, on_flag=None, version=None, buf=None):
+    def __init__(self, magic: int = None, on_flag: bool = None, version: int = None, buf: memoryview = None):
         if buf is None:
             buf = bytearray(BTC_HDR_COMMON_OFF + self.ON_FLAG_LEN + self.VERSION_LEN)
 
@@ -32,14 +37,14 @@ class SendCompactBtcMessage(BtcMessage):
         self._memoryview = memoryview(buf)
         self._on_flag = self._version = None
 
-    def on_flag(self):
+    def on_flag(self) -> bool:
         if self._on_flag is None:
             off = BTC_HDR_COMMON_OFF
             self._on_flag, = struct.unpack_from("<B", self.buf, off)
 
         return self._on_flag
 
-    def version(self):
+    def version(self) -> int:
         if self._version is None:
             off = BTC_HDR_COMMON_OFF + self.ON_FLAG_LEN
             self._version, = struct.unpack_from("<Q", self.buf, off)

@@ -12,3 +12,4 @@ pycryptodome==3.6.4
 cffi==1.12.2
 rlp==0.6.0
 pyelliptic==1.5.7
+csiphash==0.0.5

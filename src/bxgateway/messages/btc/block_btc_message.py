@@ -4,7 +4,8 @@ from bxcommon.utils.log_level import LogLevel
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, get_next_tx_size, pack_int_to_btc_varint
+from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, get_next_tx_size, pack_int_to_btc_varint, \
+    pack_block_header
 from bxcommon.utils import crypto, convert
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
@@ -20,15 +21,7 @@ class BlockBtcMessage(BtcMessage):
             buf = bytearray(BTC_HDR_COMMON_OFF + 80 + 9 + total_tx_size)
             self.buf = buf
 
-            off = BTC_HDR_COMMON_OFF
-            struct.pack_into("<I", buf, off, version)
-            off += 4
-            buf[off:off + 32] = prev_block.get_little_endian()
-            off += 32
-            buf[off:off + 32] = merkle_root.get_little_endian()
-            off += 32
-            struct.pack_into("<III", buf, off, timestamp, bits, nonce)
-            off += 12
+            off = pack_block_header(buf, version, prev_block, merkle_root, timestamp, bits, nonce)
             off += pack_int_to_btc_varint(len(txns), buf, off)
 
             for tx in txns:
