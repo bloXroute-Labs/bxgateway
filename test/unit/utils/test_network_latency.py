@@ -1,7 +1,10 @@
+import time
+
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxgateway.utils import network_latency
 from bxgateway.utils.node_latency_info import NodeLatencyInfo
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
+from bxgateway import gateway_constants
 
 
 class NetworkLatencyTests(AbstractTestCase):
@@ -40,3 +43,20 @@ class NetworkLatencyTests(AbstractTestCase):
         sorted_relays_ping_latency = [NodeLatencyInfo(relays[0], 100)]
         best_relay = network_latency._get_best_relay(sorted_relays_ping_latency, relays)
         self.assertEqual("0", best_relay.node.node_id)
+
+    def test_get_ping_latencies_in_threads(self):
+        relays = [OutboundPeerModel("34.227.149.148", node_id="0"), OutboundPeerModel("35.198.90.230", node_id="1"),
+                  OutboundPeerModel("52.221.211.38", node_id="2"), OutboundPeerModel("34.245.23.125", node_id="3"),
+                  OutboundPeerModel("34.238.245.201", node_id="4")]
+        start = time.time()
+        network_latency._get_ping_latencies(relays)
+        end = time.time() - start
+        self.assertTrue(end < gateway_constants.PING_TIMEOUT_S + 1)
+
+    def test_get_ping_latency(self):
+        relay = OutboundPeerModel("34.227.149.148", node_id="0")
+        start = time.time()
+        network_latency.get_ping_latency(relay)
+        end = time.time() - start
+        self.assertTrue(end < gateway_constants.PING_TIMEOUT_S + 1)
+
