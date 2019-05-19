@@ -39,7 +39,7 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
                 tsk = tpe.BTCBlockCompressionTask(len(btc_block_msg.buf))
                 if i < self.QUEUE_GROW_SIZE - 1:
                     self.compression_tasks.append(tsk)
-        tsk.init(tpe.InputBytes(btc_block_msg.buf), tx_service.cpp_tx_hash_to_short_ids)
+        tsk.init(tpe.InputBytes(btc_block_msg.buf), tx_service.proxy)
         tpe.enqueue_task(tsk)
         wait_for_task(tsk)
         bx_block = tsk.bx_block()
