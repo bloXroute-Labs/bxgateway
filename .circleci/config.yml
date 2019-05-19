@@ -78,12 +78,19 @@ jobs:
           name: install dependencies
           command: |
             sudo apt install build-essential automake autogen autoconf libtool libtool-bin libssl-dev cmake
+      - restore_cache:
+          keys:
+            - build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
       - run:
           name: build extensions
           command: |
             . venv/bin/activate
             cd bxextensions
             python build_extensions.py
+      - save_cache:
+          key: build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
+          paths:
+            - ~/ws/bxextensions/build
       - persist_to_workspace:
           root: .
           paths:
@@ -202,11 +209,20 @@ jobs:
             - v1-{{ .Branch }}
           paths:
             - /caches/app.tar
+      - restore_cache:
+          keys:
+            - build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
       - run:
           name: Load Docker image layer cache
           command: |
             set +o pipefail
             docker load -i /caches/app.tar | true
+      - run:
+          name: create binaries for docker image
+          command: |
+            cd ~/ws/bxextensions
+            . ./build.sh
+            cd ~/ws
       - run:
           name: Build application Docker image
           command: |
@@ -220,6 +236,10 @@ jobs:
           key: v1-{{ .Branch }}-{{ epoch }}
           paths:
             - /caches/app.tar
+      - save_cache:
+          key: build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
+          paths:
+            - ~/ws/bxextensions/build
       # - deploy:
       #     name: Push application Docker image
       #     command: |
