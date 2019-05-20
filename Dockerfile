@@ -41,5 +41,5 @@ RUN chmod u+s /bin/ping
 
 WORKDIR /app/bxgateway
 ENV PYTHONPATH=/app/bxcommon/src/:/app/bxgateway/src/:/app/bxextensions/ \
-    LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/app/bxextensions/"
+    LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/app/bxextensions"
 ENTRYPOINT ["/sbin/tini", "--", "/bin/sh", "/usr/local/bin/docker-entrypoint.sh"]
