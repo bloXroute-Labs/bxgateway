@@ -2,6 +2,7 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.constants import BLOXROUTE_HELLO_MESSAGES, HDR_COMMON_OFF
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
+from bxcommon.messages.bloxroute.disconnect_relay_peer_message import DisconnectRelayPeerMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
@@ -32,7 +33,8 @@ class AbstractRelayConnection(InternalNodeConnection):
             BloxrouteMessageType.KEY: self.msg_key,
             BloxrouteMessageType.TRANSACTION: self.msg_tx,
             BloxrouteMessageType.TRANSACTIONS: self.msg_txs,
-            BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding
+            BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding,
+            BloxrouteMessageType.DISCONNECT_RELAY_PEER: self.msg_disconnect_relay_peer
         }
 
         self.message_converter = None
@@ -146,3 +148,12 @@ class AbstractRelayConnection(InternalNodeConnection):
         """
         block_hash = msg.block_hash()
         self.node.block_processing_service.place_hold(block_hash, self)
+
+    def msg_disconnect_relay_peer(self, _msg: DisconnectRelayPeerMessage) -> None:
+        """
+        Drop relay peer request handler. Forces a gateway to drop its relay connection and request a new one
+        :return: None
+        """
+        logger.info("Received disconnect request from relay {}:{} - dropping connection", self.peer_ip, self.peer_port)
+        self.node.destroy_conn(self)
+
