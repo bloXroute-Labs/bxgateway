@@ -1,6 +1,7 @@
 import struct
 
 from bxcommon.utils import crypto, convert
+from bxcommon.utils.log_level import LogLevel
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
@@ -188,6 +189,9 @@ class TxBtcMessage(BtcMessage):
 
     def tx(self):
         return self.payload()
+
+    def log_level(self):
+        return LogLevel.TRACE
 
     def __repr__(self):
         return ("TxBtcMessage<version: {}, length: {}, tx_hash: {}, rawbytes: {}>"
