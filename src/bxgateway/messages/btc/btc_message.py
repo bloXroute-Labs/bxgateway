@@ -4,6 +4,7 @@ from bxcommon.constants import MSG_NULL_BYTE
 from bxcommon.exceptions import ChecksumError, PayloadLenError
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import crypto, logger
+from bxcommon.utils.log_level import LogLevel
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_MAGIC_NUMBERS, BTC_HEADER_MINUS_CHECKSUM
 
 
@@ -92,6 +93,9 @@ class BtcMessage(AbstractMessage):
         if self._payload is None:
             self._payload = self.buf[BTC_HDR_COMMON_OFF:self.payload_len() + BTC_HDR_COMMON_OFF]
         return self._payload
+
+    def log_level(self):
+        return LogLevel.INFO
 
     def __eq__(self, other):
         """

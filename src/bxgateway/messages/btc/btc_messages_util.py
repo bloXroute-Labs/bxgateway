@@ -2,7 +2,10 @@ import socket
 import struct
 
 from bxcommon import constants
+from bxcommon.constants import UL_INT_SIZE_IN_BYTES
 from bxgateway import btc_constants
+from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 def ipaddrport_to_btcbytearray(ip_addr, ip_port):
@@ -134,6 +137,33 @@ def get_next_segwit_tx_size(buf, off, tail=-1):
         return -1
 
     return end - off
+
+
+def pack_block_header(buffer: bytearray, version: int, prev_block: BtcObjectHash, merkle_root: BtcObjectHash,
+                      timestamp: int, bits: int, block_nonce: int) -> int:
+    """
+    Packs Bitcoin block header into beginning of buffer
+    :param buffer: buffer
+    :param version: version
+    :param prev_block: previous block hash
+    :param merkle_root: merkle tree root hash
+    :param timestamp: timestamp
+    :param bits: bits
+    :param block_nonce: block nonce
+    :return: length of header
+    """
+
+    off = BTC_HDR_COMMON_OFF
+    struct.pack_into("<I", buffer, off, version)
+    off += UL_INT_SIZE_IN_BYTES
+    buffer[off:off + BTC_SHA_HASH_LEN] = prev_block.get_little_endian()
+    off += BTC_SHA_HASH_LEN
+    buffer[off:off + BTC_SHA_HASH_LEN] = merkle_root.get_little_endian()
+    off += BTC_SHA_HASH_LEN
+    struct.pack_into("<III", buffer, off, timestamp, bits, block_nonce)
+    off += 3 * UL_INT_SIZE_IN_BYTES
+
+    return off
 
 
 def _get_tx_io_count_and_size(buf, start, tail):

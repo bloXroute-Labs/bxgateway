@@ -15,3 +15,7 @@ class BtcMessageType(object):
     HEADERS = b"headers"
     REJECT = b"reject"
     SEND_HEADERS = b"sendheaders"
+    COMPACT_BLOCK = b"cmpctblock"
+    SEND_COMPACT = b"sendcmpct"
+    GET_BLOCK_TRANSACTIONS = b"getblocktxn"
+    BLOCK_TRANSACTIONS = b"blocktxn"

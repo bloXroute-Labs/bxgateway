@@ -1,9 +1,10 @@
+import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway import btc_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
-import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway.messages.btc.btc_message_factory import btc_message_factory
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
+from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType
 from bxgateway.messages.btc.ping_btc_message import PingBtcMessage
 from bxgateway.messages.btc.pong_btc_message import PongBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
@@ -38,6 +39,19 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                         connection.node.opts.blockchain_services)
         connection.enqueue_msg(version_msg)
 
+    def msg_block(self, msg):
+        """
+        Handle block message
+        """
+        super(BtcBaseConnectionProtocol, self).msg_block(msg)
+
+        # After receiving block message sending INV message for the same block to Bitcoin node
+        # This is needed to update Synced Headers value of the gateway peer on the Bitcoin node
+        # If Synced Headers is not up-to-date than Bitcoin node does not push compact blocks to the gateway
+        inv_msg = InvBtcMessage(magic=self.connection.node.opts.blockchain_net_magic,
+                                inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())])
+        self.connection.node.send_msg_to_node(inv_msg)
+
     def msg_ping(self, msg):
         """
         Handle ping messages. Respond with a pong.
@@ -57,4 +71,3 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         """
         reply = AddrBtcMessage(self.magic)
         self.connection.enqueue_msg(reply)
-

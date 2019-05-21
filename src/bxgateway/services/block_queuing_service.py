@@ -6,6 +6,7 @@ from bxcommon.utils import logger
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway.messages.btc.inventory_btc_message import InventoryType, InvBtcMessage
 from bxgateway import gateway_constants
 
 

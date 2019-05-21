@@ -26,6 +26,7 @@ class InventoryType(object):
     MSG_BLOCK = 2
     MSG_WITNESS_BLOCK = MSG_BLOCK | MSG_WITNESS_FLAG
     MSG_WITNESS_TX = MSG_TX | MSG_WITNESS_FLAG
+    MSG_CMPCT_BLOCK = 4
 
     @classmethod
     def is_block(cls, inventory_type):
