@@ -1,4 +1,5 @@
 import time
+import typing
 from collections import deque
 
 from bxcommon.connections.connection_state import ConnectionState
@@ -154,9 +155,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         if parse_result.success:
             self.msg_block(parse_result.block_btc_message)
         else:
-            missing_transactions_indices = parse_result.missing_transactions_indices
             logger.info("Compact block was parsed with {} unknown short ids. Requesting unknown transactions.",
-                        len(missing_transactions_indices))
+                        len(parse_result.missing_transactions_indices))  # pyre-ignore
             self._recovery_compact_blocks.add(msg.block_hash(),
                                               CompactBlockRecoveryItem(msg, parse_result.block_transactions,
                                                                        parse_result.missing_transactions_indices))

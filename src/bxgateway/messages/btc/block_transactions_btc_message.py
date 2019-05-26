@@ -61,4 +61,4 @@ class BlockTransactionsBtcMessage(BtcMessage):
                 off += size
                 self._transactions.append(tx)
 
-        return self._transactions
+        return self._transactions  # pyre-ignore

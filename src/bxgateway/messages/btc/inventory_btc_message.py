@@ -68,7 +68,7 @@ class InventoryBtcMessage(BtcMessage):
         num_items, size = btc_messages_util.btc_varint_to_int(self.buf, off)
         return num_items
 
-    def __iter__(self) -> typing.Iterable[typing.Tuple[int, BtcObjectHash]]:
+    def __iter__(self) -> typing.Iterator[typing.Tuple[int, BtcObjectHash]]:
         off = btc_constants.BTC_HDR_COMMON_OFF
         num_items, size = btc_messages_util.btc_varint_to_int(self.buf, off)
         off += size

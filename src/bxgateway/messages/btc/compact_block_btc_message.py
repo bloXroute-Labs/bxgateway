@@ -64,8 +64,10 @@ class CompactBlockBtcMessage(BtcMessage):
         self._short_nonce: int = None
         self._short_id_c: int = None
         self._short_nonce_buf = None
-        self._short_ids = self._pre_filled_transactions = None
-        self._block_header = self._hash_val = None
+        self._short_ids: Dict[bytes, int] = None
+        self._pre_filled_transactions: Dict[int, memoryview] = None
+        self._block_header = None
+        self._hash_val: BtcObjectHash = None
         self._pre_filled_tx_count = None
 
     def block_header(self) -> memoryview:
