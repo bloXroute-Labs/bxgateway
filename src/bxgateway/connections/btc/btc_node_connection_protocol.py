@@ -1,3 +1,4 @@
+import time
 from collections import deque
 
 from bxcommon.connections.connection_state import ConnectionState
@@ -57,7 +58,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         reply = VerAckBtcMessage(self.magic)
         self.connection.enqueue_msg(reply)
 
-        send_compact_msg = SendCompactBtcMessage(self.magic, on_flag=True, version=1)
+        send_compact_msg = SendCompactBtcMessage(self.magic, on_flag=self.connection.node.opts.compact_block, version=1)
 
         logger.info("Sending SENDCMPCT message")
         self.connection.node.alarm_queue.register_alarm(2, self.connection.enqueue_msg, send_compact_msg)
@@ -132,13 +133,30 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         :param msg: COMPACT BLOCK message
         """
 
-        parse_result = decompress_compact_block(self.magic, msg, self.connection.node.get_tx_service())
+        decompression_start_time = time.time()
+        parse_result = decompress_compact_block(
+            self.magic, msg, self.connection.node.get_tx_service()
+        )
+        decompression_end_time = time.time()
+        logger.info(
+            "Compact block {} decompression summary: "
+            "duration ({}), "
+            "success ({}), "
+            "compact short id count ({}), "
+            "pre filled transactions count ({})",
+            msg.block_hash(),
+            decompression_end_time - decompression_start_time,
+            parse_result.success,
+            parse_result.short_id_count,
+            parse_result.pre_filled_tx_count
+        )
 
         if parse_result.success:
             self.msg_block(parse_result.block_btc_message)
         else:
+            missing_transactions_indices = parse_result.missing_transactions_indices
             logger.info("Compact block was parsed with {} unknown short ids. Requesting unknown transactions.",
-                        len(parse_result.missing_transactions_indices))
+                        len(missing_transactions_indices))
             self._recovery_compact_blocks.add(msg.block_hash(),
                                               CompactBlockRecoveryItem(msg, parse_result.block_transactions,
                                                                        parse_result.missing_transactions_indices))
@@ -168,8 +186,10 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 self.msg_block(recovery_result.block_btc_message)
             else:
                 logger.info(
-                    "Unable to recover compact block '{}' after receiving BLOCK TRANSACTIONS message. Requesting full block.",
-                    msg.block_hash())
+                    "Unable to recover compact block '{}' "
+                    "after receiving BLOCK TRANSACTIONS message. Requesting full block.",
+                    msg.block_hash()
+                )
                 get_data_msg = GetDataBtcMessage(magic=self.magic,
                                                  inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())])
                 self.connection.node.send_msg_to_node(get_data_msg)

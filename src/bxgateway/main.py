@@ -111,6 +111,12 @@ def get_opts():
                             help="Public key of remote bloXroute owned Ethereum node for encrypted communication "
                                  "during chainstate sync ",
                             type=str)
+    arg_parser.add_argument(
+        "--compact-block",
+        help="Specify either the gateway supports compact block message or not",
+        type=convert.str_to_bool,
+        default=constants.ACCEPT_COMPACT_BLOCK
+    )
 
     arg_parser.add_argument(
         "--use-extensions",

@@ -17,7 +17,9 @@ class TestCompactBlockParser(AbstractTestCase):
     BLOCK_TRANSACTIONS_COUNT = 11
 
     def test_decompress_compact_block(self):
-        full_block_msg = BlockBtcMessage(buf=convert.hex_to_bytes(self.FULL_BLOCK_BYTES_HEX))
+        full_block_msg = BlockBtcMessage(
+            buf=bytearray(convert.hex_to_bytes(self.FULL_BLOCK_BYTES_HEX))
+        )
         self.assertIsNotNone(full_block_msg)
         self.assertEqual(self.BLOCK_TRANSACTIONS_COUNT, full_block_msg.txn_count())
 
@@ -27,7 +29,9 @@ class TestCompactBlockParser(AbstractTestCase):
             tx_hash = BtcObjectHash(crypto.bitcoin_hash(tx), length=BTC_SHA_HASH_LEN)
             transaction_service.set_transaction_contents(tx_hash, tx)
 
-        compact_block_msg = CompactBlockBtcMessage(buf=convert.hex_to_bytes(self.COMPACT_BLOCK_BYTES_HEX))
+        compact_block_msg = CompactBlockBtcMessage(
+            buf=bytearray(convert.hex_to_bytes(self.COMPACT_BLOCK_BYTES_HEX))
+        )
         parse_result = decompress_compact_block(self.MAGIC, compact_block_msg, transaction_service)
 
         self.assertTrue(parse_result.success)
@@ -36,7 +40,9 @@ class TestCompactBlockParser(AbstractTestCase):
         self.assertEqual(full_block_msg.rawbytes().tobytes(), parse_result.block_btc_message.rawbytes().tobytes())
 
     def test_decompress_recovered_compact_block(self):
-        full_block_msg = BlockBtcMessage(buf=convert.hex_to_bytes(self.FULL_BLOCK_BYTES_HEX))
+        full_block_msg = BlockBtcMessage(
+            buf=bytearray(convert.hex_to_bytes(self.FULL_BLOCK_BYTES_HEX))
+        )
         self.assertIsNotNone(full_block_msg)
         self.assertEqual(11, full_block_msg.txn_count())
 
@@ -53,7 +59,9 @@ class TestCompactBlockParser(AbstractTestCase):
                 recovered_transactions.append(tx)
             index += 1
 
-        compact_block_msg = CompactBlockBtcMessage(buf=convert.hex_to_bytes(self.COMPACT_BLOCK_BYTES_HEX))
+        compact_block_msg = CompactBlockBtcMessage(
+            buf=bytearray(convert.hex_to_bytes(self.COMPACT_BLOCK_BYTES_HEX))
+        )
         parse_result = decompress_compact_block(self.MAGIC, compact_block_msg, transaction_service)
 
         self.assertFalse(parse_result.success)
