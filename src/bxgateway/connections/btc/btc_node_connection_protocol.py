@@ -157,7 +157,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                          .format(block_hash, max_time_offset, msg.timestamp()))
             return
 
-        if short_ids_count < btc_constants.BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT:
+        if short_ids_count < self.connection.node.opts.compact_block_min_tx_count:
             logger.info("Compact block {} contains {} short transactions, less than limit {}. Requesting full block.",
                         convert.bytes_to_hex(msg.block_hash().binary), short_ids_count, btc_constants.BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT)
             get_data_msg = GetDataBtcMessage(magic=self.magic,
