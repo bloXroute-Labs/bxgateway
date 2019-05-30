@@ -1,5 +1,6 @@
 import datetime
 import time
+from typing import Any
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
@@ -229,6 +230,13 @@ class BlockProcessingService(object):
 
             self._node.block_recovery_service.clean_up_recovered_blocks()
 
+    def after_block_processed(self, block_message: Any):
+        """
+        Additional processing of the block that can be customized per blockchain
+        :param block_message: block message specific to a blockchain
+        """
+        pass
+
     def _compute_hold_timeout(self, block_message):
         """
         Computes timeout after receiving block message before sending the block anyway if not received from network.
@@ -278,6 +286,7 @@ class BlockProcessingService(object):
         connection.node.block_queuing_service.remove(block_hash)
         connection.node.blocks_seen.add(block_hash)
         connection.node.get_tx_service().track_seen_short_ids(block_info.short_ids)
+        self.after_block_processed(block_message)
 
     def _handle_decrypted_block(self, bx_block, connection, encrypted_block_hash_hex=None, recovered=False):
         transaction_service = self._node.get_tx_service()
@@ -326,7 +335,7 @@ class BlockProcessingService(object):
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self._node.blocks_seen.add(block_hash)
             transaction_service.track_seen_short_ids(all_sids)
-
+            self.after_block_processed(block_message)
         else:
             if block_hash in self._node.block_queuing_service and not recovered:
                 logger.debug("Handling already queued block again. Ignoring.")

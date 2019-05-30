@@ -1,12 +1,12 @@
 import hashlib
 import struct
 from collections import deque
-from typing import List, Optional, NamedTuple, Any, Tuple
+from typing import List, Optional, NamedTuple, Any, Union
 
 from csiphash import siphash24
 
 from bxcommon.services.transaction_service import TransactionService
-from bxcommon.utils import convert, crypto, logger
+from bxcommon.utils import crypto, logger
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_HEADER_MINUS_CHECKSUM
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
@@ -52,20 +52,19 @@ def decompress_compact_block(magic: int, msg: CompactBlockBtcMessage,
 
     short_ids = msg.short_ids()
 
-    short_id_to_tx_hash = {}
+    short_id_to_tx_contents = {}
 
-    for tx_hash_str in transaction_service.get_all_transaction_hashes():
-        tx_hash_bytes = convert.hex_to_bytes(tx_hash_str)[::-1]
-        tx_short_id = _compute_short_id(key, tx_hash_bytes)
-        tx_short_id_str = convert.bytes_to_hex(tx_short_id)
-
-        if tx_short_id_str in short_ids:
-            short_id_to_tx_hash[tx_short_id_str] = transaction_service.get_transaction_by_hash(tx_hash_str)
+    for tx_hash in transaction_service.iter_transaction_hashes_not_seen_in_block():
+        tx_hash_binary = tx_hash.binary[::-1]
+        tx_short_id = _compute_short_id(key, tx_hash_binary)
+        if tx_short_id in short_ids:
+            short_id_to_tx_contents[tx_short_id] = transaction_service.get_transaction_by_hash(tx_hash)
+        if len(short_id_to_tx_contents) == len(short_ids):
+            break
 
     block_transactions = []
     missing_transactions_indices = []
     prefilled_txs = msg.prefilled_txns()
-
     total_txs_count = len(prefilled_txs) + len(short_ids)
 
     size = 0
@@ -80,24 +79,22 @@ def decompress_compact_block(magic: int, msg: CompactBlockBtcMessage,
     block_msg_parts.append(tx_count_buf)
     size += tx_count_size
 
-    short_tx_index = 0
+    short_ids_iter = iter(short_ids.keys())
 
     for index in range(total_txs_count):
-        prefilled_tx = _get_prefilled_tx_by_index(prefilled_txs, index)
+        if index not in prefilled_txs:
+            short_id = next(short_ids_iter)
 
-        if prefilled_tx is None:
-            short_id = short_ids[short_tx_index]
-
-            if short_id in short_id_to_tx_hash:
-                short_tx = short_id_to_tx_hash[short_id]
+            if short_id in short_id_to_tx_contents:
+                short_tx = short_id_to_tx_contents[short_id]
                 block_msg_parts.append(short_tx)
                 block_transactions.append(short_tx)
                 size += len(short_tx)
             else:
                 missing_transactions_indices.append(index)
                 block_transactions.append(None)
-            short_tx_index += 1
         else:
+            prefilled_tx = prefilled_txs[index]
             block_msg_parts.append(prefilled_tx)
             block_transactions.append(prefilled_tx)
             size += len(prefilled_tx)
@@ -182,13 +179,5 @@ def decompress_recovered_compact_block(magic: int, msg: CompactBlockBtcMessage, 
     return CompactBlockRecoveryResult(True, BlockBtcMessage(buf=block_msg_bytes))
 
 
-def _compute_short_id(key: bytes, tx_hash_str: str) -> bytes:
-    return siphash24(key, bytes(tx_hash_str))[0:6]
-
-
-def _get_prefilled_tx_by_index(prefilled_txs: List[Tuple[int, memoryview]], index: int) -> Optional[memoryview]:
-    for prefilled_tx in prefilled_txs:
-        if prefilled_tx[0] == index:
-            return prefilled_tx[1]
-
-    return None
+def _compute_short_id(key: bytes, tx_hash_binary: Union[bytearray, memoryview]) -> bytes:
+    return siphash24(key, bytes(tx_hash_binary))[0:6]

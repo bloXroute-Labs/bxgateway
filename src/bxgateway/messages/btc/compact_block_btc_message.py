@@ -1,8 +1,8 @@
 import struct
-from typing import List, Tuple
+from typing import List, Dict
 
 from bxcommon.constants import UL_INT_SIZE_IN_BYTES
-from bxcommon.utils import crypto, convert
+from bxcommon.utils import crypto
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN, \
     BTC_COMPACT_BLOCK_SHORT_ID_LEN, BTC_SHORT_NONCE_SIZE, BTC_VARINT_MIN_SIZE
 from bxgateway.messages.btc.btc_message import BtcMessage
@@ -24,7 +24,7 @@ class CompactBlockBtcMessage(BtcMessage):
     def __init__(self, magic: int = None, version: int = None, prev_block: BtcObjectHash = None,
                  merkle_root: BtcObjectHash = None, timestamp: int = None, bits: int = None,
                  block_nonce: int = None, short_nonce: int = None, short_ids: List[memoryview] = None,
-                 prefilled_txns: List[memoryview] = None, buf: memoryview = None):
+                 prefilled_txns: List[memoryview] = None, buf: bytearray = None):
 
         if buf is None:
             prefilled_tx_size = sum(len(tx) for tx in prefilled_txns)
@@ -90,7 +90,7 @@ class CompactBlockBtcMessage(BtcMessage):
     def merkle_root(self) -> memoryview:
         if self._merkle_root is None:
             off = BTC_HDR_COMMON_OFF + UL_INT_SIZE_IN_BYTES + BTC_SHA_HASH_LEN
-            self._merkle_root = self.buf[off:off + BTC_SHA_HASH_LEN]
+            self._merkle_root = self._memoryview[off:off + BTC_SHA_HASH_LEN]
         return self._merkle_root
 
     def timestamp(self) -> int:
@@ -119,23 +119,23 @@ class CompactBlockBtcMessage(BtcMessage):
     def short_nonce_buf(self) -> memoryview:
         if self._short_nonce_buf is None:
             start = BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE
-            self._short_nonce_buf = self.buf[start:start + BTC_SHORT_NONCE_SIZE]
+            self._short_nonce_buf = self._memoryview[start:start + BTC_SHORT_NONCE_SIZE]
         return self._short_nonce_buf
 
-    def short_ids(self) -> List[str]:
+    def short_ids(self) -> Dict[bytes, int]:
         if self._short_ids is None:
             off = BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE + BTC_SHORT_NONCE_SIZE
             self._short_id_c, size = btc_varint_to_int(self.buf, off)
             off += size
-            self._short_ids = []
+            self._short_ids = {}
 
-            for _ in range(self._short_id_c):
-                self._short_ids.append(convert.bytes_to_hex(self.buf[off:off + BTC_COMPACT_BLOCK_SHORT_ID_LEN]))
+            for idx in range(self._short_id_c):
+                self._short_ids[bytes(self._memoryview[off:off + BTC_COMPACT_BLOCK_SHORT_ID_LEN])] = idx
                 off += BTC_COMPACT_BLOCK_SHORT_ID_LEN
 
         return self._short_ids
 
-    def prefilled_txns(self) -> List[Tuple[int, memoryview]]:
+    def prefilled_txns(self) -> Dict[int, memoryview]:
         if self._prefilled_txns is None:
             off = BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE + BTC_SHORT_NONCE_SIZE
             self._short_id_c, size = btc_varint_to_int(self.buf, off)
@@ -143,7 +143,7 @@ class CompactBlockBtcMessage(BtcMessage):
             self._prefill_tx_c, size = btc_varint_to_int(self.buf, off)
             off += size
 
-            self._prefilled_txns = []
+            self._prefilled_txns = {}
 
             index = -1
             for _ in range(self._prefill_tx_c):
@@ -154,6 +154,6 @@ class CompactBlockBtcMessage(BtcMessage):
                 off += size
 
                 index += diff + 1
-                self._prefilled_txns.append((index, buf))
+                self._prefilled_txns[index] = buf
 
         return self._prefilled_txns

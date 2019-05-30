@@ -245,10 +245,10 @@ class EthMessageConverterTests(AbstractTestCase):
                                      ],
                                      dummy_chain_difficulty)
 
-        compact_block_msg_bytes = bytearray(constants.C_SIZE_T_SIZE_IN_BYTES)
+        compact_block_msg_bytes = bytearray(constants.UL_ULL_SIZE_IN_BYTES)
         compact_block_msg_bytes.extend(rlp.encode(compact_block, CompactBlock))
         short_ids_offset = len(compact_block_msg_bytes)
-        struct.pack_into("@N", compact_block_msg_bytes, 0, short_ids_offset)
+        struct.pack_into("<Q", compact_block_msg_bytes, 0, short_ids_offset)
         compact_block_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
         compact_block_msg_bytes.extend(compact_block_bytes)
         compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
@@ -312,10 +312,10 @@ class EthMessageConverterTests(AbstractTestCase):
                                      ],
                                      dummy_chain_difficulty)
 
-        compact_block_msg_bytes = bytearray(constants.C_SIZE_T_SIZE_IN_BYTES)
+        compact_block_msg_bytes = bytearray(constants.UL_ULL_SIZE_IN_BYTES)
         compact_block_msg_bytes.extend(rlp.encode(compact_block, CompactBlock))
         short_ids_offset = len(compact_block_msg_bytes)
-        struct.pack_into("@N", compact_block_msg_bytes, 0, short_ids_offset)
+        struct.pack_into("<Q", compact_block_msg_bytes, 0, short_ids_offset)
         compact_block_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
         compact_block_msg_bytes.extend(compact_block_bytes)
         compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()

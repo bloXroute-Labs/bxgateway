@@ -5,6 +5,7 @@ from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType
+from bxgateway.services.btc_block_processing_service import BtcBlockProcessingService
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 
@@ -14,12 +15,14 @@ class BtcGatewayNode(AbstractGatewayNode):
         super(BtcGatewayNode, self).__init__(opts)
 
         if opts.use_extensions or opts.import_extensions:
-            from bxgateway.services.btc_transaction_service import BtcTransactionService
+            from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 
         if opts.use_extensions:
-            self._tx_service = BtcTransactionService(self, self.network_num)
+            self._tx_service = ExtensionTransactionService(self, self.network_num)
         else:
             self._tx_service = TransactionService(self, self.network_num)
+
+        self.block_processing_service = BtcBlockProcessingService(self)
 
     def get_blockchain_connection_cls(self):
         return BtcNodeConnection

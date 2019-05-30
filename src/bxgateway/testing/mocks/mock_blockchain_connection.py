@@ -25,7 +25,7 @@ class MockMessageConverter(AbstractMessageConverter):
 
     def bx_block_to_block(self, bx_block_msg, tx_service):
         block_message = MockBlockMessage(buf=bx_block_msg)
-        return block_message, block_message.block_hash(), [], [], []
+        return block_message, block_message.block_hash(), [], []
 
 
 class MockBlockchainConnection(AbstractGatewayBlockchainConnection):

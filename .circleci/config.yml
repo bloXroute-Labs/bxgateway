@@ -194,6 +194,12 @@ jobs:
             set +o pipefail
             docker load -i /caches/app.tar | true
       - run:
+          name: create binaries for docker image
+          command: |
+            cd ~/ws/bxextensions
+            . ./build.sh
+            cd ~/ws
+      - run:
           name: Build application Docker image
           command: |
             cd ~/ws/bxgateway && docker build -f Dockerfile --cache-from=app -t app ../

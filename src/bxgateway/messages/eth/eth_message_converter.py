@@ -187,8 +187,8 @@ class EthMessageConverter(AbstractMessageConverter):
 
         short_ids_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(used_short_ids)
         buf.append(short_ids_bytes)
-        content_size += constants.C_SIZE_T_SIZE_IN_BYTES
-        offset_buf = struct.pack("@Q", content_size)
+        content_size += constants.UL_ULL_SIZE_IN_BYTES
+        offset_buf = struct.pack("<Q", content_size)
         buf.appendleft(offset_buf)
         content_size += len(short_ids_bytes)
 
