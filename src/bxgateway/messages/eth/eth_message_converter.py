@@ -2,8 +2,10 @@ import datetime
 import struct
 import time
 from collections import deque
+from typing import Tuple, Optional, List
 
 from bxcommon import constants
+from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import logger, convert, crypto
@@ -85,7 +87,7 @@ class EthMessageConverter(AbstractMessageConverter):
 
         return TransactionsEthProtocolMessage(buf)
 
-    def block_to_bx_block(self, block_msg, tx_service):
+    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
         """
         Convert Ethereum new block message to internal broadcast message with transactions replaced with short ids
 
@@ -211,9 +213,10 @@ class EthMessageConverter(AbstractMessageConverter):
                                datetime.datetime.utcnow(), (time.time() - compress_start_timestamp) * 1000,
                                tx_count, bx_block_hash, convert.bytes_to_hex(prev_block_bytes), original_size,
                                content_size, 100 - float(content_size) / original_size * 100)
-        return block, block_info
+        return memoryview(block), block_info
 
-    def bx_block_to_block(self, block, tx_service):
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
+                                                                   List[Sha256Hash]]:
         """
         Converts internal broadcast message to Ethereum new block message
 
@@ -224,18 +227,18 @@ class EthMessageConverter(AbstractMessageConverter):
         :return: tuple (new block message, block hash, unknown transaction short id, unknown transaction hashes)
         """
 
-        if not isinstance(block, (bytearray, memoryview)):
+        if not isinstance(bx_block_msg, (bytearray, memoryview)):
             raise TypeError("Type bytearray is expected for arg block_bytes but was {0}"
-                            .format(type(block)))
+                            .format(type(bx_block_msg)))
 
         decompress_start_datetime = datetime.datetime.utcnow()
         decompress_start_timestamp = time.time()
 
-        block_msg_bytes = block if isinstance(block, memoryview) else memoryview(block)
+        block_msg_bytes = bx_block_msg if isinstance(bx_block_msg, memoryview) else memoryview(bx_block_msg)
 
-        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(block)
+        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block_msg)
         short_ids, short_ids_bytes_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
-            block,
+            bx_block_msg,
             block_offsets.short_id_offset
         )
 
@@ -340,8 +343,8 @@ class EthMessageConverter(AbstractMessageConverter):
             logger.debug("Successfully parsed block broadcast message. {0} transactions in block"
                          .format(tx_count))
 
-            bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
-            compressed_size = len(block)
+            bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block_msg))
+            compressed_size = len(bx_block_msg)
 
             block_info = BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
                                    (time.time() - decompress_start_timestamp) * 1000, tx_count, bx_block_hash,

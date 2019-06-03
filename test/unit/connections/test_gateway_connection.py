@@ -10,7 +10,8 @@ from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils.mocks.mock_node import MockOpts
+from bxcommon.test_utils.mocks.mock_node import _MockOpts
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.object_hash import Sha256Hash
@@ -28,7 +29,7 @@ from bxgateway.services.blockchain_sync_service import BlockchainSyncService
 
 def create_node(ip=LOCALHOST, port=8000):
     node = MagicMock(spec=AbstractGatewayNode)
-    node.opts = MockOpts(external_ip=ip, external_port=port)
+    node.opts = _MockOpts(external_ip=ip, external_port=port)
     node.connection_pool = ConnectionPool()
     node.connection_exists = node.connection_pool.has_connection
     node.network_num = node.opts.blockchain_network_num
@@ -48,9 +49,7 @@ class GatewayConnectionTest(AbstractTestCase):
     def _create_connection(self, fileno=1, ip=LOCALHOST, port=8001, from_me=True, node=None):
         if node is None:
             node = self.node
-        sock = MagicMock(spec=socket.socket)
-        sock.fileno = lambda: fileno
-        connection = GatewayConnection(SocketConnection(sock, node), (ip, port), node, from_me)
+        connection = GatewayConnection(MockSocketConnection(fileno, node), (ip, port), node, from_me)
 
         node.connection_pool.add(fileno, ip, port, connection)
         return connection

@@ -1,6 +1,7 @@
 import datetime
 from collections import deque, namedtuple
 import time
+from typing import Tuple
 
 from bxcommon.utils import convert
 
@@ -28,7 +29,7 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         super(BtcExtensionMessageConverter, self).__init__(btc_magic)
         self.compression_tasks = deque()
 
-    def block_to_bx_block(self, btc_block_msg, tx_service):
+    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
         compress_start_datetime = datetime.datetime.utcnow()
         compress_start_timestamp = time.time()
         try:
@@ -36,17 +37,18 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         except IndexError:
             tsk = None
             for i in range(self.QUEUE_GROW_SIZE):
-                tsk = tpe.BTCBlockCompressionTask(len(btc_block_msg.buf))
+                tsk = tpe.BTCBlockCompressionTask(len(block_msg.buf))
                 if i < self.QUEUE_GROW_SIZE - 1:
                     self.compression_tasks.append(tsk)
-        tsk.init(tpe.InputBytes(btc_block_msg.buf), tx_service.proxy)
+        assert tsk is not None
+        tsk.init(tpe.InputBytes(block_msg.buf), tx_service.proxy)
         tpe.enqueue_task(tsk)
         wait_for_task(tsk)
         bx_block = tsk.bx_block()
         block = memoryview(bx_block)
 
         compressed_size = len(block)
-        original_size = len(btc_block_msg.rawbytes())
+        original_size = len(block_msg.rawbytes())
         block_hash = BtcObjectHash(
             binary=convert.hex_to_bytes(tsk.block_hash().hex_string())
         )

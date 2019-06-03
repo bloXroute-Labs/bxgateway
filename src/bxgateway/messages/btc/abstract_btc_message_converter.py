@@ -1,15 +1,16 @@
 import datetime
 import time
-import typing
 from abc import abstractmethod
 from collections import deque
+from typing import List, Deque, Tuple, Optional, Union, cast
 
+from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import crypto, logger, convert
 from bxcommon.messages.bloxroute.compact_block_short_ids_serializer import BlockOffsets
 from bxcommon.services.transaction_service import TransactionService
-from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.object_hash import Sha256Hash, AbstractObjectHash
 from bxgateway import btc_constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.btc import btc_messages_util
@@ -22,7 +23,7 @@ from bxgateway.utils.block_header_info import BlockHeaderInfo
 
 
 def parse_bx_block_header(
-        bx_block: memoryview, block_pieces: typing.Deque[typing.Union[bytearray, memoryview]]
+        bx_block: memoryview, block_pieces: Deque[Union[bytearray, memoryview]]
 ) -> BlockHeaderInfo:
     block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block)
     short_ids, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
@@ -56,11 +57,11 @@ def parse_bx_block_header(
 def parse_bx_block_transactions(
         bx_block: memoryview,
         offset: int,
-        short_ids: typing.List[int],
+        short_ids: List[int],
         block_offsets: BlockOffsets,
         tx_service: TransactionService,
-        block_pieces: typing.Deque[typing.Union[bytearray, memoryview]]
-) -> typing.Tuple[typing.List[int], typing.List[Sha256Hash], int]:
+        block_pieces: Deque[Union[bytearray, memoryview]]
+) -> Tuple[List[int], List[Sha256Hash], int]:
     has_missing, unknown_tx_sids, unknown_tx_hashes = \
         tx_service.get_missing_transactions(short_ids)
     if has_missing:
@@ -85,8 +86,8 @@ def parse_bx_block_transactions(
 
 
 def build_btc_block(
-        block_pieces: typing.Deque[typing.Union[bytearray, memoryview]], size: int
-) -> typing.Tuple[BlockBtcMessage, int]:
+        block_pieces: Deque[Union[bytearray, memoryview]], size: int
+) -> Tuple[BlockBtcMessage, int]:
     btc_block = bytearray(size)
     offset = 0
     for piece in block_pieces:
@@ -99,11 +100,11 @@ def build_btc_block(
 def get_block_info(
         bx_block: memoryview,
         block_hash: BtcObjectHash,
-        short_ids: typing.List[int],
+        short_ids: List[int],
         decompress_start_datetime: datetime.datetime,
         decompress_start_timestamp: float,
-        total_tx_count: typing.Optional[int] = None,
-        btc_block_msg: typing.Optional[BlockBtcMessage] = None
+        total_tx_count: Optional[int] = None,
+        btc_block_msg: Optional[BlockBtcMessage] = None
 ) -> BlockInfo:
     if btc_block_msg is not None:
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block))
@@ -141,30 +142,31 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
         self._btc_magic = btc_magic
 
     @abstractmethod
-    def block_to_bx_block(self, btc_block_msg, tx_service):
+    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
         """
         Compresses a blockchain block's transactions and packs it into a bloXroute block.
         """
         pass
 
-    def bx_block_to_block(self, bx_block, tx_service):
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
+                                                                   List[Sha256Hash]]:
         """
         Uncompresses a bx_block from a broadcast bx_block message and converts to a raw BTC bx_block.
 
         bx_block must be a memoryview, since memoryview[offset] returns a bytearray, while bytearray[offset] returns
         a byte.
         """
-        if not isinstance(bx_block, memoryview):
-            bx_block = memoryview(bx_block)
+        if not isinstance(bx_block_msg, memoryview):
+            bx_block_msg = memoryview(bx_block_msg)
 
         decompress_start_datetime = datetime.datetime.utcnow()
         decompress_start_timestamp = time.time()
 
         # Initialize tracking of transaction and SID mapping
         block_pieces = deque()
-        header_info = parse_bx_block_header(bx_block, block_pieces)
+        header_info = parse_bx_block_header(bx_block_msg, block_pieces)
         unknown_tx_sids, unknown_tx_hashes, offset = parse_bx_block_transactions(
-            bx_block,
+            bx_block_msg,
             header_info.offset,
             header_info.short_ids,
             header_info.block_offsets,
@@ -183,7 +185,7 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
             logger.warn("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in bx_block: {2}"
                         .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
         block_info = get_block_info(
-            bx_block,
+            bx_block_msg,
             header_info.block_hash,
             header_info.short_ids,
             decompress_start_datetime,

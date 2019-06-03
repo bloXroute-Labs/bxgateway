@@ -1,4 +1,9 @@
 from abc import ABCMeta, abstractmethod
+from typing import Tuple, Optional, List
+
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils.object_hash import Sha256Hash
+from bxgateway.utils.block_info import BlockInfo
 
 
 class AbstractMessageConverter(object):
@@ -34,7 +39,7 @@ class AbstractMessageConverter(object):
         pass
 
     @abstractmethod
-    def block_to_bx_block(self, block_msg, tx_service):
+    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
         """
         Convert blockchain block message to internal broadcast message with transactions replaced with short ids
 
@@ -46,7 +51,8 @@ class AbstractMessageConverter(object):
         pass
 
     @abstractmethod
-    def bx_block_to_block(self, bx_block_msg, tx_service):
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
+                                                                   List[Sha256Hash]]:
         """
         Converts internal broadcast message to blockchain new block message
 

@@ -6,7 +6,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxgateway import main
 
 
-@skip("Doesnt work right now because of path issues")
+@skip("Test doesnt pass because of MANIFEST path issues")
 class MainTest(AbstractTestCase):
 
     def test_parse_peer_string(self):

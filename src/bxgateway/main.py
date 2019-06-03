@@ -78,6 +78,10 @@ def get_opts():
                             help="If gateway should encrypt blocks",
                             type=convert.str_to_bool,
                             default=False)
+    arg_parser.add_argument("--split-relays",
+                            help="If gateway should attempt connections to separate transaction and block relays",
+                            type=convert.str_to_bool,
+                            default=False)
     arg_parser.add_argument("--peer-relays",
                             help="(TEST ONLY) Optional relays peer ip/ports that will always be connected to. "
                                  "Should be in the format ip1:port1,ip2:port2,...",
@@ -139,6 +143,14 @@ def get_opts():
 
     args = cli.merge_args(gateway_args, common_args)
     args.outbound_peers = args.peer_gateways + args.peer_relays
+
+    if args.split_relays:
+        args.peer_transaction_relays = [OutboundPeerModel(peer_relay.ip, peer_relay.port + 1)
+                                        for peer_relay in args.peer_relays]
+        args.outbound_peers += args.peer_transaction_relays
+    else:
+        args.peer_transaction_relays = []
+
     if args.connect_to_remote_blockchain and args.remote_blockchain_ip and args.remote_blockchain_port:
         args.remote_blockchain_peer = OutboundPeerModel(args.remote_blockchain_ip, args.remote_blockchain_port)
     else:
@@ -151,4 +163,3 @@ if __name__ == "__main__":
     opts = get_opts()
     node_type = get_gateway_node_type(opts.blockchain_protocol, opts.blockchain_network)
     node_runner.run_node(PID_FILE_NAME, opts, node_type)
-    

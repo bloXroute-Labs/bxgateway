@@ -148,13 +148,13 @@ class EthMessageConverterTests(AbstractTestCase):
         self.assertEqual(used_short_ids, block_info.short_ids)
 
         self.assertTrue(bx_block_msg)
-        self.assertIsInstance(bx_block_msg, bytearray)
+        self.assertIsInstance(bx_block_msg, memoryview)
 
         block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block_msg)
         parsed_short_ids, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
             bx_block_msg, block_offsets.short_id_offset)
         compact_block = rlp.decode(
-            bx_block_msg[block_offsets.block_begin_offset: block_offsets.short_id_offset],
+            bx_block_msg[block_offsets.block_begin_offset: block_offsets.short_id_offset].tobytes(),
             CompactBlock
         )
         self.assertTrue(compact_block)
@@ -196,7 +196,7 @@ class EthMessageConverterTests(AbstractTestCase):
         self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info.prev_block_hash)
 
         self.assertTrue(bx_block_msg)
-        self.assertIsInstance(bx_block_msg, bytearray)
+        self.assertIsInstance(bx_block_msg, memoryview)
 
         block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block_msg)
         _, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
@@ -204,7 +204,7 @@ class EthMessageConverterTests(AbstractTestCase):
             block_offsets.short_id_offset
         )
         compact_block = rlp.decode(
-            bx_block_msg[block_offsets.block_begin_offset: block_offsets.short_id_offset],
+            bx_block_msg[block_offsets.block_begin_offset: block_offsets.short_id_offset].tobytes(),
             CompactBlock
         )
         self.assertTrue(compact_block)

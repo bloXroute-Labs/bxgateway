@@ -2,6 +2,7 @@ import datetime
 import struct
 import time
 from collections import deque
+from typing import Tuple
 
 from bxcommon import constants
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
@@ -14,7 +15,7 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 class BtcNormalMessageConverter(AbstractBtcMessageConverter):
 
-    def block_to_bx_block(self, btc_block_msg, tx_service):
+    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
         """
         Compresses a Bitcoin block's transactions and packs it into a bloXroute block.
         """
@@ -23,11 +24,11 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         size = 0
         buf = deque()
         short_ids = []
-        header = btc_block_msg.header()
+        header = block_msg.header()
         size += len(header)
         buf.append(header)
 
-        for tx in btc_block_msg.txns():
+        for tx in block_msg.txns():
             tx_hash = BtcObjectHash(buf=crypto.double_sha256(tx), length=btc_constants.BTC_SHA_HASH_LEN)
             short_id = tx_service.get_short_id(tx_hash)
             if short_id == constants.NULL_TX_SID:
@@ -52,21 +53,21 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             block[off:next_off] = blob
             off = next_off
 
-        prev_block_hash = convert.bytes_to_hex(btc_block_msg.prev_block().binary)
+        prev_block_hash = convert.bytes_to_hex(block_msg.prev_block().binary)
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
-        original_size = len(btc_block_msg.rawbytes())
+        original_size = len(block_msg.rawbytes())
 
         block_info = BlockInfo(
-            btc_block_msg.block_hash(),
+            block_msg.block_hash(),
             short_ids,
             compress_start_datetime,
             datetime.datetime.utcnow(),
             (time.time() - compress_start_timestamp) * 1000,
-            btc_block_msg.txn_count(),
+            block_msg.txn_count(),
             bx_block_hash,
             prev_block_hash,
             original_size,
             size,
             100 - float(size) / original_size * 100
         )
-        return block, block_info
+        return memoryview(block), block_info

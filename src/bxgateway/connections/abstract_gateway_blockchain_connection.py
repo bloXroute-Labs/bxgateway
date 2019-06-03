@@ -1,9 +1,15 @@
+from typing import TYPE_CHECKING
+
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxgateway import gateway_constants
 
+if TYPE_CHECKING:
+    # noinspection PyUnresolvedReferences
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
-class AbstractGatewayBlockchainConnection(AbstractConnection):
+
+class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNode"]):
     CONNECTION_TYPE = ConnectionType.BLOCKCHAIN_NODE
 
     def __init__(self, sock, address, node, from_me=False):

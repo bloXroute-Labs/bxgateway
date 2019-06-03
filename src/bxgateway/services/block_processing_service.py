@@ -1,5 +1,6 @@
 import datetime
 import time
+from typing import TYPE_CHECKING
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
@@ -15,6 +16,9 @@ from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEven
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
+
+if TYPE_CHECKING:
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
 class BlockHold(object):
@@ -48,7 +52,7 @@ class BlockProcessingService(object):
     """
 
     def __init__(self, node):
-        self._node = node
+        self._node: AbstractGatewayNode = node
         self._holds = ExpiringDict(node.alarm_queue, gateway_constants.BLOCK_HOLD_DURATION_S)
 
     def place_hold(self, block_hash, connection):
@@ -68,7 +72,7 @@ class BlockProcessingService(object):
             self._holds.add(block_hash, BlockHold(time.time(), connection))
             conns = self._node.broadcast(BlockHoldingMessage(block_hash, self._node.network_num),
                                          broadcasting_conn=connection,
-                                         connection_types=[ConnectionType.RELAY, ConnectionType.GATEWAY])
+                                         connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY])
             if len(conns) > 0:
                 block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
@@ -98,7 +102,7 @@ class BlockProcessingService(object):
             # Broadcast BlockHoldingMessage through relays and gateways
             conns = self._node.broadcast(BlockHoldingMessage(block_hash, self._node.network_num),
                                          broadcasting_conn=connection,
-                                         connection_types=[ConnectionType.RELAY, ConnectionType.GATEWAY],
+                                         connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY],
                                          prepend_to_queue=True)
             if len(conns) > 0:
                 block_stats.add_block_event_by_block_hash(block_hash,
@@ -358,7 +362,7 @@ class BlockProcessingService(object):
                                                       more_info="{} sids, {} hashes".format(
                                                           len(unknown_sids), len(unknown_hashes)))
             gettxs_message = self._create_unknown_txs_message(unknown_sids, unknown_hashes)
-            connection.enqueue_msg(gettxs_message)
+            self._node.broadcast(gettxs_message, connection, connection_types=[ConnectionType.RELAY_TRANSACTION])
             tx_stats.add_txs_by_short_ids_event(unknown_sids,
                                                 TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
                                                 network_num=self._node.network_num,

@@ -2,8 +2,7 @@ from bxcommon.constants import MSG_TYPE_LEN
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils.helpers import create_input_buffer_with_message
+from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.btc.data_btc_message import GetBlocksBtcMessage
@@ -17,22 +16,12 @@ from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
-class GatewayMessageFactoryTest(AbstractTestCase):
+class GatewayMessageFactoryTest(MessageFactoryTestCase):
     HASH = Sha256Hash(crypto.double_sha256(b"123"))
     BLOCK = helpers.generate_bytearray(30)
 
-    def get_message_preview_successfully(self, message, expected_command, expected_payload_length):
-        is_full_message, command, payload_length = gateway_message_factory.get_message_header_preview_from_input_buffer(
-            create_input_buffer_with_message(message)
-        )
-        self.assertTrue(is_full_message)
-        self.assertEqual(expected_command, command)
-        self.assertEqual(expected_payload_length, payload_length)
-
-    def create_message_successfully(self, message, message_type):
-        result = gateway_message_factory.create_message_from_buffer(message.rawbytes())
-        self.assertIsInstance(result, message_type)
-        return result
+    def get_message_factory(self):
+        return gateway_message_factory
 
     def test_message_preview_success_all_gateway_types(self):
         self.get_message_preview_successfully(GatewayHelloMessage(123, 1, "127.0.0.1", 40000, 1),

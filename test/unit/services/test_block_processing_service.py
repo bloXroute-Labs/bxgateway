@@ -30,7 +30,7 @@ class BlockHoldingServiceTest(AbstractTestCase):
         self.node.block_recovery_service = MagicMock(spec=BlockRecoveryService)
         self.node.block_queuing_service = MagicMock(spec=BlockQueuingService)
 
-        self.dummy_connection = MockConnection(0, (LOCALHOST, 9000), self.node)
+        self.dummy_connection = MockConnection(MockSocketConnection(0), (LOCALHOST, 9000), self.node)
 
     def test_place_hold(self):
         hash1 = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
@@ -94,7 +94,7 @@ class BlockHoldingServiceTest(AbstractTestCase):
         hold = self.sut._holds.contents[block_hash]
         self.sut.cancel_hold_timeout(block_hash, self.dummy_connection)
         self.assertNotIn(block_hash, self.sut._holds.contents)
-        self.assertEqual(AlarmQueue.REMOVED, hold.alarm[-1])
+        self.assertFalse(hold.alarm.is_active)
 
     def test_queue_block_holds_exists_until_timeout(self):
         block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))

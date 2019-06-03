@@ -1,7 +1,7 @@
 import hashlib
 import struct
 from collections import deque
-from typing import List, Optional, NamedTuple, Any, Union, Deque
+from typing import List, Optional, NamedTuple, Any, Union
 
 from csiphash import siphash24
 
@@ -80,7 +80,7 @@ def decompress_compact_block(magic: int, msg: CompactBlockBtcMessage,
     tx_count_size = get_sizeof_btc_varint(total_txs_count)
     tx_count_buf = bytearray(tx_count_size)
     pack_int_to_btc_varint(total_txs_count, tx_count_buf, 0)
-    block_msg_parts.append(tx_count_buf)  # pyre-ignore
+    block_msg_parts.append(tx_count_buf)
     size += tx_count_size
 
     short_ids_iter = iter(short_ids.keys())
@@ -96,7 +96,7 @@ def decompress_compact_block(magic: int, msg: CompactBlockBtcMessage,
                 size += len(short_tx)
             else:
                 missing_transactions_indices.append(index)
-                block_transactions.append(None)  # pyre-ignore
+                block_transactions.append(None)
         else:
             pre_filled_tx = pre_filled_txs[index]
             block_msg_parts.append(pre_filled_tx)
@@ -115,7 +115,7 @@ def decompress_compact_block(magic: int, msg: CompactBlockBtcMessage,
 
     msg_header = bytearray(BTC_HDR_COMMON_OFF)
     struct.pack_into("<L12sL", msg_header, 0, magic, BtcMessageType.BLOCK, size)
-    block_msg_parts.appendleft(msg_header)  # pyre-ignore
+    block_msg_parts.appendleft(msg_header)
     size += BTC_HDR_COMMON_OFF
 
     block_msg_bytes = bytearray(size)
@@ -172,7 +172,7 @@ def decompress_recovered_compact_block(magic: int, msg: CompactBlockBtcMessage, 
     tx_count_size = get_sizeof_btc_varint(total_txs_count)
     tx_count_buf = bytearray(tx_count_size)
     pack_int_to_btc_varint(total_txs_count, tx_count_buf, 0)
-    block_msg_parts.append(tx_count_buf)  # pyre-ignore
+    block_msg_parts.append(tx_count_buf)
     size += tx_count_size
 
     for transaction in block_transactions:
@@ -181,7 +181,7 @@ def decompress_recovered_compact_block(magic: int, msg: CompactBlockBtcMessage, 
 
     msg_header = bytearray(BTC_HDR_COMMON_OFF)
     struct.pack_into("<L12sL", msg_header, 0, magic, BtcMessageType.BLOCK, size)
-    block_msg_parts.appendleft(msg_header)  # pyre-ignore
+    block_msg_parts.appendleft(msg_header)
     size += BTC_HDR_COMMON_OFF
 
     block_msg_bytes = bytearray(size)

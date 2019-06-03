@@ -1,6 +1,7 @@
 from mock import MagicMock
 
 from bxcommon.connections.connection_state import ConnectionState
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import DEFAULT_NETWORK_NUM, LOCALHOST
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
@@ -36,7 +37,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
     def setUp(self):
         self.gateway_node = BtcGatewayNode(get_gateway_opts(8000, include_default_btc_args=True))
         self.sut = BtcRelayConnection(MockSocketConnection(), (LOCALHOST, 8001), self.gateway_node)
-        self.gateway_node.node_conn = MockConnection(1, (LOCALHOST, 8002), self.gateway_node)
+        self.gateway_node.node_conn = MockConnection(MockSocketConnection(1), (LOCALHOST, 8002), self.gateway_node)
         self.gateway_node.node_conn.message_converter = converter_factory.create_btc_message_converter(
             12345, self.gateway_node.opts
         )
@@ -255,6 +256,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.gateway_node.block_recovery_service.add_block = \
             MagicMock(wraps=self.gateway_node.block_recovery_service.add_block)
         self.gateway_node.send_msg_to_node = MagicMock()
+        self.gateway_node.broadcast = MagicMock()
 
         key, ciphertext = symmetric_encrypt(bx_block)
         block_hash = crypto.double_sha256(ciphertext)
@@ -262,12 +264,22 @@ class BtcRelayConnectionTest(AbstractTestCase):
         broadcast_message = BroadcastMessage(Sha256Hash(block_hash), DEFAULT_NETWORK_NUM, True, ciphertext)
 
         self.sut.msg_broadcast(broadcast_message)
+
+        self.gateway_node.broadcast.reset_mock()
         self.sut.msg_key(key_message)
 
         self.gateway_node.block_recovery_service.add_block.assert_called_once()
-        self.sut.enqueue_msg.assert_called_once()
-        ((gettxs_message,), _) = self.sut.enqueue_msg.call_args
+        self.assertEqual(2, self.gateway_node.broadcast.call_count)
+
+        recovery_broadcast = self.gateway_node.broadcast.call_args_list[0]
+        ((gettxs_message, _conn), recovery_kwargs) = recovery_broadcast
         self.assertIsInstance(gettxs_message, GetTxsMessage)
+        self.assertIn(ConnectionType.RELAY_TRANSACTION, recovery_kwargs["connection_types"])
+
+        key_broadcast = self.gateway_node.broadcast.call_args_list[1]
+        ((key_message, _conn), recovery_kwargs) = key_broadcast
+        self.assertIsInstance(key_message, KeyMessage)
+        self.assertIn(ConnectionType.GATEWAY, recovery_kwargs["connection_types"])
 
         txs = [tx for tx in short_id_mapping.values()]
         txs_message = TxsMessage(txs=txs)

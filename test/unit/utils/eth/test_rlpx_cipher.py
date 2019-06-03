@@ -14,7 +14,7 @@ class RLPxCipherTests(AbstractRLPxCipherTest):
         encoded_text = cipher1.aes_encode(dummy_text)
         decoded_text = cipher2.aes_decode(encoded_text)
 
-        self.assertNotEquals(encoded_text, dummy_text)
+        self.assertNotEqual(encoded_text, dummy_text)
         self.assertEqual(decoded_text, dummy_text)
 
         dummy_text2 = b"Lorem ipsum 2"
@@ -22,7 +22,7 @@ class RLPxCipherTests(AbstractRLPxCipherTest):
         encoded_text2 = cipher2.aes_encode(dummy_text2)
         decoded_text2 = cipher1.aes_decode(encoded_text2)
 
-        self.assertNotEquals(encoded_text2, dummy_text2)
+        self.assertNotEqual(encoded_text2, dummy_text2)
         self.assertEqual(decoded_text2, dummy_text2)
 
         mac_ingress1 = cipher1.mac_ingress()

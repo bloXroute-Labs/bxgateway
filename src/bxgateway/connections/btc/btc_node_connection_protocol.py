@@ -1,7 +1,6 @@
 import time
-from datetime import datetime
-import typing
 from collections import deque
+from datetime import datetime
 
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.utils import logger
@@ -172,12 +171,13 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                                                   success=parse_result.success,
                                                   compact_short_id_count=parse_result.short_id_count,
                                                   pre_filled_transaction_count=parse_result.pre_filled_tx_count,
-                                                  missing_short_id_count=len(parse_result.missing_transactions_indices)\
+                                                  missing_short_id_count=len(parse_result.missing_transactions_indices) \
                                                       if parse_result.missing_transactions_indices is not None else 0
                                                   )
 
         if parse_result.success:
-            self.connection.node.block_processing_service.queue_block_for_processing(parse_result.block_btc_message, self.connection)
+            self.connection.node.block_processing_service.queue_block_for_processing(parse_result.block_btc_message,
+                                                                                     self.connection)
         else:
             logger.info("Compact block was parsed with {} unknown short ids. Requesting unknown transactions.",
                         len(parse_result.missing_transactions_indices))  # pyre-ignore
@@ -207,8 +207,9 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                                                                  compact_block_recovery_item.missing_transactions_indices,
                                                                  msg.transactions())
             if recovery_result.success:
-                self.connection.node.block_processing_service.queue_block_for_processing(recovery_result.block_btc_message,
-                                                                                         self.connection)
+                self.connection.node.block_processing_service.queue_block_for_processing(
+                    recovery_result.block_btc_message,
+                    self.connection)
             else:
                 logger.info(
                     "Unable to recover compact block '{}' "

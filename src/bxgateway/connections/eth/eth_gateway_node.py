@@ -1,7 +1,12 @@
+from typing import Tuple
+
 from bxcommon import constants
+from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.utils import convert, logger
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
@@ -27,17 +32,26 @@ class EthGatewayNode(AbstractGatewayNode):
             else:
                 self._remote_public_key = convert.hex_to_bytes(opts.remote_public_key)
 
-    def get_blockchain_connection_cls(self):
-        return EthNodeDiscoveryConnection if self._is_in_local_discovery() else EthNodeConnection
-
-    def get_relay_connection_cls(self):
-        if TestModes.DROPPING_TXS in self.opts.test_mode:
-            return EthLossyRelayConnection
+    def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
+                                    from_me: bool) -> AbstractGatewayBlockchainConnection:
+        if self._is_in_local_discovery():
+            return EthNodeDiscoveryConnection(socket_connection, address, self, from_me)
         else:
-            return EthRelayConnection
+            return EthNodeConnection(socket_connection, address, self, from_me)
 
-    def get_remote_blockchain_connection_cls(self):
-        return EthRemoteConnection
+    def build_relay_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
+                               from_me: bool) -> AbstractRelayConnection:
+        if TestModes.DROPPING_TXS in self.opts.test_mode:
+            cls = EthLossyRelayConnection
+        else:
+            cls = EthRelayConnection
+
+        relay_connection = cls(socket_connection, address, self, from_me)
+        return relay_connection
+
+    def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
+                                           from_me: bool) -> AbstractGatewayBlockchainConnection:
+        return EthRemoteConnection(socket_connection, address, self, from_me)
 
     def on_updated_remote_blockchain_peer(self, peer):
         if "node_public_key" not in peer.attributes:

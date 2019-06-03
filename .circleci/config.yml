@@ -20,9 +20,9 @@ jobs:
           path:
             "bxgateway"
       - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
-          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
+          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}-{{ checksum "bxgateway/requirements-dev.txt" }}
       - save_cache: # special step to save dependency cache
-          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}
+          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}-{{ checksum "bxgateway/requirements-dev.txt" }}
           paths:
             - "venv"
       - run:
