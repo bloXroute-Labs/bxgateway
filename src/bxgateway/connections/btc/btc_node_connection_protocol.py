@@ -33,7 +33,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             BtcMessageType.TRANSACTIONS: self.msg_tx,
             BtcMessageType.GET_BLOCKS: self.msg_proxy_request,
             BtcMessageType.GET_HEADERS: self.msg_proxy_request,
-            BtcMessageType.GET_DATA: self.msg_getdata,
+            BtcMessageType.GET_DATA: self.msg_get_data,
             BtcMessageType.REJECT: self.msg_reject,
             BtcMessageType.COMPACT_BLOCK: self.msg_compact_block,
             BtcMessageType.BLOCK_TRANSACTIONS: self.msg_block_transactions
@@ -59,13 +59,19 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         reply = VerAckBtcMessage(self.magic)
         self.connection.enqueue_msg(reply)
 
-        send_compact_msg = SendCompactBtcMessage(self.magic, on_flag=self.connection.node.opts.compact_block, version=1)
+        send_compact_msg = SendCompactBtcMessage(
+            self.magic, on_flag=self.connection.node.opts.compact_block, version=1
+        )
 
         logger.info("Sending SENDCMPCT message")
-        self.connection.node.alarm_queue.register_alarm(2, self.connection.enqueue_msg, send_compact_msg)
+        self.connection.node.alarm_queue.register_alarm(
+            2, self.connection.enqueue_msg, send_compact_msg
+        )
 
-        self.connection.node.alarm_queue.register_alarm(gateway_constants.BLOCKCHAIN_PING_INTERVAL_S,
-                                                        self.connection.send_ping)
+        self.connection.node.alarm_queue.register_alarm(
+            gateway_constants.BLOCKCHAIN_PING_INTERVAL_S,
+            self.connection.send_ping
+        )
 
         if self.connection.is_active():
             for each_msg in self.connection.node.node_msg_queue:
@@ -86,19 +92,23 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         inventory_vectors = iter(msg)
         inventory_requests = []
         for inventory_type, item_hash in inventory_vectors:
-            if not InventoryType.is_block(inventory_type) or item_hash not in self.connection.node.blocks_seen.contents:
+            if not InventoryType.is_block(inventory_type) or \
+                    item_hash not in self.connection.node.blocks_seen.contents:
                 inventory_requests.append((inventory_type, item_hash))
 
-            if InventoryType.is_block(inventory_type) and item_hash not in self.connection.node.blocks_seen.contents:
+            if InventoryType.is_block(inventory_type) and \
+                    item_hash not in self.connection.node.blocks_seen.contents:
                 contains_block = True
 
         if inventory_requests:
-            getdata = GetDataBtcMessage(magic=msg.magic(),
-                                        inv_vects=inventory_requests,
-                                        request_witness_data=self.request_witness_data)
-            self.connection.enqueue_msg(getdata, prepend=contains_block)
+            get_data = GetDataBtcMessage(
+                magic=msg.magic(),
+                inv_vects=inventory_requests,
+                request_witness_data=self.request_witness_data
+            )
+            self.connection.enqueue_msg(get_data, prepend=contains_block)
 
-    def msg_getdata(self, msg: GetDataBtcMessage) -> None:
+    def msg_get_data(self, msg: GetDataBtcMessage) -> None:
         """
         Handle GETDATA message from Bitcoin node.
         :param msg: GETDATA message
@@ -106,13 +116,18 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
 
         for inv_type, object_hash in msg:
             if InventoryType.is_block(inv_type):
-                block_stats.add_block_event_by_block_hash(object_hash,
-                                                          BlockStatEventType.REMOTE_BLOCK_REQUESTED_BY_GATEWAY,
-                                                          network_num=self.connection.network_num,
-                                                          more_info="Protocol: {}, Network: {}".format(
-                                                              self.connection.node.opts.blockchain_protocol,
-                                                              self.connection.node.opts.blockchain_network))
-            inv_msg = InvBtcMessage(magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, object_hash)])
+                block_stats.add_block_event_by_block_hash(
+                    object_hash,
+                    BlockStatEventType.REMOTE_BLOCK_REQUESTED_BY_GATEWAY,
+                    network_num=self.connection.network_num,
+                    more_info="Protocol: {}, Network: {}".format(
+                        self.connection.node.opts.blockchain_protocol,
+                        self.connection.node.opts.blockchain_network
+                    )
+                )
+            inv_msg = InvBtcMessage(
+                magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, object_hash)]
+            )
             self.connection.node.send_msg_to_node(inv_msg)
         return self.msg_proxy_request(msg)
 
@@ -125,7 +140,9 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         # Send inv message to the send in case of rejected block
         # remaining sync communication will proxy to remote blockchain node
         if msg.message() == BtcMessageType.BLOCK:
-            inv_msg = InvBtcMessage(magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, msg.obj_hash())])
+            inv_msg = InvBtcMessage(
+                magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, msg.obj_hash())]
+            )
             self.connection.node.send_msg_to_node(inv_msg)
 
     def msg_compact_block(self, msg: CompactBlockBtcMessage) -> None:
@@ -135,24 +152,28 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         """
 
         block_hash = msg.block_hash()
-        block_stats.add_block_event_by_block_hash(block_hash,
-                                                  BlockStatEventType.COMPACT_BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
-                                                  network_num=self.connection.network_num,
-                                                  peer=self.connection.peer_desc
-                                                  )
+        block_stats.add_block_event_by_block_hash(
+            block_hash,
+            BlockStatEventType.COMPACT_BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
+            network_num=self.connection.network_num,
+            peer=self.connection.peer_desc
+        )
 
         if block_hash in self.connection.node.blocks_seen.contents:
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.COMPACT_BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
-                                                      network_num=self.connection.network_num,
-                                                      peer=self.connection.peer_desc)
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.COMPACT_BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
+                network_num=self.connection.network_num,
+                peer=self.connection.peer_desc
+            )
             logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
             return
 
         max_time_offset = self.connection.node.opts.blockchain_block_interval * self.connection.node.opts.blockchain_ignore_block_interval_count
         if time.time() - msg.timestamp() >= max_time_offset:
-            logger.debug("Received block {} more than {} seconds after it was created ({}). Ignoring."
-                         .format(block_hash, max_time_offset, msg.timestamp()))
+            logger.debug(
+                "Received block {} more than {} seconds after it was created ({}). "
+                "Ignoring.".format(block_hash, max_time_offset, msg.timestamp()))
             return
 
         self.connection.node.blocks_seen.add(block_hash)
@@ -162,31 +183,46 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             self.magic, msg, self.connection.node.get_tx_service()
         )
         decompression_end_time = datetime.utcnow()
-        block_stats.add_block_event_by_block_hash(block_hash,
-                                                  BlockStatEventType.COMPACT_BLOCK_DECOMPRESSED,
-                                                  start_date_time=decompression_start_time,
-                                                  end_date_time=decompression_end_time,
-                                                  network_num=self.connection.network_num,
-                                                  duration=(decompression_end_time - decompression_start_time).total_seconds(),
-                                                  success=parse_result.success,
-                                                  compact_short_id_count=parse_result.short_id_count,
-                                                  pre_filled_transaction_count=parse_result.pre_filled_tx_count,
-                                                  missing_short_id_count=len(parse_result.missing_transactions_indices) \
-                                                      if parse_result.missing_transactions_indices is not None else 0
-                                                  )
+        missing_transactions_indices = parse_result.missing_transactions_indices
+        missing_short_id_count = 0 if missing_transactions_indices is None \
+            else len(missing_transactions_indices)
+        block_stats.add_block_event_by_block_hash(
+            block_hash,
+            BlockStatEventType.COMPACT_BLOCK_DECOMPRESSED,
+            start_date_time=decompression_start_time,
+            end_date_time=decompression_end_time,
+            network_num=self.connection.network_num,
+            duration=(decompression_end_time - decompression_start_time).total_seconds(),
+            success=parse_result.success,
+            compact_short_id_count=parse_result.short_id_count,
+            pre_filled_transaction_count=parse_result.pre_filled_tx_count,
+            missing_short_id_count=missing_short_id_count
+        )
 
         if parse_result.success:
-            self.connection.node.block_processing_service.queue_block_for_processing(parse_result.block_btc_message,
-                                                                                     self.connection)
+            self.connection.node.block_processing_service.queue_block_for_processing(
+                parse_result.block_btc_message, self.connection
+            )
         else:
-            logger.info("Compact block was parsed with {} unknown short ids. Requesting unknown transactions.",
-                        len(parse_result.missing_transactions_indices))  # pyre-ignore
-            self._recovery_compact_blocks.add(block_hash,
-                                              CompactBlockRecoveryItem(msg, parse_result.block_transactions,
-                                                                       parse_result.missing_transactions_indices))
+            logger.info(
+                "Compact block was parsed with {} unknown short ids. "
+                "Requesting unknown transactions.",
+                len(parse_result.missing_transactions_indices)  # pyre-ignore
+            )
+            self._recovery_compact_blocks.add(
+                block_hash,
+                CompactBlockRecoveryItem(
+                    msg,
+                    parse_result.block_transactions,
+                    parse_result.missing_transactions_indices
+                )
+            )
 
-            get_block_txs_msg = GetBlockTransactionsBtcMessage(magic=self.magic, block_hash=block_hash,
-                                                               indices=parse_result.missing_transactions_indices)
+            get_block_txs_msg = GetBlockTransactionsBtcMessage(
+                magic=self.magic,
+                block_hash=block_hash,
+                indices=parse_result.missing_transactions_indices
+            )
             self.connection.node.send_msg_to_node(get_block_txs_msg)
 
     def msg_block_transactions(self, msg: BlockTransactionsBtcMessage) -> None:
@@ -201,11 +237,13 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             compact_block_recovery_item = self._recovery_compact_blocks.contents[msg.block_hash()]
             assert isinstance(compact_block_recovery_item, CompactBlockRecoveryItem)
 
-            recovery_result = decompress_recovered_compact_block(self.magic,
-                                                                 compact_block_recovery_item.compact_block_message,
-                                                                 compact_block_recovery_item.block_transactions,
-                                                                 compact_block_recovery_item.missing_transactions_indices,
-                                                                 msg.transactions())
+            recovery_result = decompress_recovered_compact_block(
+                self.magic,
+                compact_block_recovery_item.compact_block_message,
+                compact_block_recovery_item.block_transactions,
+                compact_block_recovery_item.missing_transactions_indices,
+                msg.transactions()
+            )
             if recovery_result.success:
                 self.connection.node.block_processing_service.queue_block_for_processing(
                     recovery_result.block_btc_message,
@@ -216,6 +254,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                     "after receiving BLOCK TRANSACTIONS message. Requesting full block.",
                     msg.block_hash()
                 )
-                get_data_msg = GetDataBtcMessage(magic=self.magic,
-                                                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())])
+                get_data_msg = GetDataBtcMessage(
+                    magic=self.magic,
+                    inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
+                )
                 self.connection.node.send_msg_to_node(get_data_msg)

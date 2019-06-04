@@ -4,7 +4,7 @@ from typing import Tuple, Optional, List, cast
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
-from bxcommon.utils.object_hash import AbstractObjectHash, Sha256Hash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.utils.block_info import BlockInfo
@@ -38,8 +38,9 @@ class BtcNoCompressionMessageConverter(AbstractMessageConverter):
         )
         return block_msg.rawbytes(), block_info
 
-    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
-                                                                   List[Sha256Hash]]:
+    def bx_block_to_block(
+            self, bx_block_msg, tx_service
+    ) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int], List[Sha256Hash]]:
         start_datetime = datetime.datetime.utcnow()
         start_time = time.time()
 

@@ -34,8 +34,11 @@ class CompactBlockRecoveryItem(NamedTuple):
     missing_transactions_indices: Optional[List[int]]
 
 
-def decompress_compact_block(magic: int, msg: CompactBlockBtcMessage,
-                             transaction_service: TransactionService) -> CompactBlockDecompressionResult:
+def decompress_compact_block(
+        magic: int,
+        msg: CompactBlockBtcMessage,
+        transaction_service: TransactionService
+) -> CompactBlockDecompressionResult:
     """
     Handle decompression of Bitcoin compact block.
     Decompression converts compact block message to full block message.
@@ -60,7 +63,8 @@ def decompress_compact_block(magic: int, msg: CompactBlockBtcMessage,
         tx_hash_binary = tx_hash.binary[::-1]
         tx_short_id = _compute_short_id(key, tx_hash_binary)
         if tx_short_id in short_ids:
-            short_id_to_tx_contents[tx_short_id] = transaction_service.get_transaction_by_hash(tx_hash)
+            short_id_to_tx_contents[tx_short_id] = \
+                transaction_service.get_transaction_by_hash(tx_hash)
         if len(short_id_to_tx_contents) == len(short_ids):
             break
 
@@ -138,9 +142,13 @@ def decompress_compact_block(magic: int, msg: CompactBlockBtcMessage,
     )
 
 
-def decompress_recovered_compact_block(magic: int, msg: CompactBlockBtcMessage, block_transactions: List[Any],
-                                       missing_indices: List[int],
-                                       recovered_transactions: List[Any]) -> CompactBlockRecoveryResult:
+def decompress_recovered_compact_block(
+        magic: int,
+        msg: CompactBlockBtcMessage,
+        block_transactions: List[Any],
+        missing_indices: List[int],
+        recovered_transactions: List[Any]
+) -> CompactBlockRecoveryResult:
     """
     Handle recovery of Bitcoin compact block message.
 
@@ -153,9 +161,13 @@ def decompress_recovered_compact_block(magic: int, msg: CompactBlockBtcMessage, 
     """
 
     if len(missing_indices) != len(recovered_transactions):
-        logger.info("Number of transactions missing in compact block does not match number of recovered transactions."
-                    "Missing transactions - {}. Recovered transactions - {}", len(missing_indices),
-                    len(recovered_transactions))
+        logger.info(
+            "Number of transactions missing in compact "
+            "block does not match number of recovered transactions."
+            "Missing transactions - {}. Recovered transactions - {}",
+            len(missing_indices),
+            len(recovered_transactions)
+        )
         return CompactBlockRecoveryResult(False, None)
 
     for i in range(len(missing_indices)):

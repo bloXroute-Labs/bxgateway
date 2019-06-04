@@ -107,3 +107,5 @@ ENV/
 
 # orig files
 *.orig
+
+.pyre_configuration_*
