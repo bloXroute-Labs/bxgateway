@@ -206,7 +206,7 @@ jobs:
               awscli==1.11.76
       - restore_cache:
           keys:
-            - v1-{{ .Branch }}
+            - v1-{{ .Branch }}-{{ checksum "~/ws/bxgateway/requirements.txt" }}-{{ checksum "~/ws/bxcommon/requirements.txt" }}
           paths:
             - /caches/app.tar
       - restore_cache:
@@ -233,22 +233,54 @@ jobs:
             mkdir -p /caches
             docker save -o /caches/app.tar app
       - save_cache: 
-          key: v1-{{ .Branch }}-{{ epoch }}
+          key: v1-{{ .Branch }}-{{ checksum "~/ws/bxgateway/requirements.txt" }}-{{ checksum "~/ws/bxcommon/requirements.txt" }}
           paths:
             - /caches/app.tar
       - save_cache:
           key: build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
           paths:
             - ~/ws/bxextensions/build
-      # - deploy:
-      #     name: Push application Docker image
-      #     command: |
-      #       if [ "${CIRCLE_BRANCH}" == "master" ]; then
-      #         login="$(aws ecr get-login)"
-      #         ${login}
-      #         docker tag app "${ECR_ENDPOINT}/app:${CIRCLE_SHA1}"
-      #         docker push "${ECR_ENDPOINT}/app:${CIRCLE_SHA1}"
-      #       fi
+  publish:
+    working_directory: ~/ws
+    docker:
+      - image: docker:17.05.0-ce-git
+    steps:
+      - setup_remote_docker
+      - attach_workspace:
+          at: ~/ws
+      - checkout:
+          path:
+            "bxgateway"
+      - run:
+          name: Install dependencies
+          command: |
+            apk add --no-cache \
+              py-pip=9.0.0-r1
+            pip install \
+              docker-compose==1.12.0 \
+              awscli==1.11.76
+      - restore_cache:
+          keys:
+            - v1-{{ .Branch }}-{{ checksum "~/ws/bxgateway/requirements.txt" }}-{{ checksum "~/ws/bxcommon/requirements.txt" }}
+          paths:
+            - /caches/app.tar
+      - restore_cache:
+          keys:
+            - build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
+      - run:
+          name: Load Docker image layer cache
+          command: |
+            set +o pipefail
+            docker load -i /caches/app.tar | true
+      - deploy:
+          name: Push application Docker image
+          command: |
+            aws configure set region us-east-1
+            aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+            aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+            $(aws ecr get-login)
+            docker tag app "${AWS_ECR_ENDPOINT}/bxgateway:${CIRCLE_BRANCH}"
+            docker push "${AWS_ECR_ENDPOINT}/bxgateway:${CIRCLE_BRANCH}"
 
 workflows:
   version: 2
@@ -256,10 +288,10 @@ workflows:
   test-build:
     jobs:
       - initialize
-      - build:
+      - build_extensions:
           requires:
             - initialize
-      - build_extensions:
+      - build:
           requires:
             - initialize
       - check:
@@ -271,3 +303,13 @@ workflows:
       - e2e:
           requires:
             - build_extensions
+      - publish:
+          requires:
+            - build
+            - check
+            - test
+            - e2e
+          filters:
+            branches:
+              only:
+                develop
