@@ -23,10 +23,12 @@ class AbstractGatewayBlockchainConnection(AbstractConnection):
         except Exception as e:
             logger.error("Could not set socket send buffer size for blockchain connection: {}", e)
 
+        # Linux systems generally set the value to 2x what was passed in, so just make sure
+        # the socket buffer is at least the size set
         set_buffer_size = sock.socket_instance.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
-        if set_buffer_size != gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE:
-            logger.warn("Socket buffer size set was unsuccessful, and was instead set to {}. Reverting.",
-                        set_buffer_size)
+        if set_buffer_size < gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE:
+            logger.warn("Socket buffer size set was unsuccessful, and was instead set to {}. Reverting to: {}",
+                        set_buffer_size, previous_buffer_size)
             sock.socket_instance.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, previous_buffer_size)
 
         self.message_converter = None
