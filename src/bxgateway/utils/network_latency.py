@@ -38,15 +38,21 @@ def get_best_relay_by_ping_latency(relays: List[OutboundPeerModel]):
 
     relays_ping_latency = _get_ping_latencies(relays)
     sorted_ping_latencies = sorted(relays_ping_latency, key=lambda relay_ts: relay_ts.latency)
-    return_best_relay = _get_best_relay(sorted_ping_latencies, relays)
-    logger.info("First recommended relay from api is: {} with latency {} ms, "
-                "fastest ping latency relay is: {} with latency {} ms, selected relay is: {} with latency {} ms".
-                format(relays[0].node_id,
-                       "".join([str(relay.latency) for relay in relays_ping_latency if relay.node == relays[0]]),
-                       sorted_ping_latencies[0].node.node_id, sorted_ping_latencies[0].latency,
-                       return_best_relay.node.node_id, return_best_relay.latency))
+    best_relay_by_latency = _get_best_relay(sorted_ping_latencies, relays)
 
-    return return_best_relay.node
+    # if best_relay_by_latency's latency is less than RELAY_LATENCY_THRESHOLD_MS, select api's relay
+    best_relay_node = relays[0] if best_relay_by_latency.latency < gateway_constants.RELAY_LATENCY_THRESHOLD_MS else best_relay_by_latency.node
+
+    logger.info(
+        "First recommended relay from api is: {} with latency {} ms, "
+        "fastest ping latency relay is: {} with latency {} ms, selected relay is: {}".format(
+            relays[0].node_id, "".join([str(relay.latency) for relay in relays_ping_latency if relay.node == relays[0]]),
+            sorted_ping_latencies[0].node.node_id, sorted_ping_latencies[0].latency,
+            best_relay_node.node_id
+        )
+    )
+
+    return best_relay_node
 
 
 def _get_ping_latencies(relays: List[OutboundPeerModel]):
