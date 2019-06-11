@@ -41,9 +41,11 @@ class AbstractEthMessage(AbstractMessage):
         self._deserialize_rlp_payload(self._msg_bytes)
         self._is_deserialized = True
 
-    def rawbytes(self):
+    def rawbytes(self) -> memoryview:
         if self._msg_bytes is None:
             self.serialize()
+
+        assert self._msg_bytes is not None
 
         return self._msg_bytes
 

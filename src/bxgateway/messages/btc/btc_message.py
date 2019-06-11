@@ -57,7 +57,7 @@ class BtcMessage(AbstractMessage):
 
     # END TODO
 
-    def rawbytes(self):
+    def rawbytes(self) -> memoryview:
         """
         Returns a memoryview of the message
         """

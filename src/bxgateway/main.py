@@ -123,18 +123,8 @@ def get_opts():
     )
 
     arg_parser.add_argument(
-        "--use-extensions",
-        help="If true than the gateway will use the extension module for "
-             "some tasks like block compression (default: {0})".format(
-                constants.USE_EXTENSION_MODULES
-             ),
-        default=constants.USE_EXTENSION_MODULES,
-        type=convert.str_to_bool
-    )
-
-    arg_parser.add_argument(
-        "--import-extensions",
-        help="If true than the gateway will import all C++ extensions dependencies on start up",
+        "--tune-send-buffer-size",
+        help="If true, then the gateway will increase the send buffer's size for the blockchain connection",
         default=False,
         type=convert.str_to_bool
     )
