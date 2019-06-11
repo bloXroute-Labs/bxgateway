@@ -164,7 +164,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                                              inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())])
             self.connection.node.send_msg_to_node(get_data_msg)
             block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.COMPACT_BLOCK_REQUEST_FULL)
+                                                      BlockStatEventType.COMPACT_BLOCK_REQUEST_FULL,
+                                                      network_num=self.connection.network_num)
             return
 
         self.connection.node.blocks_seen.add(block_hash)
@@ -176,6 +177,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         decompression_end_time = datetime.utcnow()
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.COMPACT_BLOCK_DECOMPRESSED,
+                                                  network_num=self.connection.network_num,
                                                   start_date_time=decompression_start_time,
                                                   end_date_time=decompression_end_time,
                                                   duration=(decompression_end_time - decompression_start_time).total_seconds(),
