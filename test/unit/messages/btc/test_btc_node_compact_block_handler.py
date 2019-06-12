@@ -5,19 +5,17 @@ from mock import MagicMock
 
 from bxcommon.constants import LOCALHOST
 from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxgateway.btc_constants import NODE_WITNESS_SERVICE_FLAG, BTC_SHA_HASH_LEN
+from bxcommon.utils import convert, crypto
+from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_node_connection_protocol import BtcNodeConnectionProtocol
-from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType, GetDataBtcMessage
-from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
-from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
-from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxcommon.utils import convert, crypto
-from bxcommon.services.transaction_service import TransactionService
 
 
 class BtcNodeConnectionProtocolHandler(AbstractTestCase):
@@ -26,6 +24,7 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
 
     def setUp(self):
         self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_btc_args=True))
+        self.node.opts.compact_block_min_tx_count = 10
         self.node.block_processing_service = MagicMock()
 
         soc = socket.socket()
@@ -35,7 +34,6 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
         self.connection.peer_port = 8001
         self.connection.network_num = 2
         self.sut = BtcNodeConnectionProtocol(self.connection)
-
 
         full_block_msg = BlockBtcMessage(
             buf=bytearray(convert.hex_to_bytes(self.FULL_BLOCK_BYTES_HEX))
@@ -55,4 +53,3 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
         self.sut.msg_compact_block(message)
         self.assertTrue(message.block_hash() in self.connection.node.blocks_seen.contents)
         self.node.block_processing_service.queue_block_for_processing.assert_called_once()
-

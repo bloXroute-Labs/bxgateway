@@ -63,8 +63,11 @@ def decompress_compact_block(
         tx_hash_binary = tx_hash.binary[::-1]
         tx_short_id = _compute_short_id(key, tx_hash_binary)
         if tx_short_id in short_ids:
-            short_id_to_tx_contents[tx_short_id] = \
-                transaction_service.get_transaction_by_hash(tx_hash)
+            tx_content = transaction_service.get_transaction_by_hash(tx_hash)
+            if tx_content is None:
+                logger.warn("Hash {} is known by transactions service but content is missing.", tx_hash)
+            else:
+                short_id_to_tx_contents[tx_short_id] = tx_content
         if len(short_id_to_tx_contents) == len(short_ids):
             break
 

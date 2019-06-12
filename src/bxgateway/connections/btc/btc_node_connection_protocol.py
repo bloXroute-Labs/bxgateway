@@ -3,7 +3,7 @@ from collections import deque
 from datetime import datetime
 
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.utils import logger
+from bxcommon.utils import logger, convert
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
@@ -152,6 +152,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         """
 
         block_hash = msg.block_hash()
+        short_ids_count = len(msg.short_ids())
         block_stats.add_block_event_by_block_hash(
             block_hash,
             BlockStatEventType.COMPACT_BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
@@ -174,6 +175,18 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             logger.debug(
                 "Received block {} more than {} seconds after it was created ({}). "
                 "Ignoring.".format(block_hash, max_time_offset, msg.timestamp()))
+            return
+
+        if short_ids_count < self.connection.node.opts.compact_block_min_tx_count:
+            logger.info("Compact block {} contains {} short transactions, less than limit {}. Requesting full block.",
+                        convert.bytes_to_hex(msg.block_hash().binary), short_ids_count,
+                        self.connection.node.opts.compact_block_min_tx_count)
+            get_data_msg = GetDataBtcMessage(magic=self.magic,
+                                             inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())])
+            self.connection.node.send_msg_to_node(get_data_msg)
+            block_stats.add_block_event_by_block_hash(block_hash,
+                                                      BlockStatEventType.COMPACT_BLOCK_REQUEST_FULL,
+                                                      network_num=self.connection.network_num)
             return
 
         self.connection.node.blocks_seen.add(block_hash)

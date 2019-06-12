@@ -29,6 +29,9 @@ class TestCompactBlockParser(AbstractTestCase):
             tx_hash = BtcObjectHash(crypto.bitcoin_hash(tx), length=BTC_SHA_HASH_LEN)
             transaction_service.set_transaction_contents(tx_hash, tx)
 
+        self.assertEqual(len(full_block_msg.txns()),
+                         len(list(transaction_service.iter_transaction_hashes_not_seen_in_block())))
+
         compact_block_msg = CompactBlockBtcMessage(
             buf=bytearray(convert.hex_to_bytes(self.COMPACT_BLOCK_BYTES_HEX))
         )

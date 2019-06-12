@@ -121,6 +121,9 @@ def get_opts():
         type=convert.str_to_bool,
         default=constants.ACCEPT_COMPACT_BLOCK
     )
+    arg_parser.add_argument("--compact-block-min-tx-count",
+                            help="Minimal number of short transactions in compact block to attempt decompression.",
+                            type=int, default=btc_constants.BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT)
 
     arg_parser.add_argument(
         "--tune-send-buffer-size",
