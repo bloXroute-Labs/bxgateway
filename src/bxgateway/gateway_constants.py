@@ -10,6 +10,9 @@ GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S = 30 * 60
 BLOCKCHAIN_SYNC_BROADCAST_DELAY_S = 5
 BLOCKCHAIN_PING_INTERVAL_S = 2
 
+BLOCK_RECOVERY_RECOVERY_INTERVAL_S = [0.1, 0.5, 1, 2, 5]
+BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS = len(BLOCK_RECOVERY_RECOVERY_INTERVAL_S)
+
 
 # enum for setting Gateway neutrality assertion policy for releasing encryption keys
 class NeutralityPolicy(object):

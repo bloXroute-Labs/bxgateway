@@ -15,10 +15,15 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
     """
 
     def setUp(self):
-        self.reinitialize_gateways(helpers.get_gateway_opts(9000, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
-                                                            include_default_btc_args=True),
-                                   helpers.get_gateway_opts(9001, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
-                                                            include_default_btc_args=True))
+        self.reinitialize_gateways(self.gateway_1_opts(), self.gateway_2_opts())
+
+    def gateway_1_opts(self):
+        return helpers.get_gateway_opts(9000, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
+                                        include_default_btc_args=True)
+
+    def gateway_2_opts(self):
+        return helpers.get_gateway_opts(9001, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
+                                        include_default_btc_args=True)
 
     def reinitialize_gateways(self, opts1, opts2):
         self.node1 = BtcGatewayNode(opts1)

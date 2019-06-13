@@ -1,4 +1,5 @@
 from bxcommon.utils import convert, logger
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 
 from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter, get_block_info
@@ -47,7 +48,8 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         tsk.init(tpe.InputBytes(bx_block), tx_service.proxy)
         tsk_proxy.run()
         total_tx_count = tsk.tx_count()
-        unknown_tx_hashes = tsk.unknown_tx_hashes()
+        unknown_tx_hashes = [Sha256Hash(bytearray(unknown_tx_hash.binary()))
+                             for unknown_tx_hash in tsk.unknown_tx_hashes()]
         unknown_tx_sids = tsk.unknown_tx_sids()
         block_hash = BtcObjectHash(
             binary=convert.hex_to_bytes(tsk.block_hash().hex_string())

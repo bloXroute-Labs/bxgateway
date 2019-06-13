@@ -1,9 +1,17 @@
 from collections import defaultdict
+from typing import Dict, Set, List, NamedTuple
 
 from bxcommon import constants
 from bxcommon.utils import logger, crypto
+from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.expiration_queue import ExpirationQueue
 from bxcommon.utils.object_hash import Sha256Hash
+
+
+class BlockRecoveryInfo(NamedTuple):
+    block_hash: Sha256Hash
+    unknown_short_ids: Set[int]
+    unknown_transaction_hashes: Set[Sha256Hash]
 
 
 class BlockRecoveryService(object):
@@ -27,7 +35,20 @@ class BlockRecoveryService(object):
     _blocks_expiration_queue: queue to trigger expiration of waiting for block recovery
     """
 
-    def __init__(self, alarm_queue):
+    _alarm_queue: AlarmQueue
+    _bx_block_hash_to_sids: Dict[Sha256Hash, Set[int]]
+    _bx_block_hash_to_tx_hashes: Dict[Sha256Hash, Set[Sha256Hash]]
+    _bx_block_hash_to_block_hash: Dict[Sha256Hash, Sha256Hash]
+    _bx_block_hash_to_block: Dict[Sha256Hash, memoryview]
+    _block_hash_to_bx_block_hashes: Dict[Sha256Hash, Set[Sha256Hash]]
+    _sid_to_bx_block_hashes: Dict[int, Set[Sha256Hash]]
+    _tx_hash_to_bx_block_hashes: Dict[Sha256Hash, Set[Sha256Hash]]
+    _blocks_expiration_queue: ExpirationQueue
+    _cleanup_scheduled: bool = False
+
+    recovery_attempts_by_block: Dict[Sha256Hash, int]
+
+    def __init__(self, alarm_queue: AlarmQueue):
         self.recovered_blocks = []
 
         self._alarm_queue = alarm_queue
@@ -36,14 +57,14 @@ class BlockRecoveryService(object):
         self._bx_block_hash_to_tx_hashes = {}
         self._bx_block_hash_to_block_hash = {}
         self._bx_block_hash_to_block = {}
+        self.recovery_attempts_by_block = defaultdict(int)
         self._block_hash_to_bx_block_hashes = defaultdict(set)
         self._sid_to_bx_block_hashes = defaultdict(set)
-        self._tx_hash_to_bx_block_hashes = defaultdict(set)
-
-        self._cleanup_scheduled = False
+        self._tx_hash_to_bx_block_hashes: Dict[Sha256Hash, Set[Sha256Hash]] = defaultdict(set)
         self._blocks_expiration_queue = ExpirationQueue(constants.MISSING_BLOCK_EXPIRE_TIME)
 
-    def add_block(self, bx_block, block_hash, unknown_tx_sids, unknown_tx_hashes):
+    def add_block(self, bx_block: memoryview, block_hash: Sha256Hash, unknown_tx_sids: List[int],
+                  unknown_tx_hashes: List[Sha256Hash]):
         """
         Adds a block that needs to recovery. Tracks unknown short ids and contents as they come in.
         :param bx_block: bytearray representation of compressed block
@@ -69,7 +90,23 @@ class BlockRecoveryService(object):
         self._blocks_expiration_queue.add(bx_block_hash)
         self._schedule_cleanup()
 
-    def check_missing_sid(self, sid):
+    def get_blocks_awaiting_recovery(self) -> List[BlockRecoveryInfo]:
+        """
+        Fetch all blocks still awaiting recovery and retry.
+
+        TODO: maybe keep track of things in progress?
+        """
+        blocks_awaiting_recovery = []
+        for block_hash, bx_block_hashes in self._block_hash_to_bx_block_hashes.items():
+            unknown_short_ids = set()
+            unknown_transaction_hashes = set()
+            for bx_block_hash in bx_block_hashes:
+                unknown_short_ids.update(self._bx_block_hash_to_sids[bx_block_hash])
+                unknown_transaction_hashes.update(self._bx_block_hash_to_tx_hashes[bx_block_hash])
+            blocks_awaiting_recovery.append(BlockRecoveryInfo(block_hash, unknown_short_ids, unknown_transaction_hashes))
+        return blocks_awaiting_recovery
+
+    def check_missing_sid(self, sid: int) -> bool:
         """
         Resolves recovering blocks depend on sid.
         :param sid: SID info that has been processed
@@ -85,8 +122,11 @@ class BlockRecoveryService(object):
                         self._check_if_recovered(bx_block_hash)
 
             del self._sid_to_bx_block_hashes[sid]
+            return True
+        else:
+            return False
 
-    def check_missing_tx_hash(self, tx_hash):
+    def check_missing_tx_hash(self, tx_hash: Sha256Hash) -> bool:
         """
         Resolves recovering blocks depend on transaction hash.
         :param tx_hash: transaction info that has been processed
@@ -102,8 +142,11 @@ class BlockRecoveryService(object):
                         self._check_if_recovered(bx_block_hash)
 
             del self._tx_hash_to_bx_block_hashes[tx_hash]
+            return True
+        else:
+            return False
 
-    def cancel_recovery_for_block(self, block_hash):
+    def cancel_recovery_for_block(self, block_hash: Sha256Hash):
         """
         Cancels recovery for all compressed blocks matching a block hash
         :param block_hash: ObjectHash
@@ -112,7 +155,7 @@ class BlockRecoveryService(object):
             logger.debug("Cancelled block recovery for block: {}".format(block_hash))
             self._remove_recovered_block_hash(block_hash)
 
-    def cleanup_old_blocks(self, clean_up_time=None):
+    def cleanup_old_blocks(self, clean_up_time: float = None):
         """
         Cleans up old compressed blocks awaiting recovery.
         :param clean_up_time:
@@ -140,7 +183,7 @@ class BlockRecoveryService(object):
                      .format(len(self.recovered_blocks)))
         del self.recovered_blocks[:]
 
-    def _check_if_recovered(self, bx_block_hash):
+    def _check_if_recovered(self, bx_block_hash: Sha256Hash):
         """
         Checks if a compressed block has received all short ids and transaction hashes necessary to recover.
         Adds block to recovered blocks if so.
@@ -154,15 +197,16 @@ class BlockRecoveryService(object):
             self._remove_recovered_block_hash(block_hash)
             self.recovered_blocks.append(bx_block)
 
-    def _is_block_recovered(self, bx_block_hash):
+    def _is_block_recovered(self, bx_block_hash: Sha256Hash):
         """
         Indicates if a compressed block has received all short ids and transaction hashes necessary to recover.
         :param bx_block_hash: ObjectHash
         :return:
         """
-        return len(self._bx_block_hash_to_sids[bx_block_hash]) == 0 and len(self._bx_block_hash_to_tx_hashes[bx_block_hash]) == 0
+        return len(self._bx_block_hash_to_sids[bx_block_hash]) == 0 and len(
+            self._bx_block_hash_to_tx_hashes[bx_block_hash]) == 0
 
-    def _remove_recovered_block_hash(self, block_hash):
+    def _remove_recovered_block_hash(self, block_hash: Sha256Hash):
         """
         Removes all compressed blocks awaiting recovery that are matches to a recovered block hash.
         :param block_hash: ObjectHash
@@ -176,7 +220,7 @@ class BlockRecoveryService(object):
                     del self._bx_block_hash_to_block_hash[bx_block_hash]
             del self._block_hash_to_bx_block_hashes[block_hash]
 
-    def _remove_sid_and_tx_mapping_for_bx_block_hash(self, bx_block_hash):
+    def _remove_sid_and_tx_mapping_for_bx_block_hash(self, bx_block_hash: Sha256Hash):
         """
         Removes all short id and transaction mapping for a compressed block.
         :param bx_block_hash:
@@ -199,7 +243,7 @@ class BlockRecoveryService(object):
                     del self._tx_hash_to_bx_block_hashes[tx_hash]
         del self._bx_block_hash_to_tx_hashes[bx_block_hash]
 
-    def _remove_not_recovered_block(self, bx_block_hash):
+    def _remove_not_recovered_block(self, bx_block_hash: Sha256Hash):
         """
         Removes compressed block that has not recovered.
         :param bx_block_hash: ObjectHash

@@ -104,3 +104,5 @@ ENV/
 
 # orig files
 *.orig
+
+.pyre
