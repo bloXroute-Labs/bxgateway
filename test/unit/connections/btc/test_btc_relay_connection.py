@@ -272,7 +272,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.assertEqual(2, self.gateway_node.broadcast.call_count)
 
         recovery_broadcast = self.gateway_node.broadcast.call_args_list[0]
-        ((gettxs_message, _conn), recovery_kwargs) = recovery_broadcast
+        ((gettxs_message,), recovery_kwargs) = recovery_broadcast
         self.assertIsInstance(gettxs_message, GetTxsMessage)
         self.assertIn(ConnectionType.RELAY_TRANSACTION, recovery_kwargs["connection_types"])
 

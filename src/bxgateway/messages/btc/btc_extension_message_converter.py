@@ -66,7 +66,8 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         tsk.init(tpe.InputBytes(bx_block_msg), tx_service.proxy)
         tsk_proxy.run()
         total_tx_count = tsk.tx_count()
-        unknown_tx_hashes = tsk.unknown_tx_hashes()
+        unknown_tx_hashes = [Sha256Hash(bytearray(unknown_tx_hash.binary()))
+                             for unknown_tx_hash in tsk.unknown_tx_hashes()]
         unknown_tx_sids = tsk.unknown_tx_sids()
         block_hash = BtcObjectHash(
             binary=convert.hex_to_bytes(tsk.block_hash().hex_string())

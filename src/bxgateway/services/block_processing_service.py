@@ -1,7 +1,7 @@
 import datetime
 import time
-from typing import TYPE_CHECKING
 from typing import Any
+from typing import TYPE_CHECKING, Optional, Iterable
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
@@ -16,7 +16,9 @@ from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
+from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
+from bxgateway.services.block_recovery_service import BlockRecoveryInfo
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -210,7 +212,8 @@ class BlockProcessingService(object):
                                                           start_date_time=decrypt_start_datetime,
                                                           end_date_time=datetime.datetime.utcnow(),
                                                           network_num=connection.network_num,
-                                                          more_info=stats_format.timespan(decrypt_start_timestamp, time.time()))
+                                                          more_info=stats_format.timespan(decrypt_start_timestamp,
+                                                                                          time.time()))
                 self._handle_decrypted_block(block, connection,
                                              encrypted_block_hash_hex=convert.bytes_to_hex(block_hash.binary))
             else:
@@ -297,7 +300,7 @@ class BlockProcessingService(object):
     def _handle_decrypted_block(self, bx_block, connection, encrypted_block_hash_hex=None, recovered=False):
         transaction_service = self._node.get_tx_service()
 
-         # TODO: determine if a real block or test block. Discard if test block.
+        # TODO: determine if a real block or test block. Discard if test block.
         block_message, block_info, unknown_sids, unknown_hashes = \
             self._node.node_conn.message_converter.bx_block_to_block(bx_block, transaction_service)
 
@@ -370,34 +373,18 @@ class BlockProcessingService(object):
                                                       network_num=connection.network_num,
                                                       more_info="{} sids, {} hashes".format(
                                                           len(unknown_sids), len(unknown_hashes)))
-            gettxs_message = self._create_unknown_txs_message(unknown_sids, unknown_hashes)
-            self._node.broadcast(gettxs_message, connection, connection_types=[ConnectionType.RELAY_TRANSACTION])
-            tx_stats.add_txs_by_short_ids_event(unknown_sids,
-                                                TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
-                                                network_num=self._node.network_num,
-                                                peer=connection.peer_desc,
-                                                block_hash=convert.bytes_to_hex(block_hash.binary))
 
+            self.start_transaction_recovery(unknown_sids, unknown_hashes, block_hash, connection)
             if recovered:
-                # for now, just allow retry.
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.BLOCK_RECOVERY_REPEATED,
-                                                          network_num=connection.network_num,
-                                                          request_hash=convert.bytes_to_hex(
-                                                              crypto.double_sha256(gettxs_message.rawbytes())
-                                                          ))
+                # should never happen –– this should not be called on blocks that have not recovered
+                logger.error("Unexpectedly, could not decompress block {} after block was recovered.", block_hash)
             else:
                 self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.BLOCK_RECOVERY_STARTED,
-                                                          network_num=connection.network_num,
-                                                          request_hash=convert.bytes_to_hex(
-                                                              crypto.double_sha256(gettxs_message.rawbytes())))
 
-    def _create_unknown_txs_message(self, unknown_sids, unknown_hashes):
+    def start_transaction_recovery(self, unknown_sids: Iterable[int], unknown_hashes: Iterable[Sha256Hash],
+                                   block_hash: Sha256Hash, connection: Optional[AbstractRelayConnection] = None):
         all_unknown_sids = []
         all_unknown_sids.extend(unknown_sids)
-
         tx_service = self._node.get_tx_service()
 
         # retrieving sids of txs with unknown contents
@@ -405,4 +392,47 @@ class BlockProcessingService(object):
             tx_sid = tx_service.get_short_id(tx_hash)
             all_unknown_sids.append(tx_sid)
 
-        return GetTxsMessage(short_ids=all_unknown_sids)
+        get_txs_message = GetTxsMessage(short_ids=all_unknown_sids)
+        self._node.broadcast(get_txs_message, connection_types=[ConnectionType.RELAY_TRANSACTION])
+
+        if connection is not None:
+            tx_stats.add_txs_by_short_ids_event(all_unknown_sids,
+                                                TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
+                                                network_num=self._node.network_num,
+                                                peer=connection.peer_desc,
+                                                block_hash=convert.bytes_to_hex(block_hash.binary))
+            block_stats.add_block_event_by_block_hash(block_hash,
+                                                      BlockStatEventType.BLOCK_RECOVERY_STARTED,
+                                                      network_num=connection.network_num,
+                                                      request_hash=convert.bytes_to_hex(
+                                                          crypto.double_sha256(get_txs_message.rawbytes())))
+        else:
+            block_stats.add_block_event_by_block_hash(block_hash,
+                                                      BlockStatEventType.BLOCK_RECOVERY_REPEATED,
+                                                      network_num=self._node.network_num,
+                                                      request_hash=convert.bytes_to_hex(
+                                                          crypto.double_sha256(get_txs_message.rawbytes())
+                                                      ))
+
+    def schedule_recovery_retry(self, block_awaiting_recovery: BlockRecoveryInfo):
+        """
+        Schedules a block recovery attempt. Repeated block recovery attempts result in longer timeouts,
+        following `gateway_constants.BLOCK_RECOVERY_INTERVAL_S`'s pattern, until giving up.
+        :param block_awaiting_recovery: info about recovering block
+        :return:
+        """
+        block_hash = block_awaiting_recovery.block_hash
+        recovery_attempts = self._node.block_recovery_service.recovery_attempts_by_block[block_hash]
+        if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS:
+            logger.error("Giving up on attempting to recover block: {}", block_hash)
+        else:
+            delay = gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[recovery_attempts]
+            self._node.alarm_queue.register_approx_alarm(delay, delay / 2, self._trigger_recovery_retry,
+                                                         block_awaiting_recovery)
+
+    def _trigger_recovery_retry(self, block_awaiting_recovery: BlockRecoveryInfo):
+        block_hash = block_awaiting_recovery.block_hash
+        self._node.block_recovery_service.recovery_attempts_by_block[block_hash] += 1
+        self.start_transaction_recovery(block_awaiting_recovery.unknown_short_ids,
+                                        block_awaiting_recovery.unknown_transaction_hashes,
+                                        block_hash)

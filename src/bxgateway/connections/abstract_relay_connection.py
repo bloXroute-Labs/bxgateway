@@ -83,6 +83,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         network_num = msg.network_num()
         tx_val = msg.tx_val()
 
+        attempt_recovery = False
+
         if tx_service.has_transaction_short_id(tx_hash) and not short_id:
             gateway_transaction_stats_service.log_duplicate_transaction_from_relay()
             tx_stats.add_tx_by_hash_event(tx_hash,
@@ -100,8 +102,10 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         if short_id:
             tx_service.assign_short_id(tx_hash, short_id)
             was_missing = self.node.block_recovery_service.check_missing_sid(short_id)
+            attempt_recovery |= was_missing
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SHORT_ID_STORED_BY_GATEWAY,
                                           network_num=network_num, short_id=short_id, was_missing=was_missing)
+
         else:
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SHORT_ID_EMPTY_IN_MSG_FROM_RELAY,
                                           network_num=network_num, short_id=short_id, peer=self.peer_desc)
@@ -113,13 +117,15 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                                               TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
                                               network_num=network_num, short_id=short_id, peer=self.peer_desc)
                 gateway_transaction_stats_service.log_redundant_transaction_content()
+
+            if attempt_recovery:
+                self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
             return
 
         if tx_val != TxMessage.EMPTY_TX_VAL:
             logger.debug("Adding hash value to tx service and forwarding it to node")
             tx_service.set_transaction_contents(tx_hash, msg.tx_val())
-            self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
-            self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
+            attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
             if self.node.node_conn is not None:
                 btc_tx_msg = self.message_converter.bx_tx_to_tx(msg)
@@ -127,6 +133,9 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
                                           network_num=network_num, short_id=short_id)
+
+        if attempt_recovery:
+            self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
 
     def msg_txs(self, msg: TxsMessage):
         if not self.CONNECTION_TYPE & ConnectionType.RELAY_TRANSACTION:
@@ -163,6 +172,9 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                                           short_id=short_id)
 
         self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
+
+        for block_awaiting_recovery in self.node.block_recovery_service.get_blocks_awaiting_recovery():
+            self.node.block_processing_service.schedule_recovery_retry(block_awaiting_recovery)
 
     def msg_block_holding(self, msg):
         """
