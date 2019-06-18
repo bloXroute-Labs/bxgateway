@@ -7,17 +7,16 @@ from bxcommon.constants import LOCALHOST
 from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxgateway.btc_constants import NODE_WITNESS_SERVICE_FLAG, BTC_SHA_HASH_LEN
+from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_node_connection_protocol import BtcNodeConnectionProtocol
-from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType, GetDataBtcMessage
-from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxcommon.utils import convert, crypto
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 
 
 class BtcNodeConnectionProtocolHandler(AbstractTestCase):
@@ -44,19 +43,27 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
         full_block_msg = BlockBtcMessage(
             buf=bytearray(convert.hex_to_bytes(self.FULL_BLOCK_BYTES_HEX))
         )
-        transaction_service = TransactionService(self.node, 0)
+        if self.node.opts.use_extensions:
+            transaction_service = ExtensionTransactionService(self.node, 0)
+        else:
+            transaction_service = TransactionService(self.node, 0)
 
+
+        short_id = 1;
         for tx in full_block_msg.txns():
             tx_hash = BtcObjectHash(crypto.bitcoin_hash(tx), length=BTC_SHA_HASH_LEN)
             transaction_service.set_transaction_contents(tx_hash, tx)
+            transaction_service.assign_short_id(tx_hash, short_id)
+            short_id += 1
+
         self.sut.connection.node._tx_service = transaction_service
 
     def test_msg_compact_block_handler(self):
         message = CompactBlockBtcMessage(buf=bytearray(convert.hex_to_bytes(self.COMPACT_BLOCK_BYTES_HEX)))
         message._timestamp = int(time.time())
         self.assertFalse(message.block_hash() in self.connection.node.blocks_seen.contents)
-        self.node.block_processing_service.queue_block_for_processing.assert_not_called()
+        self.node.block_processing_service.process_compact_block.assert_not_called()
         self.sut.msg_compact_block(message)
         self.assertTrue(message.block_hash() in self.connection.node.blocks_seen.contents)
-        self.node.block_processing_service.queue_block_for_processing.assert_called_once()
+        self.node.block_processing_service.process_compact_block.assert_called_once()
 

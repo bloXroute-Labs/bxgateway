@@ -36,6 +36,8 @@ class BtcRelayConnectionTest(AbstractTestCase):
     def setUp(self):
         self.gateway_node = BtcGatewayNode(get_gateway_opts(8000, include_default_btc_args=True))
         self.sut = BtcRelayConnection(MockSocketConnection(), (LOCALHOST, 8001), self.gateway_node)
+        self.gateway_node.connection_pool.add(self.sut.fileno, LOCALHOST, 8001, self.sut)
+        self.sut.state |= ConnectionState.ESTABLISHED
         self.gateway_node.node_conn = MockConnection(1, (LOCALHOST, 8002), self.gateway_node)
         self.gateway_node.node_conn.message_converter = converter_factory.create_btc_message_converter(
             12345, self.gateway_node.opts
@@ -246,9 +248,9 @@ class BtcRelayConnectionTest(AbstractTestCase):
         remote_transaction_service = ExtensionTransactionService(MockNode(LOCALHOST, 8999), 0)
         short_id_mapping = {}
         for i, transaction in enumerate(transactions):
-            remote_transaction_service.assign_short_id(transaction.tx_hash(), i)
+            remote_transaction_service.assign_short_id(transaction.tx_hash(), i + 1)
             remote_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx())
-            short_id_mapping[transaction.tx_hash()] = TransactionInfo(transaction.tx_hash(), transaction.tx(), i)
+            short_id_mapping[transaction.tx_hash()] = TransactionInfo(transaction.tx_hash(), transaction.tx(), i + 1)
 
         bx_block = bytes(self.sut.message_converter.block_to_bx_block(btc_block, remote_transaction_service)[0])
 
@@ -266,7 +268,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         self.gateway_node.block_recovery_service.add_block.assert_called_once()
         self.sut.enqueue_msg.assert_called_once()
-        ((gettxs_message,), _) = self.sut.enqueue_msg.call_args
+        ((gettxs_message, _), _) = self.sut.enqueue_msg.call_args
         self.assertIsInstance(gettxs_message, GetTxsMessage)
 
         txs = [tx for tx in short_id_mapping.values()]

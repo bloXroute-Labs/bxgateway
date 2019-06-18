@@ -1,5 +1,7 @@
 import struct
 import typing
+import hashlib
+from csiphash import siphash24
 from collections import deque
 
 from bxcommon import constants
@@ -8,13 +10,25 @@ from bxcommon.utils import crypto, convert, logger
 from bxcommon.messages.bloxroute.compact_block_short_ids_serializer import BlockOffsets
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway import btc_constants
-from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter, get_block_info
+from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_HEADER_MINUS_CHECKSUM
+from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter, get_block_info, \
+    CompactBlockCompressionResult
+from bxgateway.messages.btc.btc_message_type import BtcMessageType
+from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.utils.block_header_info import BlockHeaderInfo
 from bxgateway.messages.btc import btc_messages_util
+
+
+class CompactBlockRecoveryData(typing.NamedTuple):
+    block_transactions: typing.List[typing.Optional[typing.Union[memoryview, int]]]
+    block_header: memoryview
+    magic: int
+    tx_service: TransactionService
 
 
 def parse_bx_block_header(
@@ -90,6 +104,10 @@ def build_btc_block(
         btc_block[offset:next_offset] = piece
         offset = next_offset
     return BlockBtcMessage(buf=btc_block), offset
+
+
+def compute_short_id(key: bytes, tx_hash_binary: typing.Union[bytearray, memoryview]) -> bytes:
+    return siphash24(key, bytes(tx_hash_binary))[0:6]
 
 
 class BtcNormalMessageConverter(AbstractBtcMessageConverter):
@@ -182,3 +200,164 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             btc_block_msg
         )
         return btc_block_msg, block_info.block_hash, block_info.short_ids, unknown_tx_sids, unknown_tx_hashes
+
+    def compact_block_to_bx_block(
+            self,
+            compact_block: CompactBlockBtcMessage,
+            transaction_service: TransactionService
+    ) -> CompactBlockCompressionResult:
+        """
+         Handle decompression of Bitcoin compact block.
+         Decompression converts compact block message to full block message.
+         """
+
+        block_header = compact_block.block_header()
+        sha256_hash = hashlib.sha256()
+        sha256_hash.update(block_header)
+        sha256_hash.update(compact_block.short_nonce_buf())
+        hex_digest = sha256_hash.digest()
+        key = hex_digest[0:16]
+
+        short_ids = compact_block.short_ids()
+
+        short_id_to_tx_contents = {}
+
+        for tx_hash in transaction_service.iter_transaction_hashes_not_seen_in_block():
+            tx_hash_binary = tx_hash.binary[::-1]
+            tx_short_id = compute_short_id(key, tx_hash_binary)
+            if tx_short_id in short_ids:
+                tx_content = transaction_service.get_transaction_by_hash(tx_hash)
+                if tx_content is None:
+                    logger.warn("Hash {} is known by transactions service but content is missing.", tx_hash)
+                else:
+                    short_id_to_tx_contents[tx_short_id] = tx_content
+            if len(short_id_to_tx_contents) == len(short_ids):
+                break
+
+        block_transactions = []
+        missing_transactions_indices = []
+        prefilled_txs = compact_block.prefilled_txns()
+        total_txs_count = len(prefilled_txs) + len(short_ids)
+
+        size = 0
+        block_msg_parts = deque()
+
+        block_msg_parts.append(block_header)
+        size += len(block_header)
+
+        tx_count_size = btc_messages_util.get_sizeof_btc_varint(total_txs_count)
+        tx_count_buf = bytearray(tx_count_size)
+        btc_messages_util.pack_int_to_btc_varint(total_txs_count, tx_count_buf, 0)
+        block_msg_parts.append(tx_count_buf)
+        size += tx_count_size
+
+        short_ids_iter = iter(short_ids.keys())
+
+        for index in range(total_txs_count):
+            if index not in prefilled_txs:
+                short_id = next(short_ids_iter)
+
+                if short_id in short_id_to_tx_contents:
+                    short_tx = short_id_to_tx_contents[short_id]
+                    block_msg_parts.append(short_tx)
+                    block_transactions.append(short_tx)
+                    size += len(short_tx)
+                else:
+                    missing_transactions_indices.append(index)
+                    block_transactions.append(None)
+            else:
+                prefilled_tx = prefilled_txs[index]
+                block_msg_parts.append(prefilled_tx)
+                block_transactions.append(prefilled_tx)
+                size += len(prefilled_tx)
+
+        recovered_item = CompactBlockRecoveryData(
+            block_transactions, block_header, compact_block.magic(), transaction_service
+        )
+
+        if len(missing_transactions_indices) > 0:
+            recovery_index = self._last_recovery_idx
+            self._last_recovery_idx += 1
+            self._recovery_items[recovery_index] = recovered_item
+            return CompactBlockCompressionResult(
+                False,
+                None,
+                None,
+                recovery_index,
+                missing_transactions_indices,
+                []
+            )
+        result = CompactBlockCompressionResult(False, None, None, None, [], [])
+        self._recovered_compact_block_to_bx_block(result, recovered_item)
+        return result
+
+    def recovered_compact_block_to_bx_block(
+            self,
+            failed_compression_result: CompactBlockCompressionResult,
+    ) -> bool:
+        return self._recovered_compact_block_to_bx_block(
+            failed_compression_result,
+            self._recovery_items.pop(failed_compression_result.recovery_index)
+        )
+
+    def _recovered_compact_block_to_bx_block(
+            self,
+            compression_result: CompactBlockCompressionResult,
+            recovery_item: CompactBlockRecoveryData
+    ) -> bool:
+        """
+        Handle recovery of Bitcoin compact block message.
+        """
+
+        missing_indices = compression_result.missing_indices
+        recovered_transactions = compression_result.recovered_transactions
+        block_transactions = recovery_item.block_transactions
+        if len(missing_indices) != len(recovered_transactions):
+            logger.info(
+                "Number of transactions missing in compact block does not match number of recovered transactions."
+                "Missing transactions - {}. Recovered transactions - {}", len(missing_indices),
+                len(recovered_transactions))
+            return False
+
+        for i in range(len(missing_indices)):
+            missing_index = missing_indices[i]
+            block_transactions[missing_index] = recovered_transactions[i]
+
+        size = 0
+        total_txs_count = len(block_transactions)
+        block_msg_parts = deque()
+
+        block_header = recovery_item.block_header
+        block_msg_parts.append(block_header)
+        size += len(block_header)
+
+        tx_count_size = btc_messages_util.get_sizeof_btc_varint(total_txs_count)
+        tx_count_buf = bytearray(tx_count_size)
+        btc_messages_util.pack_int_to_btc_varint(total_txs_count, tx_count_buf, 0)
+        block_msg_parts.append(tx_count_buf)
+        size += tx_count_size
+
+        for transaction in block_transactions:
+            block_msg_parts.append(transaction)
+            size += len(transaction)
+
+        msg_header = bytearray(BTC_HDR_COMMON_OFF)
+        struct.pack_into("<L12sL", msg_header, 0, recovery_item.magic, BtcMessageType.BLOCK, size)
+        block_msg_parts.appendleft(msg_header)
+        size += BTC_HDR_COMMON_OFF
+
+        block_msg_bytes = bytearray(size)
+        off = 0
+        for blob in block_msg_parts:
+            next_off = off + len(blob)
+            block_msg_bytes[off:next_off] = blob
+            off = next_off
+
+        checksum = crypto.bitcoin_hash(block_msg_bytes[BTC_HDR_COMMON_OFF:size])
+        block_msg_bytes[BTC_HEADER_MINUS_CHECKSUM:BTC_HDR_COMMON_OFF] = checksum[0:4]
+        bx_block, block_info = self.block_to_bx_block(
+            BlockBtcMessage(buf=block_msg_bytes), recovery_item.tx_service
+        )
+        compression_result.bx_block = bx_block
+        compression_result.block_info = block_info
+        compression_result.success = True

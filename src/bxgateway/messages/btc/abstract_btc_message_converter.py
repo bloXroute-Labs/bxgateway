@@ -2,15 +2,43 @@ import typing
 from abc import abstractmethod
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import crypto, convert
+from bxcommon.utils.proxy.vector_proxy import VectorProxy
 
 from bxgateway import btc_constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message import BtcMessage
+from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+
+
+class CompactBlockCompressionResult:
+    def __init__(
+            self,
+            success: bool,
+            block_info: typing.Optional[BlockInfo],
+            bx_block: typing.Optional[memoryview],
+            recovery_index: typing.Optional[int],
+            missing_indices: typing.List[int],
+            recovered_transactions: typing.Union[typing.List[memoryview], VectorProxy]
+     ):
+        self.success = success
+        self.block_info = block_info
+        self.bx_block = bx_block
+        self.recovery_index = recovery_index
+        self.missing_indices = missing_indices
+        self.recovered_transactions = recovered_transactions
+
+
+class CompactBlockRecoveryData(typing.NamedTuple):
+    block_transactions: typing.List[typing.Optional[typing.Union[memoryview, int]]]
+    block_header: memoryview
+    magic: int
+    tx_service: TransactionService
 
 
 def get_block_info(
@@ -42,6 +70,8 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
             raise ValueError("btc_magic is required")
 
         self._btc_magic = btc_magic
+        self._last_recovery_idx: int = 0
+        self._recovery_items: typing.Dict[int, CompactBlockRecoveryData] = {}
 
     @abstractmethod
     def block_to_bx_block(self, btc_block_msg, tx_service):
@@ -57,6 +87,25 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
         bx_block must be a memoryview, since memoryview[offset] returns a bytearray, while bytearray[offset] returns
         a byte.
         """
+        pass
+
+    @abstractmethod
+    def compact_block_to_bx_block(
+            self,
+            compact_block: CompactBlockBtcMessage,
+            transaction_service: TransactionService
+    ) -> CompactBlockCompressionResult:
+        """
+         Handle decompression of Bitcoin compact block.
+         Decompression converts compact block message to full block message.
+         """
+        pass
+
+    @abstractmethod
+    def recovered_compact_block_to_bx_block(
+            self,
+            failed_compression_result: CompactBlockCompressionResult,
+    ) -> bool:
         pass
 
     def bx_tx_to_tx(self, tx_msg):

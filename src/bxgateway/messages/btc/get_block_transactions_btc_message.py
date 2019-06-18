@@ -14,7 +14,8 @@ class GetBlockTransactionsBtcMessage(BtcMessage):
 
     MESSAGE_TYPE = BtcMessageType.GET_BLOCK_TRANSACTIONS
 
-    def __init__(self, magic: int = None, block_hash: BtcObjectHash = None, indices: List[int] = None,
+    def __init__(self, magic: int = None, block_hash: BtcObjectHash = None,
+                 indices: List[int] = None,
                  buf: memoryview = None):
         if buf is None:
             buf = bytearray(

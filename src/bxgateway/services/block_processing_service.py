@@ -1,7 +1,7 @@
-import datetime
+from datetime import datetime
 import time
 from typing import Any
-from typing import TYPE_CHECKING, Optional, Iterable
+from typing import Optional, Iterable
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
@@ -262,7 +262,7 @@ class BlockProcessingService(object):
         :param connection: receiving connection (AbstractBlockchainConnection)
         """
         block_hash = block_message.block_hash()
-        compress_start_datetime = datetime.datetime.utcnow()
+        compress_start_datetime = datetime.utcnow()
         compress_start_timestamp = time.time()
 
         bx_block, block_info = connection.message_converter.block_to_bx_block(block_message,
@@ -272,7 +272,7 @@ class BlockProcessingService(object):
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.BLOCK_COMPRESSED,
                                                   start_date_time=compress_start_datetime,
-                                                  end_date_time=datetime.datetime.utcnow(),
+                                                  end_date_time=datetime.utcnow(),
                                                   network_num=connection.network_num,
                                                   original_size=original_size,
                                                   compressed_size=compressed_size,
@@ -282,24 +282,34 @@ class BlockProcessingService(object):
                                                   more_info="{:.2f}ms, {:.2f}%".format(
                                                       time.time() - compress_start_timestamp,
                                                       100 - float(compressed_size) / original_size * 100))
+        self._process_and_broadcast_compressed_block(bx_block, connection, block_info, block_hash)
+        self.after_block_processed(block_message)
+
+    def _process_and_broadcast_compressed_block(self, bx_block, connection, block_info, block_hash):
+        """
+        Process a compressed block.
+        :param bx_block: compress block message to process
+        :param connection: receiving connection (AbstractBlockchainConnection)
+        :param block_info: original block info
+        :param block_hash: block hash
+        """
 
         connection.node.neutrality_service.propagate_block_to_network(bx_block, connection, block_hash)
 
         connection.node.block_recovery_service.cancel_recovery_for_block(block_hash)
         connection.node.block_queuing_service.remove(block_hash)
         connection.node.blocks_seen.add(block_hash)
-        connection.node.get_tx_service().track_seen_short_ids(block_info.short_ids)
-        self.after_block_processed(block_message)
+        self._node.get_tx_service().track_seen_short_ids(block_info.short_ids)
 
     def _handle_decrypted_block(self, bx_block, connection, encrypted_block_hash_hex=None, recovered=False):
         transaction_service = self._node.get_tx_service()
-        decompress_start_datetime = datetime.datetime.utcnow()
+        decompress_start_datetime = datetime.utcnow()
         decompress_start_timestamp = time.time()
         # TODO: determine if a real block or test block. Discard if test block.
         block_message, block_hash, all_sids, unknown_sids, unknown_hashes = \
             self._node.node_conn.message_converter.bx_block_to_block(bx_block, transaction_service)
 
-        decompress_end = datetime.datetime.utcnow()
+        decompress_end = datetime.utcnow()
         decompress_end_timestamp = time.time()
 
         self.cancel_hold_timeout(block_hash, connection)
@@ -376,23 +386,29 @@ class BlockProcessingService(object):
         self._node.broadcast(get_txs_message, connection_types=[ConnectionType.RELAY])
 
         if connection is not None:
-            tx_stats.add_txs_by_short_ids_event(all_unknown_sids,
-                                                TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
-                                                network_num=self._node.network_num,
-                                                peer=connection.peer_desc,
-                                                block_hash=convert.bytes_to_hex(block_hash.binary))
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_RECOVERY_STARTED,
-                                                      network_num=connection.network_num,
-                                                      request_hash=convert.bytes_to_hex(
-                                                          crypto.double_sha256(get_txs_message.rawbytes())))
+            tx_stats.add_txs_by_short_ids_event(
+                all_unknown_sids,
+                TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
+                network_num=self._node.network_num,
+                peer=connection.peer_desc,
+                block_hash=convert.bytes_to_hex(block_hash.binary)
+            )
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_RECOVERY_STARTED,
+                network_num=connection.network_num,
+                request_hash=convert.bytes_to_hex(
+                  crypto.double_sha256(get_txs_message.rawbytes()))
+            )
         else:
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_RECOVERY_REPEATED,
-                                                      network_num=self._node.network_num,
-                                                      request_hash=convert.bytes_to_hex(
-                                                          crypto.double_sha256(get_txs_message.rawbytes())
-                                                      ))
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_RECOVERY_REPEATED,
+                network_num=self._node.network_num,
+                request_hash=convert.bytes_to_hex(
+                  crypto.double_sha256(get_txs_message.rawbytes())
+                )
+            )
 
     def schedule_recovery_retry(self, block_awaiting_recovery: BlockRecoveryInfo):
         """
