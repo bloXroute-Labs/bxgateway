@@ -26,6 +26,10 @@ jobs:
           paths:
             - "venv"
       - run:
+          name: install dependencies
+          command: |
+            apk add linux-headers
+      - run:
           name: install bxcommon
           command: |
              cd ~/ws/bxgateway
