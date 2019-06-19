@@ -288,13 +288,12 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
                 []
             )
         result = CompactBlockCompressionResult(False, None, None, None, [], [])
-        self._recovered_compact_block_to_bx_block(result, recovered_item)
-        return result
+        return self._recovered_compact_block_to_bx_block(result, recovered_item)
 
     def recovered_compact_block_to_bx_block(
             self,
             failed_compression_result: CompactBlockCompressionResult,
-    ) -> bool:
+    ) -> CompactBlockCompressionResult:
         return self._recovered_compact_block_to_bx_block(
             failed_compression_result,
             self._recovery_items.pop(failed_compression_result.recovery_index)
@@ -304,7 +303,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             self,
             compression_result: CompactBlockCompressionResult,
             recovery_item: CompactBlockRecoveryData
-    ) -> bool:
+    ) -> CompactBlockCompressionResult:
         """
         Handle recovery of Bitcoin compact block message.
         """
@@ -317,7 +316,9 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
                 "Number of transactions missing in compact block does not match number of recovered transactions."
                 "Missing transactions - {}. Recovered transactions - {}", len(missing_indices),
                 len(recovered_transactions))
-            return False
+            return CompactBlockCompressionResult(
+                False, None, None, None, missing_indices, recovered_transactions
+            )
 
         for i in range(len(missing_indices)):
             missing_index = missing_indices[i]
@@ -358,6 +359,4 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         bx_block, block_info = self.block_to_bx_block(
             BlockBtcMessage(buf=block_msg_bytes), recovery_item.tx_service
         )
-        compression_result.bx_block = bx_block
-        compression_result.block_info = block_info
-        compression_result.success = True
+        return CompactBlockCompressionResult(True, block_info, bx_block, None, [], [])

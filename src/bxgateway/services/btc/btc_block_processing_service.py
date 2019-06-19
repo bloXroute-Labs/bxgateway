@@ -4,6 +4,10 @@ from datetime import datetime
 from bxcommon.utils import crypto, logger
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
+from bxgateway.messages.btc.abstract_btc_message_converter import CompactBlockCompressionResult
+from bxgateway.messages.btc.block_transactions_btc_message import BlockTransactionsBtcMessage
+from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN
@@ -13,7 +17,7 @@ from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, Inve
 
 class BtcBlockProcessingService(BlockProcessingService):
 
-    def after_block_processed(self, block_message: BlockBtcMessage):
+    def after_block_processed(self, block_message: BlockBtcMessage) -> None:
         """
         Additional processing of the block that can be customized per blockchain
         :param block_message: block message specific to a blockchain
@@ -27,7 +31,9 @@ class BtcBlockProcessingService(BlockProcessingService):
             tx_hash = BtcObjectHash(crypto.bitcoin_hash(tx), length=BTC_SHA_HASH_LEN)
             transaction_service.track_seen_transaction_hash(tx_hash)
 
-    def process_compact_block(self, block_message, connection):
+    def process_compact_block(
+            self, block_message: CompactBlockBtcMessage, connection: BtcNodeConnection
+    ) -> CompactBlockCompressionResult:
         """
         Process compact block for processing on timeout if hold message received.
         If no hold exists, compress and broadcast block immediately.
@@ -44,19 +50,15 @@ class BtcBlockProcessingService(BlockProcessingService):
         decompression_end_time = time.time()
         duration = decompression_end_time - decompression_start_time
 
-        missing_indices = parse_result.missing_indices
-        missing_indices_count = 0 if missing_indices is None else len(missing_indices)
-
         if parse_result.success:
             block_stats.add_block_event_by_block_hash(
                 block_hash,
-                BlockStatEventType.COMPACT_BLOCK_COMPRESSED,
+                BlockStatEventType.COMPACT_BLOCK_COMPRESSED_SUCCESS,
                 network_num=connection.network_num,
                 start_date_time=decompression_start_datetime,
                 end_date_time=decompression_end_time,
                 duration=duration,
                 success=parse_result.success,
-                missing_short_id_count=missing_indices_count,
                 txs_count=parse_result.block_info.txn_count,
                 prev_block_hash=parse_result.block_info.prev_block_hash,
                 more_info="{:.2f}ms".format(
@@ -71,9 +73,11 @@ class BtcBlockProcessingService(BlockProcessingService):
                 block_hash
             )
         else:
+            missing_indices = parse_result.missing_indices
+            missing_indices_count = 0 if missing_indices is None else len(missing_indices)
             block_stats.add_block_event_by_block_hash(
                 block_hash,
-                BlockStatEventType.COMPACT_BLOCK_COMPRESSED,
+                BlockStatEventType.COMPACT_BLOCK_COMPRESSED_FAILED,
                 network_num=connection.network_num,
                 start_date_time=decompression_start_time,
                 end_date_time=decompression_end_time,
@@ -84,11 +88,19 @@ class BtcBlockProcessingService(BlockProcessingService):
                     duration * 1000
                 )
             )
-            logger.info("Compact block was parsed with {} unknown short ids. Requesting unknown transactions.",
-                        len(parse_result.missing_indices))  # pyre-ignore
+            logger.info(
+                "Compact block was parsed with {} unknown short ids. "
+                "Requesting unknown transactions.",
+                missing_indices_count
+            )
         return parse_result
 
-    def process_compact_block_recovery(self, msg, recovery_result, connection):
+    def process_compact_block_recovery(
+            self,
+            msg: BlockTransactionsBtcMessage,
+            recovery_result: CompactBlockCompressionResult,
+            connection: BtcNodeConnection
+    ) -> None:
         """
         Process compact block recovery .
         If no hold exists, compress and broadcast block immediately.
@@ -113,7 +125,7 @@ class BtcBlockProcessingService(BlockProcessingService):
         if recovery_result.success:
             block_stats.add_block_event_by_block_hash(
                 block_hash,
-                BlockStatEventType.COMPACT_BLOCK_RECOVERY,
+                BlockStatEventType.COMPACT_BLOCK_RECOVERY_SUCCESS,
                 network_num=connection.network_num,
                 start_date_time=recovery_start_datetime,
                 end_date_time=recovery_end_time,
@@ -137,7 +149,7 @@ class BtcBlockProcessingService(BlockProcessingService):
         else:
             block_stats.add_block_event_by_block_hash(
                 block_hash,
-                BlockStatEventType.COMPACT_BLOCK_RECOVERY,
+                BlockStatEventType.COMPACT_BLOCK_RECOVERY_FAILED,
                 network_num=connection.network_num,
                 start_date_time=recovery_start_datetime,
                 end_date_time=recovery_end_time,
@@ -155,7 +167,7 @@ class BtcBlockProcessingService(BlockProcessingService):
                 msg.block_hash()
             )
             get_data_msg = GetDataBtcMessage(
-                    magic=recovery_result.magic,
+                    magic=msg.magic(),
                     inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
             )
             connection.node.send_msg_to_node(get_data_msg)

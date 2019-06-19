@@ -183,5 +183,6 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
 
         if msg.block_hash() in self._recovery_compact_blocks.contents:
             recovery_result = self._recovery_compact_blocks.contents[msg.block_hash()]
-            self.connection.node.block_processing_service.process_compact_block_recovery(msg, recovery_result,
-                                                                                         self.connection)
+            self.connection.node.block_processing_service.process_compact_block_recovery(
+                msg, recovery_result, self.connection
+            )

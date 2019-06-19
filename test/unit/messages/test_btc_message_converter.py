@@ -246,7 +246,7 @@ class BtcMessageConverterTests(AbstractTestCase):
             self.assertNotEqual(0, missing_index % 2)
         for recovered_transaction in recovered_transactions:
             result.recovered_transactions.append(recovered_transaction)
-        self.btc_message_converter.recovered_compact_block_to_bx_block(result)
+        result = self.btc_message_converter.recovered_compact_block_to_bx_block(result)
         self.assertTrue(result.success)
         ref_block, _, _, _, _ = self.btc_message_converter.bx_block_to_block(
             result.bx_block, self.tx_service

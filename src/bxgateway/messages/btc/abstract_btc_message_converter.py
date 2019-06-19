@@ -1,4 +1,4 @@
-import typing
+from typing import Optional, Union, List, NamedTuple, Dict
 from abc import abstractmethod
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
@@ -20,11 +20,11 @@ class CompactBlockCompressionResult:
     def __init__(
             self,
             success: bool,
-            block_info: typing.Optional[BlockInfo],
-            bx_block: typing.Optional[memoryview],
-            recovery_index: typing.Optional[int],
-            missing_indices: typing.List[int],
-            recovered_transactions: typing.Union[typing.List[memoryview], VectorProxy]
+            block_info: Optional[BlockInfo],
+            bx_block: Optional[Union[memoryview, bytearray]],
+            recovery_index: Optional[int],
+            missing_indices: List[int],
+            recovered_transactions: Union[List[memoryview], VectorProxy]
      ):
         self.success = success
         self.block_info = block_info
@@ -34,8 +34,8 @@ class CompactBlockCompressionResult:
         self.recovered_transactions = recovered_transactions
 
 
-class CompactBlockRecoveryData(typing.NamedTuple):
-    block_transactions: typing.List[typing.Optional[typing.Union[memoryview, int]]]
+class CompactBlockRecoveryData(NamedTuple):
+    block_transactions: List[Optional[Union[memoryview, int]]]
     block_header: memoryview
     magic: int
     tx_service: TransactionService
@@ -44,9 +44,9 @@ class CompactBlockRecoveryData(typing.NamedTuple):
 def get_block_info(
         bx_block: memoryview,
         block_hash: BtcObjectHash,
-        short_ids: typing.List[int],
-        total_tx_count: typing.Optional[int] = None,
-        btc_block_msg: typing.Optional[BlockBtcMessage] = None
+        short_ids: List[int],
+        total_tx_count: Optional[int] = None,
+        btc_block_msg: Optional[BlockBtcMessage] = None
 ) -> BlockInfo:
     if btc_block_msg is not None:
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block))
@@ -71,7 +71,7 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
 
         self._btc_magic = btc_magic
         self._last_recovery_idx: int = 0
-        self._recovery_items: typing.Dict[int, CompactBlockRecoveryData] = {}
+        self._recovery_items: Dict[int, CompactBlockRecoveryData] = {}
 
     @abstractmethod
     def block_to_bx_block(self, btc_block_msg, tx_service):
@@ -105,7 +105,7 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
     def recovered_compact_block_to_bx_block(
             self,
             failed_compression_result: CompactBlockCompressionResult,
-    ) -> bool:
+    ) -> CompactBlockCompressionResult:
         pass
 
     def bx_tx_to_tx(self, tx_msg):
