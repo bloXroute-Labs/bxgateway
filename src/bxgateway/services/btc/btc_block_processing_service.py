@@ -17,20 +17,6 @@ from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, Inve
 
 class BtcBlockProcessingService(BlockProcessingService):
 
-    def after_block_processed(self, block_message: BlockBtcMessage) -> None:
-        """
-        Additional processing of the block that can be customized per blockchain
-        :param block_message: block message specific to a blockchain
-        """
-        transaction_service = self._node.get_tx_service()
-
-        # remove transactions that were seen in the previous block
-        transaction_service.clean_transaction_hashes_not_seen_in_block()
-
-        for tx in block_message.txns():
-            tx_hash = BtcObjectHash(crypto.bitcoin_hash(tx), length=BTC_SHA_HASH_LEN)
-            transaction_service.track_seen_transaction_hash(tx_hash)
-
     def process_compact_block(
             self, block_message: CompactBlockBtcMessage, connection: BtcNodeConnection
     ) -> CompactBlockCompressionResult:

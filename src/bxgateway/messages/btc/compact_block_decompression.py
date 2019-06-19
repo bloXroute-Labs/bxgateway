@@ -54,7 +54,7 @@ def decompress_compact_block(magic: int, msg: CompactBlockBtcMessage,
 
     short_id_to_tx_contents = {}
 
-    for tx_hash in transaction_service.iter_transaction_hashes_not_seen_in_block():
+    for tx_hash in transaction_service.iter_transaction_hashes():
         tx_hash_binary = tx_hash.binary[::-1]
         tx_short_id = _compute_short_id(key, tx_hash_binary)
         if tx_short_id in short_ids:
