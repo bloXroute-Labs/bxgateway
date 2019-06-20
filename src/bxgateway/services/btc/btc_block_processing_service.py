@@ -28,13 +28,12 @@ class BtcBlockProcessingService(BlockProcessingService):
         """
         block_hash = block_message.block_hash()
         decompression_start_datetime = datetime.utcnow()
-        decompression_start_time = time.time()
         parse_result = connection.message_converter.compact_block_to_bx_block(
             block_message,
             self._node.get_tx_service()
         )
-        decompression_end_time = time.time()
-        duration = decompression_end_time - decompression_start_time
+        decompression_end_datetime = datetime.utcnow()
+        duration = (decompression_end_datetime - decompression_start_datetime).total_seconds()
 
         if parse_result.success:
             block_stats.add_block_event_by_block_hash(
@@ -42,7 +41,7 @@ class BtcBlockProcessingService(BlockProcessingService):
                 BlockStatEventType.COMPACT_BLOCK_COMPRESSED_SUCCESS,
                 network_num=connection.network_num,
                 start_date_time=decompression_start_datetime,
-                end_date_time=decompression_end_time,
+                end_date_time=decompression_end_datetime,
                 duration=duration,
                 success=parse_result.success,
                 txs_count=parse_result.block_info.txn_count,
@@ -65,8 +64,8 @@ class BtcBlockProcessingService(BlockProcessingService):
                 block_hash,
                 BlockStatEventType.COMPACT_BLOCK_COMPRESSED_FAILED,
                 network_num=connection.network_num,
-                start_date_time=decompression_start_time,
-                end_date_time=decompression_end_time,
+                start_date_time=decompression_start_datetime,
+                end_date_time=decompression_end_datetime,
                 duration=duration,
                 success=parse_result.success,
                 missing_short_id_count=missing_indices_count,
@@ -96,7 +95,6 @@ class BtcBlockProcessingService(BlockProcessingService):
         """
         block_hash = msg.block_hash()
         recovery_start_datetime = datetime.utcnow()
-        recovery_start_time = time.time()
 
         for txn in msg.transactions():
             recovery_result.recovered_transactions.append(txn)
@@ -105,8 +103,8 @@ class BtcBlockProcessingService(BlockProcessingService):
             msg,
             recovery_result
         )
-        recovery_end_time = time.time()
-        duration = recovery_end_time - recovery_start_time
+        recovery_end_datetime = datetime.utcnow()
+        duration = (recovery_end_datetime - recovery_start_datetime).total_seconds()
 
         if recovery_result.success:
             block_stats.add_block_event_by_block_hash(
@@ -114,7 +112,7 @@ class BtcBlockProcessingService(BlockProcessingService):
                 BlockStatEventType.COMPACT_BLOCK_RECOVERY_SUCCESS,
                 network_num=connection.network_num,
                 start_date_time=recovery_start_datetime,
-                end_date_time=recovery_end_time,
+                end_date_time=recovery_end_datetime,
                 duration=duration,
                 success=recovery_result.success,
                 recoverd_txs_count=len(msg.transactions()),
@@ -138,7 +136,7 @@ class BtcBlockProcessingService(BlockProcessingService):
                 BlockStatEventType.COMPACT_BLOCK_RECOVERY_FAILED,
                 network_num=connection.network_num,
                 start_date_time=recovery_start_datetime,
-                end_date_time=recovery_end_time,
+                end_date_time=recovery_end_datetime,
                 duration=duration,
                 success=recovery_result.success,
                 recoverd_txs_count=len(msg.transactions()),
