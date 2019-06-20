@@ -138,6 +138,14 @@ def get_opts():
         type=convert.str_to_bool
     )
 
+    arg_parser.add_argument(
+        "--thread-pool-parallelism-degree",
+        help=f"The degree of parallelism to use when running task on a "
+             f"concurrent thread pool (default: {constants.THREAD_POOL_MAX_PARALLELISM_DEGREE})",
+        default=constants.THREAD_POOL_MAX_PARALLELISM_DEGREE,
+        type=config.get_thread_pool_parallelism_degree
+    )
+
     gateway_args, unknown = arg_parser.parse_known_args()
 
     args = cli.merge_args(gateway_args, common_args)
@@ -154,4 +162,3 @@ if __name__ == "__main__":
     opts = get_opts()
     node_type = get_gateway_node_type(opts.blockchain_protocol, opts.blockchain_network)
     node_runner.run_node(PID_FILE_NAME, opts, node_type)
-    

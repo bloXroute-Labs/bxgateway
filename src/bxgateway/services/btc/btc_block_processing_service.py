@@ -8,10 +8,7 @@ from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.messages.btc.abstract_btc_message_converter import CompactBlockCompressionResult
 from bxgateway.messages.btc.block_transactions_btc_message import BlockTransactionsBtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.services.block_processing_service import BlockProcessingService
-from bxgateway.btc_constants import BTC_SHA_HASH_LEN
-from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType
 
 
@@ -83,25 +80,21 @@ class BtcBlockProcessingService(BlockProcessingService):
     def process_compact_block_recovery(
             self,
             msg: BlockTransactionsBtcMessage,
-            recovery_result: CompactBlockCompressionResult,
+            failure_result: CompactBlockCompressionResult,
             connection: BtcNodeConnection
     ) -> None:
         """
         Process compact block recovery .
         If no hold exists, compress and broadcast block immediately.
-        :param msg: compact block recovery message to process
-        :param recovery_result:
-        :param connection: receiving connection (AbstractBlockchainConnection)
         """
         block_hash = msg.block_hash()
         recovery_start_datetime = datetime.utcnow()
 
         for txn in msg.transactions():
-            recovery_result.recovered_transactions.append(txn)
+            failure_result.recovered_transactions.append(txn)
 
-        connection.message_converter.recovered_compact_block_to_bx_block(
-            msg,
-            recovery_result
+        recovery_result = connection.message_converter.recovered_compact_block_to_bx_block(
+            failure_result
         )
         recovery_end_datetime = datetime.utcnow()
         duration = (recovery_end_datetime - recovery_start_datetime).total_seconds()

@@ -1,6 +1,5 @@
 from datetime import datetime
 import time
-from typing import Any
 from typing import Optional, Iterable
 
 from bxcommon.connections.connection_type import ConnectionType
