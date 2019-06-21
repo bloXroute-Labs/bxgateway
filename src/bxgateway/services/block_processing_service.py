@@ -274,6 +274,14 @@ class BlockProcessingService(object):
                                                   more_info="{:.2f}ms, {:.2f}%".format(
                                                       time.time() - compress_start_timestamp,
                                                       100 - float(compressed_size) / original_size * 100))
+        if self._node.opts.dump_short_id_mapping_compression:
+            mapping = {}
+            for short_id in block_info.short_ids:
+                mapping[short_id] = convert.bytes_to_hex(self._node.get_tx_service().get_transaction(short_id).hash.binary)
+            with open(f"{self._node.opts.dump_short_id_mapping_compression_path}/"
+                      f"{convert.bytes_to_hex(block_hash.binary)}", "w") as f:
+                f.write(str(mapping))
+
         self._process_and_broadcast_compressed_block(bx_block, connection, block_info, block_hash)
 
     def _process_and_broadcast_compressed_block(self, bx_block, connection, block_info, block_hash):

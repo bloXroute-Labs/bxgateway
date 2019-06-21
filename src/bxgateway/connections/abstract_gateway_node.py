@@ -1,3 +1,4 @@
+import os
 from abc import ABCMeta, abstractmethod
 from collections import deque
 from bxcommon import constants
@@ -82,6 +83,9 @@ class AbstractGatewayNode(AbstractNode):
         self._tx_service = TransactionService(self, self.network_num)
 
         self._preferred_gateway_connection = None
+
+        if opts.dump_short_id_mapping_compression:
+            os.makedirs(opts.dump_short_id_mapping_compression_path, exist_ok=True)
 
         self.init_transaction_stat_logging()
 

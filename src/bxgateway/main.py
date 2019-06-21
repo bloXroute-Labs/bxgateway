@@ -146,6 +146,18 @@ def get_opts():
         type=config.get_thread_pool_parallelism_degree
     )
 
+    arg_parser.add_argument(
+        "--dump-short-id-mapping-compression",
+        help="If true, the gateway will dump all short ids and txhashes compressed into a block",
+        type=convert.str_to_bool,
+        default=False
+    )
+    arg_parser.add_argument(
+        "--dump-short-id-mapping-compression-path",
+        help="Folder to dump compressed short ids to",
+        default="/app/bxgateway/debug/compressed-short-ids"
+    )
+
     gateway_args, unknown = arg_parser.parse_known_args()
 
     args = cli.merge_args(gateway_args, common_args)
