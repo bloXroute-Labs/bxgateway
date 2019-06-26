@@ -298,7 +298,7 @@ class BlockProcessingService(object):
         connection.node.block_recovery_service.cancel_recovery_for_block(block_hash)
         connection.node.block_queuing_service.remove(block_hash)
         connection.node.blocks_seen.add(block_hash)
-        self._node.get_tx_service().track_seen_short_ids(block_info.short_ids)
+        self._node.get_tx_service().track_seen_short_ids_delayed(block_info.short_ids)
 
     def _handle_decrypted_block(self, bx_block, connection, encrypted_block_hash_hex=None, recovered=False):
         transaction_service = self._node.get_tx_service()
@@ -346,7 +346,7 @@ class BlockProcessingService(object):
 
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self._node.blocks_seen.add(block_hash)
-            transaction_service.track_seen_short_ids(all_sids)
+            transaction_service.track_seen_short_ids_delayed(all_sids)
         else:
             if block_hash in self._node.block_queuing_service and not recovered:
                 logger.debug("Handling already queued block again. Ignoring.")
