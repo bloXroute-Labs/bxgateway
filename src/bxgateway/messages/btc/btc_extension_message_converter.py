@@ -2,7 +2,7 @@ import typing
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.utils import convert, logger
 from bxcommon.utils.object_encoder import ObjectEncoder
-from bxcommon.utils.proxy.task_proxy import TaskProxy
+from bxcommon.utils.proxy import task_pool_proxy
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 from bxcommon.utils.proxy.vector_proxy import VectorProxy
@@ -19,7 +19,7 @@ import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (
 
 class ExtensionCompactBlockRecoveryData(typing.NamedTuple):
     tx_service: ExtensionTransactionService
-    mapping_task: TaskProxy
+    mapping_task: tpe.BtcCompactBlockMappingTask
 
 
 def create_recovered_transactions() -> VectorProxy[tpe.InputBytes, memoryview]:
@@ -43,10 +43,9 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
 
     def block_to_bx_block(self, btc_block_msg, tx_service):
         self._default_block_size = max(self._default_block_size, len(btc_block_msg.buf))
-        tsk_proxy = self.compression_tasks.borrow_task()
-        tsk = tsk_proxy.tsk
+        tsk = self.compression_tasks.borrow_task()
         tsk.init(tpe.InputBytes(btc_block_msg.buf), tx_service.proxy)
-        tsk_proxy.run()
+        task_pool_proxy.run_task(tsk)
         bx_block = tsk.bx_block()
         block = memoryview(bx_block)
         block_hash = BtcObjectHash(
@@ -60,7 +59,7 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
             tsk.prev_block_hash().hex_string(),
             tsk.short_ids()
         )
-        self.compression_tasks.return_task(tsk_proxy)
+        self.compression_tasks.return_task(tsk)
         return block, block_info
 
     def compact_block_to_bx_block(
@@ -68,12 +67,11 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
             compact_block: CompactBlockBtcMessage,
             transaction_service: ExtensionTransactionService
     ) -> CompactBlockCompressionResult:
-        tsk_proxy = self.compact_mapping_tasks.borrow_task()
-        tsk: tpe.BtcCompactBlockMappingTask = tsk_proxy.tsk
+        tsk = self.compact_mapping_tasks.borrow_task()
         tsk.init(tpe.InputBytes(compact_block.buf), transaction_service.proxy, compact_block.magic())
-        tsk_proxy.run()
+        task_pool_proxy.run_task(tsk)
         success = tsk.success()
-        recovered_item = ExtensionCompactBlockRecoveryData(transaction_service, tsk_proxy)
+        recovered_item = ExtensionCompactBlockRecoveryData(transaction_service, tsk)
         if success:
             result = CompactBlockCompressionResult(
                 False, None, None, None, [], create_recovered_transactions()
@@ -103,10 +101,9 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         )
 
     def bx_block_to_block(self, bx_block, tx_service):
-        tsk_proxy = self.decompression_tasks.borrow_task()
-        tsk = tsk_proxy.tsk
+        tsk = self.decompression_tasks.borrow_task()
         tsk.init(tpe.InputBytes(bx_block), tx_service.proxy)
-        tsk_proxy.run()
+        task_pool_proxy.run_task(tsk)
         total_tx_count = tsk.tx_count()
         unknown_tx_hashes = [Sha256Hash(bytearray(unknown_tx_hash.binary()))
                              for unknown_tx_hash in tsk.unknown_tx_hashes()]
@@ -137,11 +134,10 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
             compression_result: CompactBlockCompressionResult,
             recovery_item: ExtensionCompactBlockRecoveryData
     ) -> CompactBlockCompressionResult:
-        tsk = recovery_item.mapping_task.tsk
-        compression_task: tpe.BtcCompactBlockCompressionTask = tsk.compression_task()
-        compression_task_proxy = TaskProxy(compression_task)
+        mapping_task = recovery_item.mapping_task
+        compression_task: tpe.BtcCompactBlockCompressionTask = mapping_task.compression_task()
         compression_task.add_recovered_transactions(compression_result.recovered_transactions.vector)
-        compression_task_proxy.run()
+        task_pool_proxy.run_task(compression_task)
         bx_block = memoryview(compression_task.bx_block())
         block_hash = BtcObjectHash(
             binary=convert.hex_to_bytes(compression_task.block_hash().hex_string())
@@ -157,7 +153,7 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
             prev_block_hash,
             short_ids
         )
-        self.compact_mapping_tasks.return_task(recovery_item.mapping_task)
+        self.compact_mapping_tasks.return_task(mapping_task)
         return CompactBlockCompressionResult(True, block_info, bx_block, None, [], [])
 
     def _create_compression_task(self) -> tpe.BtcBlockCompressionTask:  # pyre-ignore

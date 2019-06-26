@@ -8,7 +8,7 @@ from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.models.transaction_info import TransactionInfo
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils.helpers import get_gateway_opts
+from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -34,7 +34,10 @@ class BtcRelayConnectionTest(AbstractTestCase):
     TEST_NETWORK_NUM = 12345
 
     def setUp(self):
-        self.gateway_node = BtcGatewayNode(get_gateway_opts(8000, include_default_btc_args=True))
+        opts = helpers.get_gateway_opts(8000, include_default_btc_args=True)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism(opts.thread_pool_parallelism_degree)
+        self.gateway_node = BtcGatewayNode(opts)
         self.sut = BtcRelayConnection(MockSocketConnection(), (LOCALHOST, 8001), self.gateway_node)
         self.gateway_node.connection_pool.add(self.sut.fileno, LOCALHOST, 8001, self.sut)
         self.sut.state |= ConnectionState.ESTABLISHED

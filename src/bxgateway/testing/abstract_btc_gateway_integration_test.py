@@ -1,3 +1,4 @@
+from bxcommon import constants
 from bxcommon.constants import LOCALHOST
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -15,6 +16,8 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
     """
 
     def setUp(self):
+        if constants.USE_EXTENSION_MODULES:
+            helpers.set_extensions_parallelism()
         self.reinitialize_gateways(self.gateway_1_opts(), self.gateway_2_opts())
 
     def gateway_1_opts(self):

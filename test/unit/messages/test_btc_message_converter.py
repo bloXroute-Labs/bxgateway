@@ -5,13 +5,12 @@ from argparse import Namespace
 
 import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter
-from bxcommon.constants import LOCALHOST
+from bxcommon.constants import LOCALHOST, DEFAULT_TX_MEM_POOL_BUCKET_SIZE
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockNode
-from bxcommon.utils import convert
-from bxcommon.utils import crypto
+from bxcommon.utils import convert, crypto
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.services.transaction_service import TransactionService
@@ -257,8 +256,10 @@ class BtcMessageConverterTests(AbstractTestCase):
         opts = Namespace()
         opts.use_extensions = use_extensions
         opts.import_extensions = use_extensions
+        opts.tx_mem_pool_bucket_size = DEFAULT_TX_MEM_POOL_BUCKET_SIZE
         btc_message_converter = converter_factory.create_btc_message_converter(self.MAGIC, opts=opts)
         if use_extensions:
+            helpers.set_extensions_parallelism()
             tx_service = ExtensionTransactionService(MockNode(LOCALHOST, 8999), 0)
         else:
             tx_service = TransactionService(MockNode(LOCALHOST, 8999), 0)
