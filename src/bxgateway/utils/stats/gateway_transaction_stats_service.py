@@ -39,11 +39,6 @@ class _GatewayTransactionStatsService(StatisticsService):
                  look_back=gateway_constants.GATEWAY_TRANSACTION_STATS_LOOKBACK):
         super(_GatewayTransactionStatsService, self).__init__("GatewayTransactionStats", interval, look_back,
                                                               reset=True)
-        self.transaction_service = None
-
-    def set_node(self, node):
-        super(_GatewayTransactionStatsService, self).set_node(node)
-        self.transaction_service = node._tx_service
 
     def log_transaction_from_blockchain(self, transaction_hash):
         self.interval_data.new_transactions_received_from_blockchain += 1
@@ -97,7 +92,8 @@ class _GatewayTransactionStatsService(StatisticsService):
             min_short_id_assign_time=min_short_id_assign_time,
             max_short_id_assign_time=max_short_id_assign_time,
             avg_short_id_assign_time=avg_short_id_assign_time,
-            **self.transaction_service.get_tx_service_aggregate_stats()
+            **self.node._tx_service.get_tx_service_aggregate_stats()
         )
+
 
 gateway_transaction_stats_service = _GatewayTransactionStatsService()
