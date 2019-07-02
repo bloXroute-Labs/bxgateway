@@ -153,7 +153,7 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
                 create_recovered_transactions()
             )
 
-    def recovered_compact_block_to_bx_block(
+    def recovered_compact_block_to_bx_block(  # pyre-ignore
             self,
             failed_mapping_result: CompactBlockCompressionResult,
     ) -> CompactBlockCompressionResult:
@@ -189,7 +189,7 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         task_pool_proxy.run_task(compression_task)
         bx_block = memoryview(compression_task.bx_block())
         mapping_block_info = mapping_result.block_info
-        block_hash = mapping_block_info.block_hash
+        block_hash = mapping_block_info.block_hash  # pyre-ignore
         txn_count = compression_task.txn_count()
         compressed_block_hash = compression_task.compressed_block_hash().hex_string()
         prev_block_hash = compression_task.prev_block_hash().hex_string()
