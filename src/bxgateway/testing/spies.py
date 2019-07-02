@@ -7,7 +7,10 @@ from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnectio
 
 
 def make_spy_node(gateway_cls, port, **kwargs):
-    gateway_node = gateway_cls(helpers.get_gateway_opts(port, **kwargs))
+    opts = helpers.get_gateway_opts(port, **kwargs)
+    if opts.use_extensions:
+        helpers.set_extensions_parallelism()
+    gateway_node = gateway_cls(opts)
     gateway_node.broadcast = MagicMock(wraps=gateway_node.broadcast)
     return gateway_node
 

@@ -16,6 +16,7 @@ RUN apk update \
         tini \
 # grab bash for the convenience
         bash \
+        linux-headers \
 	gcc libtool openssl-dev \
  && pip install --upgrade pip
 

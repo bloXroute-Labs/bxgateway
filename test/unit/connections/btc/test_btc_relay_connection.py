@@ -9,7 +9,7 @@ from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.models.transaction_info import TransactionInfo
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils.helpers import get_gateway_opts
+from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -35,7 +35,10 @@ class BtcRelayConnectionTest(AbstractTestCase):
     TEST_NETWORK_NUM = 12345
 
     def setUp(self):
-        self.gateway_node = BtcGatewayNode(get_gateway_opts(8000, include_default_btc_args=True))
+        opts = helpers.get_gateway_opts(8000, include_default_btc_args=True)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism(opts.thread_pool_parallelism_degree)
+        self.gateway_node = BtcGatewayNode(opts)
         self.sut = BtcRelayConnection(MockSocketConnection(), (LOCALHOST, 8001), self.gateway_node)
         self.gateway_node.node_conn = MockConnection(MockSocketConnection(1), (LOCALHOST, 8002), self.gateway_node)
         self.gateway_node.node_conn.message_converter = converter_factory.create_btc_message_converter(
@@ -247,9 +250,9 @@ class BtcRelayConnectionTest(AbstractTestCase):
         remote_transaction_service = ExtensionTransactionService(MockNode(LOCALHOST, 8999), 0)
         short_id_mapping = {}
         for i, transaction in enumerate(transactions):
-            remote_transaction_service.assign_short_id(transaction.tx_hash(), i)
+            remote_transaction_service.assign_short_id(transaction.tx_hash(), i + 1)
             remote_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx())
-            short_id_mapping[transaction.tx_hash()] = TransactionInfo(transaction.tx_hash(), transaction.tx(), i)
+            short_id_mapping[transaction.tx_hash()] = TransactionInfo(transaction.tx_hash(), transaction.tx(), i + 1)
 
         bx_block = bytes(self.sut.message_converter.block_to_bx_block(btc_block, remote_transaction_service)[0])
 

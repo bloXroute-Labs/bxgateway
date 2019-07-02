@@ -1,6 +1,5 @@
 import time
 from collections import deque
-from datetime import datetime
 
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.utils import logger, convert
@@ -13,8 +12,6 @@ from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnec
 from bxgateway.messages.btc.block_transactions_btc_message import BlockTransactionsBtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
-from bxgateway.messages.btc.compact_block_decompression import decompress_compact_block, CompactBlockRecoveryItem, \
-    decompress_recovered_compact_block
 from bxgateway.messages.btc.get_block_transactions_btc_message import GetBlockTransactionsBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType, InvBtcMessage
 from bxgateway.messages.btc.send_compact_btc_message import SendCompactBtcMessage
@@ -157,7 +154,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             block_hash,
             BlockStatEventType.COMPACT_BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
             network_num=self.connection.network_num,
-            peer=self.connection.peer_desc
+            peer=self.connection.peer_desc,
+            more_info="{} short ids".format(short_ids_count)
         )
 
         if block_hash in self.connection.node.blocks_seen.contents:
@@ -178,11 +176,16 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             return
 
         if short_ids_count < self.connection.node.opts.compact_block_min_tx_count:
-            logger.info("Compact block {} contains {} short transactions, less than limit {}. Requesting full block.",
-                        convert.bytes_to_hex(msg.block_hash().binary), short_ids_count,
-                        self.connection.node.opts.compact_block_min_tx_count)
-            get_data_msg = GetDataBtcMessage(magic=self.magic,
-                                             inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())])
+            logger.info(
+                "Compact block {} contains {} short transactions, less than limit {}. Requesting full block.",
+                convert.bytes_to_hex(msg.block_hash().binary),
+                short_ids_count,
+                btc_constants.BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT
+            )
+            get_data_msg = GetDataBtcMessage(
+                magic=self.magic,
+                inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
+            )
             self.connection.node.send_msg_to_node(get_data_msg)
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.COMPACT_BLOCK_REQUEST_FULL,
@@ -190,52 +193,13 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             return
 
         self.connection.node.blocks_seen.add(block_hash)
+        # pyre-ignore
+        parse_result = self.connection.node.block_processing_service.process_compact_block(msg, self.connection)
+        if not parse_result.success:
+            self._recovery_compact_blocks.add(block_hash, parse_result)
 
-        decompression_start_time = datetime.utcnow()
-        parse_result = decompress_compact_block(
-            self.magic, msg, self.connection.node.get_tx_service()
-        )
-        decompression_end_time = datetime.utcnow()
-        missing_transactions_indices = parse_result.missing_transactions_indices
-        missing_short_id_count = 0 if missing_transactions_indices is None \
-            else len(missing_transactions_indices)
-        block_stats.add_block_event_by_block_hash(
-            block_hash,
-            BlockStatEventType.COMPACT_BLOCK_DECOMPRESSED,
-            start_date_time=decompression_start_time,
-            end_date_time=decompression_end_time,
-            network_num=self.connection.network_num,
-            duration=(decompression_end_time - decompression_start_time).total_seconds(),
-            success=parse_result.success,
-            compact_short_id_count=parse_result.short_id_count,
-            pre_filled_transaction_count=parse_result.pre_filled_tx_count,
-            missing_short_id_count=missing_short_id_count
-        )
-
-        if parse_result.success:
-            self.connection.node.block_processing_service.queue_block_for_processing(
-                parse_result.block_btc_message, self.connection
-            )
-        else:
-            logger.info(
-                "Compact block was parsed with {} unknown short ids. "
-                "Requesting unknown transactions.",
-                len(parse_result.missing_transactions_indices)  # pyre-ignore
-            )
-            self._recovery_compact_blocks.add(
-                block_hash,
-                CompactBlockRecoveryItem(
-                    msg,
-                    parse_result.block_transactions,
-                    parse_result.missing_transactions_indices
-                )
-            )
-
-            get_block_txs_msg = GetBlockTransactionsBtcMessage(
-                magic=self.magic,
-                block_hash=block_hash,
-                indices=parse_result.missing_transactions_indices
-            )
+            get_block_txs_msg = GetBlockTransactionsBtcMessage(magic=self.magic, block_hash=block_hash,
+                                                               indices=parse_result.missing_indices)
             self.connection.node.send_msg_to_node(get_block_txs_msg)
 
     def msg_block_transactions(self, msg: BlockTransactionsBtcMessage) -> None:
@@ -247,28 +211,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         """
 
         if msg.block_hash() in self._recovery_compact_blocks.contents:
-            compact_block_recovery_item = self._recovery_compact_blocks.contents[msg.block_hash()]
-            assert isinstance(compact_block_recovery_item, CompactBlockRecoveryItem)
-
-            recovery_result = decompress_recovered_compact_block(
-                self.magic,
-                compact_block_recovery_item.compact_block_message,
-                compact_block_recovery_item.block_transactions,
-                compact_block_recovery_item.missing_transactions_indices,
-                msg.transactions()
+            recovery_result = self._recovery_compact_blocks.contents[msg.block_hash()]
+            self.connection.node.block_processing_service.process_compact_block_recovery(  # pyre-ignore
+                msg, recovery_result, self.connection
             )
-            if recovery_result.success:
-                self.connection.node.block_processing_service.queue_block_for_processing(
-                    recovery_result.block_btc_message,
-                    self.connection)
-            else:
-                logger.info(
-                    "Unable to recover compact block '{}' "
-                    "after receiving BLOCK TRANSACTIONS message. Requesting full block.",
-                    msg.block_hash()
-                )
-                get_data_msg = GetDataBtcMessage(
-                    magic=self.magic,
-                    inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
-                )
-                self.connection.node.send_msg_to_node(get_data_msg)

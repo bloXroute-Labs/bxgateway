@@ -10,7 +10,7 @@ from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType
-from bxgateway.services.btc_block_processing_service import BtcBlockProcessingService
+from bxgateway.services.btc.btc_block_processing_service import BtcBlockProcessingService
 from bxgateway.testing.btc_lossy_relay_connection import BtcLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 

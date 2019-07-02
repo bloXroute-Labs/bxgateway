@@ -92,7 +92,6 @@ class BtcNodeConnectionProtocolTest(AbstractTestCase):
 
             item_index += 1
 
-
     def _create_version_msg(self, service):
         return VersionBtcMessage(magic=123, version=234, dst_ip=LOCALHOST, dst_port=12345, src_ip=LOCALHOST,
                                  src_port=12345, nonce=1, start_height=0, user_agent=b"dummy_user_agent",

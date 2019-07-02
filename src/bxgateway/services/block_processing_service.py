@@ -1,6 +1,5 @@
 import datetime
 import time
-from typing import Any
 from typing import TYPE_CHECKING, Optional, Iterable
 
 from bxcommon.connections.connection_type import ConnectionType
@@ -238,13 +237,6 @@ class BlockProcessingService(object):
 
             self._node.block_recovery_service.clean_up_recovered_blocks()
 
-    def on_block_processed(self, block_message: Any):
-        """
-        Additional processing of the block that can be customized per blockchain
-        :param block_message: block message specific to a blockchain
-        """
-        pass
-
     def _compute_hold_timeout(self, block_message):
         """
         Computes timeout after receiving block message before sending the block anyway if not received from network.
@@ -288,14 +280,31 @@ class BlockProcessingService(object):
                                                       stats_format.duration(block_info.duration_ms),
                                                       block_info.txn_count)
                                                   )
+        if self._node.opts.dump_short_id_mapping_compression:
+            mapping = {}
+            for short_id in block_info.short_ids:
+                mapping[short_id] = convert.bytes_to_hex(self._node.get_tx_service().get_transaction(short_id).hash.binary)
+            with open(f"{self._node.opts.dump_short_id_mapping_compression_path}/"
+                      f"{convert.bytes_to_hex(block_hash.binary)}", "w") as f:
+                f.write(str(mapping))
+
+        self._process_and_broadcast_compressed_block(bx_block, connection, block_info, block_hash)
+
+    def _process_and_broadcast_compressed_block(self, bx_block, connection, block_info, block_hash):
+        """
+        Process a compressed block.
+        :param bx_block: compress block message to process
+        :param connection: receiving connection (AbstractBlockchainConnection)
+        :param block_info: original block info
+        :param block_hash: block hash
+        """
 
         connection.node.neutrality_service.propagate_block_to_network(bx_block, connection, block_info)
 
         connection.node.block_recovery_service.cancel_recovery_for_block(block_hash)
         connection.node.block_queuing_service.remove(block_hash)
         connection.node.blocks_seen.add(block_hash)
-        connection.node.get_tx_service().track_seen_short_ids(block_info.short_ids)
-        self.on_block_processed(block_message)
+        self._node.get_tx_service().track_seen_short_ids_delayed(block_info.short_ids)
 
     def _handle_decrypted_block(self, bx_block, connection, encrypted_block_hash_hex=None, recovered=False):
         transaction_service = self._node.get_tx_service()
@@ -321,8 +330,6 @@ class BlockProcessingService(object):
                                                       BlockStatEventType.BLOCK_RECOVERY_COMPLETED,
                                                       network_num=connection.network_num)
 
-        compressed_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block))
-
         if block_hash in self._node.blocks_seen.contents:
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_IGNORE_SEEN,
                                                       start_date_time=block_info.start_datetime,
@@ -333,7 +340,7 @@ class BlockProcessingService(object):
                                                       txs_count=block_info.txn_count,
                                                       blockchain_network=self._node.opts.blockchain_protocol,
                                                       blockchain_protocol=self._node.opts.blockchain_network,
-                                                      matching_block_hash=compressed_block_hash,
+                                                      matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
                                                       more_info=stats_format.duration(block_info.duration_ms))
             return
@@ -348,7 +355,7 @@ class BlockProcessingService(object):
                                                       txs_count=block_info.txn_count,
                                                       blockchain_network=self._node.opts.blockchain_protocol,
                                                       blockchain_protocol=self._node.opts.blockchain_network,
-                                                      matching_block_hash=compressed_block_hash,
+                                                      matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
                                                       more_info=stats_format.duration(block_info.duration_ms))
             if recovered or block_hash in self._node.block_queuing_service:
@@ -359,7 +366,6 @@ class BlockProcessingService(object):
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self._node.blocks_seen.add(block_hash)
             transaction_service.track_seen_short_ids(all_sids)
-            self.on_block_processed(block_message)
         else:
             if block_hash in self._node.block_queuing_service and not recovered:
                 logger.debug("Handling already queued block again. Ignoring.")

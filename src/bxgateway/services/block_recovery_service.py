@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, Set, List, Tuple, NamedTuple
+from typing import Dict, Set, List, NamedTuple
 
 from bxcommon import constants
 from bxcommon.utils import logger, crypto

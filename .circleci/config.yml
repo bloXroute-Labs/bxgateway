@@ -26,6 +26,11 @@ jobs:
           paths:
             - "venv"
       - run:
+          name: install dependencies
+          command: |
+            sudo apt update &&
+            sudo apt install linux-headers-amd64
+      - run:
           name: install bxcommon
           command: |
              cd ~/ws/bxgateway
@@ -78,19 +83,12 @@ jobs:
           name: install dependencies
           command: |
             sudo apt install build-essential automake autogen autoconf libtool libtool-bin libssl-dev cmake
-      - restore_cache:
-          keys:
-            - build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
       - run:
           name: build extensions
           command: |
             . venv/bin/activate
             cd bxextensions
             python build_extensions.py
-      - save_cache:
-          key: build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
-          paths:
-            - ~/ws/bxextensions/build
       - persist_to_workspace:
           root: .
           paths:

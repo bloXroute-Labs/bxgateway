@@ -16,7 +16,7 @@ from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxgateway import btc_constants, gateway_constants
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxgateway.messages.btc.btc_normal_message_converter import BtcNormalMessageConverter
+from bxgateway.messages.btc import btc_message_converter_factory
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
@@ -41,7 +41,10 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
         self.bits = 2
         self.nonce = 3
 
-        self.btc_message_converter = BtcNormalMessageConverter(self.magic)
+        opts = self.gateway_1_opts()
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        self.btc_message_converter = btc_message_converter_factory.create_btc_message_converter(self.magic, opts)
 
         self.btc_transactions = [
             TxBtcMessage(self.magic, self.version, [], [], i)
