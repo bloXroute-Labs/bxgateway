@@ -23,6 +23,12 @@ if [ "$(id -u)" = '0' ]; then
         mkdir -p /var/crash
         echo /var/crash/core.%e.%p.%h.%t > /proc/sys/kernel/core_pattern
     fi
+    if [[ "${enable_coredump}" == "1" || "${enable_coredump}" == "true" ]]; then
+        echo enabling collecting core dumps...
+        ulimit -c unlimited
+        mkdir -p /var/crash
+        echo /var/crash/core.%e.%p.%h.%t > /proc/sys/kernel/core_pattern
+    fi
     exec su-exec $USER $STARTUP
 else
     # allow the container to be started with `--user`, in this case we cannot use su-exec
