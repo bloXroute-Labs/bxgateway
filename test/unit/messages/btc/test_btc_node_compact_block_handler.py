@@ -39,17 +39,16 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
         self.connection.network_num = 2
         self.sut = BtcNodeConnectionProtocol(self.connection)
 
-
         full_block_msg = BlockBtcMessage(
             buf=bytearray(convert.hex_to_bytes(self.FULL_BLOCK_BYTES_HEX))
         )
         if self.node.opts.use_extensions:
+            helpers.set_extensions_parallelism()
             transaction_service = ExtensionTransactionService(self.node, 0)
         else:
             transaction_service = TransactionService(self.node, 0)
 
-
-        short_id = 1;
+        short_id = 1
         for tx in full_block_msg.txns():
             tx_hash = BtcObjectHash(crypto.bitcoin_hash(tx), length=BTC_SHA_HASH_LEN)
             transaction_service.set_transaction_contents(tx_hash, tx)

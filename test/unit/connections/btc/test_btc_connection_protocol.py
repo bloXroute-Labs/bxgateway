@@ -6,7 +6,6 @@ from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import crypto
-from bxgateway import gateway_constants
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnectionProtocol
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
