@@ -14,8 +14,8 @@ STARTUP="$PYTHON main.py $@"
 echo "$PROGNAME: Starting $STARTUP"
 if [[ "$(id -u)" = '0' ]]; then
     # if running as root, chown and step-down from root
-    find . \! -type l  -user ${USER} -exec chown ${USER}:${GROUP} '{}' +
-    find ../bxcommon \! -user ${USER} -exec chown ${USER}:${GROUP} '{}' +
+    find . \! -type l \! -user ${USER} -exec chown ${USER}:${GROUP} '{}' +
+    find ../bxcommon \! -type l \! -user ${USER} -exec chown ${USER}:${GROUP} '{}' +
     cd ${WORKDIR}
     if [[ "${BLXR_COLLECT_CORE_DUMP}" == "1" || "${BLXR_COLLECT_CORE_DUMP}" == "true" ]]; then
         echo enabling collecting core dumps...
