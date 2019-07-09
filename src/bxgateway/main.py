@@ -124,6 +124,17 @@ def get_opts():
     arg_parser.add_argument("--compact-block-min-tx-count",
                             help="Minimal number of short transactions in compact block to attempt decompression.",
                             type=int, default=btc_constants.BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT)
+    arg_parser.add_argument(
+        "--dump-short-id-mapping-compression",
+        help="If true, the gateway will dump all short ids and txhashes compressed into a block",
+        type=convert.str_to_bool,
+        default=False
+    )
+    arg_parser.add_argument(
+        "--dump-short-id-mapping-compression-path",
+        help="Folder to dump compressed short ids to",
+        default="/app/bxgateway/debug/compressed-short-ids"
+    )
 
     arg_parser.add_argument(
         "--tune-send-buffer-size",
