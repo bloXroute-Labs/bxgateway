@@ -57,6 +57,7 @@ class TestBadSendingBtcTest(AbstractBtcGatewayIntegrationTest):
                                                              self.gateway_node)
         self.btc_remote_node_connection = spies.make_spy_connection(BtcRemoteConnection, self.remote_node_fileno, 8002,
                                                                     self.gateway_node)
+        self.gateway_node.sdn_connection = MagicMock()
         self.gateway_node.node_conn = self.btc_node_connection
         self.gateway_node.remote_node_conn = self.btc_remote_node_connection
         self.gateway_node.connection_pool.add(self.local_node_fileno, LOCALHOST, 8001, self.btc_node_connection)

@@ -4,7 +4,7 @@ from bxcommon.messages.versioning.abstract_message_converter import AbstractMess
 from bxgateway.messages.gateway.v1.gateway_hello_message_v1 import GatewayHelloMessageV1
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage as GatewayHelloMessageV2
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
-from bxcommon.messages.bloxroute.message import Message
+from bxcommon.messages.bloxroute.abstract_bloxroute_message import AbstractBloxrouteMessage
 
 
 class GatewayHelloMessageConverterV1(AbstractMessageConverter):
@@ -21,7 +21,7 @@ class GatewayHelloMessageConverterV1(AbstractMessageConverter):
 
         result_bytes[:] = mem_view[:len(msg_bytes) - GatewayHelloMessageV2.ADDITIONAL_LENGTH]
 
-        return Message.initialize_class(GatewayHelloMessageV1, result_bytes, (GatewayMessageType.HELLO, payload_len))
+        return AbstractBloxrouteMessage.initialize_class(GatewayHelloMessageV1, result_bytes, (GatewayMessageType.HELLO, payload_len))
 
     def convert_from_older_version(self, msg):
 
@@ -38,7 +38,7 @@ class GatewayHelloMessageConverterV1(AbstractMessageConverter):
         off = len(msg_bytes)
         struct.pack_into("%ss" % constants.NODE_ID_SIZE_IN_BYTES, result_bytes, off, b'')
 
-        return Message.initialize_class(GatewayHelloMessageV2, result_bytes, (GatewayMessageType.HELLO, payload_len))
+        return AbstractBloxrouteMessage.initialize_class(GatewayHelloMessageV2, result_bytes, (GatewayMessageType.HELLO, payload_len))
 
 
     def convert_first_bytes_to_older_version(self, first_msg_bytes):

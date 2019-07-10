@@ -32,7 +32,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         self.enqueue_msg(hello_msg)
 
         self.hello_messages = constants.BLOXROUTE_HELLO_MESSAGES
-        self.header_size = constants.HDR_COMMON_OFF
+        self.header_size = constants.STARTING_SEQUENCE_BYTES_LEN + constants.BX_HDR_COMMON_OFF
         self.message_handlers = {
             BloxrouteMessageType.HELLO: self.msg_hello,
             BloxrouteMessageType.PING: self.msg_ping,

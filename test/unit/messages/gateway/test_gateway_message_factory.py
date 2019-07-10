@@ -18,7 +18,7 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 class GatewayMessageFactoryTest(MessageFactoryTestCase):
     HASH = Sha256Hash(crypto.double_sha256(b"123"))
-    BLOCK = helpers.generate_bytearray(30)
+    BLOCK = helpers.generate_bytearray(29) + b"\x01"
 
     def get_message_factory(self):
         return gateway_message_factory

@@ -3,10 +3,10 @@ from abc import ABCMeta
 
 from bxcommon import constants
 from bxcommon.constants import MSG_NULL_BYTE
-from bxcommon.messages.bloxroute.message import Message
+from bxcommon.messages.bloxroute.abstract_bloxroute_message import AbstractBloxrouteMessage
 
 
-class AbstractBlockchainSyncMessage(Message):
+class AbstractBlockchainSyncMessage(AbstractBloxrouteMessage):
     """
     Message type for requesting/receiving direct blockchain messages for syncing chainstate.
     """
@@ -18,9 +18,9 @@ class AbstractBlockchainSyncMessage(Message):
 
     def __init__(self, command=None, payload=None, buf=None):
         if buf is None:
-            buf = bytearray(constants.HDR_COMMON_OFF + constants.MSG_TYPE_LEN + len(payload))
+            buf = bytearray(self.HEADER_LENGTH + constants.MSG_TYPE_LEN + len(payload))
 
-            off = constants.HDR_COMMON_OFF
+            off = self.HEADER_LENGTH
             struct.pack_into("<12s", buf, off, command)
 
             off += constants.MSG_TYPE_LEN
@@ -29,7 +29,7 @@ class AbstractBlockchainSyncMessage(Message):
         self.buf = buf
         self._command = None
         self._payload = None
-        payload_length = len(buf) - constants.HDR_COMMON_OFF
+        payload_length = len(buf) - self.HEADER_LENGTH
         super(AbstractBlockchainSyncMessage, self).__init__(self.MESSAGE_TYPE, payload_length, self.buf)
 
     def command(self):
@@ -38,7 +38,7 @@ class AbstractBlockchainSyncMessage(Message):
         :return:
         """
         if self._command is None:
-            off = constants.HDR_COMMON_OFF
+            off = self.HEADER_LENGTH
             self._command, = struct.unpack_from("<12s", self.buf, off)
             self._command = str(self._command).rstrip(MSG_NULL_BYTE)
 
@@ -52,6 +52,6 @@ class AbstractBlockchainSyncMessage(Message):
 
     def payload(self):
         if self._payload is None:
-            off = constants.HDR_COMMON_OFF + constants.MSG_TYPE_LEN
+            off = self.HEADER_LENGTH + constants.MSG_TYPE_LEN
             self._payload = self._memoryview[off:off + self.payload_len()]
         return self._payload

@@ -31,7 +31,7 @@ def mock_connection(message_converter=None, connection_type=None):
 
 
 class NeutralityServiceTest(AbstractTestCase):
-    BYTE_BLOCK = helpers.generate_bytearray(30)
+    BYTE_BLOCK = helpers.generate_bytearray(29) + b'\x01'
     BLOCK_HASH = Sha256Hash(crypto.double_sha256(b"123"))
     KEY_HASH = crypto.double_sha256(b"234")
     MOCK_CONNECTION = mock_connection(connection_type=ConnectionType.GATEWAY)

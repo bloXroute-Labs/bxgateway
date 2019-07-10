@@ -2,8 +2,8 @@ import time
 
 from mock import MagicMock, Mock
 
-from bxcommon.constants import MISSING_BLOCK_EXPIRE_TIME, HDR_COMMON_OFF
-from bxcommon.messages.bloxroute.message import Message
+from bxcommon.constants import MISSING_BLOCK_EXPIRE_TIME, BX_HDR_COMMON_OFF
+from bxcommon.messages.bloxroute.abstract_bloxroute_message import AbstractBloxrouteMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils.crypto import SHA256_HASH_LEN
@@ -270,5 +270,5 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(block_msg2, self.node.send_to_node_messages[0])
 
     def _create_dummy_message(self):
-        return Message(msg_type=b"dummy", payload_len=SHA256_HASH_LEN,
-                       buf=bytearray(helpers.generate_bytearray(HDR_COMMON_OFF + SHA256_HASH_LEN)))
+        return AbstractBloxrouteMessage(msg_type=b"dummy", payload_len=SHA256_HASH_LEN,
+                                        buf=bytearray(helpers.generate_bytearray(BX_HDR_COMMON_OFF + SHA256_HASH_LEN)))

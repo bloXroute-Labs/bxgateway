@@ -32,7 +32,7 @@ class GatewayConnection(InternalNodeConnection):
         super(GatewayConnection, self).__init__(sock, address, node, from_me)
 
         self.hello_messages = gateway_constants.GATEWAY_HELLO_MESSAGES
-        self.header_size = constants.HDR_COMMON_OFF
+        self.header_size = constants.STARTING_SEQUENCE_BYTES_LEN + constants.BX_HDR_COMMON_OFF
 
         self.message_factory = gateway_message_factory
         self.message_handlers = {
