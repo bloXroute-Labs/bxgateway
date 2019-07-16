@@ -105,7 +105,7 @@ def get_opts():
     arg_parser.add_argument("--node-public-key", help="Public key of Ethereum node for encrypted communication",
                             type=str)
     arg_parser.add_argument("--private-key", help="Private key for encrypted communication with Ethereum node",
-                            type=str)
+                            type=str, default="494549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3")
     arg_parser.add_argument("--network-id", help="Ethereum network id", type=int)
     arg_parser.add_argument("--genesis-hash", help="Genesis block hash of Ethereum network", type=str)
     arg_parser.add_argument("--chain-difficulty", help="Difficulty of genesis block Ethereum network (hex)", type=str)
