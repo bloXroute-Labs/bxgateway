@@ -62,6 +62,15 @@ class AbstractGatewayNode(AbstractNode):
 
     def __init__(self, opts: Namespace):
         super(AbstractGatewayNode, self).__init__(opts)
+        if opts.split_relays:
+            opts.peer_transaction_relays = [
+                OutboundPeerModel(peer_relay.ip, peer_relay.port + 1)
+                for peer_relay in opts.peer_relays
+            ]
+            opts.outbound_peers += opts.peer_transaction_relays
+        else:
+            opts.peer_transaction_relays = []
+
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
         self.peer_transaction_relays = set(opts.peer_transaction_relays)
