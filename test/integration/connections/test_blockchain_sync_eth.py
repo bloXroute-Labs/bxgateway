@@ -47,6 +47,16 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
 
     def test_block_headers_request(self):
         get_headers = GetBlockHeadersEthProtocolMessage(None, self.BLOCK_HASH, 111, 222, 0)
+
+        # Reply with empty headers to the first get headers request for fast sync mode support
+        get_headers_frames = map(self.eth_node_cipher.encrypt_frame,
+                                 frame_utils.get_frames(get_headers.msg_type, get_headers.rawbytes()))
+        for get_headers_frame in get_headers_frames:
+            helpers.receive_node_message(self.gateway_node, self.local_node_fileno, get_headers_frame)
+        self.eth_remote_node_connection.enqueue_msg.assert_not_called()
+        self.eth_node_connection.enqueue_msg.assert_called_once_with(BlockHeadersEthProtocolMessage(None, []))
+
+        # The second get headers message should be proxied to remote blockchain node
         get_headers_frames = map(self.eth_node_cipher.encrypt_frame,
                                  frame_utils.get_frames(get_headers.msg_type, get_headers.rawbytes()))
         for get_headers_frame in get_headers_frames:
@@ -60,4 +70,4 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
                              frame_utils.get_frames(headers.msg_type, headers.rawbytes()))
         for headers_frame in headers_frames:
             helpers.receive_node_message(self.gateway_node, self.remote_node_fileno, headers_frame)
-        self.eth_node_connection.enqueue_msg.assert_called_once_with(headers)
+        self.eth_node_connection.enqueue_msg.assert_called_with(headers)

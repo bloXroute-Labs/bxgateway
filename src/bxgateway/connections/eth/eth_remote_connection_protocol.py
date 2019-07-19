@@ -12,6 +12,8 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
             EthProtocolMessageType.STATUS: self.msg_status,
             EthProtocolMessageType.BLOCK_HEADERS: self.msg_proxy_response,
             EthProtocolMessageType.BLOCK_BODIES: self.msg_proxy_response,
+            EthProtocolMessageType.NODE_DATA: self.msg_proxy_response,
+            EthProtocolMessageType.RECEIPTS: self.msg_proxy_response
         })
 
     def msg_status(self, msg):

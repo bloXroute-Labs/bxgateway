@@ -14,10 +14,14 @@ from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import B
 from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import DisconnectEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import GetNodeDataEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.hello_eth_protocol_message import HelloEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
+from bxgateway.messages.eth.protocol.node_data_eth_protocol_message import NodeDataEthProtocolMessage
 from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
+from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.messages.eth.serializers.block_hash import BlockHash
@@ -141,9 +145,37 @@ class EthMessagesTests(AbstractTestCase):
                                      mock_eth_messages.get_dummy_block(1),
                                      111)
 
-    def _test_msg_serialization(self, msg_cls, needs_private_key, *args, **kwargs):
-        msg = None
+    def test_get_node_data_eth_message(self):
+        self._test_msg_serialization(GetNodeDataEthProtocolMessage,
+                                     False,
+                                     # passing randomly generated hashes
+                                     [
+                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
+                                     ])
 
+    def test_node_data_eth_message(self):
+        self._test_msg_serialization(NodeDataEthProtocolMessage,
+                                     False,
+                                     helpers.generate_bytes(1000))
+
+    def test_get_receipts_eth_message(self):
+        self._test_msg_serialization(GetReceiptsEthProtocolMessage,
+                                     False,
+                                     # passing randomly generated hashes
+                                     [
+                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
+                                     ])
+
+    def test_receipts_eth_message(self):
+        self._test_msg_serialization(ReceiptsEthProtocolMessage,
+                                     False,
+                                     helpers.generate_bytes(1000))
+
+    def _test_msg_serialization(self, msg_cls, needs_private_key, *args, **kwargs):
         if needs_private_key:
             # random private key
             private_key = convert.hex_to_bytes("294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3")

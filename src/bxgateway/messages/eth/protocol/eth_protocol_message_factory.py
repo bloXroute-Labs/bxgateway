@@ -8,12 +8,16 @@ from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMess
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import GetNodeDataEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.hello_eth_protocol_message import HelloEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
+from bxgateway.messages.eth.protocol.node_data_eth_protocol_message import NodeDataEthProtocolMessage
 from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
 from bxgateway.messages.eth.protocol.pong_eth_protocol_message import PongEthProtocolMessage
 from bxgateway.messages.eth.protocol.raw_eth_protocol_message import RawEthProtocolMessage
+from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.eth.framed_input_buffer import FramedInputBuffer
@@ -34,6 +38,10 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
         EthProtocolMessageType.GET_BLOCK_BODIES: GetBlockBodiesEthProtocolMessage,
         EthProtocolMessageType.BLOCK_BODIES: BlockBodiesEthProtocolMessage,
         EthProtocolMessageType.NEW_BLOCK: NewBlockEthProtocolMessage,
+        EthProtocolMessageType.GET_NODE_DATA: GetNodeDataEthProtocolMessage,
+        EthProtocolMessageType.NODE_DATA: NodeDataEthProtocolMessage,
+        EthProtocolMessageType.GET_RECEIPTS: GetReceiptsEthProtocolMessage,
+        EthProtocolMessageType.RECEIPTS: ReceiptsEthProtocolMessage,
     }
 
     def __init__(self, rlpx_cipher):

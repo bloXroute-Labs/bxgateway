@@ -21,6 +21,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
     def __init__(self, msg_bytes, *args, **kwargs):
         super(NewBlockEthProtocolMessage, self).__init__(msg_bytes, *args, **kwargs)
 
+        self._block_header = None
         self._block_hash = None
         self._timestamp = None
 
@@ -30,8 +31,8 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
     def get_chain_difficulty(self):
         return self.get_field_value("chain_difficulty")
 
-    def block_hash(self) -> Sha256Hash:
-        if self._block_hash is None:
+    def block_header(self):
+        if self._block_header is None:
             _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
             block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
@@ -39,10 +40,13 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             block_itm_bytes = block_msg_bytes[block_msg_itm_start:block_msg_itm_start + block_itm_len]
 
             _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
-            block_hdr_bytes = block_itm_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
+            self._block_header = block_itm_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
 
-            raw_hash = crypto_utils.keccak_hash(block_hdr_bytes)
+        return self._block_header
 
+    def block_hash(self):
+        if self._block_hash is None:
+            raw_hash = crypto_utils.keccak_hash(self.block_header())
             self._block_hash = Sha256Hash(raw_hash)
 
         return self._block_hash
