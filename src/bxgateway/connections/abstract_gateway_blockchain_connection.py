@@ -1,9 +1,14 @@
-from typing import TYPE_CHECKING
 import socket
+import time
+from typing import TYPE_CHECKING, cast
 
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import logger
+from bxcommon.utils.stats import stats_format
+from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
+from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
 
 if TYPE_CHECKING:
@@ -23,7 +28,8 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
             # cat /proc/sys/net/core/wmem_max # to check
             previous_buffer_size = sock.socket_instance.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
             try:
-                sock.socket_instance.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE)
+                sock.socket_instance.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF,
+                                                gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE)
                 logger.info("Set socket send buffer size for blockchain connection to {}",
                             sock.socket_instance.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF))
             except Exception as e:
@@ -40,6 +46,34 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
         self.message_converter = None
         self.connection_protocol = None
         self.is_server = False
+
+    def advance_sent_bytes(self, bytes_sent):
+        if self.message_tracker and self.message_tracker.is_sending_block_message():
+            assert self.node.opts.track_detailed_sent_messages
+
+            entry = self.message_tracker.messages[0]
+            super(AbstractGatewayBlockchainConnection, self).advance_sent_bytes(bytes_sent)
+
+            if not self.message_tracker.is_sending_block_message():
+                block_message = cast(AbstractBlockMessage, self.message_tracker.messages[0].message)
+                block_message_queue_time = entry.queued_time
+                block_message_length = entry.length
+                block_hash = block_message.block_hash()
+
+                block_stats.add_block_event_by_block_hash(block_hash,
+                                                          BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
+                                                          network_num=self.network_num,
+                                                          more_info="{} in {}".format(
+                                                              stats_format.byte_count(
+                                                                  block_message_length
+                                                              ),
+                                                              stats_format.timespan(
+                                                                  block_message_queue_time,
+                                                                  time.time()
+                                                              )
+                                                          ))
+        else:
+            super(AbstractGatewayBlockchainConnection, self).advance_sent_bytes(bytes_sent)
 
     def send_ping(self):
         self.enqueue_msg(self.ping_message)

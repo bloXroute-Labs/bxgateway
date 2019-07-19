@@ -2,6 +2,7 @@ import struct
 from typing import List, Dict
 
 from bxcommon.constants import UL_INT_SIZE_IN_BYTES
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import crypto
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN, \
     BTC_COMPACT_BLOCK_SHORT_ID_LEN, BTC_SHORT_NONCE_SIZE, BTC_VARINT_MIN_SIZE
@@ -12,7 +13,7 @@ from bxgateway.messages.btc.btc_messages_util import pack_int_to_btc_varint, btc
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
-class CompactBlockBtcMessage(BtcMessage):
+class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
     """
     Message used to notify peers about new blocks.
     Blocks are sent using Compact Block message only if peer notified that would like to receive it instead of Inv message

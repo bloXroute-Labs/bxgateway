@@ -261,9 +261,9 @@ class BtcMessageConverterTests(AbstractTestCase):
         btc_message_converter = converter_factory.create_btc_message_converter(self.MAGIC, opts=opts)
         if use_extensions:
             helpers.set_extensions_parallelism()
-            tx_service = ExtensionTransactionService(MockNode(LOCALHOST, 8999), 0)
+            tx_service = ExtensionTransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
         else:
-            tx_service = TransactionService(MockNode(LOCALHOST, 8999), 0)
+            tx_service = TransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
         if self.txns:
             for idx, txn in enumerate(self.txns):
                 sha = BtcObjectHash(buf=crypto.bitcoin_hash(txn), length=SHA256_HASH_LEN)

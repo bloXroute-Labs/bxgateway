@@ -73,4 +73,3 @@ def get_dummy_block(nonce, header=None):
             get_dummy_block_header(2)
         ]
     )
-

@@ -1,5 +1,6 @@
 import rlp
 
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
@@ -8,7 +9,7 @@ from bxgateway.messages.eth.serializers.block_header import BlockHeader
 from bxgateway.utils.eth import rlp_utils, crypto_utils
 
 
-class NewBlockEthProtocolMessage(EthProtocolMessage):
+class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
     msg_type = EthProtocolMessageType.NEW_BLOCK
 
     fields = [("block", Block),
@@ -29,7 +30,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage):
     def get_chain_difficulty(self):
         return self.get_field_value("chain_difficulty")
 
-    def block_hash(self):
+    def block_hash(self) -> Sha256Hash:
         if self._block_hash is None:
             _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
             block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]

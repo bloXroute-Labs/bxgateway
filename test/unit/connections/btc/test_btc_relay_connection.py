@@ -117,7 +117,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         block_hash = btc_block.block_hash()
         transactions = self.bx_transactions()
 
-        unknown_sid_transaction_service = ExtensionTransactionService(MockNode(LOCALHOST, 8999), 0)
+        unknown_sid_transaction_service = ExtensionTransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
         for i, transaction in enumerate(transactions):
             unknown_sid_transaction_service.assign_short_id(transaction.tx_hash(), i)
             unknown_sid_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx_val())
@@ -247,7 +247,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         transactions = self.btc_transactions()
 
         # assign short ids that the local connection won't know about until it gets the txs message
-        remote_transaction_service = ExtensionTransactionService(MockNode(LOCALHOST, 8999), 0)
+        remote_transaction_service = ExtensionTransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
         short_id_mapping = {}
         for i, transaction in enumerate(transactions):
             remote_transaction_service.assign_short_id(transaction.tx_hash(), i + 1)
@@ -305,7 +305,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         transactions = self.btc_transactions()
 
         # assign short ids that the local connection won't know about until it gets the txs message
-        remote_transaction_service1 = ExtensionTransactionService(MockNode(LOCALHOST, 8998), 0)
+        remote_transaction_service1 = ExtensionTransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
         short_id_mapping1 = {}
         for i, transaction in enumerate(transactions):
             remote_transaction_service1.assign_short_id(transaction.tx_hash(), i + 1)
@@ -321,7 +321,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
             self.assertEqual(transaction_hash, stored_hash)
             self.assertEqual(tx_info.contents, stored_content)
 
-        remote_transaction_service2 = ExtensionTransactionService(MockNode(LOCALHOST, 8999), 0)
+        remote_transaction_service2 = ExtensionTransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
         short_id_mapping2 = {}
         for i, transaction in enumerate(transactions):
             remote_transaction_service2.assign_short_id(transaction.tx_hash(), i + 101)

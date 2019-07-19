@@ -8,6 +8,7 @@ from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils import convert
@@ -26,7 +27,7 @@ from bxgateway.testing.mocks import mock_eth_messages
 class EthMessageConverterTests(AbstractTestCase):
 
     def setUp(self):
-        self.tx_service = TransactionService(MockNode("127.0.0.1", 123), 0)
+        self.tx_service = TransactionService(MockNode(helpers.get_gateway_opts(8000)), 0)
         self.message_parser = EthMessageConverter()
         self.test_network_num = 12345
 
