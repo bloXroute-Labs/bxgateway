@@ -36,10 +36,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
     def msg_get_block_headers(self, msg: GetBlockHeadersEthProtocolMessage):
         if self.waiting_checkpoint_headers_request:
-            logger.info("Replying with empty headers message to the first headers request")
-            block_headers_msg = BlockHeadersEthProtocolMessage(None, [])
-            self.connection.enqueue_msg(block_headers_msg)
-            self.waiting_checkpoint_headers_request = False
+            super(EthNodeConnectionProtocol, self).msg_get_block_headers(msg)
         else:
             self.msg_proxy_request(msg)
 
