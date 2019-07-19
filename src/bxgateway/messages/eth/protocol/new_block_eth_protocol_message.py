@@ -44,7 +44,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
 
         return self._block_header
 
-    def block_hash(self):
+    def block_hash(self) -> Sha256Hash:
         if self._block_hash is None:
             raw_hash = crypto_utils.keccak_hash(self.block_header())
             self._block_hash = Sha256Hash(raw_hash)
