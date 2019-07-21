@@ -8,11 +8,12 @@
 import argparse
 import random
 import sys
-
+import os
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, config, convert
-from bxgateway import btc_constants
+from bxgateway.utils import node_cache
+from bxgateway import btc_constants, gateway_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
 
@@ -45,8 +46,18 @@ def parse_peer_string(peer_string):
     return peers
 
 
+def set_sdn_url(sdn_url: str) -> str:
+    new_sdn_url = sdn_url
+    if "://" in sdn_url:
+        new_sdn_url = sdn_url.split("://")[1]
+
+    return new_sdn_url
+
+
 def get_opts():
     common_args = cli.get_args()
+
+    sdn_url = set_sdn_url(common_args.sdn_url)
 
     # Get more options specific to gateways.
     arg_parser = argparse.ArgumentParser()
@@ -139,7 +150,20 @@ def get_opts():
         type=convert.str_to_bool
     )
 
+    arg_parser.add_argument(
+        "--cookie-path-file",
+        help="Cookie path file",
+        type=str,
+        required=False,
+        default=gateway_constants.COOKIE_PATH_FILE.format(os.getcwd(), f"{sdn_url}_{common_args.external_ip}_{common_args.external_port}")
+    )
+
     gateway_args, unknown = arg_parser.parse_known_args()
+
+    if not gateway_args.blockchain_network:
+        cache_file_info = node_cache.read_from_cache_file(common_args)
+        if cache_file_info is not None:
+            gateway_args.blockchain_network = cache_file_info.blockchain_network
 
     args = cli.merge_args(gateway_args, common_args)
     args.outbound_peers = args.peer_gateways + args.peer_relays
@@ -155,4 +179,5 @@ def get_opts():
 if __name__ == "__main__":
     opts = get_opts()
     node_type = get_gateway_node_type(opts.blockchain_protocol, opts.blockchain_network)
+
     node_runner.run_node(PID_FILE_NAME, opts, node_type)

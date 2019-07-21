@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from argparse import Namespace
 from collections import deque
-from typing import Tuple, Optional, ClassVar, Type, Set, Deque
+from typing import Tuple, Optional, ClassVar, Type, Set, Deque, List
 
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -26,7 +26,7 @@ from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
-from bxgateway.utils import network_latency
+from bxgateway.utils import network_latency, node_cache
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -82,6 +82,7 @@ class AbstractGatewayNode(AbstractNode):
         self.block_queuing_service = BlockQueuingService(self)
         self.block_processing_service = BlockProcessingService(self)
 
+        self.send_request_for_relay_peers_num_of_calls = 0
         if not self.opts.peer_relays:
             self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers)
 
@@ -162,29 +163,46 @@ class AbstractGatewayNode(AbstractNode):
                              .format(type(connection)))
         self._preferred_gateway_connection = connection
 
+    def _register_potential_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]):
+        logger.debug("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
+        best_relay_peer = network_latency.get_best_relay_by_ping_latency(potential_relay_peers)
+        if not best_relay_peer:
+            best_relay_peer = potential_relay_peers[0]
+        logger.debug("Best relay peer to node {} is: {}", self.opts.node_id, best_relay_peer)
+
+        if best_relay_peer.ip != self.opts.external_ip or best_relay_peer.port != self.opts.external_port:
+            self.peer_relays.add(best_relay_peer)
+            # Split relay mode always starts a transaction relay at one port number higher than the block relay
+            if self.opts.split_relays:
+                self.peer_transaction_relays.add(OutboundPeerModel(best_relay_peer.ip, best_relay_peer.port + 1,
+                                                                   "{}-tx".format(best_relay_peer.node_id), False,
+                                                                   best_relay_peer.attributes))
+        self.on_updated_peers(self._get_all_peers())
+
     def send_request_for_relay_peers(self):
         """
         Requests potential relay peers from SDN. Merges list with provided command line relays.
         """
         potential_relay_peers = sdn_http_service.fetch_potential_relay_peers(self.opts.node_id)
         if potential_relay_peers:
-            logger.debug("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
-            best_relay_peer = network_latency.get_best_relay_by_ping_latency(potential_relay_peers)
-            if not best_relay_peer:
-                best_relay_peer = potential_relay_peers[0]
-            logger.debug("Best relay peer to node {} is: {}", self.opts.node_id, best_relay_peer)
-
-            if best_relay_peer.ip != self.opts.external_ip or best_relay_peer.port != self.opts.external_port:
-                self.peer_relays.add(best_relay_peer)
-                # Split relay mode always starts a transaction relay at one port number higher than the block relay
-                if self.opts.split_relays:
-                    self.peer_transaction_relays.add(OutboundPeerModel(best_relay_peer.ip, best_relay_peer.port + 1,
-                                                                       "{}-tx".format(best_relay_peer.node_id), False,
-                                                                       best_relay_peer.attributes))
-            self.on_updated_peers(self._get_all_peers())
+            node_cache.update_cache_file(self.opts, potential_relay_peers)
+            self._register_potential_relay_peers(potential_relay_peers)
         else:
-            # Try again later.
-            return constants.SDN_CONTACT_RETRY_SECONDS
+            # if called too many times to send_request_for_relay_peers, reset relay peers to empty list in cache file
+            if self.send_request_for_relay_peers_num_of_calls > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS:
+                node_cache.update_cache_file(self.opts, [])
+                self.send_request_for_relay_peers_num_of_calls = 0
+            self.send_request_for_relay_peers_num_of_calls += 1
+
+            cache_file_info = node_cache.read_from_cache_file(self.opts)
+            if cache_file_info is not None:
+                cache_file_relay_peers = cache_file_info.relay_peers
+                if cache_file_relay_peers:
+                    self._register_potential_relay_peers(cache_file_relay_peers)
+                else:
+                    return constants.SDN_CONTACT_RETRY_SECONDS
+            else:
+                return constants.SDN_CONTACT_RETRY_SECONDS
 
     def _send_request_for_gateway_peers(self):
         """

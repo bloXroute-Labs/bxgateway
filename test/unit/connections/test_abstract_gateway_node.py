@@ -1,6 +1,5 @@
 import time
 from typing import Tuple
-
 from mock import MagicMock, call
 
 from bxcommon import constants
