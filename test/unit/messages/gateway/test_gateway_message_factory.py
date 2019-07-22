@@ -1,3 +1,4 @@
+from bxcommon import constants
 from bxcommon.constants import MSG_TYPE_LEN
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
@@ -29,7 +30,8 @@ class GatewayMessageFactoryTest(MessageFactoryTestCase):
         self.get_message_preview_successfully(BlockReceivedMessage(self.HASH),
                                               GatewayMessageType.BLOCK_RECEIVED, BlockReceivedMessage.PAYLOAD_LENGTH)
         self.get_message_preview_successfully(BlockPropagationRequestMessage(self.BLOCK),
-                                              GatewayMessageType.BLOCK_PROPAGATION_REQUEST, len(self.BLOCK))
+                                              GatewayMessageType.BLOCK_PROPAGATION_REQUEST,
+                                              len(self.BLOCK) + constants.CONTROL_FLAGS_LEN)
         self.get_message_preview_successfully(BlockHoldingMessage(self.HASH, network_num=123),
                                               BloxrouteMessageType.BLOCK_HOLDING, BlockHoldingMessage.PAYLOAD_LENGTH)
 
