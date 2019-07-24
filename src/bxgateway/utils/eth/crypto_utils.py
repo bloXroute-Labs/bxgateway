@@ -1,11 +1,11 @@
 import hashlib
+import os
 import struct
 
 import bitcoin
 from Crypto.Hash import keccak
 from coincurve import PrivateKey, PublicKey
 
-from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
 from bxgateway import eth_constants
 from bxgateway.utils.eth import rlp_utils
@@ -143,7 +143,7 @@ def generate_random_private_key_hex_str():
     """
 
     # seed can be any random bytes of any length
-    random_seed = helpers.generate_bytes(100)
+    random_seed = os.urandom(100)
     private_key_bytes = make_private_key(random_seed)
     return convert.bytes_to_hex(private_key_bytes)
 
