@@ -16,6 +16,7 @@ from bxgateway.utils import node_cache
 from bxgateway import btc_constants, gateway_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
+from bxgateway.utils.eth import crypto_utils
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -112,7 +113,7 @@ def get_opts():
     arg_parser.add_argument("--node-public-key", help="Public key of Ethereum node for encrypted communication",
                             type=str)
     arg_parser.add_argument("--private-key", help="Private key for encrypted communication with Ethereum node",
-                            type=str, default="494549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3")
+                            type=str, default=crypto_utils.generate_random_private_key_hex_str())
     arg_parser.add_argument("--network-id", help="Ethereum network id", type=int)
     arg_parser.add_argument("--genesis-hash", help="Genesis block hash of Ethereum network", type=str)
     arg_parser.add_argument("--chain-difficulty", help="Difficulty of genesis block Ethereum network (hex)", type=str)
