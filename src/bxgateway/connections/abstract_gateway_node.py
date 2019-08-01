@@ -16,7 +16,7 @@ from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.services import sdn_http_service
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
-from bxcommon.utils import logger
+from bxcommon.utils import logger, network_latency
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
@@ -26,7 +26,7 @@ from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
-from bxgateway.utils import network_latency, node_cache
+from bxgateway.utils import node_cache
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -183,7 +183,7 @@ class AbstractGatewayNode(AbstractNode):
         """
         Requests potential relay peers from SDN. Merges list with provided command line relays.
         """
-        potential_relay_peers = sdn_http_service.fetch_potential_relay_peers(self.opts.node_id)
+        potential_relay_peers = sdn_http_service.fetch_potential_relay_peers_by_network(self.opts.node_id, self.network_num)
         if potential_relay_peers:
             node_cache.update_cache_file(self.opts, potential_relay_peers)
             self._register_potential_relay_peers(potential_relay_peers)

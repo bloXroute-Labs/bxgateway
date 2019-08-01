@@ -13,13 +13,13 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils.alarm_queue import AlarmQueue
+from bxcommon.utils import network_latency
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
-from bxgateway.utils import network_latency
 
 
 class GatewayNode(AbstractGatewayNode):
@@ -38,7 +38,7 @@ class GatewayNode(AbstractGatewayNode):
 
 def initialize_split_relay_node():
     relay_connections = [OutboundPeerModel(LOCALHOST, 8001)]
-    sdn_http_service.fetch_potential_relay_peers = MagicMock(return_value=relay_connections)
+    sdn_http_service.fetch_potential_relay_peers_by_network = MagicMock(return_value=relay_connections)
     network_latency.get_best_relay_by_ping_latency = MagicMock(return_value=relay_connections[0])
 
     node = GatewayNode(helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True))
@@ -158,7 +158,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
     def test_split_relay_connection(self):
         relay_connections = [OutboundPeerModel(LOCALHOST, 8001)]
-        sdn_http_service.fetch_potential_relay_peers = MagicMock(return_value=relay_connections)
+        sdn_http_service.fetch_potential_relay_peers_by_network = MagicMock(return_value=relay_connections)
         network_latency.get_best_relay_by_ping_latency = MagicMock(return_value=relay_connections[0])
 
         node = GatewayNode(helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True))
