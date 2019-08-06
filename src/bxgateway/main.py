@@ -143,19 +143,22 @@ def get_opts():
         help="Folder to dump compressed short ids to",
         default="/app/bxgateway/debug/compressed-short-ids"
     )
-
     arg_parser.add_argument(
         "--tune-send-buffer-size",
         help="If true, then the gateway will increase the send buffer's size for the blockchain connection",
         default=False,
         type=convert.str_to_bool
     )
-
+    arg_parser.add_argument(
+        "--max-block-interval",
+        help="Maximum time gateway holds a block while waiting for confirmation of receipt from blockchain node",
+        type=int,
+        default=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S
+    )
     arg_parser.add_argument(
         "--cookie-path-file",
         help="Cookie path file",
         type=str,
-        required=False,
         default=gateway_constants.COOKIE_PATH_FILE.format(os.getcwd(), f"{sdn_url}_{common_args.external_ip}_{common_args.external_port}")
     )
 

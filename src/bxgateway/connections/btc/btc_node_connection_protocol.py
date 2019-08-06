@@ -81,21 +81,23 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
 
     def msg_inv(self, msg: InvBtcMessage) -> None:
         """
-        Handle an inventory message. Since this is the only node the gateway is connected to,
-        assume that everything is new and that we want it.
+        Handle an inventory message.
+
+        Requests all transactions and blocks that haven't been previously seen.
         :param msg: INV message
         """
         contains_block = False
-        inventory_vectors = iter(msg)
         inventory_requests = []
-        for inventory_type, item_hash in inventory_vectors:
+        block_hashes = []
+        for inventory_type, item_hash in msg:
             if not InventoryType.is_block(inventory_type) or \
                     item_hash not in self.connection.node.blocks_seen.contents:
                 inventory_requests.append((inventory_type, item_hash))
 
-            if InventoryType.is_block(inventory_type) and \
-                    item_hash not in self.connection.node.blocks_seen.contents:
-                contains_block = True
+            if InventoryType.is_block(inventory_type):
+                if item_hash not in self.connection.node.blocks_seen.contents:
+                    contains_block = True
+                block_hashes.append(item_hash)
 
         if inventory_requests:
             get_data = GetDataBtcMessage(
@@ -104,6 +106,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 request_witness_data=self.request_witness_data
             )
             self.connection.enqueue_msg(get_data, prepend=contains_block)
+
+        self.connection.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
 
     def msg_get_data(self, msg: GetDataBtcMessage) -> None:
         """

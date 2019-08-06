@@ -79,7 +79,7 @@ class AbstractGatewayNode(AbstractNode):
         self.in_progress_blocks = BlockEncryptedCache(self.alarm_queue)
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
         self.neutrality_service = NeutralityService(self)
-        self.block_queuing_service = BlockQueuingService(self)
+        self.block_queuing_service = self.build_block_queuing_service()
         self.block_processing_service = BlockProcessingService(self)
 
         self.send_request_for_relay_peers_num_of_calls = 0
@@ -115,6 +115,10 @@ class AbstractGatewayNode(AbstractNode):
     @abstractmethod
     def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                            from_me: bool) -> AbstractGatewayBlockchainConnection:
+        pass
+
+    @abstractmethod
+    def build_block_queuing_service(self) -> BlockQueuingService:
         pass
 
     def get_tx_service(self, network_num=None):

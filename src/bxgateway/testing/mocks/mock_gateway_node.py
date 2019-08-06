@@ -8,6 +8,7 @@ from bxcommon.services.transaction_service import TransactionService
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
+from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 
 
 class MockGatewayNode(AbstractGatewayNode):
@@ -18,6 +19,7 @@ class MockGatewayNode(AbstractGatewayNode):
 
         self.broadcast_messages = []
         self.send_to_node_messages = []
+        self.block_queuing_service = BtcBlockQueuingService(self)
         self._tx_service = TransactionService(self, 0)
 
     def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, network_num=None,

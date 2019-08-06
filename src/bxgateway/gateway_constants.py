@@ -3,7 +3,7 @@ from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
 GATEWAY_HELLO_MESSAGES = [GatewayMessageType.HELLO, BloxrouteMessageType.ACK]
 
-GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S = 30 * 60
+GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S = 60 * 60
 
 # Delay for blockchain sync message request before broadcasting to everyone
 # This constants is currently unused
@@ -30,7 +30,10 @@ NEUTRALITY_POLICY = NeutralityPolicy.RECEIPT_PERCENT
 NEUTRALITY_EXPECTED_RECEIPT_COUNT = 1
 NEUTRALITY_EXPECTED_RECEIPT_PERCENT = 50
 
-MIN_INTERVAL_BETWEEN_BLOCKS_S = 1
+# Max duration to wait before releasing a block, even if blockchain node has not indicated receipt of
+# previous block in chain. This value can be set to 0 if a blockchain node implementation is capable of
+# immediately taking block messages without validating previous block.
+MAX_INTERVAL_BETWEEN_BLOCKS_S = 15
 NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S = 5
 
 GATEWAY_TRANSACTION_STATS_INTERVAL = 60

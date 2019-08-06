@@ -62,3 +62,11 @@ class EthDiscoveryMessage(AbstractEthMessage):
         self._deserialize_rlp_payload(encoded_payload)
 
         self._is_deserialized = True
+
+    @classmethod
+    def unpack(cls, buf):
+        pass
+
+    @classmethod
+    def validate_payload(cls, buf, unpacked_args):
+        pass

@@ -11,6 +11,8 @@ from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
+from bxgateway.services.block_queuing_service import BlockQueuingService
+from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
@@ -52,6 +54,9 @@ class EthGatewayNode(AbstractGatewayNode):
     def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                            from_me: bool) -> AbstractGatewayBlockchainConnection:
         return EthRemoteConnection(socket_connection, address, self, from_me)
+
+    def build_block_queuing_service(self) -> BlockQueuingService:
+        return EthBlockQueuingService(self)
 
     def on_updated_remote_blockchain_peer(self, peer):
         if "node_public_key" not in peer.attributes:

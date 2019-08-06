@@ -1,5 +1,6 @@
 import rlp
 
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import eth_constants
 from bxgateway.utils.eth import crypto_utils
 
@@ -25,6 +26,9 @@ class BlockHeader(rlp.Serializable):
         ("nonce", rlp.sedes.binary)
     ]
 
-    def hash(self):
+    def __repr__(self):
+        return f"EthBlockHeader<{self.hash()}>"
+
+    def hash(self) -> Sha256Hash:
         """The binary block hash"""
-        return crypto_utils.keccak_hash(rlp.encode(self))
+        return Sha256Hash(crypto_utils.keccak_hash(rlp.encode(self)))

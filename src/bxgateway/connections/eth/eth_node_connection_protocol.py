@@ -1,5 +1,5 @@
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.utils import logger
+from bxcommon.utils import logger, convert
 from bxgateway import eth_constants
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
@@ -18,6 +18,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             EthProtocolMessageType.GET_BLOCK_BODIES: self.msg_proxy_request,
             EthProtocolMessageType.GET_NODE_DATA: self.msg_proxy_request,
             EthProtocolMessageType.GET_RECEIPTS: self.msg_proxy_request,
+            EthProtocolMessageType.BLOCK_HEADERS: self.msg_block_headers,
             EthProtocolMessageType.NEW_BLOCK: self.msg_block,
         })
 
@@ -39,6 +40,10 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             super(EthNodeConnectionProtocol, self).msg_get_block_headers(msg)
         else:
             self.msg_proxy_request(msg)
+
+    def msg_block_headers(self, msg: BlockHeadersEthProtocolMessage):
+        block_hashes = [block_header.hash() for block_header in msg.get_block_headers()]
+        self.connection.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
 
     def _stop_waiting_checkpoint_headers_request(self):
         self.waiting_checkpoint_headers_request = False

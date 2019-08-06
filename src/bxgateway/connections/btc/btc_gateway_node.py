@@ -10,7 +10,9 @@ from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType
+from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.btc.btc_block_processing_service import BtcBlockProcessingService
+from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 from bxgateway.testing.btc_lossy_relay_connection import BtcLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 
@@ -46,6 +48,9 @@ class BtcGatewayNode(AbstractGatewayNode):
     def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                            from_me: bool) -> AbstractGatewayBlockchainConnection:
         return BtcRemoteConnection(socket_connection, address, self, from_me)
+
+    def build_block_queuing_service(self) -> BlockQueuingService:
+        return BtcBlockQueuingService(self)
 
     def send_msg_to_node(self, msg):
         super(BtcGatewayNode, self).send_msg_to_node(msg)

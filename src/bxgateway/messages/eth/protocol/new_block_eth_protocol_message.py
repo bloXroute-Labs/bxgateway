@@ -25,6 +25,9 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
         self._block_hash = None
         self._timestamp = None
 
+    def __repr__(self):
+        return f"NewBlockEthProtocolMessage<{self.block_hash()}"
+
     def get_block(self):
         return self.get_field_value("block")
 

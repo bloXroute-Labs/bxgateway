@@ -1,3 +1,5 @@
+from typing import List
+
 import rlp
 
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
@@ -10,5 +12,10 @@ class BlockHeadersEthProtocolMessage(EthProtocolMessage):
 
     fields = [("block_headers", rlp.sedes.CountableList(BlockHeader))]
 
-    def get_block_headers(self):
+    def __repr__(self):
+        return f"BlockHeadersEthProtocolMessage<headers: {[header for header in self.get_block_headers()]}>"
+
+    def get_block_headers(self) -> List[BlockHeader]:
         return self.get_field_value("block_headers")
+
+
