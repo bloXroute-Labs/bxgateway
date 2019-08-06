@@ -273,7 +273,7 @@ class BlockProcessingService(object):
                                                   blockchain_protocol=self._node.opts.blockchain_network,
                                                   matching_block_hash=block_info.compressed_block_hash,
                                                   matching_block_type=StatBlockType.COMPRESSED.value,
-                                                  more_info="Compression: {}->{}bytes, {}, {}; Tx count: {}".format(
+                                                  more_info="Compression: {}->{} bytes, {}, {}; Tx count: {}".format(
                                                       block_info.original_size,
                                                       block_info.compressed_size,
                                                       stats_format.percentage(block_info.compression_rate),
