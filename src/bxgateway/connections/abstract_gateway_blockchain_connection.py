@@ -55,7 +55,7 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
             super(AbstractGatewayBlockchainConnection, self).advance_sent_bytes(bytes_sent)
 
             if not self.message_tracker.is_sending_block_message():
-                block_message = cast(AbstractBlockMessage, self.message_tracker.messages[0].message)
+                block_message = cast(AbstractBlockMessage, entry.message)
                 block_message_queue_time = entry.queued_time
                 block_message_length = entry.length
                 block_hash = block_message.block_hash()

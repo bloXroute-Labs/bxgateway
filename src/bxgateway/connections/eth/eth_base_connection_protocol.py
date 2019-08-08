@@ -5,6 +5,7 @@ from bxcommon.utils import logger, convert
 from bxgateway import eth_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
+from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
 from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import DisconnectEthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_factory import EthProtocolMessageFactory
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
@@ -43,6 +44,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             EthProtocolMessageType.DISCONNECT: self.msg_disconnect,
             EthProtocolMessageType.PING: self.msg_ping,
             EthProtocolMessageType.PONG: self.msg_pong,
+            EthProtocolMessageType.GET_BLOCK_HEADERS: self.msg_get_block_headers
         }
         connection.ping_message = PingEthProtocolMessage(None)
         connection.pong_message = PongEthProtocolMessage(None)
@@ -92,6 +94,12 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
     def msg_disconnect(self, msg):
         logger.debug("Disconnect message received. Disconnect reason {0}.".format(msg.get_reason()))
         self.connection.mark_for_close()
+
+    def msg_get_block_headers(self, msg):
+        logger.info("Replying with empty headers message to the get headers request")
+        block_headers_msg = BlockHeadersEthProtocolMessage(None, [])
+        self.connection.enqueue_msg(block_headers_msg)
+        self.waiting_checkpoint_headers_request = False
 
     def get_message_bytes(self, msg):
         if isinstance(msg, RawEthProtocolMessage):
