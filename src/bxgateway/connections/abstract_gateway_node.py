@@ -11,14 +11,15 @@ from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.node_type import NodeType
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network.socket_connection import SocketConnection
-from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.services import sdn_http_service
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
 from bxcommon.utils import logger
 from bxcommon.utils.expiring_set import ExpiringSet
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -404,4 +405,6 @@ class AbstractGatewayNode(AbstractNode):
         self.alarm_queue.register_alarm(gateway_transaction_stats_service.interval,
                                         gateway_transaction_stats_service.flush_info)
 
-
+    def on_block_seen_by_blockchain_node(self, block_hash: Sha256Hash):
+        self.blocks_seen.add(block_hash)
+        self.block_recovery_service.cancel_recovery_for_block(block_hash)

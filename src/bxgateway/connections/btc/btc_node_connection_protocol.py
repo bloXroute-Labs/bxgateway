@@ -191,7 +191,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                                                       network_num=self.connection.network_num)
             return
 
-        self.connection.node.blocks_seen.add(block_hash)
+        self.connection.node.on_block_seen_by_blockchain_node(block_hash)
         # pyre-ignore
         parse_result = self.connection.node.block_processing_service.process_compact_block(msg, self.connection)
         if not parse_result.success:

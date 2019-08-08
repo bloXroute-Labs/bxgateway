@@ -1,3 +1,5 @@
+import time
+
 from bxcommon.exceptions import ParseError
 from bxcommon.messages.abstract_message_factory import AbstractMessageFactory
 from bxgateway import eth_constants
@@ -22,6 +24,7 @@ from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEt
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.eth.framed_input_buffer import FramedInputBuffer
 from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
+from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
 
 
 class EthProtocolMessageFactory(AbstractMessageFactory):
@@ -82,7 +85,9 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
             return True, EthProtocolMessageType.AUTH_ACK, eth_constants.ENC_AUTH_ACK_MSG_LEN
         elif self._expected_msg_type is None:
 
+            decryption_start_time = time.time()
             is_full_msg, command = self._framed_input_buffer.peek_message(input_buffer)
+            eth_gateway_stats_service.log_decrypted_message(time.time() - decryption_start_time)
 
             if is_full_msg:
                 return True, command, 0

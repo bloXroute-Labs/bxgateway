@@ -30,7 +30,8 @@ class BtcConnectionProtocolTest(AbstractTestCase):
         self.sut = BtcBaseConnectionProtocol(self.connection)
 
     def test_msg_block_success(self):
-        block_timestamp = int(time.time()) + 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
+        block_timestamp = int(
+            time.time()) + 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
         txns = [TxBtcMessage(0, 0, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in range(10)]
         message = BlockBtcMessage(0, 0, self.HASH, self.HASH, block_timestamp, 0, 0, txns)
 
@@ -38,7 +39,8 @@ class BtcConnectionProtocolTest(AbstractTestCase):
         self.node.block_processing_service.queue_block_for_processing.assert_called_once()
 
     def test_msg_block_too_old(self):
-        block_timestamp = int(time.time()) - 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
+        block_timestamp = int(
+            time.time()) - 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
         txns = [TxBtcMessage(0, 0, [], [], i).rawbytes()[BTC_HDR_COMMON_OFF:] for i in range(10)]
         message = BlockBtcMessage(0, 0, self.HASH, self.HASH, 0, block_timestamp, 0, txns)
 

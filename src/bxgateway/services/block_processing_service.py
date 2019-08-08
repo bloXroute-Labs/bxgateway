@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 import time
 from typing import TYPE_CHECKING, Optional, Iterable
 
@@ -15,6 +15,7 @@ from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.services.block_recovery_service import BlockRecoveryInfo
@@ -46,7 +47,7 @@ class BlockHold(object):
         self.held_connection = None
 
 
-class BlockProcessingService(object):
+class BlockProcessingService:
     """
     Service class that process blocks.
     Blocks received from blockchain node are held if gateway receives a `blockhold` message from another gateway to
@@ -290,7 +291,11 @@ class BlockProcessingService(object):
 
         self._process_and_broadcast_compressed_block(bx_block, connection, block_info, block_hash)
 
-    def _process_and_broadcast_compressed_block(self, bx_block, connection, block_info, block_hash):
+    def _process_and_broadcast_compressed_block(self,
+                                                bx_block,
+                                                connection: AbstractGatewayBlockchainConnection,
+                                                block_info,
+                                                block_hash: Sha256Hash):
         """
         Process a compressed block.
         :param bx_block: compress block message to process
@@ -298,7 +303,6 @@ class BlockProcessingService(object):
         :param block_info: original block info
         :param block_hash: block hash
         """
-
         connection.node.neutrality_service.propagate_block_to_network(bx_block, connection, block_info)
 
         connection.node.block_recovery_service.cancel_recovery_for_block(block_hash)

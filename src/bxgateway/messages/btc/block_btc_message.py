@@ -38,9 +38,10 @@ class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
             self._magic = self._command = self._payload_len = self._checksum = None
             self._payload = None
 
-        self._version = self._prev_block = self._merkle_root = self._timestamp = None
+        self._version = self._prev_block = self._merkle_root = None
         self._bits = self._nonce = self._txn_count = self._txns = self._hash_val = None
         self._header = self._tx_offset = None
+        self._timestamp = 0
 
     def log_level(self):
         return LogLevel.INFO
@@ -74,7 +75,7 @@ class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
             self.version()
         return self._merkle_root
 
-    def timestamp(self):
+    def timestamp(self) -> int:
         """
         :return: seconds since epoch
         """

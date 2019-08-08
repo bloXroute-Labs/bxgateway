@@ -1,7 +1,9 @@
 import rlp
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
+from bxcommon.utils.log_level import LogLevel
 from bxcommon.utils.object_hash import Sha256Hash
+from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.serializers.block import Block
@@ -16,20 +18,79 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
               ("chain_difficulty", rlp.sedes.big_endian_int)]
 
     block = None
-    chain_difficulty = None
 
     def __init__(self, msg_bytes, *args, **kwargs):
         super(NewBlockEthProtocolMessage, self).__init__(msg_bytes, *args, **kwargs)
 
         self._block_header = None
+        self._block_body = None
         self._block_hash = None
         self._timestamp = None
+        self._chain_difficulty = None
+
+    def __repr__(self):
+        return f"NewBlockEthProtocolMessage<{self.block_hash()}"
+
+    def extra_stats_data(self):
+        return "Full block"
+
+    @classmethod
+    def from_new_block_parts(cls, new_block_parts: NewBlockParts,
+                             total_difficulty: int) -> "NewBlockEthProtocolMessage":
+
+        block_header = memoryview(new_block_parts.block_header_bytes)
+        block_body = memoryview(new_block_parts.block_body_bytes)
+
+        _, block_content_len, block_content_start = rlp_utils.consume_length_prefix(block_body, 0)
+        block_body_conent = block_body[block_content_start:]
+
+        content_size = len(block_header) + len(block_body_conent)
+
+        block_item_prefix = rlp_utils.get_length_prefix_list(content_size)
+        content_size += len(block_item_prefix)
+
+        total_difficulty_item = rlp_utils.encode_int(total_difficulty)
+        content_size += len(total_difficulty_item)
+
+        new_block_item_prefix = rlp_utils.get_length_prefix_list(content_size)
+        content_size += len(new_block_item_prefix)
+
+        written_bytes = 0
+        new_block_bytes = bytearray(content_size)
+
+        new_block_bytes[written_bytes:written_bytes + len(new_block_item_prefix)] = new_block_item_prefix
+        written_bytes += len(new_block_item_prefix)
+
+        new_block_bytes[written_bytes:written_bytes + len(block_item_prefix)] = block_item_prefix
+        written_bytes += len(block_item_prefix)
+
+        new_block_bytes[written_bytes:written_bytes + len(block_header)] = block_header
+        written_bytes += len(block_header)
+
+        new_block_bytes[written_bytes:written_bytes + len(block_body_conent)] = block_body_conent
+        written_bytes += len(block_body_conent)
+
+        new_block_bytes[written_bytes:written_bytes + len(total_difficulty_item)] = total_difficulty_item
+        written_bytes += len(total_difficulty_item)
+
+        return cls(new_block_bytes)
+
+    def log_level(self):
+        return LogLevel.INFO
 
     def get_block(self):
         return self.get_field_value("block")
 
-    def get_chain_difficulty(self):
-        return self.get_field_value("chain_difficulty")
+    def chain_difficulty(self):
+        if self._chain_difficulty is None:
+            _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
+            block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
+
+            _, block_itm_len, block_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
+
+            self._chain_difficulty, _ = rlp_utils.decode_int(block_msg_bytes, block_itm_start + block_itm_len)
+
+        return self._chain_difficulty
 
     def block_header(self):
         if self._block_header is None:
@@ -69,7 +130,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
 
         return Sha256Hash(prev_block_bytes)
 
-    def timestamp(self):
+    def timestamp(self) -> int:
         """
         :return: seconds since epoch
         """

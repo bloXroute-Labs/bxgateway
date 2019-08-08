@@ -7,7 +7,6 @@ from bxcommon.utils import logger
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-from bxgateway.messages.btc.inventory_btc_message import InventoryType, InvBtcMessage
 from bxgateway import gateway_constants
 
 
@@ -184,7 +183,8 @@ class BlockQueuingService(object):
         if not self._node.opts.track_detailed_sent_messages:
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
                                                       network_num=self._node.network_num,
-                                                      more_info="{} bytes".format(len(block_msg.rawbytes())))
+                                                      more_info="{} bytes. {}".format(len(block_msg.rawbytes(),
+                                                                                          block_msg.extra_stats_data())))
         self._last_block_sent_time = time.time()
 
     def _top_block_recovery_timeout(self):

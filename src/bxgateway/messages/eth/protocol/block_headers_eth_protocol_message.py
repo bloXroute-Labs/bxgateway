@@ -1,8 +1,10 @@
 import rlp
 
+from bxcommon.utils.log_level import LogLevel
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
+from bxgateway.utils.eth import rlp_utils
 
 
 class BlockHeadersEthProtocolMessage(EthProtocolMessage):
@@ -10,5 +12,27 @@ class BlockHeadersEthProtocolMessage(EthProtocolMessage):
 
     fields = [("block_headers", rlp.sedes.CountableList(BlockHeader))]
 
+    def __repr__(self):
+        return f"BlockHeadersEthProtocolMessage<headers_count: {len(self.get_block_headers_bytes())}>"
+
     def get_block_headers(self):
         return self.get_field_value("block_headers")
+
+    def get_block_headers_bytes(self):
+        if self._memory_view is None:
+            self.serialize()
+
+        return rlp_utils.get_first_list_field_items_bytes(self._memory_view)
+
+    @classmethod
+    def from_header_bytes(cls, header_bytes: memoryview) -> "BlockHeadersEthProtocolMessage":
+        headers_list_prefix = rlp_utils.get_length_prefix_list(len(header_bytes))
+
+        msg_bytes = bytearray(len(headers_list_prefix) + len(header_bytes))
+        msg_bytes[:len(headers_list_prefix)] = headers_list_prefix
+        msg_bytes[len(headers_list_prefix):] = header_bytes
+
+        return cls(msg_bytes)
+
+    def log_level(self):
+        return LogLevel.INFO
