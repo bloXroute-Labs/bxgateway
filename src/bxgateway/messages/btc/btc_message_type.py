@@ -19,3 +19,4 @@ class BtcMessageType(object):
     SEND_COMPACT = b"sendcmpct"
     GET_BLOCK_TRANSACTIONS = b"getblocktxn"
     BLOCK_TRANSACTIONS = b"blocktxn"
+    FEE_FILTER = b"feefilter"

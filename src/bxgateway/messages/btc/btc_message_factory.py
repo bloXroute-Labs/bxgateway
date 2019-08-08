@@ -17,7 +17,8 @@ from bxgateway.messages.btc.send_headers_btc_message import SendHeadersBtcMessag
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
-
+from bxgateway.messages.btc.fee_filter_btc_message import FeeFilterBtcMessage
+from bxgateway.messages.btc.send_compact_btc_message import SendCompactBtcMessage
 
 class _BtcMessageFactory(AbstractMessageFactory):
     _MESSAGE_TYPE_MAPPING = {
@@ -39,7 +40,9 @@ class _BtcMessageFactory(AbstractMessageFactory):
         BtcMessageType.SEND_HEADERS: SendHeadersBtcMessage,
         BtcMessageType.COMPACT_BLOCK: CompactBlockBtcMessage,
         BtcMessageType.GET_BLOCK_TRANSACTIONS: GetBlockTransactionsBtcMessage,
-        BtcMessageType.BLOCK_TRANSACTIONS: BlockTransactionsBtcMessage
+        BtcMessageType.BLOCK_TRANSACTIONS: BlockTransactionsBtcMessage,
+        BtcMessageType.FEE_FILTER: FeeFilterBtcMessage,
+        BtcMessageType.SEND_COMPACT: SendCompactBtcMessage
     }
 
     def __init__(self):

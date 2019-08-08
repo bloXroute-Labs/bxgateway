@@ -21,6 +21,8 @@ from bxgateway.messages.btc.send_headers_btc_message import SendHeadersBtcMessag
 from bxgateway.messages.btc.tx_btc_message import TxIn, TxBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
+from bxgateway.messages.btc.fee_filter_btc_message import FeeFilterBtcMessage
+from bxgateway.messages.btc.send_compact_btc_message import SendCompactBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
@@ -68,6 +70,8 @@ class BtcMessageFactoryTest(MessageFactoryTestCase):
                                               RejectBtcMessage.MESSAGE_TYPE, 32)
         self.get_message_preview_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage.MESSAGE_TYPE, 0)
 
+        self.get_message_preview_successfully(FeeFilterBtcMessage(self.MAGIC, 100), FeeFilterBtcMessage.MESSAGE_TYPE, 8)
+
     def test_peek_message_incomplete(self):
         is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
             create_input_buffer_with_bytes(self.VERSION_BTC_MESSAGE.rawbytes()[:-10])
@@ -114,6 +118,8 @@ class BtcMessageFactoryTest(MessageFactoryTestCase):
                                                          b"test break", helpers.generate_bytearray(10)),
                                          RejectBtcMessage)
         self.create_message_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage)
+
+        self.create_message_successfully(FeeFilterBtcMessage(self.MAGIC, 100), FeeFilterBtcMessage)
 
     def test_parse_message_incomplete(self):
         with self.assertRaises(PayloadLenError):
