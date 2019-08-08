@@ -6,6 +6,7 @@ from bxcommon.constants import LOCALHOST
 from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxgateway.btc_constants import NODE_WITNESS_SERVICE_FLAG, BTC_SHA_HASH_LEN
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_node_connection_protocol import BtcNodeConnectionProtocol
@@ -21,8 +22,7 @@ class BtcNodeConnectionProtocolTest(AbstractTestCase):
         self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_btc_args=True))
         self.node.neutrality_service = MagicMock()
 
-        soc = socket.socket()
-        self.connection = BtcNodeConnection(SocketConnection(soc, self.node), (LOCALHOST, 123), self.node)
+        self.connection = BtcNodeConnection(MockSocketConnection(), (LOCALHOST, 123), self.node)
 
         self.tx_hash = BtcObjectHash(buf=helpers.generate_bytearray(32), length=BTC_SHA_HASH_LEN)
         self.block_hash = BtcObjectHash(buf=helpers.generate_bytearray(32), length=BTC_SHA_HASH_LEN)
@@ -91,7 +91,6 @@ class BtcNodeConnectionProtocolTest(AbstractTestCase):
                 self.assertEqual(self.block_hash, inv_item[1])
 
             item_index += 1
-
 
     def _create_version_msg(self, service):
         return VersionBtcMessage(magic=123, version=234, dst_ip=LOCALHOST, dst_port=12345, src_ip=LOCALHOST,

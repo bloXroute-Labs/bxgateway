@@ -44,9 +44,9 @@ class BtcMessage(AbstractMessage):
             error_message = "Payload length does not match buffer size: %d vs %d bytes" % (payload_length, len(buf))
             logger.error(error_message)
             raise PayloadLenError(error_message)
-
-        if checksum != crypto.bitcoin_hash(buf[cls.HEADER_LENGTH:cls.HEADER_LENGTH + payload_length])[0:4]:
-            error_message = "Checksum for packet doesn't match: %s" % (repr(buf))
+        ref_checksum = crypto.bitcoin_hash(buf[cls.HEADER_LENGTH:cls.HEADER_LENGTH + payload_length])[0:4]
+        if checksum != ref_checksum:
+            error_message = "Checksum (%s) for packet doesn't match (%s): %s" % (checksum, ref_checksum, repr(buf))
             logger.error(error_message)
             raise ChecksumError(error_message, buf)
 
@@ -57,7 +57,7 @@ class BtcMessage(AbstractMessage):
 
     # END TODO
 
-    def rawbytes(self):
+    def rawbytes(self) -> memoryview:
         """
         Returns a memoryview of the message
         """

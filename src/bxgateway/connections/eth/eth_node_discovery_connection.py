@@ -4,12 +4,13 @@ import time
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.utils import logger
 from bxgateway import eth_constants
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.messages.eth.discovery.eth_discovery_message_factory import eth_discovery_message_factory
 from bxgateway.messages.eth.discovery.eth_discovery_message_type import EthDiscoveryMessageType
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
 
 
-class EthNodeDiscoveryConnection(AbstractConnection):
+class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection):
     
     """
     Discovery protocol connection with Ethereum node.

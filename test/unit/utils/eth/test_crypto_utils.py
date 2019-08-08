@@ -42,7 +42,7 @@ class CryptoUtilsTests(AbstractTestCase):
         self.assertEqual(len(sha1), eth_constants.SHA3_LEN_BYTES)
         self.assertEqual(len(sha2), eth_constants.SHA3_LEN_BYTES)
 
-        self.assertNotEquals(sha1, sha2)
+        self.assertNotEqual(sha1, sha2)
 
     def test_get_sha3_calculator(self):
         input1 = helpers.generate_bytearray(111)
@@ -59,8 +59,8 @@ class CryptoUtilsTests(AbstractTestCase):
         self.assertEqual(len(sha1), eth_constants.SHA3_LEN_BYTES)
         self.assertEqual(len(sha2), eth_constants.SHA3_LEN_BYTES)
 
-        self.assertNotEquals(sha1, sha2)
-        self.assertNotEquals(sha1, sha1_2)
+        self.assertNotEqual(sha1, sha2)
+        self.assertNotEqual(sha1, sha1_2)
 
     def test_recover_public_key(self):
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))

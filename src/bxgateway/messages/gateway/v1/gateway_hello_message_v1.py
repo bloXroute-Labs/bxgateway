@@ -21,7 +21,7 @@ class GatewayHelloMessageV1(VersionMessage):
 
     def __init__(self, protocol_version=None, network_num=None, ip=None, port=None, ordering=None, buf=None):
         if buf is None:
-            buf = bytearray(constants.HDR_COMMON_OFF + self.PAYLOAD_LENGTH)
+            buf = bytearray(self.HEADER_LENGTH + self.PAYLOAD_LENGTH)
 
             off = VersionMessage.BASE_LENGTH
 

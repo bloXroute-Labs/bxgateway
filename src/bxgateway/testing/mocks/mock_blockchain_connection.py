@@ -1,8 +1,13 @@
+# pyre-ignore-all-errors
+import datetime
+from typing import Tuple, Optional, List
+
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.messages.bloxroute.block_hash_message import BlockHashMessage
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto, convert
-from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.object_hash import Sha256Hash, AbstractObjectHash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
-from bxcommon.messages.bloxroute.block_hash_message import BlockHashMessage
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.block_info import BlockInfo
 
@@ -20,10 +25,13 @@ class MockMessageConverter(AbstractMessageConverter):
     def bx_tx_to_tx(self, bx_tx_msg):
         return bx_tx_msg
 
-    def block_to_bx_block(self, block_msg, tx_service):
-        return block_msg.rawbytes(), BlockInfo(0, convert.bytes_to_hex(self.PREV_BLOCK.binary), None, None, [])
+    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
+        return block_msg.rawbytes(), \
+               BlockInfo(convert.bytes_to_hex(self.PREV_BLOCK.binary), [], datetime.datetime.utcnow(),
+                         datetime.datetime.utcnow(), 0, 0, None, None, 0, 0, 0)
 
-    def bx_block_to_block(self, bx_block_msg, tx_service):
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
+                                                                   List[Sha256Hash]]:
         block_message = MockBlockMessage(buf=bx_block_msg)
         return block_message, block_message.block_hash(), [], []
 

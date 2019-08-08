@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 
 mkdir -p .venv
-virtualenv -p python2 .venv
+virtualenv -p python3 .venv
 . .venv/bin/activate
-pip install -r requirements.txt
 pip install -r ../bxcommon/requirements.txt
+pip install -r ../bxcommon/requirements-dev.txt
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
 echo ""
 echo ""
 echo ""

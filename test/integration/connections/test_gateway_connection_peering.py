@@ -17,7 +17,7 @@ from bxgateway.testing.null_gateway_node import NullGatewayNode
 
 # noinspection PyProtectedMember
 def reinit_gateway_connection_with_ordering(connection, ordering):
-    connection.outputbuf._flush_to_buffer()
+    connection.outputbuf.flush()
     connection.outputbuf.advance_buffer(connection.outputbuf.length)
     connection.ordering = ordering
     connection.enqueue_msg(GatewayHelloMessage(connection.protocol_version, connection.network_num,
@@ -40,6 +40,12 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
         self.peer_opts = helpers.get_gateway_opts(self.peer_port, node_id="peer")
         self.peer_gateway = NullGatewayNode(self.peer_opts)
         self.peer_thread = NetworkThread(self.peer_gateway)
+
+    def tearDown(self):
+        self.main_gateway.close()
+        self.main_event_loop.close()
+        self.peer_gateway.close()
+        self.peer_thread.close()
 
     def test_gateway_to_gateway_connection_initialization_assign_port_from_hello(self):
         with closing(self.peer_thread):
@@ -100,12 +106,12 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             )
 
             peer_initiated_connection_on_peer_key = next(filter(lambda address: address[1] == self.main_port,
-                                                           self.peer_gateway.connection_pool.by_ipport.keys()))
+                                                                self.peer_gateway.connection_pool.by_ipport.keys()))
             peer_initiated_connection_on_peer = self.peer_gateway.connection_pool.by_ipport[
                 peer_initiated_connection_on_peer_key
             ]
             main_initiated_connection_on_peer_key = next(filter(lambda address: address[1] != self.main_port,
-                                                           self.peer_gateway.connection_pool.by_ipport.keys()))
+                                                                self.peer_gateway.connection_pool.by_ipport.keys()))
             main_initiated_connection_on_peer = self.peer_gateway.connection_pool.by_ipport[
                 main_initiated_connection_on_peer_key
             ]
@@ -114,6 +120,8 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             )
             test_fn(main_initiated_connection, peer_initiated_connection,
                     main_initiated_connection_on_peer, peer_initiated_connection_on_peer)
+
+        self.main_event_loop.close()
 
     def test_gateway_to_gateway_connection_resolve_duplicate_same_ordering_retry(self):
         def peer_initiated_equal_then_higher(main_initiated_connection, peer_initiated_connection,
@@ -246,3 +254,4 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
                               self.peer_gateway.connection_pool.get_by_ipport(LOCALHOST, self.main_port))
 
         self._test_gateway_to_gateway_connection_resolution(peer_initiated_lower)
+

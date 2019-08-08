@@ -5,11 +5,11 @@ from mock import patch, MagicMock
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.messages.bloxroute import protocol_version
+from bxcommon.messages.bloxroute.abstract_bloxroute_message import AbstractBloxrouteMessage
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
-from bxcommon.messages.bloxroute.message import Message
 from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -83,14 +83,14 @@ class AbstractRelayConnectionTest(AbstractTestCase):
         pong_msg_bytes = self.connection.get_bytes_to_send()
         self.assertTrue(len(pong_msg_bytes) > 0)
 
-        msg_type, payload_len = Message.unpack(pong_msg_bytes[:Message.HEADER_LENGTH])
+        msg_type, payload_len = AbstractBloxrouteMessage.unpack(pong_msg_bytes[:AbstractBloxrouteMessage.HEADER_LENGTH])
         self.assertEqual(BloxrouteMessageType.PONG, msg_type)
         self.connection.advance_sent_bytes(len(pong_msg_bytes))
 
         time.time = MagicMock(return_value=time.time() + constants.PING_INTERVAL_S)
         self.node.alarm_queue.fire_alarms()
 
-        ping_msg_bytes =  self.connection.get_bytes_to_send()
+        ping_msg_bytes = self.connection.get_bytes_to_send()
         self.assertTrue(len(ping_msg_bytes) > 0)
-        msg_type, payload_len = Message.unpack(ping_msg_bytes[:Message.HEADER_LENGTH])
+        msg_type, payload_len = AbstractBloxrouteMessage.unpack(ping_msg_bytes[:AbstractBloxrouteMessage.HEADER_LENGTH])
         self.assertEqual(BloxrouteMessageType.PING, msg_type)

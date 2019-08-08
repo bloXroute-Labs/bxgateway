@@ -1,17 +1,19 @@
 import struct
 
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
+from bxcommon.utils import crypto
 from bxcommon.utils.log_level import LogLevel
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, get_next_tx_size, pack_int_to_btc_varint, \
     pack_block_header
-from bxcommon.utils import crypto, convert
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 # FIXME, there's a lot of duplicate code between here and BlockHeader
-class BlockBtcMessage(BtcMessage):
+class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
     MESSAGE_TYPE = BtcMessageType.BLOCK
 
     def __init__(self, magic=None, version=None, prev_block=None, merkle_root=None,
@@ -117,7 +119,7 @@ class BlockBtcMessage(BtcMessage):
 
         return self._txns
 
-    def block_hash(self):
+    def block_hash(self) -> Sha256Hash:
         if self._hash_val is None:
             header = self._memoryview[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE]
             raw_hash = crypto.bitcoin_hash(header)

@@ -101,7 +101,7 @@ def get_opts():
     arg_parser.add_argument("--node-public-key", help="Public key of Ethereum node for encrypted communication",
                             type=str)
     arg_parser.add_argument("--private-key", help="Private key for encrypted communication with Ethereum node",
-                            type=str)
+                            type=str, default="494549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3")
     arg_parser.add_argument("--network-id", help="Ethereum network id", type=int)
     arg_parser.add_argument("--genesis-hash", help="Genesis block hash of Ethereum network", type=str)
     arg_parser.add_argument("--chain-difficulty", help="Difficulty of genesis block Ethereum network (hex)", type=str)
@@ -120,7 +120,6 @@ def get_opts():
     arg_parser.add_argument("--compact-block-min-tx-count",
                             help="Minimal number of short transactions in compact block to attempt decompression.",
                             type=int, default=btc_constants.BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT)
-
     arg_parser.add_argument(
         "--dump-short-id-mapping-compression",
         help="If true, the gateway will dump all short ids and txhashes compressed into a block",
@@ -133,10 +132,18 @@ def get_opts():
         default="/app/bxgateway/debug/compressed-short-ids"
     )
 
+    arg_parser.add_argument(
+        "--tune-send-buffer-size",
+        help="If true, then the gateway will increase the send buffer's size for the blockchain connection",
+        default=False,
+        type=convert.str_to_bool
+    )
+
     gateway_args, unknown = arg_parser.parse_known_args()
 
     args = cli.merge_args(gateway_args, common_args)
     args.outbound_peers = args.peer_gateways + args.peer_relays
+
     if args.connect_to_remote_blockchain and args.remote_blockchain_ip and args.remote_blockchain_port:
         args.remote_blockchain_peer = OutboundPeerModel(args.remote_blockchain_ip, args.remote_blockchain_port)
     else:

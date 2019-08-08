@@ -14,8 +14,7 @@ class GetBlockTransactionsBtcMessage(BtcMessage):
 
     MESSAGE_TYPE = BtcMessageType.GET_BLOCK_TRANSACTIONS
 
-    def __init__(self, magic: int = None, block_hash: BtcObjectHash = None,
-                 indices: List[int] = None,
+    def __init__(self, magic: int = None, block_hash: BtcObjectHash = None, indices: List[int] = None,
                  buf: memoryview = None):
         if buf is None:
             buf = bytearray(
@@ -42,7 +41,8 @@ class GetBlockTransactionsBtcMessage(BtcMessage):
             self._magic = self._command = self._payload_len = self._checksum = None
             self._payload = None
 
-        self._block_hash = self._indices = None
+        self._block_hash = None
+        self._indices: List[int] = None
 
     def block_hash(self) -> BtcObjectHash:
         if self._block_hash is None:

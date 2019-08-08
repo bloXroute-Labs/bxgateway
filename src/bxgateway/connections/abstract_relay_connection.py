@@ -1,7 +1,11 @@
+from abc import ABCMeta
+from typing import TYPE_CHECKING
+
+from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
-from bxcommon.constants import BLOXROUTE_HELLO_MESSAGES, HDR_COMMON_OFF
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
+from bxcommon.messages.bloxroute.disconnect_relay_peer_message import DisconnectRelayPeerMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
@@ -11,9 +15,15 @@ from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEven
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
+if TYPE_CHECKING:
+    # noinspection PyUnresolvedReferences
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
-class AbstractRelayConnection(InternalNodeConnection):
-    CONNECTION_TYPE = ConnectionType.RELAY
+
+class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
+    __metaclass__ = ABCMeta
+
+    CONNECTION_TYPE = ConnectionType.RELAY_ALL
 
     def __init__(self, sock, address, node, from_me=False):
         super(AbstractRelayConnection, self).__init__(sock, address, node, from_me=from_me)
@@ -26,8 +36,8 @@ class AbstractRelayConnection(InternalNodeConnection):
                                  node_id=self.node.opts.node_id)
         self.enqueue_msg(hello_msg)
 
-        self.hello_messages = BLOXROUTE_HELLO_MESSAGES
-        self.header_size = HDR_COMMON_OFF
+        self.hello_messages = constants.BLOXROUTE_HELLO_MESSAGES
+        self.header_size = constants.STARTING_SEQUENCE_BYTES_LEN + constants.BX_HDR_COMMON_OFF
         self.message_handlers = {
             BloxrouteMessageType.HELLO: self.msg_hello,
             BloxrouteMessageType.PING: self.msg_ping,
@@ -37,7 +47,8 @@ class AbstractRelayConnection(InternalNodeConnection):
             BloxrouteMessageType.KEY: self.msg_key,
             BloxrouteMessageType.TRANSACTION: self.msg_tx,
             BloxrouteMessageType.TRANSACTIONS: self.msg_txs,
-            BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding
+            BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding,
+            BloxrouteMessageType.DISCONNECT_RELAY_PEER: self.msg_disconnect_relay_peer
         }
 
         self.message_converter = None
@@ -47,19 +58,29 @@ class AbstractRelayConnection(InternalNodeConnection):
         Handle broadcast message receive from bloXroute.
         This is typically an encrypted block.
         """
-        self.node.block_processing_service.process_block_broadcast(msg, self)
+        if self.CONNECTION_TYPE & ConnectionType.RELAY_BLOCK:
+            self.node.block_processing_service.process_block_broadcast(msg, self)
+        else:
+            logger.error("Received unexpected block message on non-block relay connection: {}, {}", msg, self)
 
     def msg_key(self, msg):
         """
         Handles key message receive from bloXroute.
         Looks for the encrypted block and decrypts; otherwise stores for later.
         """
-        self.node.block_processing_service.process_block_key(msg, self)
+        if self.CONNECTION_TYPE & ConnectionType.RELAY_BLOCK:
+            self.node.block_processing_service.process_block_key(msg, self)
+        else:
+            logger.error("Received unexpected key message on non-block relay connection: {}, {}", msg, self)
 
     def msg_tx(self, msg):
         """
         Handle transactions receive from bloXroute network.
         """
+        if not self.CONNECTION_TYPE & ConnectionType.RELAY_TRANSACTION:
+            logger.error("Received unexpected tx message on non-tx relay connection: {}, {}", msg, self)
+            return
+
         tx_service = self.node.get_tx_service()
 
         short_id = msg.short_id()
@@ -122,6 +143,10 @@ class AbstractRelayConnection(InternalNodeConnection):
             self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
 
     def msg_txs(self, msg: TxsMessage):
+        if not self.CONNECTION_TYPE & ConnectionType.RELAY_TRANSACTION:
+            logger.error("Received unexpected txs message on non-tx relay connection: {}, {}", msg, self)
+            return
+
         transactions = msg.get_txs()
         tx_service = self.node.get_tx_service()
 
@@ -163,3 +188,12 @@ class AbstractRelayConnection(InternalNodeConnection):
         """
         block_hash = msg.block_hash()
         self.node.block_processing_service.place_hold(block_hash, self)
+
+    def msg_disconnect_relay_peer(self, _msg: DisconnectRelayPeerMessage) -> None:
+        """
+        Drop relay peer request handler. Forces a gateway to drop its relay connection and request a new one
+        :return: None
+        """
+        logger.info("Received disconnect request from relay {}:{} - dropping connection", self.peer_ip, self.peer_port)
+        self.node.destroy_conn(self)
+

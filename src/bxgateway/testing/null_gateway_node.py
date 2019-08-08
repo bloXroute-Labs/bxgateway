@@ -1,27 +1,36 @@
+# pyre-ignore-all-errors
+
 import socket
+from typing import Tuple
 
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.constants import LOCALHOST
+from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.utils import logger
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 
 
 class NullConnection(AbstractConnection):
     pass
 
 
+# noinspection PyTypeChecker
 class NullGatewayNode(AbstractGatewayNode):
     """
     Test Gateway Node that doesn't connect use its blockchain or relay connection.
     """
-
-    def get_remote_blockchain_connection_cls(self):
+    def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
+                                    from_me: bool) -> AbstractGatewayBlockchainConnection:
         return NullConnection
 
-    def get_blockchain_connection_cls(self):
+    def build_relay_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
+                               from_me: bool) -> AbstractRelayConnection:
         return NullConnection
 
-    def get_relay_connection_cls(self):
+    def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
+                                           from_me: bool) -> AbstractGatewayBlockchainConnection:
         return NullConnection
 
     def send_request_for_relay_peers(self):

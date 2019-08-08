@@ -5,18 +5,18 @@ from mock import MagicMock
 
 from bxcommon.constants import LOCALHOST
 from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.services.transaction_service import TransactionService
+from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.utils import convert, crypto
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_node_connection_protocol import BtcNodeConnectionProtocol
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
-from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
-from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxcommon.utils import convert, crypto
-from bxcommon.services.transaction_service import TransactionService
-from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 
 
 class BtcNodeConnectionProtocolHandler(AbstractTestCase):
@@ -43,7 +43,6 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
             buf=bytearray(convert.hex_to_bytes(self.FULL_BLOCK_BYTES_HEX))
         )
         if self.node.opts.use_extensions:
-            helpers.set_extensions_parallelism()
             transaction_service = ExtensionTransactionService(self.node, 0)
         else:
             transaction_service = TransactionService(self.node, 0)

@@ -24,27 +24,24 @@ class BtcBlockProcessingService(BlockProcessingService):
         :param connection: receiving connection (AbstractBlockchainConnection)
         """
         block_hash = block_message.block_hash()
-        decompression_start_datetime = datetime.utcnow()
-        parse_result = connection.message_converter.compact_block_to_bx_block(
+        parse_result = connection.message_converter.compact_block_to_bx_block(  # pyre-ignore
             block_message,
             self._node.get_tx_service()
         )
-        decompression_end_datetime = datetime.utcnow()
-        duration = (decompression_end_datetime - decompression_start_datetime).total_seconds()
-
+        block_info = parse_result.block_info
         if parse_result.success:
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.COMPACT_BLOCK_COMPRESSED_SUCCESS,
                 network_num=connection.network_num,
-                start_date_time=decompression_start_datetime,
-                end_date_time=decompression_end_datetime,
-                duration=duration,
+                start_date_time=block_info.start_datetime,
+                end_date_time=block_info.end_datetime,
+                duration=block_info.duration_ms / 1000,
                 success=parse_result.success,
                 txs_count=parse_result.block_info.txn_count,
                 prev_block_hash=parse_result.block_info.prev_block_hash,
                 more_info="{:.2f}ms".format(
-                    duration * 1000
+                    block_info.duration_ms
                 )
             )
 
@@ -57,12 +54,15 @@ class BtcBlockProcessingService(BlockProcessingService):
         else:
             missing_indices = parse_result.missing_indices
             missing_indices_count = 0 if missing_indices is None else len(missing_indices)
+            start_datetime = block_info.start_datetime
+            end_datetime = datetime.utcnow()
+            duration = (end_datetime - start_datetime).total_seconds()
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.COMPACT_BLOCK_COMPRESSED_FAILED,
                 network_num=connection.network_num,
-                start_date_time=decompression_start_datetime,
-                end_date_time=decompression_end_datetime,
+                start_date_time=start_datetime,
+                end_date_time=end_datetime,
                 duration=duration,
                 success=parse_result.success,
                 missing_short_id_count=missing_indices_count,
@@ -88,31 +88,29 @@ class BtcBlockProcessingService(BlockProcessingService):
         If no hold exists, compress and broadcast block immediately.
         """
         block_hash = msg.block_hash()
-        recovery_start_datetime = datetime.utcnow()
 
         for txn in msg.transactions():
             failure_result.recovered_transactions.append(txn)
 
-        recovery_result = connection.message_converter.recovered_compact_block_to_bx_block(
+        recovery_result = connection.message_converter.recovered_compact_block_to_bx_block(  # pyre-ignore
             failure_result
         )
-        recovery_end_datetime = datetime.utcnow()
-        duration = (recovery_end_datetime - recovery_start_datetime).total_seconds()
+        block_info = recovery_result.block_info
 
         if recovery_result.success:
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.COMPACT_BLOCK_RECOVERY_SUCCESS,
                 network_num=connection.network_num,
-                start_date_time=recovery_start_datetime,
-                end_date_time=recovery_end_datetime,
-                duration=duration,
+                start_date_time=block_info.start_datetime,
+                end_date_time=block_info.end_datetime,
+                duration=block_info.duration_ms / 1000,
                 success=recovery_result.success,
                 recoverd_txs_count=len(msg.transactions()),
                 txs_count=recovery_result.block_info.txn_count,
                 prev_block_hash=recovery_result.block_info.prev_block_hash,
                 more_info="{:.2f}ms, {:f}".format(
-                    duration * 1000,
+                    block_info.duration_ms,
                     len(msg.transactions())
                 )
             )
@@ -124,12 +122,15 @@ class BtcBlockProcessingService(BlockProcessingService):
                 msg.block_hash()
             )
         else:
+            start_datetime = block_info.start_datetime
+            end_datetime = datetime.utcnow()
+            duration = (end_datetime - start_datetime).total_seconds()
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.COMPACT_BLOCK_RECOVERY_FAILED,
                 network_num=connection.network_num,
-                start_date_time=recovery_start_datetime,
-                end_date_time=recovery_end_datetime,
+                start_date_time=start_datetime,
+                end_date_time=end_datetime,
                 duration=duration,
                 success=recovery_result.success,
                 recoverd_txs_count=len(msg.transactions()),

@@ -2,20 +2,21 @@ import time
 from abc import ABCMeta
 
 from bxcommon.connections.connection_type import ConnectionType
-from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.utils import logger
-from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
-class AbstractBlockchainConnectionProtocol(object):
+class AbstractBlockchainConnectionProtocol:
     __metaclass__ = ABCMeta
 
-    def __init__(self, connection):
+    connection: AbstractGatewayBlockchainConnection
+
+    def __init__(self, connection: AbstractGatewayBlockchainConnection):
         self.connection = connection
 
     def msg_tx(self, msg):
@@ -39,7 +40,8 @@ class AbstractBlockchainConnectionProtocol(object):
             gateway_transaction_stats_service.log_transaction_from_blockchain(tx_hash)
 
             # All connections outside of this one is a bloXroute server
-            broadcast_peers = self.connection.node.broadcast(bx_tx_message, self.connection)
+            broadcast_peers = self.connection.node.broadcast(bx_tx_message, self.connection,
+                                                             connection_types=[ConnectionType.RELAY_TRANSACTION])
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
                                           network_num=self.connection.network_num,
                                           peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),
@@ -53,8 +55,9 @@ class AbstractBlockchainConnectionProtocol(object):
         block_hash = msg.block_hash()
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
                                                   network_num=self.connection.network_num,
-                                                  blockchain_protocol=self.connection.node.opts.blockchain_protocol,
-                                                  blockchain_network=self.connection.node.opts.blockchain_network)
+                                                  more_info="Protocol: {}, Network: {}".format(
+                                                      self.connection.node.opts.blockchain_protocol,
+                                                      self.connection.node.opts.blockchain_network))
 
         if block_hash in self.connection.node.blocks_seen.contents:
             block_stats.add_block_event_by_block_hash(block_hash,
@@ -83,16 +86,3 @@ class AbstractBlockchainConnectionProtocol(object):
         Handle a chainstate response message.
         """
         self.connection.node.send_msg_to_node(msg)
-
-    def send_key(self, block_hash):
-        """
-        Sends out the decryption key for a block hash.
-        """
-        key = self.connection.node.in_progress_blocks.get_encryption_key(block_hash)
-        key_message = KeyMessage(Sha256Hash(block_hash), self.connection.network_num, key)
-        conns = self.connection.node.broadcast(key_message, self.connection,
-                                               connection_types=[ConnectionType.RELAY, ConnectionType.GATEWAY])
-        block_stats.add_block_event_by_block_hash(block_hash,
-                                                  BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,
-                                                  network_num=self.connection.network_num,
-                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns))

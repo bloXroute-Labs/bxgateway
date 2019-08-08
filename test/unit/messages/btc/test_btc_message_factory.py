@@ -4,6 +4,7 @@ from bxcommon.exceptions import PayloadLenError, ChecksumError
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import create_input_buffer_with_bytes, create_input_buffer_with_message
+from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
 from bxcommon.utils import crypto
 from bxgateway.btc_constants import BTC_HEADER_MINUS_CHECKSUM, BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
@@ -23,7 +24,7 @@ from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
-class BtcMessageFactoryTest(AbstractTestCase):
+class BtcMessageFactoryTest(MessageFactoryTestCase):
     MAGIC = 12345
     VERSION = 11111
     HASH = BtcObjectHash(binary=crypto.bitcoin_hash(b"123"))
@@ -31,51 +32,41 @@ class BtcMessageFactoryTest(AbstractTestCase):
     VERSION_BTC_MESSAGE = VersionBtcMessage(MAGIC, VERSION, "127.0.0.1", 8000, "127.0.0.1", 8001, 123, 0,
                                             "hello".encode("utf-8"))
 
-    def peek_message_successfully(self, message, expected_command, expected_payload_length):
-        is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
-            create_input_buffer_with_message(message)
-        )
-        self.assertTrue(is_full_message)
-        self.assertEqual(expected_command, command)
-        self.assertEqual(expected_payload_length, payload_length)
-
-    def parse_message_successfully(self, message, message_type):
-        result = btc_message_factory.create_message_from_buffer(message.rawbytes())
-        self.assertIsInstance(result, message_type)
-        return result
+    def get_message_factory(self):
+        return btc_message_factory
 
     def test_peek_message_success_all_types(self):
         # TODO: pull these numbers into constants, along with all the BTC messages
-        self.peek_message_successfully(self.VERSION_BTC_MESSAGE, VersionBtcMessage.MESSAGE_TYPE, 90)
-        self.peek_message_successfully(VerAckBtcMessage(self.MAGIC), VerAckBtcMessage.MESSAGE_TYPE, 0)
-        self.peek_message_successfully(PingBtcMessage(self.MAGIC), PingBtcMessage.MESSAGE_TYPE, 8)
-        self.peek_message_successfully(PongBtcMessage(self.MAGIC, 123), PongBtcMessage.MESSAGE_TYPE, 8)
-        self.peek_message_successfully(GetAddrBtcMessage(self.MAGIC), GetAddrBtcMessage.MESSAGE_TYPE, 0)
-        self.peek_message_successfully(AddrBtcMessage(self.MAGIC, [(int(time.time()), "127.0.0.1", 8000)]),
-                                       AddrBtcMessage.MESSAGE_TYPE, 23)
+        self.get_message_preview_successfully(self.VERSION_BTC_MESSAGE, VersionBtcMessage.MESSAGE_TYPE, 90)
+        self.get_message_preview_successfully(VerAckBtcMessage(self.MAGIC), VerAckBtcMessage.MESSAGE_TYPE, 0)
+        self.get_message_preview_successfully(PingBtcMessage(self.MAGIC), PingBtcMessage.MESSAGE_TYPE, 8)
+        self.get_message_preview_successfully(PongBtcMessage(self.MAGIC, 123), PongBtcMessage.MESSAGE_TYPE, 8)
+        self.get_message_preview_successfully(GetAddrBtcMessage(self.MAGIC), GetAddrBtcMessage.MESSAGE_TYPE, 0)
+        self.get_message_preview_successfully(AddrBtcMessage(self.MAGIC, [(int(time.time()), "127.0.0.1", 8000)]),
+                                              AddrBtcMessage.MESSAGE_TYPE, 23)
 
         inv_vector = [(1, self.HASH), (2, self.HASH)]
-        self.peek_message_successfully(InvBtcMessage(self.MAGIC, inv_vector), InvBtcMessage.MESSAGE_TYPE, 73)
-        self.peek_message_successfully(GetDataBtcMessage(self.MAGIC, inv_vector), GetDataBtcMessage.MESSAGE_TYPE, 73)
-        self.peek_message_successfully(NotFoundBtcMessage(self.MAGIC, inv_vector), NotFoundBtcMessage.MESSAGE_TYPE, 73)
+        self.get_message_preview_successfully(InvBtcMessage(self.MAGIC, inv_vector), InvBtcMessage.MESSAGE_TYPE, 73)
+        self.get_message_preview_successfully(GetDataBtcMessage(self.MAGIC, inv_vector), GetDataBtcMessage.MESSAGE_TYPE, 73)
+        self.get_message_preview_successfully(NotFoundBtcMessage(self.MAGIC, inv_vector), NotFoundBtcMessage.MESSAGE_TYPE, 73)
 
         hashes = [self.HASH, self.HASH]
-        self.peek_message_successfully(GetHeadersBtcMessage(self.MAGIC, self.VERSION, hashes, self.HASH),
-                                       GetHeadersBtcMessage.MESSAGE_TYPE, 101)
-        self.peek_message_successfully(GetBlocksBtcMessage(self.MAGIC, self.VERSION, hashes, self.HASH),
-                                       GetBlocksBtcMessage.MESSAGE_TYPE, 101)
+        self.get_message_preview_successfully(GetHeadersBtcMessage(self.MAGIC, self.VERSION, hashes, self.HASH),
+                                              GetHeadersBtcMessage.MESSAGE_TYPE, 101)
+        self.get_message_preview_successfully(GetBlocksBtcMessage(self.MAGIC, self.VERSION, hashes, self.HASH),
+                                              GetBlocksBtcMessage.MESSAGE_TYPE, 101)
 
-        self.peek_message_successfully(TxBtcMessage(self.MAGIC, self.VERSION, [], [], 0), TxBtcMessage.MESSAGE_TYPE, 10)
+        self.get_message_preview_successfully(TxBtcMessage(self.MAGIC, self.VERSION, [], [], 0), TxBtcMessage.MESSAGE_TYPE, 10)
 
         txs = [TxIn(buf=bytearray(10), length=10, off=0).rawbytes()] * 5
-        self.peek_message_successfully(BlockBtcMessage(self.MAGIC, self.VERSION, self.HASH, self.HASH, 0, 0, 0, txs),
-                                       BlockBtcMessage.MESSAGE_TYPE, 131)
-        self.peek_message_successfully(HeadersBtcMessage(self.MAGIC, [helpers.generate_bytearray(81)] * 2),
-                                       HeadersBtcMessage.MESSAGE_TYPE, 163)
-        self.peek_message_successfully(RejectBtcMessage(self.MAGIC, b"a message", RejectBtcMessage.REJECT_MALFORMED,
+        self.get_message_preview_successfully(BlockBtcMessage(self.MAGIC, self.VERSION, self.HASH, self.HASH, 0, 0, 0, txs),
+                                              BlockBtcMessage.MESSAGE_TYPE, 131)
+        self.get_message_preview_successfully(HeadersBtcMessage(self.MAGIC, [helpers.generate_bytearray(81)] * 2),
+                                              HeadersBtcMessage.MESSAGE_TYPE, 163)
+        self.get_message_preview_successfully(RejectBtcMessage(self.MAGIC, b"a message", RejectBtcMessage.REJECT_MALFORMED,
                                                         b"test break", helpers.generate_bytearray(10)),
-                                       RejectBtcMessage.MESSAGE_TYPE, 32)
-        self.peek_message_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage.MESSAGE_TYPE, 0)
+                                              RejectBtcMessage.MESSAGE_TYPE, 32)
+        self.get_message_preview_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage.MESSAGE_TYPE, 0)
 
     def test_peek_message_incomplete(self):
         is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
@@ -94,35 +85,35 @@ class BtcMessageFactoryTest(AbstractTestCase):
 
     def test_parse_message_success_all_types(self):
         # TODO: pull these numbers into constants, along with all the BTC messages
-        self.parse_message_successfully(self.VERSION_BTC_MESSAGE, VersionBtcMessage)
-        self.parse_message_successfully(VerAckBtcMessage(self.MAGIC), VerAckBtcMessage)
-        self.parse_message_successfully(PingBtcMessage(self.MAGIC), PingBtcMessage)
-        self.parse_message_successfully(PongBtcMessage(self.MAGIC, 123), PongBtcMessage)
-        self.parse_message_successfully(GetAddrBtcMessage(self.MAGIC), GetAddrBtcMessage)
-        self.parse_message_successfully(AddrBtcMessage(self.MAGIC, [(int(time.time()), "127.0.0.1", 8000)]), AddrBtcMessage)
+        self.create_message_successfully(self.VERSION_BTC_MESSAGE, VersionBtcMessage)
+        self.create_message_successfully(VerAckBtcMessage(self.MAGIC), VerAckBtcMessage)
+        self.create_message_successfully(PingBtcMessage(self.MAGIC), PingBtcMessage)
+        self.create_message_successfully(PongBtcMessage(self.MAGIC, 123), PongBtcMessage)
+        self.create_message_successfully(GetAddrBtcMessage(self.MAGIC), GetAddrBtcMessage)
+        self.create_message_successfully(AddrBtcMessage(self.MAGIC, [(int(time.time()), "127.0.0.1", 8000)]), AddrBtcMessage)
 
         inv_vector = [(1, self.HASH), (2, self.HASH)]
-        self.parse_message_successfully(InvBtcMessage(self.MAGIC, inv_vector), InvBtcMessage)
-        self.parse_message_successfully(GetDataBtcMessage(self.MAGIC, inv_vector), GetDataBtcMessage)
-        self.parse_message_successfully(NotFoundBtcMessage(self.MAGIC, inv_vector), NotFoundBtcMessage)
+        self.create_message_successfully(InvBtcMessage(self.MAGIC, inv_vector), InvBtcMessage)
+        self.create_message_successfully(GetDataBtcMessage(self.MAGIC, inv_vector), GetDataBtcMessage)
+        self.create_message_successfully(NotFoundBtcMessage(self.MAGIC, inv_vector), NotFoundBtcMessage)
 
         hashes = [self.HASH, self.HASH]
-        self.parse_message_successfully(GetHeadersBtcMessage(self.MAGIC, self.VERSION, hashes, self.HASH),
-                                        GetHeadersBtcMessage)
-        self.parse_message_successfully(GetBlocksBtcMessage(self.MAGIC, self.VERSION, hashes, self.HASH),
-                                        GetBlocksBtcMessage)
+        self.create_message_successfully(GetHeadersBtcMessage(self.MAGIC, self.VERSION, hashes, self.HASH),
+                                         GetHeadersBtcMessage)
+        self.create_message_successfully(GetBlocksBtcMessage(self.MAGIC, self.VERSION, hashes, self.HASH),
+                                         GetBlocksBtcMessage)
 
-        self.parse_message_successfully(TxBtcMessage(self.MAGIC, self.VERSION, [], [], 0), TxBtcMessage)
+        self.create_message_successfully(TxBtcMessage(self.MAGIC, self.VERSION, [], [], 0), TxBtcMessage)
 
         txs = [TxIn(buf=bytearray(10), length=10, off=0).rawbytes()] * 5
-        self.parse_message_successfully(BlockBtcMessage(self.MAGIC, self.VERSION, self.HASH, self.HASH, 0, 0, 0, txs),
-                                        BlockBtcMessage)
-        self.parse_message_successfully(HeadersBtcMessage(self.MAGIC, [helpers.generate_bytearray(81)] * 2),
-                                        HeadersBtcMessage)
-        self.parse_message_successfully(RejectBtcMessage(self.MAGIC, b"a message", RejectBtcMessage.REJECT_MALFORMED,
+        self.create_message_successfully(BlockBtcMessage(self.MAGIC, self.VERSION, self.HASH, self.HASH, 0, 0, 0, txs),
+                                         BlockBtcMessage)
+        self.create_message_successfully(HeadersBtcMessage(self.MAGIC, [helpers.generate_bytearray(81)] * 2),
+                                         HeadersBtcMessage)
+        self.create_message_successfully(RejectBtcMessage(self.MAGIC, b"a message", RejectBtcMessage.REJECT_MALFORMED,
                                                          b"test break", helpers.generate_bytearray(10)),
-                                        RejectBtcMessage)
-        self.parse_message_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage)
+                                         RejectBtcMessage)
+        self.create_message_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage)
 
     def test_parse_message_incomplete(self):
         with self.assertRaises(PayloadLenError):

@@ -10,5 +10,4 @@ class BtcRemoteConnection(AbstractGatewayBlockchainConnection):
 
     def __init__(self, socket_connection, address, node, from_me=False):
         super(BtcRemoteConnection, self).__init__(socket_connection, address, node, from_me)
-
         self.connection_protocol = weakref.ref(BtcRemoteConnectionProtocol(self))

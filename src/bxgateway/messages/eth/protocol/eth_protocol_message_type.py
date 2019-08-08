@@ -13,5 +13,10 @@ class EthProtocolMessageType(object):
     GET_BLOCK_BODIES = 21
     BLOCK_BODIES = 22
     NEW_BLOCK = 23
+    GET_NODE_DATA = 29
+    NODE_DATA = 30
+    GET_RECEIPTS = 31
+    RECEIPTS = 32
+
 
 

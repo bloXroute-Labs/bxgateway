@@ -8,6 +8,7 @@ from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.services import sdn_http_service
 from bxcommon.utils import logger, crypto
+from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
@@ -31,7 +32,7 @@ class GatewayConnection(InternalNodeConnection):
         super(GatewayConnection, self).__init__(sock, address, node, from_me)
 
         self.hello_messages = gateway_constants.GATEWAY_HELLO_MESSAGES
-        self.header_size = constants.HDR_COMMON_OFF
+        self.header_size = constants.STARTING_SEQUENCE_BYTES_LEN + constants.BX_HDR_COMMON_OFF
 
         self.message_factory = gateway_message_factory
         self.message_handlers = {
@@ -154,7 +155,7 @@ class GatewayConnection(InternalNodeConnection):
         block_stats.add_block_event_by_block_hash(bx_block_hash,
                                                   BlockStatEventType.BX_BLOCK_PROPAGATION_REQUESTED_BY_PEER,
                                                   network_num=self.network_num,
-                                                  peer=self.peer_desc)
+                                                  more_info=stats_format.connection(self))
         self.node.neutrality_service.propagate_block_to_network(bx_block, self)
 
     def msg_block_holding(self, msg):
@@ -182,4 +183,5 @@ class GatewayConnection(InternalNodeConnection):
 
         if not self.from_me:
             logger.debug("{0} connection with {1} closed".format(self.CONNECTION_TYPE, self.peer_id))
-            sdn_http_service.delete_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)
+            if self.peer_id:
+                sdn_http_service.delete_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)

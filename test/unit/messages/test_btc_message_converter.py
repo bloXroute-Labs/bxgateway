@@ -142,6 +142,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         btc_block = BlockBtcMessage(
             self.magic, self.version, prev_block, merkle_root, timestamp, bits, nonce, self.txns
         )
+        block_hash = btc_block.block_hash()
 
         bloxroute_block, block_info = self.btc_message_converter.block_to_bx_block(btc_block, self.tx_service)
         self.assertEqual(10, block_info.txn_count)
@@ -152,10 +153,10 @@ class BtcMessageConverterTests(AbstractTestCase):
 
         # TODO: if we convert bloxroute block to a class, add some tests here
 
-        parsed_btc_block, block_hash, short_ids, _, _ = self.btc_message_converter.bx_block_to_block(
+        parsed_btc_block, block_info, _, _ = self.btc_message_converter.bx_block_to_block(
             bloxroute_block,
             self.tx_service)
-        self.assertIsNotNone(block_hash)
+        self.assertIsNotNone(block_info)
         self.assertEqual(parsed_btc_block.rawbytes().tobytes(), btc_block.rawbytes().tobytes())
         self.assertEqual(self.version, parsed_btc_block.version())
         self.assertEqual(self.magic, parsed_btc_block.magic())
@@ -168,13 +169,13 @@ class BtcMessageConverterTests(AbstractTestCase):
         self.assertEqual(btc_block.checksum(), parsed_btc_block.checksum())
         self.assertEqual(block_hash, parsed_btc_block.block_hash())
         self.assertEqual(block_hash.binary, block_info.block_hash.binary)
-        self.assertEqual(list(short_ids), self.short_ids)
+        self.assertEqual(list(block_info.short_ids), self.short_ids)
 
     @multi_setup()
     def test_plain_compression(self):
         parsed_block = get_sample_block()
         bx_block, bx_block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
-        ref_block, _, _, _, _ = self.btc_message_converter.bx_block_to_block(
+        ref_block, block_info, _, _ = self.btc_message_converter.bx_block_to_block(
             bx_block, self.tx_service
         )
         self.assertEqual(
@@ -193,7 +194,7 @@ class BtcMessageConverterTests(AbstractTestCase):
             self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
             self.tx_service.set_transaction_contents(bx_tx_hash, txn)
         bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
-        ref_block, _, _, _, _ = self.btc_message_converter.bx_block_to_block(
+        ref_block, _, _, _ = self.btc_message_converter.bx_block_to_block(
             bx_block, self.tx_service
         )
         self.assertEqual(
@@ -214,7 +215,7 @@ class BtcMessageConverterTests(AbstractTestCase):
             compact_block, self.tx_service
         )
         self.assertTrue(result.success)
-        ref_block, _, _, _, _ = self.btc_message_converter.bx_block_to_block(
+        ref_block, _, _, _ = self.btc_message_converter.bx_block_to_block(
             result.bx_block, self.tx_service
         )
         self.assertEqual(recovered_block.rawbytes().tobytes(), ref_block.rawbytes().tobytes())
@@ -247,7 +248,7 @@ class BtcMessageConverterTests(AbstractTestCase):
             result.recovered_transactions.append(recovered_transaction)
         result = self.btc_message_converter.recovered_compact_block_to_bx_block(result)
         self.assertTrue(result.success)
-        ref_block, _, _, _, _ = self.btc_message_converter.bx_block_to_block(
+        ref_block, _, _, _ = self.btc_message_converter.bx_block_to_block(
             result.bx_block, self.tx_service
         )
         self.assertEqual(recovered_block.rawbytes().tobytes(), ref_block.rawbytes().tobytes())
@@ -260,9 +261,9 @@ class BtcMessageConverterTests(AbstractTestCase):
         btc_message_converter = converter_factory.create_btc_message_converter(self.MAGIC, opts=opts)
         if use_extensions:
             helpers.set_extensions_parallelism()
-            tx_service = ExtensionTransactionService(MockNode(LOCALHOST, 8999), 0)
+            tx_service = ExtensionTransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
         else:
-            tx_service = TransactionService(MockNode(LOCALHOST, 8999), 0)
+            tx_service = TransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
         if self.txns:
             for idx, txn in enumerate(self.txns):
                 sha = BtcObjectHash(buf=crypto.bitcoin_hash(txn), length=SHA256_HASH_LEN)
@@ -270,4 +271,3 @@ class BtcMessageConverterTests(AbstractTestCase):
                     tx_service.assign_short_id(sha, self.short_ids[int(idx/2)])
                     tx_service.set_transaction_contents(sha, txn)
         return tx_service, btc_message_converter
-

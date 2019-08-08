@@ -2,6 +2,7 @@ import struct
 from typing import List, Dict
 
 from bxcommon.constants import UL_INT_SIZE_IN_BYTES
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import crypto
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN, \
     BTC_COMPACT_BLOCK_SHORT_ID_LEN, BTC_SHORT_NONCE_SIZE, BTC_VARINT_MIN_SIZE
@@ -12,7 +13,7 @@ from bxgateway.messages.btc.btc_messages_util import pack_int_to_btc_varint, btc
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
-class CompactBlockBtcMessage(BtcMessage):
+class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
     """
     Message used to notify peers about new blocks.
     Blocks are sent using Compact Block message only if peer notified that would like to receive it instead of Inv message
@@ -59,10 +60,16 @@ class CompactBlockBtcMessage(BtcMessage):
             self._payload = None
 
         self._version = self._prev_block = self._merkle_root = self._timestamp = None
-        self._bits = self._block_nonce = self._short_nonce = self._short_id_c = None
+        self._bits: int = None
+        self._block_nonce: int = None
+        self._short_nonce: int = None
+        self._short_id_c: int = None
         self._short_nonce_buf = None
-        self._short_ids = self._prefilled_txns = None
-        self._block_header = self._hash_val = None
+        self._short_ids: Dict[bytes, int] = None
+        self._pre_filled_transactions: Dict[int, memoryview] = None
+        self._block_header = None
+        self._hash_val: BtcObjectHash = None
+        self._pre_filled_tx_count = None
 
     def block_header(self) -> memoryview:
         if self._block_header is None:
@@ -135,18 +142,18 @@ class CompactBlockBtcMessage(BtcMessage):
 
         return self._short_ids
 
-    def prefilled_txns(self) -> Dict[int, memoryview]:
-        if self._prefilled_txns is None:
+    def pre_filled_transactions(self) -> Dict[int, memoryview]:
+        if self._pre_filled_transactions is None:
             off = BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE + BTC_SHORT_NONCE_SIZE
             self._short_id_c, size = btc_varint_to_int(self.buf, off)
             off += size + BTC_COMPACT_BLOCK_SHORT_ID_LEN * self._short_id_c
-            self._prefill_tx_c, size = btc_varint_to_int(self.buf, off)
+            self._pre_filled_tx_count, size = btc_varint_to_int(self.buf, off)
             off += size
 
-            self._prefilled_txns = {}
+            self._pre_filled_transactions = {}
 
             index = -1
-            for _ in range(self._prefill_tx_c):
+            for _ in range(self._pre_filled_tx_count):
                 diff, size = btc_varint_to_int(self.buf, off)
                 off += size
                 size = get_next_tx_size(self.buf, off)
@@ -154,6 +161,6 @@ class CompactBlockBtcMessage(BtcMessage):
                 off += size
 
                 index += diff + 1
-                self._prefilled_txns[index] = buf
+                self._pre_filled_transactions[index] = buf
 
-        return self._prefilled_txns
+        return self._pre_filled_transactions

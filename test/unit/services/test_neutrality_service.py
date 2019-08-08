@@ -1,3 +1,4 @@
+import datetime
 import time
 
 from mock import patch, MagicMock
@@ -8,6 +9,7 @@ from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageT
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import gateway_constants
@@ -15,6 +17,7 @@ from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
+from bxgateway.utils.block_info import BlockInfo
 
 
 def mock_connection(message_converter=None, connection_type=None):
@@ -28,7 +31,7 @@ def mock_connection(message_converter=None, connection_type=None):
 
 
 class NeutralityServiceTest(AbstractTestCase):
-    BYTE_BLOCK = helpers.generate_bytearray(30)
+    BYTE_BLOCK = helpers.generate_bytearray(29) + b'\x01'
     BLOCK_HASH = Sha256Hash(crypto.double_sha256(b"123"))
     KEY_HASH = crypto.double_sha256(b"234")
     MOCK_CONNECTION = mock_connection(connection_type=ConnectionType.GATEWAY)
@@ -108,8 +111,8 @@ class NeutralityServiceTest(AbstractTestCase):
         self.assertEqual(2, len(self.node.broadcast_messages))
         self._assert_broadcast_key()
         block_request_messages = list(filter(lambda broadcasted:
-                                        broadcasted[0].msg_type() == GatewayMessageType.BLOCK_PROPAGATION_REQUEST,
-                                        self.node.broadcast_messages))
+                                             broadcasted[0].msg_type() == GatewayMessageType.BLOCK_PROPAGATION_REQUEST,
+                                             self.node.broadcast_messages))
         block_request_message, connection_types = block_request_messages[0]
         self.assertEqual(ConnectionType.GATEWAY, connection_types[0])
         self.assertEqual(GatewayMessageType.BLOCK_PROPAGATION_REQUEST, block_request_message.msg_type())
@@ -119,12 +122,12 @@ class NeutralityServiceTest(AbstractTestCase):
         self.node.opts.encrypt_blocks = True
 
         block_message = helpers.generate_bytearray(50)
-        connection = MockConnection(1, (LOCALHOST, 9000), self.node)
+        connection = MockConnection(MockSocketConnection(1), (LOCALHOST, 9000), self.node)
         self.neutrality_service.propagate_block_to_network(block_message, connection)
 
         self.assertEqual(1, len(self.node.broadcast_messages))
         broadcast_message, connection_types = self.node.broadcast_messages[0]
-        self.assertEqual(ConnectionType.RELAY, connection_types[0])
+        self.assertTrue(ConnectionType.RELAY_BLOCK & connection_types[0])
 
         raw_block_hash = bytes(broadcast_message.block_hash().binary)
         cache_item = self.node.in_progress_blocks._cache.get(raw_block_hash)
@@ -136,16 +139,22 @@ class NeutralityServiceTest(AbstractTestCase):
         self.node.opts.encrypt_blocks = False
 
         block_message = helpers.generate_bytearray(50)
-        block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
-        connection = MockConnection(1, (LOCALHOST, 9000), self.node)
-        self.neutrality_service.propagate_block_to_network(block_message, connection, block_hash)
+        block_info = BlockInfo(Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN)), [],
+                               datetime.datetime.utcnow(), datetime.datetime.utcnow(), 0, 1,
+                               helpers.generate_bytearray(crypto.SHA256_HASH_LEN),
+                               helpers.generate_bytearray(crypto.SHA256_HASH_LEN),
+                               0, 0, 0)
+
+        connection = MockConnection(MockSocketConnection(1), (LOCALHOST, 9000), self.node)
+        self.neutrality_service.propagate_block_to_network(block_message, connection, block_info)
 
         self.assertEqual(1, len(self.node.broadcast_messages))
         broadcast_message, connection_types = self.node.broadcast_messages[0]
-        self.assertEqual([ConnectionType.RELAY], connection_types)
-        self.assertEqual(block_hash, broadcast_message.block_hash())
+        # self.assertTrue(any(ConnectionType.RELAY_BLOCK & connection_type for connection_type in connection_types))
+        self.assertTrue(all(ConnectionType.RELAY_BLOCK & connection_type for connection_type in connection_types))
+        self.assertEqual(block_info.block_hash, broadcast_message.block_hash())
 
-        self.assertNotIn(block_hash, self.node.in_progress_blocks._cache)
+        self.assertNotIn(block_info.block_hash, self.node.in_progress_blocks._cache)
         self.assertNotIn(broadcast_message.block_hash(), self.neutrality_service._receipt_tracker)
 
     def _add_num_gateway_connections(self, count):
@@ -155,8 +164,8 @@ class NeutralityServiceTest(AbstractTestCase):
 
     def _assert_broadcast_key(self):
         key_messages = list(filter(lambda broadcasted: broadcasted[0].msg_type() == BloxrouteMessageType.KEY,
-                              self.node.broadcast_messages))
+                                   self.node.broadcast_messages))
         key_message, connection_types = key_messages[0]
-        self.assertEqual(ConnectionType.RELAY, connection_types[0])
+        self.assertTrue(ConnectionType.RELAY_ALL & connection_types[0])
         self.assertEqual(BloxrouteMessageType.KEY, key_message.msg_type())
         self.assertEqual(self.KEY_HASH, key_message.key())

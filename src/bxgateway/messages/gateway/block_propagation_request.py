@@ -1,10 +1,10 @@
 from bxcommon import constants
-from bxcommon.messages.bloxroute.message import Message
+from bxcommon.messages.bloxroute.abstract_bloxroute_message import AbstractBloxrouteMessage
 from bxcommon.utils.log_level import LogLevel
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
 
-class BlockPropagationRequestMessage(Message):
+class BlockPropagationRequestMessage(AbstractBloxrouteMessage):
     """
     Request for other gateways to encrypt and propagate block message.
     """
@@ -13,12 +13,12 @@ class BlockPropagationRequestMessage(Message):
     def __init__(self, blob=None, buf=None):
         if buf is None:
             payload_len = len(blob)
-            buf = bytearray(constants.HDR_COMMON_OFF + len(blob))
+            buf = bytearray(self.HEADER_LENGTH + len(blob))
 
-            off = constants.HDR_COMMON_OFF
+            off = self.HEADER_LENGTH
             buf[off:off + len(blob)] = blob
         else:
-            payload_len = len(buf) - constants.HDR_COMMON_OFF
+            payload_len = len(buf) - constants.BX_HDR_COMMON_OFF
 
         self.buf = buf
 
@@ -30,6 +30,6 @@ class BlockPropagationRequestMessage(Message):
 
     def blob(self):
         if self._blob is None:
-            off = constants.HDR_COMMON_OFF
+            off = self.HEADER_LENGTH
             self._blob = self.buf[off: off + self.payload_len()]
         return self._blob

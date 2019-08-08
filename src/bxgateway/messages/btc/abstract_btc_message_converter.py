@@ -1,9 +1,13 @@
-from typing import Optional, Union, List, NamedTuple, Dict
+from typing import Optional, Union, List, NamedTuple, Tuple, Dict
 from abc import abstractmethod
+from datetime import datetime
+import time
 
-from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import crypto, convert
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.proxy.vector_proxy import VectorProxy
 
 from bxgateway import btc_constants
@@ -45,21 +49,35 @@ def get_block_info(
         bx_block: memoryview,
         block_hash: BtcObjectHash,
         short_ids: List[int],
+        decompress_start_datetime: datetime,
+        decompress_start_timestamp: float,
         total_tx_count: Optional[int] = None,
         btc_block_msg: Optional[BlockBtcMessage] = None
 ) -> BlockInfo:
     if btc_block_msg is not None:
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block))
+        compressed_size = len(bx_block)
         prev_block_hash = convert.bytes_to_hex(btc_block_msg.prev_block().binary)
+        btc_block_len = len(btc_block_msg.rawbytes())
+        compression_rate = 100 - float(compressed_size) / btc_block_len * 100
     else:
         bx_block_hash = None
+        compressed_size = None
         prev_block_hash = None
+        btc_block_len = None
+        compression_rate = None
     return BlockInfo(
-        total_tx_count,
         block_hash,
+        short_ids,
+        decompress_start_datetime,
+        datetime.utcnow(),
+        (time.time() - decompress_start_timestamp) * 1000,
+        total_tx_count,
         bx_block_hash,
         prev_block_hash,
-        short_ids
+        btc_block_len,
+        compressed_size,
+        compression_rate
     )
 
 
@@ -74,13 +92,16 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
         self._recovery_items: Dict[int, CompactBlockRecoveryData] = {}
 
     @abstractmethod
-    def block_to_bx_block(self, btc_block_msg, tx_service):
+    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
         """
         Compresses a blockchain block's transactions and packs it into a bloXroute block.
         """
         pass
 
-    def bx_block_to_block(self, bx_block, tx_service):
+    @abstractmethod
+    def bx_block_to_block(
+            self, bx_block_msg, tx_service
+    ) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int], List[Sha256Hash]]:
         """
         Uncompresses a bx_block from a broadcast bx_block message and converts to a raw BTC bx_block.
 

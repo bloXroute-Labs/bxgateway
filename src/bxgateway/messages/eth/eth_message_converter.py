@@ -1,7 +1,11 @@
+import datetime
 import struct
+import time
 from collections import deque
+from typing import Tuple, Optional, List
 
 from bxcommon import constants
+from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import logger, convert, crypto
@@ -83,7 +87,7 @@ class EthMessageConverter(AbstractMessageConverter):
 
         return TransactionsEthProtocolMessage(buf)
 
-    def block_to_bx_block(self, block_msg, tx_service):
+    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
         """
         Convert Ethereum new block message to internal broadcast message with transactions replaced with short ids
 
@@ -98,6 +102,8 @@ class EthMessageConverter(AbstractMessageConverter):
             raise TypeError("Type NewBlockEthProtocolMessage is expected for arg block_msg but was {0}"
                             .format(type(block_msg)))
 
+        compress_start_datetime = datetime.datetime.utcnow()
+        compress_start_timestamp = time.time()
         msg_bytes = memoryview(block_msg.rawbytes())
 
         _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(msg_bytes, 0)
@@ -201,10 +207,16 @@ class EthMessageConverter(AbstractMessageConverter):
             off = next_off
 
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
-        return block, BlockInfo(tx_count, block_msg.block_hash(), bx_block_hash, convert.bytes_to_hex(prev_block_bytes),
-                                used_short_ids)
+        original_size = len(block_msg.rawbytes())
 
-    def bx_block_to_block(self, block, tx_service):
+        block_info = BlockInfo(block_msg.block_hash(), used_short_ids, compress_start_datetime,
+                               datetime.datetime.utcnow(), (time.time() - compress_start_timestamp) * 1000,
+                               tx_count, bx_block_hash, convert.bytes_to_hex(prev_block_bytes), original_size,
+                               content_size, 100 - float(content_size) / original_size * 100)
+        return memoryview(block), block_info
+
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
+                                                                   List[Sha256Hash]]:
         """
         Converts internal broadcast message to Ethereum new block message
 
@@ -215,15 +227,18 @@ class EthMessageConverter(AbstractMessageConverter):
         :return: tuple (new block message, block hash, unknown transaction short id, unknown transaction hashes)
         """
 
-        if not isinstance(block, (bytearray, memoryview)):
+        if not isinstance(bx_block_msg, (bytearray, memoryview)):
             raise TypeError("Type bytearray is expected for arg block_bytes but was {0}"
-                            .format(type(block)))
+                            .format(type(bx_block_msg)))
 
-        block_msg_bytes = block if isinstance(block, memoryview) else memoryview(block)
+        decompress_start_datetime = datetime.datetime.utcnow()
+        decompress_start_timestamp = time.time()
 
-        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(block)
+        block_msg_bytes = bx_block_msg if isinstance(bx_block_msg, memoryview) else memoryview(bx_block_msg)
+
+        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block_msg)
         short_ids, short_ids_bytes_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
-            block,
+            bx_block_msg,
             block_offsets.short_id_offset
         )
 
@@ -328,9 +343,20 @@ class EthMessageConverter(AbstractMessageConverter):
             logger.debug("Successfully parsed block broadcast message. {0} transactions in block"
                          .format(tx_count))
 
-            return block_msg, block_hash, short_ids, unknown_tx_sids, unknown_tx_hashes
+            bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block_msg))
+            compressed_size = len(bx_block_msg)
+
+            block_info = BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
+                                   (time.time() - decompress_start_timestamp) * 1000, tx_count, bx_block_hash,
+                                   convert.bytes_to_hex(block_msg.get_previous_block().binary),
+                                   len(block_msg.rawbytes()), compressed_size,
+                                   100 - float(compressed_size) / content_size * 100)
+
+            return block_msg, block_info, unknown_tx_sids, unknown_tx_hashes
         else:
             logger.warn("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in block: {2}"
                         .format(len(unknown_tx_sids), len(unknown_tx_hashes), tx_count))
 
-            return None, block_hash, short_ids, unknown_tx_sids, unknown_tx_hashes
+            return None, BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
+                                   (time.time() - decompress_start_timestamp) * 1000, None, None, None, None, None,
+                                   None), unknown_tx_sids, unknown_tx_hashes

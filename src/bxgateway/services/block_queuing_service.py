@@ -2,6 +2,7 @@ import time
 from collections import deque
 
 from bxcommon import constants
+from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import logger
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -54,11 +55,7 @@ class BlockQueuingService(object):
                 len(self._block_queue) == 0 and \
                 (self._last_block_sent_time is None or (
                         time.time() - self._last_block_sent_time > gateway_constants.MIN_INTERVAL_BETWEEN_BLOCKS_S)):
-            self._node.send_msg_to_node(block_msg)
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
-                                                      network_num=self._node.network_num,
-                                                      block_size=len(block_msg.rawbytes()))
-            self._last_block_sent_time = time.time()
+            self._send_block_to_node(block_hash, block_msg)
             return
 
         self._block_queue.append((block_hash, time.time()))
@@ -175,15 +172,20 @@ class BlockQueuingService(object):
         self._block_queue.popleft()
         del self._blocks[block_hash]
 
-        self._node.send_msg_to_node(block_msg)
-        self._last_block_sent_time = time.time()
-        block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
-                                                  network_num=self._node.network_num,
-                                                  block_size=len(block_msg.rawbytes()))
-
+        self._send_block_to_node(block_hash, block_msg)
         self._schedule_alarm_for_next_item()
 
         return 0
+
+    def _send_block_to_node(self, block_hash: Sha256Hash, block_msg: AbstractMessage):
+        self._node.send_msg_to_node(block_msg)
+
+        # if tracking detailed send info, log this event only after all bytes written to sockets
+        if not self._node.opts.track_detailed_sent_messages:
+            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
+                                                      network_num=self._node.network_num,
+                                                      more_info="{} bytes".format(len(block_msg.rawbytes())))
+        self._last_block_sent_time = time.time()
 
     def _top_block_recovery_timeout(self):
         current_time = time.time()

@@ -15,6 +15,7 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
     Abstract test class that setups up two gateways and allow test cases to pass messages back and forth.
     """
 
+    # pyre-ignore
     def setUp(self):
         if constants.USE_EXTENSION_MODULES:
             helpers.set_extensions_parallelism()

@@ -1,34 +1,31 @@
-import socket
-
 from mock import MagicMock
 
 from bxcommon.connections.connection_pool import ConnectionPool
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import LOCALHOST, DEFAULT_NETWORK_NUM
 from bxcommon.messages.bloxroute.ack_message import AckMessage
-from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils.mocks.mock_node import MockOpts
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.gateway_connection import GatewayConnection
-from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
 from bxgateway.services.block_processing_service import BlockProcessingService
+from bxgateway.services.blockchain_sync_service import BlockchainSyncService
 from bxgateway.services.neutrality_service import NeutralityService
 
-from bxgateway.services.blockchain_sync_service import BlockchainSyncService
 
-
-def create_node(ip=LOCALHOST, port=8000):
+def create_node(ip=LOCALHOST, port=8000) -> AbstractGatewayNode:
     node = MagicMock(spec=AbstractGatewayNode)
-    node.opts = MockOpts(external_ip=ip, external_port=port)
+    node.opts = helpers.get_gateway_opts(port, external_ip=ip)
     node.connection_pool = ConnectionPool()
     node.connection_exists = node.connection_pool.has_connection
     node.network_num = node.opts.blockchain_network_num
@@ -37,31 +34,34 @@ def create_node(ip=LOCALHOST, port=8000):
     node.blockchain_sync_service = MagicMock(spec=BlockchainSyncService)
     node.block_processing_service = MagicMock(spec=BlockProcessingService)
     node.alarm_queue = None
+    node.opts.log_detailed_block_stats = True
+    node.opts.stats_calculate_actual_size = True
+    block_stats.set_node(node)
+    tx_stats.set_node(node)
     return node
+
+
+def create_connection(port: int, node: AbstractGatewayNode, ip=LOCALHOST, **kwargs) -> GatewayConnection:
+    connection = helpers.create_connection(GatewayConnection, node=node,
+                                           node_opts=helpers.get_gateway_opts(node.opts.external_port, external_ip=ip,
+                                                                              **kwargs),
+                                           port=port,
+                                           **kwargs)
+    return connection
 
 
 class GatewayConnectionTest(AbstractTestCase):
     def setUp(self):
-        self.node = create_node(LOCALHOST, 8000)
-        self.connection = self._create_connection(1, LOCALHOST, 8000, True)
-
-    def _create_connection(self, fileno=1, ip=LOCALHOST, port=8001, from_me=True, node=None):
-        if node is None:
-            node = self.node
-        sock = MagicMock(spec=socket.socket)
-        sock.fileno = lambda: fileno
-        connection = GatewayConnection(SocketConnection(sock, node), (ip, port), node, from_me)
-
-        node.connection_pool.add(fileno, ip, port, connection)
-        return connection
+        self.node = create_node()
+        self.connection = create_connection(8000, self.node)
 
     def test_msg_hello_only_connection(self):
         main_node = create_node(LOCALHOST, 40001)
         peer_node = create_node(LOCALHOST, 40000)
         main_inbound_fileno = 1
-        main_inbound_connection = self._create_connection(main_inbound_fileno, LOCALHOST, 50000, False, main_node)
+        main_inbound_connection = create_connection(50000, main_node, fileno=main_inbound_fileno, from_me=False)
         peer_outbound_fileno = 2
-        peer_outbound_connection = self._create_connection(peer_outbound_fileno, LOCALHOST, 40001, True, peer_node)
+        peer_outbound_connection = create_connection(40001, peer_node, fileno=peer_outbound_fileno, from_me=True)
 
         self.assertTrue(main_node.connection_pool.has_connection(LOCALHOST, 50000))
 
@@ -80,8 +80,7 @@ class GatewayConnectionTest(AbstractTestCase):
 
     def test_msg_hello_reject_mismatched_ip(self):
         fileno = 1
-
-        inbound_connection = self._create_connection(fileno, LOCALHOST, 40000, False)
+        inbound_connection = create_connection(40000, self.node, from_me=False)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
 
         inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
@@ -91,11 +90,11 @@ class GatewayConnectionTest(AbstractTestCase):
 
     def test_msg_hello_replace_other_connection(self):
         inbound_fileno = 1
-        inbound_connection = self._create_connection(inbound_fileno, LOCALHOST, 40000, False)
+        inbound_connection = create_connection(40000, self.node, fileno=inbound_fileno, from_me=False)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
 
         outbound_fileno = 2
-        outbound_connection = self._create_connection(outbound_fileno, LOCALHOST, 8001, True)
+        outbound_connection = create_connection(8001, self.node, fileno=outbound_fileno, from_me=True)
         outbound_connection.ordering = 1
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
 
@@ -108,11 +107,11 @@ class GatewayConnectionTest(AbstractTestCase):
 
     def test_msg_hello_replace_self(self):
         inbound_fileno = 1
-        inbound_connection = self._create_connection(inbound_fileno, LOCALHOST, 40000, False)
+        inbound_connection = create_connection(40000, self.node, fileno=inbound_fileno, from_me=False)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
 
         outbound_fileno = 2
-        outbound_connection = self._create_connection(outbound_fileno, LOCALHOST, 8001, True)
+        outbound_connection = create_connection(8001, self.node, fileno=outbound_fileno, from_me=True)
         outbound_connection.ordering = 10
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
 
@@ -129,13 +128,15 @@ class GatewayConnectionTest(AbstractTestCase):
 
         main_inbound_fileno = 1
         main_inbound_port = 40000
-        main_inbound_connection = self._create_connection(main_inbound_fileno, LOCALHOST, main_inbound_port, False)
+        main_inbound_connection = create_connection(main_inbound_port, self.node, fileno=main_inbound_fileno,
+                                                    from_me=False)
         self.assertEqual(GatewayConnection.NULL_ORDERING, main_inbound_connection.ordering)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, main_inbound_port))
 
         main_outbound_fileno = 2
         main_outbound_ordering = 11
-        main_outbound_connection = self._create_connection(main_outbound_fileno, LOCALHOST, peer_port, True)
+        main_outbound_connection = create_connection(peer_port, self.node, fileno=main_outbound_fileno,
+                                                     from_me=True)
         main_outbound_connection.ordering = main_outbound_ordering
         self.assertNotEqual(GatewayConnection.NULL_ORDERING, main_outbound_connection.ordering)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, peer_port))
@@ -144,15 +145,15 @@ class GatewayConnectionTest(AbstractTestCase):
 
         peer_inbound_fileno = 1
         peer_inbound_port = 40001
-        peer_inbound_connection = self._create_connection(peer_inbound_fileno, LOCALHOST, peer_inbound_port, False,
-                                                          node=peer_node)
+        peer_inbound_connection = create_connection(peer_inbound_port, peer_node, fileno=peer_inbound_fileno,
+                                                    from_me=False)
         self.assertEqual(GatewayConnection.NULL_ORDERING, peer_inbound_connection.ordering)
         self.assertTrue(peer_node.connection_pool.has_connection(LOCALHOST, peer_inbound_port))
 
         peer_outbound_fileno = 2
         peer_outbound_ordering = 10
-        peer_outbound_connection = self._create_connection(peer_outbound_fileno, LOCALHOST, main_port, True,
-                                                           node=peer_node)
+        peer_outbound_connection = create_connection(main_port, peer_node, fileno=peer_outbound_fileno,
+                                                     from_me=True)
         peer_outbound_connection.ordering = peer_outbound_ordering
         self.assertNotEqual(GatewayConnection.NULL_ORDERING, peer_outbound_connection.ordering)
         self.assertTrue(peer_node.connection_pool.has_connection(LOCALHOST, main_port))
@@ -173,14 +174,16 @@ class GatewayConnectionTest(AbstractTestCase):
 
         main_inbound_fileno = 1
         main_inbound_port = 40000
-        main_inbound_connection = self._create_connection(main_inbound_fileno, LOCALHOST, main_inbound_port, False)
+        main_inbound_connection = create_connection(main_inbound_port, self.node, fileno=main_inbound_fileno,
+                                                    from_me=False)
         main_inbound_connection.enqueue_msg = MagicMock()
         self.assertEqual(GatewayConnection.NULL_ORDERING, main_inbound_connection.ordering)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, main_inbound_port))
 
         main_outbound_fileno = 2
         main_outbound_ordering = 10
-        main_outbound_connection = self._create_connection(main_outbound_fileno, LOCALHOST, peer_port, True)
+        main_outbound_connection = create_connection(peer_port, self.node, fileno=main_outbound_fileno,
+                                                     from_me=True)
         main_outbound_connection.ordering = main_outbound_ordering
         self.assertNotEqual(GatewayConnection.NULL_ORDERING, main_outbound_connection.ordering)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, peer_port))
@@ -189,16 +192,16 @@ class GatewayConnectionTest(AbstractTestCase):
 
         peer_inbound_fileno = 1
         peer_inbound_port = 40001
-        peer_inbound_connection = self._create_connection(peer_inbound_fileno, LOCALHOST, peer_inbound_port, False,
-                                                          node=peer_node)
+        peer_inbound_connection = create_connection(peer_inbound_port, peer_node, fileno=peer_inbound_fileno,
+                                                    from_me=False)
         peer_inbound_connection.enqueue_msg = MagicMock()
         self.assertEqual(GatewayConnection.NULL_ORDERING, peer_inbound_connection.ordering)
         self.assertTrue(peer_node.connection_pool.has_connection(LOCALHOST, peer_inbound_port))
 
         peer_outbound_fileno = 2
         peer_outbound_ordering = 10
-        peer_outbound_connection = self._create_connection(peer_outbound_fileno, LOCALHOST, main_port, True,
-                                                           node=peer_node)
+        peer_outbound_connection = create_connection(main_port, peer_node, fileno=peer_outbound_fileno,
+                                                     from_me=True)
         peer_outbound_connection.ordering = peer_outbound_ordering
         self.assertNotEqual(GatewayConnection.NULL_ORDERING, peer_outbound_connection.ordering)
         self.assertTrue(peer_node.connection_pool.has_connection(LOCALHOST, main_port))
