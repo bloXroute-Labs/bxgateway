@@ -1,10 +1,8 @@
 import binascii
-import codecs
-import struct
 from math import ceil
+from typing import List, Optional
 
 from bxcommon.exceptions import ParseError
-from bxcommon.utils import convert
 
 """
 Utility functions to work with RLP (Recursive Length Prefix) encoding.
@@ -206,6 +204,53 @@ def str_to_bytes(value):
         return bytes(value)
 
     return bytes(value, "utf-8")
+
+
+def get_list_items_bytes(list_bytes: memoryview, remove_items_length_prefix: Optional[bool] = False) -> List[memoryview]:
+    """
+    Parses items from the list
+    :param list_bytes: RLP serialized list bytes
+    :param remove_items_length_prefix: indicates if length prefix needs to be removed from each item in the list
+    :return: list of bytes
+    """
+    result = []
+    offset = 0
+
+    while offset < len(list_bytes):
+        _, item_len, item_start = consume_length_prefix(list_bytes, offset)
+
+        item_bytes = list_bytes[offset:item_start + item_len]
+        if remove_items_length_prefix:
+            item_bytes = remove_length_prefix(item_bytes)
+
+        result.append(item_bytes)
+        offset = item_start + item_len
+
+    assert offset == len(list_bytes)
+
+    return result
+
+
+def get_first_list_field_items_bytes(object_bytes: memoryview, remove_items_length_prefix: Optional[bool] = False) -> List[memoryview]:
+    """
+    Parses the first field of RLP serialized object as list
+    :param object_bytes: byte of RLP serialized object
+    :param remove_items_length_prefix: indicates if length prefix needs to be removed from each item in the list
+    :return: list of bytes
+    """
+    list_bytes = remove_length_prefix(object_bytes)
+    return get_list_items_bytes(list_bytes, remove_items_length_prefix)
+
+
+def remove_length_prefix(item_bytes: memoryview) -> memoryview:
+    """
+    Removes RLP length prefix from the item bytes
+    :param item_bytes: serialized item bytes
+    :return: item bytes without length prefix
+    """
+
+    _, list_itm_len, list_itm_start = consume_length_prefix(item_bytes, 0)
+    return item_bytes[list_itm_start:]
 
 
 def _pack_left(lnum):

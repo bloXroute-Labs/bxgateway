@@ -6,9 +6,12 @@ import rlp
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import convert
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import eth_constants
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
 from bxgateway.messages.eth.discovery.pong_eth_discovery_message import PongEthDiscoveryMessage
+from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
+from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
 from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import DisconnectEthProtocolMessage
@@ -24,7 +27,11 @@ from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthPro
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
+from bxgateway.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.block_hash import BlockHash
+from bxgateway.messages.eth.serializers.block_header import BlockHeader
+from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.utils.eth import crypto_utils
 
@@ -175,6 +182,250 @@ class EthMessagesTests(AbstractTestCase):
                                      False,
                                      helpers.generate_bytes(1000))
 
+    def test_new_block_internal_eth_message_to_from_new_block_message(self):
+        txs = []
+        txs_bytes = []
+        txs_hashes = []
+
+        tx_count = 10
+
+        for i in range(1, tx_count):
+            tx = mock_eth_messages.get_dummy_transaction(1)
+            txs.append(tx)
+
+            tx_bytes = rlp.encode(tx, Transaction)
+            txs_bytes.append(tx_bytes)
+
+            tx_hash = tx.hash()
+            txs_hashes.append(tx_hash)
+
+        block_header = mock_eth_messages.get_dummy_block_header(1)
+
+        uncles = [
+            mock_eth_messages.get_dummy_block_header(2),
+            mock_eth_messages.get_dummy_block_header(3),
+        ]
+
+        block = Block(
+            block_header,
+            txs,
+            uncles
+        )
+
+        dummy_chain_difficulty = 10
+
+        block_msg = NewBlockEthProtocolMessage(None, block, dummy_chain_difficulty)
+        self.assertTrue(block_msg.rawbytes())
+
+        new_block_internal_eth_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
+        self.assertIsNotNone(new_block_internal_eth_msg)
+        self.assertTrue(new_block_internal_eth_msg.rawbytes())
+
+        parsed_new_block_message = new_block_internal_eth_msg.to_new_block_msg()
+        self.assertIsInstance(parsed_new_block_message, NewBlockEthProtocolMessage)
+
+        self.assertEqual(block_msg.rawbytes(), parsed_new_block_message.rawbytes())
+
+    def test_new_block_internal_eth_message_to_from_new_block_message(self):
+        txs = []
+        txs_bytes = []
+        txs_hashes = []
+
+        tx_count = 10
+
+        for i in range(1, tx_count):
+            tx = mock_eth_messages.get_dummy_transaction(1)
+            txs.append(tx)
+
+            tx_bytes = rlp.encode(tx, Transaction)
+            txs_bytes.append(tx_bytes)
+
+            tx_hash = tx.hash()
+            txs_hashes.append(tx_hash)
+
+        block_header = mock_eth_messages.get_dummy_block_header(1)
+
+        uncles = [
+            mock_eth_messages.get_dummy_block_header(2),
+            mock_eth_messages.get_dummy_block_header(3),
+        ]
+
+        block = Block(
+            block_header,
+            txs,
+            uncles
+        )
+
+        dummy_chain_difficulty = 10
+
+        block_msg = NewBlockEthProtocolMessage(None, block, dummy_chain_difficulty)
+        self.assertTrue(block_msg.rawbytes())
+
+        new_block_internal_eth_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
+        self.assertIsNotNone(new_block_internal_eth_msg)
+        self.assertTrue(new_block_internal_eth_msg.rawbytes())
+
+        parsed_new_block_message = new_block_internal_eth_msg.to_new_block_msg()
+        self.assertIsInstance(parsed_new_block_message, NewBlockEthProtocolMessage)
+
+        self.assertEqual(len(block_msg.rawbytes()), len(parsed_new_block_message.rawbytes()))
+        self.assertEqual(convert.bytes_to_hex(block_msg.rawbytes()),
+                         convert.bytes_to_hex(parsed_new_block_message.rawbytes()))
+
+    def test_new_block_internal_eth_message_to_from_new_block_parts(self):
+        txs = []
+        txs_bytes = []
+        txs_hashes = []
+
+        tx_count = 10
+
+        for i in range(1, tx_count):
+            tx = mock_eth_messages.get_dummy_transaction(1)
+            txs.append(tx)
+
+            tx_bytes = rlp.encode(tx, Transaction)
+            txs_bytes.append(tx_bytes)
+
+            tx_hash = tx.hash()
+            txs_hashes.append(tx_hash)
+
+        block_header = mock_eth_messages.get_dummy_block_header(1)
+
+        uncles = [
+            mock_eth_messages.get_dummy_block_header(2),
+            mock_eth_messages.get_dummy_block_header(3),
+        ]
+
+        block_number = 100000
+
+        block_body = TransientBlockBody(txs, uncles)
+
+        block_header_bytes = memoryview(rlp.encode(BlockHeader.serialize(block_header)))
+        block_body_bytes = memoryview(rlp.encode(TransientBlockBody.serialize(block_body)))
+
+        new_block_parts = NewBlockParts(block_header_bytes, block_body_bytes, block_number)
+
+        new_block_internal_eth_msg = InternalEthBlockInfo.from_new_block_parts(new_block_parts)
+        self.assertIsNotNone(new_block_internal_eth_msg)
+        self.assertTrue(new_block_internal_eth_msg.rawbytes())
+
+        parsed_new_block_parts = new_block_internal_eth_msg.to_new_block_parts()
+        self.assertIsInstance(parsed_new_block_parts, NewBlockParts)
+
+        self.assertEqual(block_header_bytes, parsed_new_block_parts.block_header_bytes)
+        self.assertEqual(block_body_bytes, parsed_new_block_parts.block_body_bytes)
+        self.assertEqual(block_number, parsed_new_block_parts.block_number)
+
+    def test_block_headers_msg_from_header_bytes(self):
+        block_header = mock_eth_messages.get_dummy_block_header(1)
+        block_header_bytes = memoryview(rlp.encode(BlockHeader.serialize(block_header)))
+
+        block_headers_msg = BlockHeadersEthProtocolMessage.from_header_bytes(block_header_bytes)
+
+        self.assertEqual(1, len(block_headers_msg.get_block_headers()))
+        self.assertEqual(1, len(block_headers_msg.get_block_headers_bytes()))
+        self.assertEqual(block_header, block_headers_msg.get_block_headers()[0])
+        self.assertEqual(block_header_bytes.tobytes(), block_headers_msg.get_block_headers_bytes()[0].tobytes())
+
+    def test_block_bodies_msg_from_bodies_bytes(self):
+        txs = []
+        txs_bytes = []
+        txs_hashes = []
+
+        tx_count = 10
+
+        for i in range(1, tx_count):
+            tx = mock_eth_messages.get_dummy_transaction(1)
+            txs.append(tx)
+
+            tx_bytes = rlp.encode(tx, Transaction)
+            txs_bytes.append(tx_bytes)
+
+            tx_hash = tx.hash()
+            txs_hashes.append(tx_hash)
+
+        uncles = [
+            mock_eth_messages.get_dummy_block_header(2),
+            mock_eth_messages.get_dummy_block_header(3),
+        ]
+
+        block_body = TransientBlockBody(txs, uncles)
+        block_body_bytes = memoryview(rlp.encode(TransientBlockBody.serialize(block_body)))
+
+        block_bodies_msg = BlockBodiesEthProtocolMessage.from_body_bytes(block_body_bytes)
+
+        self.assertEqual(1, len(block_bodies_msg.get_blocks()))
+        self.assertEqual(1, len(block_bodies_msg.get_block_bodies_bytes()))
+        self.assertEqual(block_body, block_bodies_msg.get_blocks()[0])
+        self.assertEqual(block_body_bytes, block_bodies_msg.get_block_bodies_bytes()[0])
+
+    def test_new_block_hashes_msg_from_block_hash(self):
+        block_hash_bytes = helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
+        block_hash = Sha256Hash(block_hash_bytes)
+        block_number = 1000
+
+        new_block_hashes_msg_from_hash = NewBlockHashesEthProtocolMessage.from_block_hash_number_pair(block_hash,
+                                                                                                      block_number)
+        new_block_hashes_msg_from_hash.deserialize()
+
+        self.assertEqual(1, len(new_block_hashes_msg_from_hash.get_block_hash_number_pairs()))
+        deserialized_hash, deserialized_block_number = new_block_hashes_msg_from_hash.get_block_hash_number_pairs()[0]
+        self.assertEqual(deserialized_hash, block_hash)
+        self.assertEqual(block_number, block_number)
+
+    def test_new_block_parts_to_new_block_message(self):
+        txs = []
+        txs_bytes = []
+        txs_hashes = []
+
+        tx_count = 10
+
+        for i in range(1, tx_count):
+            tx = mock_eth_messages.get_dummy_transaction(1)
+            txs.append(tx)
+
+            tx_bytes = rlp.encode(tx, Transaction)
+            txs_bytes.append(tx_bytes)
+
+            tx_hash = tx.hash()
+            txs_hashes.append(tx_hash)
+
+        block_header = mock_eth_messages.get_dummy_block_header(1)
+
+        uncles = [
+            mock_eth_messages.get_dummy_block_header(2),
+            mock_eth_messages.get_dummy_block_header(3),
+        ]
+
+        block = Block(
+            block_header,
+            txs,
+            uncles
+        )
+
+        dummy_chain_difficulty = 10
+
+        new_block_msg = NewBlockEthProtocolMessage(None, block, dummy_chain_difficulty)
+        self.assertTrue(new_block_msg.rawbytes())
+
+        block_body = TransientBlockBody(txs, uncles)
+
+        block_bytes = rlp.encode(Block.serialize(block))
+        block_header_bytes = memoryview(rlp.encode(BlockHeader.serialize(block_header)))
+        block_body_bytes = memoryview(rlp.encode(TransientBlockBody.serialize(block_body)))
+        self.assertEqual(len(block_bytes), len(block_header_bytes) + len(block_body_bytes))
+
+        internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(new_block_msg)
+        new_block_parts = internal_new_block_msg.to_new_block_parts()
+
+        new_block_msg_from_block_parts = NewBlockEthProtocolMessage.from_new_block_parts(new_block_parts,
+                                                                                         dummy_chain_difficulty)
+
+        self.assertEqual(len(new_block_msg.rawbytes()), len(new_block_msg_from_block_parts.rawbytes()))
+        self.assertEqual(new_block_msg.rawbytes(),
+                         new_block_msg_from_block_parts.rawbytes())
+        self.assertEqual(new_block_msg_from_block_parts.chain_difficulty(), dummy_chain_difficulty)
+
     def _test_msg_serialization(self, msg_cls, needs_private_key, *args, **kwargs):
         if needs_private_key:
             # random private key
@@ -229,4 +480,3 @@ class EthMessagesTests(AbstractTestCase):
                 self._assert_values_equal(actual_field_value, expected_field_value)
         else:
             self.assertEqual(actual_value, expected_value)
-

@@ -230,8 +230,9 @@ class BlockQueuingService(Generic[T], metaclass=ABCMeta):
         # if tracking detailed send info, log this event only after all bytes written to sockets
         if not self.node.opts.track_detailed_sent_messages:
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
-                                                      network_num=self.node.network_num,
-                                                      more_info="{} bytes".format(len(block_msg.rawbytes())))
+                                                      network_num=self._node.network_num,
+                                                      more_info="{} bytes. {}".format(len(block_msg.rawbytes(),
+                                                                                          block_msg.extra_stats_data())))
         self._last_block_sent_time = time.time()
         self.on_block_sent(block_hash, block_msg)
 

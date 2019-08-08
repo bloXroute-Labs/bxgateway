@@ -8,10 +8,11 @@ from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import logger, convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
-from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
+from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.eth import crypto_utils
@@ -87,7 +88,8 @@ class EthMessageConverter(AbstractMessageConverter):
 
         return TransactionsEthProtocolMessage(buf)
 
-    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
+    def block_to_bx_block(self, block_msg: InternalEthBlockInfo, tx_service: TransactionService) -> Tuple[
+        memoryview, BlockInfo]:
         """
         Convert Ethereum new block message to internal broadcast message with transactions replaced with short ids
 
@@ -98,10 +100,6 @@ class EthMessageConverter(AbstractMessageConverter):
         :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash)
         """
 
-        if not isinstance(block_msg, NewBlockEthProtocolMessage):
-            raise TypeError("Type NewBlockEthProtocolMessage is expected for arg block_msg but was {0}"
-                            .format(type(block_msg)))
-
         compress_start_datetime = datetime.datetime.utcnow()
         compress_start_timestamp = time.time()
         msg_bytes = memoryview(block_msg.rawbytes())
@@ -109,25 +107,18 @@ class EthMessageConverter(AbstractMessageConverter):
         _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(msg_bytes, 0)
         block_msg_bytes = msg_bytes[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
-        _, block_itm_len, block_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
-        block_itm_bytes = block_msg_bytes[block_msg_itm_start:block_msg_itm_start + block_itm_len]
-
-        _, diff_itm_len, diff_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes,
-                                                                          block_itm_start + block_itm_len)
-        diff_full_bytes = block_msg_bytes[block_itm_start + block_itm_len:diff_itm_start + diff_itm_len]
-
-        _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
-        block_hdr_full_bytes = block_itm_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
-        block_hdr_bytes = block_itm_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
+        _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
+        block_hdr_full_bytes = block_msg_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
+        block_hdr_bytes = block_msg_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
 
         _, prev_block_itm_len, prev_block_itm_start = rlp_utils.consume_length_prefix(block_hdr_bytes, 0)
         prev_block_bytes = block_hdr_bytes[prev_block_itm_start:prev_block_itm_start + prev_block_itm_len]
 
-        _, txs_itm_len, txs_itm_start = rlp_utils.consume_length_prefix(block_itm_bytes,
+        _, txs_itm_len, txs_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes,
                                                                         block_hdr_itm_start + block_hdr_itm_len)
-        txs_bytes = block_itm_bytes[txs_itm_start:txs_itm_start + txs_itm_len]
+        txs_bytes = block_msg_bytes[txs_itm_start:txs_itm_start + txs_itm_len]
 
-        uncles_full_bytes = block_itm_bytes[txs_itm_start + txs_itm_len:]
+        remaining_bytes = block_msg_bytes[txs_itm_start + txs_itm_len:]
 
         used_short_ids = []
 
@@ -181,11 +172,8 @@ class EthMessageConverter(AbstractMessageConverter):
         buf.appendleft(block_hdr_full_bytes)
         content_size += len(block_hdr_full_bytes)
 
-        buf.append(uncles_full_bytes)
-        content_size += len(uncles_full_bytes)
-
-        buf.append(diff_full_bytes)
-        content_size += len(diff_full_bytes)
+        buf.append(remaining_bytes)
+        content_size += len(remaining_bytes)
 
         compact_block_msg_prefix = rlp_utils.get_length_prefix_list(content_size)
         buf.appendleft(compact_block_msg_prefix)
@@ -257,11 +245,7 @@ class EthMessageConverter(AbstractMessageConverter):
                                                                             block_hdr_start + block_hdr_len)
         txs_bytes = block_itm_bytes[block_txs_start:block_txs_start + block_txs_len]
 
-        _, block_uncles_len, block_uncles_start = rlp_utils.consume_length_prefix(block_itm_bytes,
-                                                                                  block_txs_start + block_txs_len)
-        full_uncles_bytes = block_itm_bytes[block_txs_start + block_txs_len:block_uncles_start + block_uncles_len]
-
-        full_diff_bytes = block_itm_bytes[block_uncles_start + block_uncles_len:]
+        remaining_bytes = block_itm_bytes[block_txs_start + block_txs_len:]
 
         # parse statistics variables
         short_tx_index = 0
@@ -319,15 +303,8 @@ class EthMessageConverter(AbstractMessageConverter):
             buf.appendleft(full_hdr_bytes)
             content_size += len(full_hdr_bytes)
 
-            buf.append(full_uncles_bytes)
-            content_size += len(full_uncles_bytes)
-
-            block_len_prefix = rlp_utils.get_length_prefix_list(content_size)
-            buf.appendleft(block_len_prefix)
-            content_size += len(block_len_prefix)
-
-            buf.append(full_diff_bytes)
-            content_size += len(full_diff_bytes)
+            buf.append(remaining_bytes)
+            content_size += len(remaining_bytes)
 
             msg_len_prefix = rlp_utils.get_length_prefix_list(content_size)
             buf.appendleft(msg_len_prefix)
@@ -339,7 +316,7 @@ class EthMessageConverter(AbstractMessageConverter):
                 block_msg_bytes[off:next_off] = blob
                 off = next_off
 
-            block_msg = NewBlockEthProtocolMessage(block_msg_bytes)
+            block_msg = InternalEthBlockInfo(block_msg_bytes)
             logger.debug("Successfully parsed block broadcast message. {0} transactions in block"
                          .format(tx_count))
 

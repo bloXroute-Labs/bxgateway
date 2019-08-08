@@ -63,14 +63,15 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
                 block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
                                                           network_num=self.network_num,
-                                                          more_info="{} in {}".format(
+                                                          more_info="{} in {}. {}".format(
                                                               stats_format.byte_count(
                                                                   block_message_length
                                                               ),
                                                               stats_format.timespan(
                                                                   block_message_queue_time,
                                                                   time.time()
-                                                              )
+                                                              ),
+                                                              block_message.extra_stats_data()
                                                           ))
         else:
             super(AbstractGatewayBlockchainConnection, self).advance_sent_bytes(bytes_sent)

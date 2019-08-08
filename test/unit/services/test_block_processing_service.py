@@ -132,6 +132,3 @@ class BlockHoldingServiceTest(AbstractTestCase):
 
     def _assert_block_propagated(self, block_hash):
         self.node.neutrality_service.propagate_block_to_network.assert_called_once()
-        self.node.block_recovery_service.cancel_recovery_for_block.assert_called_once()
-        self.node.block_queuing_service.remove.assert_called_once()
-        self.assertIn(block_hash, self.node.blocks_seen.contents)

@@ -2,6 +2,7 @@ import time
 from abc import ABCMeta
 
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import logger
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
@@ -48,16 +49,18 @@ class AbstractBlockchainConnectionProtocol:
                                                     broadcast_peers))
             self.connection.node.get_tx_service().set_transaction_contents(tx_hash, tx_bytes)
 
-    def msg_block(self, msg):
+    def msg_block(self, msg: AbstractBlockMessage):
         """
         Handle a block message. Sends to node for encryption, then broadcasts.
         """
         block_hash = msg.block_hash()
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
                                                   network_num=self.connection.network_num,
-                                                  more_info="Protocol: {}, Network: {}".format(
+                                                  more_info="Protocol: {}, Network: {}. {}".format(
                                                       self.connection.node.opts.blockchain_protocol,
-                                                      self.connection.node.opts.blockchain_network))
+                                                      self.connection.node.opts.blockchain_network,
+                                                      msg.extra_stats_data()
+                                                  ))
 
         if block_hash in self.connection.node.blocks_seen.contents:
             block_stats.add_block_event_by_block_hash(block_hash,
@@ -66,13 +69,10 @@ class AbstractBlockchainConnectionProtocol:
             logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
             return
 
-        max_time_offset = self.connection.node.opts.blockchain_block_interval * self.connection.node.opts.blockchain_ignore_block_interval_count
-        if time.time() - msg.timestamp() >= max_time_offset:
-            logger.debug("Received block {} more than {} seconds after it was created ({}). Ignoring."
-                         .format(block_hash, max_time_offset, msg.timestamp()))
+        if not self.is_valid_block_timestamp(msg):
             return
 
-        self.connection.node.blocks_seen.add(block_hash)
+        self.connection.node.on_block_seen_by_blockchain_node(block_hash)
         self.connection.node.block_processing_service.queue_block_for_processing(msg, self.connection)
 
     def msg_proxy_request(self, msg):
@@ -86,3 +86,12 @@ class AbstractBlockchainConnectionProtocol:
         Handle a chainstate response message.
         """
         self.connection.node.send_msg_to_node(msg)
+
+    def is_valid_block_timestamp(self, msg: AbstractBlockMessage) -> bool:
+        max_time_offset = self.connection.node.opts.blockchain_block_interval * self.connection.node.opts.blockchain_ignore_block_interval_count
+        if time.time() - msg.timestamp() >= max_time_offset:
+            logger.debug("Received block {} more than {} seconds after it was created ({}). Ignoring."
+                         .format(msg.block_hash(), max_time_offset, msg.timestamp()))
+            return False
+
+        return True
