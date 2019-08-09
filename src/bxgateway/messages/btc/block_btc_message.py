@@ -79,6 +79,7 @@ class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
         """
         :return: seconds since epoch
         """
+        assert self._timestamp is not None
         if self._version is None:
             self.version()
         return self._timestamp

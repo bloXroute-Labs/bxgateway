@@ -1,5 +1,4 @@
 import rlp
-
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils.log_level import LogLevel
 from bxcommon.utils.object_hash import Sha256Hash
@@ -159,5 +158,5 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
 
             timestamp, _timestamp_length = rlp_utils.decode_int(block_hdr_bytes, offset)
             self._timestamp = timestamp
-
+        assert self._timestamp is not None
         return self._timestamp

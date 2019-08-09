@@ -69,8 +69,7 @@ class BtcMessageFactoryTest(MessageFactoryTestCase):
                                                         b"test break", helpers.generate_bytearray(10)),
                                               RejectBtcMessage.MESSAGE_TYPE, 32)
         self.get_message_preview_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage.MESSAGE_TYPE, 0)
-
-        self.get_message_preview_successfully(FeeFilterBtcMessage(self.MAGIC, 100), FeeFilterBtcMessage.MESSAGE_TYPE, 8)
+        self.get_message_preview_successfully(FeeFilterBtcMessage(self.MAGIC, fee_rate=100), FeeFilterBtcMessage.MESSAGE_TYPE, 8)
 
     def test_peek_message_incomplete(self):
         is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
@@ -119,7 +118,7 @@ class BtcMessageFactoryTest(MessageFactoryTestCase):
                                          RejectBtcMessage)
         self.create_message_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage)
 
-        self.create_message_successfully(FeeFilterBtcMessage(self.MAGIC, 100), FeeFilterBtcMessage)
+        self.create_message_successfully(FeeFilterBtcMessage(self.MAGIC, fee_rate=100), FeeFilterBtcMessage)
 
     def test_parse_message_incomplete(self):
         with self.assertRaises(PayloadLenError):
