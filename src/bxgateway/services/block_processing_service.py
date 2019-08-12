@@ -431,6 +431,7 @@ class BlockProcessingService:
         recovery_attempts = self._node.block_recovery_service.recovery_attempts_by_block[block_hash]
         if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS:
             logger.error("Giving up on attempting to recover block: {}", block_hash)
+            self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
         else:
             delay = gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[recovery_attempts]
             self._node.alarm_queue.register_approx_alarm(delay, delay / 2, self._trigger_recovery_retry,

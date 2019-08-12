@@ -1,15 +1,15 @@
-import time
 from datetime import datetime
 
-from bxcommon.utils import crypto, logger
+from bxcommon.utils import logger
+from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.messages.btc.abstract_btc_message_converter import CompactBlockCompressionResult
 from bxgateway.messages.btc.block_transactions_btc_message import BlockTransactionsBtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
-from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType
+from bxgateway.services.block_processing_service import BlockProcessingService
 
 
 class BtcBlockProcessingService(BlockProcessingService):
@@ -40,9 +40,13 @@ class BtcBlockProcessingService(BlockProcessingService):
                 success=parse_result.success,
                 txs_count=parse_result.block_info.txn_count,
                 prev_block_hash=parse_result.block_info.prev_block_hash,
-                more_info="{:.2f}ms".format(
-                    block_info.duration_ms
-                )
+                original_size=block_info.original_size,
+                more_info="Compression: {}->{} bytes, {}, {}; Tx count: {}".format(
+                    block_info.original_size,
+                    block_info.compressed_size,
+                    stats_format.percentage(block_info.compression_rate),
+                    stats_format.duration(block_info.duration_ms),
+                    block_info.txn_count)
             )
 
             self._process_and_broadcast_compressed_block(
