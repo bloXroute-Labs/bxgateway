@@ -43,9 +43,9 @@ ETH_GATEWAY_STATS_INTERVAL = 60
 ETH_GATEWAY_STATS_LOOKBACK = 1
 
 # duration to hold block for if hold exists
-BLOCK_HOLDING_TIMEOUT_S = 3 * 60
+BLOCK_HOLDING_TIMEOUT_S = 0.2
 # duration hold should exist for
-BLOCK_HOLD_DURATION_S = 3 * 60
+BLOCK_HOLD_DURATION_S = 0.2
 
 MIN_PEER_RELAYS = 1
 
