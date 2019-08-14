@@ -20,8 +20,8 @@ class EthBlockQueuingService(BlockQueuingService):
     def __init__(self, node: "AbstractGatewayNode"):
         super().__init__(node)
         self.block_checking_alarms = {}
-        self._sent_new_block_headers = ExpiringDict[Sha256Hash, NewBlockParts](node.alarm_queue,
-                                                                               eth_constants.SENT_NEW_BLOCK_HEADERS_EXPIRE_TIME_S)
+        self._sent_new_block_headers: ExpiringDict[Sha256Hash, NewBlockParts] = \
+            ExpiringDict(node.alarm_queue, eth_constants.SENT_NEW_BLOCK_HEADERS_EXPIRE_TIME_S)
 
     def _send_block_to_node(self, block_hash: Sha256Hash, block_msg: InternalEthBlockInfo):
 
