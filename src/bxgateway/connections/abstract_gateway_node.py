@@ -1,4 +1,3 @@
-import os
 from abc import ABCMeta, abstractmethod
 from argparse import Namespace
 from collections import deque

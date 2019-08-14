@@ -6,12 +6,13 @@
 # Startup script for Gateway nodes
 #
 import argparse
+import os
 import random
 import sys
 
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
-from bxcommon.utils import cli, config, convert
+from bxcommon.utils import cli, convert, config, ip_resolver
 from bxgateway import btc_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
@@ -46,17 +47,19 @@ def parse_peer_string(peer_string):
     return peers
 
 
-def get_opts():
+def get_opts() -> argparse.Namespace:
+    config.set_working_directory(os.path.dirname(__file__))
     common_args = cli.get_args()
 
-    # Get more options specific to gateways.
+    # Parse gateway specific command line parameters
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
     arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. E.g Bitcoin, Ethereum", type=str,
                             required=True)
     arg_parser.add_argument("--blockchain-network", help="Blockchain network. E.g Mainnet, Testnet", type=str,
                             required=True)
-    arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip", type=config.blocking_resolve_ip,
+    arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip",
+                            type=ip_resolver.blocking_resolve_ip,
                             default="127.0.0.1")
     arg_parser.add_argument("--peer-gateways",
                             help="Optional gateway peer ip/ports that will always be connected to. "
@@ -68,7 +71,7 @@ def get_opts():
                             type=int,
                             default=1)
     arg_parser.add_argument("--remote-blockchain-ip", help="Remote blockchain node ip to proxy messages from",
-                            type=config.blocking_resolve_ip)
+                            type=ip_resolver.blocking_resolve_ip)
     arg_parser.add_argument("--remote-blockchain-port", help="Remote blockchain node port to proxy messages from",
                             type=int)
     arg_parser.add_argument("--connect-to-remote-blockchain",
@@ -153,7 +156,11 @@ def get_opts():
     return args
 
 
-if __name__ == "__main__":
+def main():
     opts = get_opts()
     node_type = get_gateway_node_type(opts.blockchain_protocol, opts.blockchain_network)
-    node_runner.run_node(PID_FILE_NAME, opts, node_type)
+    node_runner.run_node(config.get_relative_file(PID_FILE_NAME), opts, node_type)
+
+
+if __name__ == "__main__":
+    main()
