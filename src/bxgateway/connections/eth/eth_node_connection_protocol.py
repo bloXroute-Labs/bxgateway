@@ -40,8 +40,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         })
 
         # uses block hash as a key, and NewBlockParts structure as value
-        self._pending_new_blocks_parts = ExpiringDict[Sha256Hash, NewBlockParts](self.node.alarm_queue,
-                                                                                 eth_constants.NEW_BLOCK_PARTS_MAX_WAIT_S)
+        self._pending_new_blocks_parts: ExpiringDict[Sha256Hash, NewBlockParts] = \
+            ExpiringDict(self.node.alarm_queue, eth_constants.NEW_BLOCK_PARTS_MAX_WAIT_S)
 
         # hashes of new blocks constructed from headers and bodies, ready to send to BDN
         self._ready_new_blocks: Deque[Sha256Hash] = deque()
