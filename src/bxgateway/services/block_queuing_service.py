@@ -99,8 +99,9 @@ class BlockQueuingService(Generic[T], metaclass=ABCMeta):
             raise ValueError("Block with hash {} already exists in the queue.".format(block_hash))
 
         if block_hash in self._blocks_seen_by_blockchain_node:
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_IGNORE_SEEN_BY_BLOCKCHAIN_NODE)
+            block_stats.add_block_event_by_block_hash(
+                block_hash, BlockStatEventType.BLOCK_IGNORE_SEEN_BY_BLOCKCHAIN_NODE, self.node.network_num
+            )
             return
 
         if not waiting_for_recovery and \
