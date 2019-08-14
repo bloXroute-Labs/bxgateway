@@ -1,10 +1,12 @@
 import hashlib
+import os
 import struct
 
 import bitcoin
 from Crypto.Hash import keccak
 from coincurve import PrivateKey, PublicKey
 
+from bxcommon.utils import convert
 from bxgateway import eth_constants
 from bxgateway.utils.eth import rlp_utils
 
@@ -134,6 +136,18 @@ def make_private_key(seed):
     return keccak_hash(seed)
 
 
+def generate_random_private_key_hex_str():
+    """
+    Generate hex string of random ECC private key
+    :return: ECC private key hex string
+    """
+
+    # seed can be any random bytes of any length
+    random_seed = os.urandom(100)
+    private_key_bytes = make_private_key(random_seed)
+    return convert.bytes_to_hex(private_key_bytes)
+
+
 def private_to_public_key(raw_private_key):
     """
     Calculates public key for private key
@@ -230,4 +244,3 @@ def _left_0_pad_32(x):
     """
 
     return b"\x00" * (32 - len(x)) + x
-

@@ -131,10 +131,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     self._pending_new_blocks_parts.contents[block_hash].block_header_bytes = header_bytes
                     self._check_pending_new_block(block_hash)
                     self._process_ready_new_blocks()
-                return
-
-        block_hashes = [block_header.hash() for block_header in msg.get_block_headers()]
-        self.connection.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
 
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage):
         if self._new_block_bodies_requests:

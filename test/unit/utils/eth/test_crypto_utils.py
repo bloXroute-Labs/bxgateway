@@ -3,6 +3,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import convert
 from bxgateway import eth_constants
 from bxgateway.utils.eth import crypto_utils
+from bxgateway.utils.eth.crypto_utils import generate_random_private_key_hex_str
 
 
 class CryptoUtilsTests(AbstractTestCase):
@@ -130,6 +131,14 @@ class CryptoUtilsTests(AbstractTestCase):
 
         self.assertEqual(msg_from_padded, msg[:22])
         self.assertEqual(padding, bytearray(10))
+
+    def test_generate_random_private_key_hex_str(self):
+        private_key_hex_1 = generate_random_private_key_hex_str()
+        self.assertEqual(eth_constants.PRIVATE_KEY_LEN, len(convert.hex_to_bytes(private_key_hex_1)))
+
+        private_key_hex_2 = generate_random_private_key_hex_str()
+        self.assertEqual(eth_constants.PRIVATE_KEY_LEN, len(convert.hex_to_bytes(private_key_hex_2)))
+        self.assertNotEqual(private_key_hex_1, private_key_hex_2)
 
     def _from_hex(self, x):
         return convert.hex_to_bytes(x[2:])
