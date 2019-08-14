@@ -18,7 +18,10 @@ class BtcConnectionProtocolTest(AbstractTestCase):
     HASH = BtcObjectHash(binary=crypto.double_sha256(b"123"))
 
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_btc_args=True))
+        opts = helpers.get_gateway_opts(8000, include_default_btc_args=True)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        self.node = MockGatewayNode(opts)
         self.node.block_processing_service = MagicMock()
 
         self.connection = MagicMock()

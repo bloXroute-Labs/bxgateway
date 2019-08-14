@@ -20,7 +20,11 @@ class MockGatewayNode(AbstractGatewayNode):
         self.broadcast_messages = []
         self.send_to_node_messages = []
         self.block_queuing_service = BtcBlockQueuingService(self)
-        self._tx_service = TransactionService(self, 0)
+        if opts.use_extensions:
+            from bxcommon.services.extension_transaction_service import ExtensionTransactionService
+            self._tx_service = ExtensionTransactionService(self, self.network_num)
+        else:
+            self._tx_service = TransactionService(self, self.network_num)
 
     def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, network_num=None,
                   connection_types=None, exclude_relays=False):

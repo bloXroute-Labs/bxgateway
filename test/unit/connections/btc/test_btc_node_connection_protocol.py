@@ -19,7 +19,10 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 class BtcNodeConnectionProtocolTest(AbstractTestCase):
 
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_btc_args=True))
+        opts = helpers.get_gateway_opts(8000, include_default_btc_args=True)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        self.node = MockGatewayNode(opts)
         self.node.neutrality_service = MagicMock()
 
         self.connection = BtcNodeConnection(MockSocketConnection(), (LOCALHOST, 123), self.node)

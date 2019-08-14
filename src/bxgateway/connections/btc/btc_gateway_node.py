@@ -20,15 +20,6 @@ from bxgateway.testing.test_modes import TestModes
 class BtcGatewayNode(AbstractGatewayNode):
     def __init__(self, opts):
         super(BtcGatewayNode, self).__init__(opts)
-
-        if opts.use_extensions or opts.import_extensions:
-            from bxcommon.services.extension_transaction_service import ExtensionTransactionService
-
-        if opts.use_extensions:
-            self._tx_service = ExtensionTransactionService(self, self.network_num)
-        else:
-            self._tx_service = TransactionService(self, self.network_num)
-
         self.block_processing_service = BtcBlockProcessingService(self)
 
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],

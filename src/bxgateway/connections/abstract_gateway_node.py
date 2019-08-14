@@ -99,7 +99,11 @@ class AbstractGatewayNode(AbstractNode):
 
         # offset SDN calls so all the peers aren't queued up at the same time
         self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS + 2, self._send_request_for_gateway_peers)
-        self._tx_service = TransactionService(self, self.network_num)
+        if opts.use_extensions:
+            from bxcommon.services.extension_transaction_service import ExtensionTransactionService
+            self._tx_service = ExtensionTransactionService(self, self.network_num)
+        else:
+            self._tx_service = TransactionService(self, self.network_num)
 
         self.init_transaction_stat_logging()
 
