@@ -14,9 +14,9 @@ class CacheNetworkInfo:
     blockchain_network: List[BlockchainNetworkModel]
 
 
-def update_cache_file(opts, potential_relay_peers: List[OutboundPeerModel]):
+def update(opts, potential_relay_peers: List[OutboundPeerModel]):
     try:
-        with open(opts.cookie_path_file, "r") as cookie_file:
+        with open(opts.cookie_file_path, "r") as cookie_file:
             data = json.load(cookie_file)
     except FileNotFoundError:
             data = {}
@@ -31,19 +31,19 @@ def update_cache_file(opts, potential_relay_peers: List[OutboundPeerModel]):
     }
     data.update(cache_info)
     try:
-        with open(opts.cookie_path_file, "w") as cookie_file:
+        with open(opts.cookie_file_path, "w") as cookie_file:
             json.dump(data, cookie_file, indent=4)
     except Exception as ex:
-        logger.fatal(f"Failed when tried to write to cache file: {opts.cookie_path_file} with exception: {ex}")
+        logger.error(f"Failed when tried to write to cache file: {opts.cookie_file_path} with exception: {ex}")
 
 
-def read_from_cache_file(opts) -> Optional[CacheNetworkInfo]:
+def read(opts) -> Optional[CacheNetworkInfo]:
     cache_file_info = None
     try:
-        if os.path.exists(opts.cookie_path_file):
-            with open(opts.cookie_path_file, "r") as cookie_file:
+        if os.path.exists(opts.cookie_file_path):
+            with open(opts.cookie_file_path, "r") as cookie_file:
                 return model_loader.load_model(CacheNetworkInfo, json.load(cookie_file))
     except Exception as ex:
-        logger.fatal(f"Failed when tried to read from cache file: {opts.cookie_path_file} with exception: {ex}")
+        logger.error(f"Failed when tried to read from cache file: {opts.cookie_file_path} with exception: {ex}")
     finally:
         return cache_file_info

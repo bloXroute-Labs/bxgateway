@@ -6,16 +6,17 @@
 # Startup script for Gateway nodes
 #
 import argparse
+import os
 import random
 import sys
-import os
+
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
-from bxcommon.utils import cli, config, convert
-from bxgateway.utils import node_cache
+from bxcommon.utils import cli, convert, config, ip_resolver
 from bxgateway import btc_constants, gateway_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
+from bxgateway.utils import node_cache
 from bxgateway.utils.eth import crypto_utils
 
 MAX_NUM_CONN = 8192
@@ -47,7 +48,7 @@ def parse_peer_string(peer_string):
     return peers
 
 
-def set_sdn_url(sdn_url: str) -> str:
+def get_sdn_hostname(sdn_url: str) -> str:
     new_sdn_url = sdn_url
     if "://" in sdn_url:
         new_sdn_url = sdn_url.split("://")[1]
@@ -55,19 +56,19 @@ def set_sdn_url(sdn_url: str) -> str:
     return new_sdn_url
 
 
-def get_opts():
+def get_opts() -> argparse.Namespace:
+    config.set_working_directory(os.path.dirname(__file__))
     common_args = cli.get_args()
 
-    sdn_url = set_sdn_url(common_args.sdn_url)
-
-    # Get more options specific to gateways.
+    # Parse gateway specific command line parameters
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
     arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. E.g Bitcoin, Ethereum", type=str,
                             required=True)
     arg_parser.add_argument("--blockchain-network", help="Blockchain network. E.g Mainnet, Testnet", type=str,
                             required=True)
-    arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip", type=config.blocking_resolve_ip,
+    arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip",
+                            type=ip_resolver.blocking_resolve_ip,
                             default="127.0.0.1")
     arg_parser.add_argument("--peer-gateways",
                             help="Optional gateway peer ip/ports that will always be connected to. "
@@ -79,7 +80,7 @@ def get_opts():
                             type=int,
                             default=1)
     arg_parser.add_argument("--remote-blockchain-ip", help="Remote blockchain node ip to proxy messages from",
-                            type=config.blocking_resolve_ip)
+                            type=ip_resolver.blocking_resolve_ip)
     arg_parser.add_argument("--remote-blockchain-port", help="Remote blockchain node port to proxy messages from",
                             type=int)
     arg_parser.add_argument("--connect-to-remote-blockchain",
@@ -155,17 +156,19 @@ def get_opts():
         type=int,
         default=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S
     )
+
+    cookie_file = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
+        f"{get_sdn_hostname(common_args.sdn_url)}_{common_args.external_ip}")
     arg_parser.add_argument(
-        "--cookie-path-file",
-        help="Cookie path file",
+        "--cookie-file-path",
+        help="Cookie file path",
         type=str,
-        default=gateway_constants.COOKIE_PATH_FILE.format(os.getcwd(), f"{sdn_url}_{common_args.external_ip}_{common_args.external_port}")
+        default=config.get_relative_file(cookie_file)
     )
 
     gateway_args, unknown = arg_parser.parse_known_args()
-
     if not gateway_args.blockchain_network:
-        cache_file_info = node_cache.read_from_cache_file(common_args)
+        cache_file_info = node_cache.read(common_args)
         if cache_file_info is not None:
             gateway_args.blockchain_network = cache_file_info.blockchain_network
 
@@ -180,8 +183,11 @@ def get_opts():
     return args
 
 
-if __name__ == "__main__":
+def main():
     opts = get_opts()
     node_type = get_gateway_node_type(opts.blockchain_protocol, opts.blockchain_network)
+    node_runner.run_node(config.get_relative_file(PID_FILE_NAME), opts, node_type)
 
-    node_runner.run_node(PID_FILE_NAME, opts, node_type)
+
+if __name__ == "__main__":
+    main()

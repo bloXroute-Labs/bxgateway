@@ -194,16 +194,16 @@ class AbstractGatewayNode(AbstractNode):
         """
         potential_relay_peers = sdn_http_service.fetch_potential_relay_peers_by_network(self.opts.node_id, self.network_num)
         if potential_relay_peers:
-            node_cache.update_cache_file(self.opts, potential_relay_peers)
+            node_cache.update(self.opts, potential_relay_peers)
             self._register_potential_relay_peers(potential_relay_peers)
         else:
             # if called too many times to send_request_for_relay_peers, reset relay peers to empty list in cache file
             if self.send_request_for_relay_peers_num_of_calls > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS:
-                node_cache.update_cache_file(self.opts, [])
+                node_cache.update(self.opts, [])
                 self.send_request_for_relay_peers_num_of_calls = 0
             self.send_request_for_relay_peers_num_of_calls += 1
 
-            cache_file_info = node_cache.read_from_cache_file(self.opts)
+            cache_file_info = node_cache.read(self.opts)
             if cache_file_info is not None:
                 cache_file_relay_peers = cache_file_info.relay_peers
                 if cache_file_relay_peers:
