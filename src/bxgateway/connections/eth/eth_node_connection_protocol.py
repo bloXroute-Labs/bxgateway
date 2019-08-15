@@ -2,7 +2,7 @@ from collections import deque
 from typing import List, Deque
 
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.utils import logger
+from bxcommon.utils import logger, convert
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -47,10 +47,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self._ready_new_blocks: Deque[Sha256Hash] = deque()
 
         # queue of block headers requests
-        self._new_block_headers_requests: Deque[Sha256Hash] = deque(maxlen=eth_constants.REQUESTED_NEW_BLOCK_HEADERS_MAX_COUNT)
+        self._new_block_headers_requests: Deque[Sha256Hash] = deque(
+            maxlen=eth_constants.REQUESTED_NEW_BLOCK_PARTS_MAX_COUNT)
 
         # queue of lists of hashes that are awaiting block bodies response
-        self._new_block_bodies_requests: Deque[List[Sha256Hash]] = deque(maxlen=eth_constants.REQUESTED_NEW_BLOCK_BODIES_MAX_COUNT)
+        self._new_block_bodies_requests: Deque[List[Sha256Hash]] = deque(
+            maxlen=eth_constants.REQUESTED_NEW_BLOCK_PARTS_MAX_COUNT)
 
     def msg_status(self, _msg):
         logger.debug("Status message received.")
@@ -95,14 +97,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
         for block_hash, block_number in block_hash_number_pairs:
             self._pending_new_blocks_parts.add(block_hash, NewBlockParts(None, None, block_number))
-            self.node.send_msg_to_node(
-                GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, False)
-            )
+
+            self.node.send_msg_to_node(GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, False))
             self._new_block_headers_requests.append(block_hash)
 
-        self.node.send_msg_to_node(
-            GetBlockBodiesEthProtocolMessage(None, [block_hash.binary for block_hash, _ in block_hash_number_pairs]))
-        self._new_block_bodies_requests.append([block_hash for block_hash, _ in block_hash_number_pairs])
+            self.node.send_msg_to_node(GetBlockBodiesEthProtocolMessage(None, [block_hash.binary]))
+            self._new_block_bodies_requests.append([block_hash])
 
     def msg_get_block_headers(self, msg: GetBlockHeadersEthProtocolMessage):
         if self._waiting_checkpoint_headers_request:
@@ -125,12 +125,17 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             block_hash_bytes = crypto_utils.keccak_hash(header_bytes)
             block_hash = Sha256Hash(block_hash_bytes)
 
-            if block_hash == self._new_block_headers_requests[0]:
+            if self._try_find_new_block_header_request(block_hash):
                 self._new_block_headers_requests.pop()
                 if block_hash in self._pending_new_blocks_parts.contents:
                     self._pending_new_blocks_parts.contents[block_hash].block_header_bytes = header_bytes
                     self._check_pending_new_block(block_hash)
                     self._process_ready_new_blocks()
+            else:
+                logger.warn("Received block header that does not match expected block hash."
+                            "Expected block hash {}. Header hash {}."
+                            .format(convert.bytes_to_hex(self._new_block_headers_requests[0].binary),
+                                    block_hash.binary))
 
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage):
         if self._new_block_bodies_requests:
@@ -186,3 +191,26 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                                                           ))
 
                 self.node.block_processing_service.queue_block_for_processing(new_block_msg, self.connection)
+
+    def _try_find_new_block_header_request(self, block_hash: Sha256Hash) -> bool:
+
+        if block_hash in self._new_block_headers_requests:
+            removed_header_requests = []
+
+            while block_hash != self._new_block_headers_requests[0]:
+                header_request = self._new_block_headers_requests.pop()
+                removed_header_requests.append(header_request)
+
+            if removed_header_requests:
+                logger.warn("Removed expected block header requests [{}] because header for block {} was received."
+                            .format(removed_header_requests, block_hash))
+
+            if len(self._new_block_bodies_requests) > len(self._new_block_headers_requests):
+                logger.warn("Removing expected block bodies requests ({}) to match expected headers ({})."
+                            .format(len(self._new_block_bodies_requests), len(self._new_block_headers_requests)))
+                while len(self._new_block_bodies_requests) > len(self._new_block_headers_requests):
+                    self._new_block_bodies_requests.pop()
+
+            return True
+        else:
+            return False
