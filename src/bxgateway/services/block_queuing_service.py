@@ -41,7 +41,7 @@ class BlockQueuingService(Generic[T], metaclass=ABCMeta):
         self._blocks_seen_by_blockchain_node: ExpiringSet[Sha256Hash] = \
             ExpiringSet(node.alarm_queue, gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S)
 
-        self._last_block_sent_time: Optional[float] = None
+        self._last_block_sent_time: float = 0.0
         self._last_alarm_id = None
 
     def __len__(self):
@@ -78,7 +78,7 @@ class BlockQueuingService(Generic[T], metaclass=ABCMeta):
         Otherwise, wait for previous block hash to be seen to send the block.
         """
         if (not self._block_queue or self._block_queue[0][0] == block_hash) and \
-                len(self._blocks_seen_by_blockchain_node) == 0 and self._last_block_sent_time is None:
+                len(self._blocks_seen_by_blockchain_node) == 0 and self._last_block_sent_time == 0.0:
             return True
         else:
             previous_block_hash = self.get_previous_block_hash_from_message(block_message)
