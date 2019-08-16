@@ -10,5 +10,5 @@ cffi==1.12.2
 rlp==0.6.0
 csiphash==0.0.5
 
-# TODO: either fork this branch in case it gets taken down and plan future work to remove this package
-https://github.com/mfranciszkiewicz/pyelliptic/archive/1.5.10.tar.gz#egg=pyelliptic
+# TODO: plan future work to remove this package
+bloxroute-pyelliptic==1.5.10
