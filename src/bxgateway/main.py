@@ -49,14 +49,13 @@ def parse_peer_string(peer_string):
 
 def get_opts() -> argparse.Namespace:
     config.set_working_directory(os.path.dirname(__file__))
-    common_args = cli.get_args()
 
     # Parse gateway specific command line parameters
-    arg_parser = argparse.ArgumentParser()
+    arg_parser = cli.get_argument_parser()
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
-    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. E.g Bitcoin, Ethereum", type=str,
+    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g Bitcoin, Ethereum", type=str,
                             required=True)
-    arg_parser.add_argument("--blockchain-network", help="Blockchain network. E.g Mainnet, Testnet", type=str,
+    arg_parser.add_argument("--blockchain-network", help="Blockchain network. e.g Mainnet, Testnet", type=str,
                             required=True)
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip",
                             type=ip_resolver.blocking_resolve_ip,
@@ -95,11 +94,11 @@ def get_opts() -> argparse.Namespace:
                             nargs="*")
 
     # Bitcoin specific
-    arg_parser.add_argument("--blockchain-version", help="Blockchain protocol version", type=int)
-    arg_parser.add_argument("--blockchain-nonce", help="Blockchain nonce", default=generate_default_nonce())
-    arg_parser.add_argument("--blockchain-net-magic", help="Blockchain net.magic parameter",
+    arg_parser.add_argument("--blockchain-version", help="Bitcoin protocol version", type=int)
+    arg_parser.add_argument("--blockchain-nonce", help="Bitcoin nonce", default=generate_default_nonce())
+    arg_parser.add_argument("--blockchain-net-magic", help="Bitcoin net.magic parameter",
                             type=convert_net_magic)
-    arg_parser.add_argument("--blockchain-services", help="Blockchain services parameter", type=int)
+    arg_parser.add_argument("--blockchain-services", help="Bitcoin services parameter", type=int)
 
     # Ethereum specific
     arg_parser.add_argument("--node-public-key", help="Public key of Ethereum node for encrypted communication",
@@ -143,17 +142,16 @@ def get_opts() -> argparse.Namespace:
         type=convert.str_to_bool
     )
 
-    gateway_args, unknown = arg_parser.parse_known_args()
+    opts = cli.parse_arguments(arg_parser)
 
-    args = cli.merge_args(gateway_args, common_args)
-    args.outbound_peers = args.peer_gateways + args.peer_relays
+    opts.outbound_peers = opts.peer_gateways + opts.peer_relays
 
-    if args.connect_to_remote_blockchain and args.remote_blockchain_ip and args.remote_blockchain_port:
-        args.remote_blockchain_peer = OutboundPeerModel(args.remote_blockchain_ip, args.remote_blockchain_port)
+    if opts.connect_to_remote_blockchain and opts.remote_blockchain_ip and opts.remote_blockchain_port:
+        opts.remote_blockchain_peer = OutboundPeerModel(opts.remote_blockchain_ip, opts.remote_blockchain_port)
     else:
-        args.remote_blockchain_peer = None
+        opts.remote_blockchain_peer = None
 
-    return args
+    return opts
 
 
 def main():

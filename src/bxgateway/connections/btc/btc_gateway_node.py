@@ -1,7 +1,6 @@
 from typing import Tuple
 
 from bxcommon.network.socket_connection import SocketConnection
-from bxcommon.services.transaction_service import TransactionService
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
