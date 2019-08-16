@@ -58,14 +58,13 @@ def get_sdn_hostname(sdn_url: str) -> str:
 
 def get_opts() -> argparse.Namespace:
     config.set_working_directory(os.path.dirname(__file__))
-    common_args = cli.get_args()
 
     # Parse gateway specific command line parameters
-    arg_parser = argparse.ArgumentParser()
+    arg_parser = cli.get_argument_parser()
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
-    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. E.g Bitcoin, Ethereum", type=str,
+    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g Bitcoin, Ethereum", type=str,
                             required=True)
-    arg_parser.add_argument("--blockchain-network", help="Blockchain network. E.g Mainnet, Testnet", type=str,
+    arg_parser.add_argument("--blockchain-network", help="Blockchain network. e.g Mainnet, Testnet", type=str,
                             required=True)
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip",
                             type=ip_resolver.blocking_resolve_ip,
@@ -104,11 +103,11 @@ def get_opts() -> argparse.Namespace:
                             nargs="*")
 
     # Bitcoin specific
-    arg_parser.add_argument("--blockchain-version", help="Blockchain protocol version", type=int)
-    arg_parser.add_argument("--blockchain-nonce", help="Blockchain nonce", default=generate_default_nonce())
-    arg_parser.add_argument("--blockchain-net-magic", help="Blockchain net.magic parameter",
+    arg_parser.add_argument("--blockchain-version", help="Bitcoin protocol version", type=int)
+    arg_parser.add_argument("--blockchain-nonce", help="Bitcoin nonce", default=generate_default_nonce())
+    arg_parser.add_argument("--blockchain-net-magic", help="Bitcoin net.magic parameter",
                             type=convert_net_magic)
-    arg_parser.add_argument("--blockchain-services", help="Blockchain services parameter", type=int)
+    arg_parser.add_argument("--blockchain-services", help="Bitcoin services parameter", type=int)
 
     # Ethereum specific
     arg_parser.add_argument("--node-public-key", help="Public key of Ethereum node for encrypted communication",
@@ -156,31 +155,31 @@ def get_opts() -> argparse.Namespace:
         type=int,
         default=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S
     )
-
-    cookie_file = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
-        f"{get_sdn_hostname(common_args.sdn_url)}_{common_args.external_ip}")
     arg_parser.add_argument(
         "--cookie-file-path",
         help="Cookie file path",
         type=str,
-        default=config.get_relative_file(cookie_file)
     )
 
-    gateway_args, unknown = arg_parser.parse_known_args()
-    if not gateway_args.blockchain_network:
-        cache_file_info = node_cache.read(common_args)
+    opts = cli.parse_arguments(arg_parser)
+
+    if not opts.blockchain_network:
+        cache_file_info = node_cache.read(opts)
         if cache_file_info is not None:
-            gateway_args.blockchain_network = cache_file_info.blockchain_network
+            opts.blockchain_network = cache_file_info.blockchain_network
 
-    args = cli.merge_args(gateway_args, common_args)
-    args.outbound_peers = args.peer_gateways + args.peer_relays
+    opts.outbound_peers = opts.peer_gateways + opts.peer_relays
 
-    if args.connect_to_remote_blockchain and args.remote_blockchain_ip and args.remote_blockchain_port:
-        args.remote_blockchain_peer = OutboundPeerModel(args.remote_blockchain_ip, args.remote_blockchain_port)
+    if opts.connect_to_remote_blockchain and opts.remote_blockchain_ip and opts.remote_blockchain_port:
+        opts.remote_blockchain_peer = OutboundPeerModel(opts.remote_blockchain_ip, opts.remote_blockchain_port)
     else:
-        args.remote_blockchain_peer = None
+        opts.remote_blockchain_peer = None
 
-    return args
+    if not opts.cookie_file_path:
+        opts.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
+            f"{get_sdn_hostname(opts.sdn_url)}_{opts.external_ip}")
+
+    return opts
 
 
 def main():
