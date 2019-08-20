@@ -311,6 +311,10 @@ class BlockProcessingService:
         self._node.get_tx_service().track_seen_short_ids_delayed(block_info.short_ids)
 
     def _handle_decrypted_block(self, bx_block, connection, encrypted_block_hash_hex=None, recovered=False):
+        if self._node.node_conn is None:
+            logger.warn("Connection to blockchain node is not established. Discarding block received from BDN.")
+            return
+
         transaction_service = self._node.get_tx_service()
 
         # TODO: determine if a real block or test block. Discard if test block.

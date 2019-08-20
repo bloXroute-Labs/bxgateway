@@ -55,10 +55,9 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             maxlen=eth_constants.REQUESTED_NEW_BLOCK_PARTS_MAX_COUNT)
 
     def msg_status(self, _msg):
-        logger.debug("Status message received.")
-
         self.connection.state |= ConnectionState.ESTABLISHED
         self.node.node_conn = self.connection
+        logger.statistics(f"Connection to blockchain node has been successfully established - {self.connection}.")
 
         self.connection.send_ping()
 

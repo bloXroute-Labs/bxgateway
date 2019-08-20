@@ -77,6 +77,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 self.connection.node.node_msg_queue = deque()
 
             self.connection.node.node_conn = self.connection
+            logger.statistics(f"Connection to blockchain node has been successfully established - {self.connection}")
 
     def msg_inv(self, msg: InvBtcMessage) -> None:
         """

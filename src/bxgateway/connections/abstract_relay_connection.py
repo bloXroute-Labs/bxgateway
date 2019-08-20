@@ -81,6 +81,11 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             logger.error("Received unexpected tx message on non-tx relay connection: {}, {}", msg, self)
             return
 
+        # Ignoring transaction messages until connection with blockchain node is established.
+        # That prevent transaction service cache from growing if connection can not be established for a long time.
+        if self.node.node_conn is None:
+            return
+
         tx_service = self.node.get_tx_service()
 
         short_id = msg.short_id()
