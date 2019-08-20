@@ -2,6 +2,8 @@ from datetime import datetime
 import struct
 import time
 import hashlib
+
+from bxgateway.utils.errors import message_conversion_error
 from csiphash import siphash24
 from collections import deque
 from typing import Tuple, Optional, List, Deque, Union, NamedTuple
@@ -66,6 +68,7 @@ def parse_bx_block_header(
 
 
 def parse_bx_block_transactions(
+        block_hash: Sha256Hash,
         bx_block: memoryview,
         offset: int,
         short_ids: List[int],
@@ -81,7 +84,14 @@ def parse_bx_block_transactions(
     output_offset = offset
     while offset < block_offsets.short_id_offset:
         if bx_block[offset] == btc_constants.BTC_SHORT_ID_INDICATOR:
-            sid = short_ids[short_tx_index]
+            try:
+                sid = short_ids[short_tx_index]
+            except IndexError:
+                raise message_conversion_error.btc_block_decompression_error(
+                    block_hash,
+                    f"Message is improperly formatted, short id index ({short_tx_index}) "
+                    f"exceeded its array bounds (size: {len(short_ids)})"
+                )
             tx_hash, tx, _ = tx_service.get_transaction(sid)
             offset += btc_constants.BTC_SHORT_ID_INDICATOR_LENGTH
             short_tx_index += 1
@@ -192,6 +202,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         block_pieces = deque()
         header_info = parse_bx_block_header(bx_block_msg, block_pieces)
         unknown_tx_sids, unknown_tx_hashes, offset = parse_bx_block_transactions(
+            header_info.block_hash,
             bx_block_msg,
             header_info.offset,
             header_info.short_ids,

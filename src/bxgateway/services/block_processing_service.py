@@ -14,11 +14,13 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.services.block_recovery_service import BlockRecoveryInfo
+from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -260,8 +262,20 @@ class BlockProcessingService:
         :param connection: receiving connection (AbstractBlockchainConnection)
         """
         block_hash = block_message.block_hash()
-        bx_block, block_info = connection.message_converter.block_to_bx_block(block_message,
-                                                                              self._node.get_tx_service())
+        try:
+            bx_block, block_info = connection.message_converter.block_to_bx_block(
+                block_message,self._node.get_tx_service()
+            )
+        except MessageConversionError as e:
+            block_stats.add_block_event_by_block_hash(
+                e.msg_hash,
+                BlockStatEventType.BLOCK_CONVERSION_FAILED,
+                network_num=connection.network_num,
+                conversion_type=e.conversion_type.value
+            )
+            logger.error("failed to compress block {} - {}", e.msg_hash, e)
+            return
+
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.BLOCK_COMPRESSED,
                                                   start_date_time=block_info.start_datetime,
@@ -310,8 +324,19 @@ class BlockProcessingService:
         transaction_service = self._node.get_tx_service()
 
         # TODO: determine if a real block or test block. Discard if test block.
-        block_message, block_info, unknown_sids, unknown_hashes = \
-            self._node.node_conn.message_converter.bx_block_to_block(bx_block, transaction_service)
+        try:
+            block_message, block_info, unknown_sids, unknown_hashes = \
+                self._node.node_conn.message_converter.bx_block_to_block(bx_block, transaction_service)
+        except MessageConversionError as e:
+            block_stats.add_block_event_by_block_hash(
+                e.msg_hash,
+                BlockStatEventType.BLOCK_CONVERSION_FAILED,
+                network_num=connection.network_num,
+                conversion_type=e.conversion_type.value
+            )
+            transaction_service.on_block_cleaned_up(e.msg_hash)
+            logger.warn("failed to decompress block {} - {}", e.msg_hash, e)
+            return
 
         block_hash = block_info.block_hash
         all_sids = block_info.short_ids

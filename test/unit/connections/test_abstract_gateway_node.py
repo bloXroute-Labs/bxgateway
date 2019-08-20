@@ -40,8 +40,10 @@ def initialize_split_relay_node():
     relay_connections = [OutboundPeerModel(LOCALHOST, 8001)]
     sdn_http_service.fetch_potential_relay_peers_by_network = MagicMock(return_value=relay_connections)
     network_latency.get_best_relay_by_ping_latency = MagicMock(return_value=relay_connections[0])
-
-    node = GatewayNode(helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True))
+    opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
+    if opts.use_extensions:
+        helpers.set_extensions_parallelism()
+    node = GatewayNode(opts)
     node.enqueue_connection = MagicMock()
     node.enqueue_disconnect = MagicMock()
 
@@ -66,7 +68,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel(LOCALHOST, 8001),
             OutboundPeerModel(LOCALHOST, 8002)
         ]
-        node = GatewayNode(helpers.get_gateway_opts(8000, peer_gateways=peer_gateways))
+        opts = helpers.get_gateway_opts(8000, peer_gateways=peer_gateways)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        node = GatewayNode(opts)
         node.peer_gateways.add(OutboundPeerModel(LOCALHOST, 8004))
 
         sdn_http_service.fetch_gateway_peers = MagicMock(return_value=[
@@ -88,7 +93,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         peer_gateways = [
             OutboundPeerModel(LOCALHOST, 8001)
         ]
-        node = GatewayNode(helpers.get_gateway_opts(8000, peer_gateways=peer_gateways))
+        opts = helpers.get_gateway_opts(8000, peer_gateways=peer_gateways)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        node = GatewayNode(opts)
         node.enqueue_connection = MagicMock()
         node.alarm_queue.register_alarm = MagicMock()
         node.enqueue_disconnect = MagicMock()
@@ -107,7 +115,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         peer_gateways = [
             OutboundPeerModel(LOCALHOST, 8001),
         ]
-        node = GatewayNode(helpers.get_gateway_opts(8000, peer_gateways=peer_gateways, min_peer_gateways=2))
+        opts = helpers.get_gateway_opts(8000, peer_gateways=peer_gateways, min_peer_gateways=2)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        node = GatewayNode(opts)
         node.peer_gateways.add(OutboundPeerModel(LOCALHOST, 8002))
         sdn_http_service.fetch_gateway_peers = MagicMock(return_value=[
             OutboundPeerModel(LOCALHOST, 8003, "12345")
@@ -129,7 +140,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         opts_peer_gateways = [
             OutboundPeerModel(LOCALHOST, 8001)
         ]
-        node = GatewayNode(helpers.get_gateway_opts(8000, peer_gateways=opts_peer_gateways))
+        opts = helpers.get_gateway_opts(8000, peer_gateways=opts_peer_gateways)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        node = GatewayNode(opts)
         node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, False)
 
         opts_connection = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
@@ -138,7 +152,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(opts_connection, node.get_preferred_gateway_connection())
 
     def test_get_preferred_gateway_connection_bloxroute(self):
-        node = GatewayNode(helpers.get_gateway_opts(8000))
+        opts = helpers.get_gateway_opts(8000)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        node = GatewayNode(opts)
         node.peer_gateways = [
             OutboundPeerModel(LOCALHOST, 8001, is_internal_gateway=False),
             OutboundPeerModel(LOCALHOST, 8002, is_internal_gateway=True)
@@ -160,8 +177,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         relay_connections = [OutboundPeerModel(LOCALHOST, 8001)]
         sdn_http_service.fetch_potential_relay_peers_by_network = MagicMock(return_value=relay_connections)
         network_latency.get_best_relay_by_ping_latency = MagicMock(return_value=relay_connections[0])
-
-        node = GatewayNode(helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True))
+        opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        node = GatewayNode(opts)
         node.enqueue_connection = MagicMock()
 
         node.send_request_for_relay_peers()

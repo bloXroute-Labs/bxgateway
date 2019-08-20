@@ -6,6 +6,7 @@ from bxcommon.utils import logger, convert
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+
 from bxgateway import gateway_constants, btc_constants
 from bxgateway.btc_constants import NODE_WITNESS_SERVICE_FLAG
 from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnectionProtocol
@@ -17,6 +18,7 @@ from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, Inve
 from bxgateway.messages.btc.send_compact_btc_message import SendCompactBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
+from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 
 
 class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
@@ -197,8 +199,23 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             return
 
         self.connection.node.on_block_seen_by_blockchain_node(block_hash)
-        # pyre-ignore
-        parse_result = self.connection.node.block_processing_service.process_compact_block(msg, self.connection)
+        try:
+            # pyre-ignore
+            parse_result = self.connection.node.block_processing_service.process_compact_block(msg, self.connection)
+        except MessageConversionError as e:
+            block_stats.add_block_event_by_block_hash(
+                e.msg_hash,
+                BlockStatEventType.BLOCK_CONVERSION_FAILED,
+                network_num=self.connection.network_num,
+                conversion_type=e.conversion_type.value
+            )
+            logger.warn("failed to process compact block {} - {}, requesting full block", e.msg_hash, e)
+            get_data_msg = GetDataBtcMessage(
+                magic=self.magic,
+                inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
+            )
+            self.connection.node.send_msg_to_node(get_data_msg)
+            return
         if not parse_result.success:
             self._recovery_compact_blocks.add(block_hash, parse_result)
 

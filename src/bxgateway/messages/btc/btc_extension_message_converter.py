@@ -1,3 +1,4 @@
+from collections import deque
 from datetime import datetime
 import time
 from typing import Tuple, List, Optional, Dict, NamedTuple
@@ -9,6 +10,7 @@ from bxcommon.services.extension_transaction_service import ExtensionTransaction
 from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 from bxcommon.utils.proxy.vector_proxy import VectorProxy
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxgateway.messages.btc import btc_normal_message_converter
 
 from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter, get_block_info, \
     CompactBlockCompressionResult
@@ -18,6 +20,7 @@ from bxgateway.utils.btc.btc_object_hash import Sha256Hash, BtcObjectHash
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 
 import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
+from bxgateway.utils.errors import message_conversion_error
 
 
 class ExtensionCompactBlockRecoveryData(NamedTuple):
@@ -50,7 +53,11 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         self._default_block_size = max(self._default_block_size, len(block_msg.buf))
         tsk = self.compression_tasks.borrow_task()
         tsk.init(tpe.InputBytes(block_msg.buf), tx_service.proxy)
-        task_pool_proxy.run_task(tsk)
+        try:
+            task_pool_proxy.run_task(tsk)
+        except tpe.AggregatedException as e:
+            self.compression_tasks.return_task(tsk)
+            raise message_conversion_error.btc_block_compression_error(block_msg.block_hash(), e)
         bx_block = tsk.bx_block()
         block = memoryview(bx_block)
         compressed_size = len(block)
@@ -82,7 +89,12 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         decompress_start_timestamp = time.time()
         tsk = self.decompression_tasks.borrow_task()
         tsk.init(tpe.InputBytes(bx_block_msg), tx_service.proxy)
-        task_pool_proxy.run_task(tsk)
+        try:
+            task_pool_proxy.run_task(tsk)
+        except tpe.AggregatedException as e:
+            self.decompression_tasks.return_task(tsk)
+            header_info = btc_normal_message_converter.parse_bx_block_header(bx_block_msg, deque())
+            raise message_conversion_error.btc_block_decompression_error(header_info.block_hash, e)
         total_tx_count = tsk.tx_count()
         unknown_tx_hashes = [Sha256Hash(bytearray(unknown_tx_hash.binary()))
                              for unknown_tx_hash in tsk.unknown_tx_hashes()]
@@ -119,7 +131,11 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         compress_start_datetime = datetime.utcnow()
         tsk = self.compact_mapping_tasks.borrow_task()
         tsk.init(tpe.InputBytes(compact_block.buf), transaction_service.proxy, compact_block.magic())
-        task_pool_proxy.run_task(tsk)
+        try:
+            task_pool_proxy.run_task(tsk)
+        except tpe.AggregatedException as e:
+            self.compact_mapping_tasks.return_task(tsk)
+            raise message_conversion_error.btc_compact_block_compression_error(compact_block.block_hash(), e)
         success = tsk.success()
         recovered_item = ExtensionCompactBlockRecoveryData(transaction_service, tsk)
         block_info = BlockInfo(
@@ -186,9 +202,14 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         mapping_task = recovery_item.mapping_task
         compression_task: tpe.BtcCompactBlockCompressionTask = mapping_task.compression_task()  # pyre-ignore
         compression_task.add_recovered_transactions(mapping_result.recovered_transactions.vector)  # pyre-ignore
-        task_pool_proxy.run_task(compression_task)
-        bx_block = memoryview(compression_task.bx_block())
         mapping_block_info = mapping_result.block_info
+        try:
+            task_pool_proxy.run_task(compression_task)
+        except tpe.AggregatedException as e:
+            self.compact_mapping_tasks.return_task(mapping_task)
+            # pyre-ignore
+            raise message_conversion_error.btc_compact_block_compression_error(mapping_block_info.block_hash, e)
+        bx_block = memoryview(compression_task.bx_block())
         block_hash = mapping_block_info.block_hash  # pyre-ignore
         txn_count = compression_task.txn_count()
         compressed_block_hash = compression_task.compressed_block_hash().hex_string()

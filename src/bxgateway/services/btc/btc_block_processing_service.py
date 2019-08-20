@@ -4,12 +4,14 @@ from bxcommon.utils import logger
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.messages.btc.abstract_btc_message_converter import CompactBlockCompressionResult
 from bxgateway.messages.btc.block_transactions_btc_message import BlockTransactionsBtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType
 from bxgateway.services.block_processing_service import BlockProcessingService
+from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 
 
 class BtcBlockProcessingService(BlockProcessingService):
@@ -96,9 +98,25 @@ class BtcBlockProcessingService(BlockProcessingService):
         for txn in msg.transactions():
             failure_result.recovered_transactions.append(txn)
 
-        recovery_result = connection.message_converter.recovered_compact_block_to_bx_block(  # pyre-ignore
-            failure_result
-        )
+        try:
+            recovery_result = connection.message_converter.recovered_compact_block_to_bx_block(  # pyre-ignore
+                failure_result
+            )
+        except MessageConversionError as e:
+            block_stats.add_block_event_by_block_hash(
+                e.msg_hash,
+                BlockStatEventType.BLOCK_CONVERSION_FAILED,
+                network_num=connection.network_num,
+                conversion_type=e.conversion_type.value
+            )
+            logger.warn("failed to process compact block recovery {} - {}, requesting full block", e.msg_hash, e)
+            get_data_msg = GetDataBtcMessage(
+                magic=msg.magic(),
+                inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
+            )
+            connection.node.send_msg_to_node(get_data_msg)
+
+            return
         block_info = recovery_result.block_info
 
         if recovery_result.success:
