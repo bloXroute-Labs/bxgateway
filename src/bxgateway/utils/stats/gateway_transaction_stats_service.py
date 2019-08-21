@@ -35,7 +35,7 @@ class _GatewayTransactionStatsService(StatisticsService):
     INTERVAL_DATA_CLASS = GatewayTransactionStatInterval
     TRANSACTION_SHORT_ID_ASSIGNED_DONE = -1
 
-    def __init__(self, interval=gateway_constants.GATEWAY_TRANSACTION_STATS_INTERVAL,
+    def __init__(self, interval=gateway_constants.GATEWAY_TRANSACTION_STATS_INTERVAL_S,
                  look_back=gateway_constants.GATEWAY_TRANSACTION_STATS_LOOKBACK):
         super(_GatewayTransactionStatsService, self).__init__("GatewayTransactionStats", interval, look_back,
                                                               reset=True)
