@@ -34,7 +34,9 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         connection.hello_messages = [EthProtocolMessageType.AUTH,
                                      EthProtocolMessageType.AUTH_ACK,
                                      EthProtocolMessageType.HELLO,
-                                     EthProtocolMessageType.STATUS]
+                                     EthProtocolMessageType.STATUS,
+                                     # Ethereum Parity sends PING message before handshake is completed
+                                     EthProtocolMessageType.PING]
 
         connection.message_factory = EthProtocolMessageFactory(self.rlpx_cipher)
         expected_first_msg_type = EthProtocolMessageType.AUTH_ACK if is_handshake_initiator \
