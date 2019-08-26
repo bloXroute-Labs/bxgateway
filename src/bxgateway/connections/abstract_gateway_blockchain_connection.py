@@ -59,11 +59,11 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
                 block_message_queue_time = entry.queued_time
                 block_message_length = entry.length
                 block_hash = block_message.block_hash()
-
+                handling_time, relay_desc = self.node.track_block_from_bdn_handling_ended(block_hash)
                 block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
                                                           network_num=self.network_num,
-                                                          more_info="{} in {}. {}".format(
+                                                          more_info="{} in {}; Handled in {}; R - {}; {}".format(
                                                               stats_format.byte_count(
                                                                   block_message_length
                                                               ),
@@ -71,6 +71,8 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
                                                                   block_message_queue_time,
                                                                   time.time()
                                                               ),
+                                                              stats_format.duration(handling_time),
+                                                              relay_desc,
                                                               block_message.extra_stats_data()
                                                           ))
         else:

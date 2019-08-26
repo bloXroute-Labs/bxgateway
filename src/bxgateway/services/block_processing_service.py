@@ -145,6 +145,7 @@ class BlockProcessingService:
 
         block_hash = msg.block_hash()
         is_encrypted = msg.is_encrypted()
+        self._node.track_block_from_bdn_handling_started(block_hash, connection.peer_desc)
 
         if not is_encrypted:
             block = msg.blob()
@@ -368,6 +369,7 @@ class BlockProcessingService:
                                                       matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
                                                       more_info=stats_format.duration(block_info.duration_ms))
+            self._node.track_block_from_bdn_handling_ended(block_hash)
             return
 
         if block_message is not None:

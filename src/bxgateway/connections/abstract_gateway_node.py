@@ -1,3 +1,4 @@
+import time
 from abc import ABCMeta, abstractmethod
 from argparse import Namespace
 from collections import deque
@@ -17,6 +18,7 @@ from bxcommon.services import sdn_http_service
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
 from bxcommon.utils import logger, network_latency
+from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import gateway_constants
@@ -107,6 +109,11 @@ class AbstractGatewayNode(AbstractNode):
 
         self.init_transaction_stat_logging()
 
+        self._block_from_node_handling_times: ExpiringDict[Sha256Hash, int] = ExpiringDict(self.alarm_queue,
+                                                                                           gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S)
+        self._block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[int, str]] = ExpiringDict(self.alarm_queue,
+                                                                                                      gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S)
+
     @abstractmethod
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                     from_me: bool) -> AbstractGatewayBlockchainConnection:
@@ -172,6 +179,55 @@ class AbstractGatewayNode(AbstractNode):
                              .format(type(connection)))
         self._preferred_gateway_connection = connection
 
+    def track_block_from_node_handling_started(self, block_hash: Sha256Hash) -> None:
+        """
+        Tracks that node started handling a block received from blockchain node
+        :param block_hash: block hash
+        """
+        if block_hash not in self._block_from_node_handling_times.contents:
+            self._block_from_node_handling_times.add(block_hash, time.time())
+
+    def track_block_from_node_handling_ended(self, block_hash: Sha256Hash) -> float:
+        """
+        Tracks that node ended handling of a block received from blockchain node and returns total handling duration
+        :param block_hash: block hash
+        :return: handling duration in ms
+        """
+
+        if block_hash not in self._block_from_node_handling_times.contents:
+            return 0
+
+        handling_start_time = self._block_from_node_handling_times.contents[block_hash]
+        duration = (time.time() - handling_start_time) * 1000
+        self._block_from_node_handling_times.remove_item(block_hash)
+
+        return duration
+
+    def track_block_from_bdn_handling_started(self, block_hash: Sha256Hash, relay_description: str) -> None:
+        """
+        Tracks that node started handling a block received from BDN
+        :param block_hash: block hash
+        :param relay_description: description of the relay peer where block was received
+        """
+        if block_hash not in self._block_from_bdn_handling_times.contents:
+            self._block_from_bdn_handling_times.add(block_hash, (time.time(), relay_description))
+
+    def track_block_from_bdn_handling_ended(self, block_hash: Sha256Hash) -> Tuple[float, Optional[str]]:
+        """
+        Tracks that node ended handling of a block received from BDN and returns total handling duration
+        :param block_hash: block hash
+        :return: Tuple (handling duration in ms, relay peer description)
+        """
+
+        if block_hash not in self._block_from_bdn_handling_times.contents:
+            return 0, None
+
+        handling_start_time, relay_description = self._block_from_bdn_handling_times.contents[block_hash]
+        duration = (time.time() - handling_start_time) * 1000
+        self._block_from_bdn_handling_times.remove_item(block_hash)
+
+        return duration, relay_description
+
     def _register_potential_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]):
         logger.debug("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
         best_relay_peer = network_latency.get_best_relay_by_ping_latency(potential_relay_peers)
@@ -192,7 +248,8 @@ class AbstractGatewayNode(AbstractNode):
         """
         Requests potential relay peers from SDN. Merges list with provided command line relays.
         """
-        potential_relay_peers = sdn_http_service.fetch_potential_relay_peers_by_network(self.opts.node_id, self.network_num)
+        potential_relay_peers = sdn_http_service.fetch_potential_relay_peers_by_network(self.opts.node_id,
+                                                                                        self.network_num)
         if potential_relay_peers:
             node_cache.update(self.opts, potential_relay_peers)
             self._register_potential_relay_peers(potential_relay_peers)

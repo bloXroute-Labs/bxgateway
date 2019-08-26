@@ -87,6 +87,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                                                           network_num=self.connection.network_num)
                 continue
 
+            self.connection.node.track_block_from_node_handling_started(block_hash)
             block_hash_number_pairs.append((block_hash, block_number))
             self.connection.node.on_block_seen_by_blockchain_node(block_hash)
 

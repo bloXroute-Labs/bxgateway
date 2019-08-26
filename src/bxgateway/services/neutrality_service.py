@@ -118,13 +118,17 @@ class NeutralityService(object):
         broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, True, encrypted_block)
 
         conns = self._node.broadcast(broadcast_message, connection, connection_types=[ConnectionType.RELAY_BLOCK])
+
+        handling_duration = self._node.track_block_from_node_handling_ended(block_hash)
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
                                                   requested_by_peer=requested_by_peer,
-                                                  more_info="Peers: {}; {}; {}; Requested by peer: {}".format(
+                                                  more_info="Peers: {}; {}; {}; Requested by peer: {}; Handled in {}"
+                                                  .format(
                                                       stats_format.connections(conns), encryption_details,
-                                                      self._format_block_info_stats(block_info), requested_by_peer))
+                                                      self._format_block_info_stats(block_info), requested_by_peer,
+                                                      stats_format.duration(handling_duration)))
         self.register_for_block_receipts(cipher_hash, bx_block)
         return broadcast_message
 
@@ -134,14 +138,16 @@ class NeutralityService(object):
 
         broadcast_message = BroadcastMessage(block_info.block_hash, self._node.network_num, False, bx_block)
         conns = self._node.broadcast(broadcast_message, connection, connection_types=[ConnectionType.RELAY_BLOCK])
+        handling_duration = self._node.track_block_from_node_handling_ended(block_info.block_hash)
         block_stats.add_block_event_by_block_hash(block_info.block_hash,
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
                                                   requested_by_peer=False,
                                                   peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns),
-                                                  more_info="Peers: {}; Unencrypted; {}".format(
+                                                  more_info="Peers: {}; Unencrypted; {}; Handled in {}".format(
                                                       stats_format.connections(conns),
-                                                      self._format_block_info_stats(block_info)))
+                                                      self._format_block_info_stats(block_info),
+                                                      stats_format.duration(handling_duration)))
         return broadcast_message
 
     def _format_block_info_stats(self, block_info):

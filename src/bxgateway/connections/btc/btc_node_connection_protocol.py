@@ -181,6 +181,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 "Ignoring.".format(block_hash, max_time_offset, msg.timestamp()))
             return
 
+        self.connection.node.track_block_from_node_handling_started(block_hash)
+
         if short_ids_count < self.connection.node.opts.compact_block_min_tx_count:
             logger.info(
                 "Compact block {} contains {} short transactions, less than limit {}. Requesting full block.",
