@@ -1,7 +1,10 @@
 # pyre-ignore-all-errors
 
 import socket
+from argparse import Namespace
 from typing import Tuple
+
+from bxcommon.test_utils import helpers
 
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.constants import LOCALHOST
@@ -21,6 +24,10 @@ class NullGatewayNode(AbstractGatewayNode):
     """
     Test Gateway Node that doesn't connect use its blockchain or relay connection.
     """
+    def __init__(self, opts: Namespace):
+        helpers.set_extensions_parallelism()
+        super().__init__(opts)
+
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                     from_me: bool) -> AbstractGatewayBlockchainConnection:
         return NullConnection
@@ -43,7 +50,7 @@ class NullGatewayNode(AbstractGatewayNode):
         return [(peer.ip, peer.port) for peer in self.outbound_peers]
 
 
-class NullBlockchainNode(object):
+class NullBlockchainNode:
 
     def __init__(self, port):
         logger.debug("Starting null blockchain node on {}".format(port))

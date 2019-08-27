@@ -14,7 +14,6 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -58,7 +57,7 @@ class BlockProcessingService:
 
     def __init__(self, node):
         self._node: AbstractGatewayNode = node
-        self._holds = ExpiringDict(node.alarm_queue, gateway_constants.BLOCK_HOLD_DURATION_S)
+        self._holds = ExpiringDict(node.alarm_queue, node.opts.blockchain_block_hold_timeout_s)
 
     def place_hold(self, block_hash, connection):
         """
@@ -99,7 +98,7 @@ class BlockProcessingService:
                                                       more_info=stats_format.connection(hold.holding_connection))
 
             if hold.alarm is None:
-                hold.alarm = self._node.alarm_queue.register_alarm(gateway_constants.BLOCK_HOLDING_TIMEOUT_S,
+                hold.alarm = self._node.alarm_queue.register_alarm(self._node.opts.blockchain_block_hold_timeout_s,
                                                                    self._holding_timeout, block_hash, hold)
                 hold.block_message = block_message
                 hold.connection = connection
@@ -248,7 +247,7 @@ class BlockProcessingService:
         :param block_message: block message to hold
         :return: time in seconds to wait
         """
-        return gateway_constants.BLOCK_HOLDING_TIMEOUT_S
+        return self._node.opts.blockchain_block_hold_timeout_s
 
     def _holding_timeout(self, block_hash, hold):
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_TIMED_OUT,
@@ -456,7 +455,9 @@ class BlockProcessingService:
         """
         block_hash = block_awaiting_recovery.block_hash
         recovery_attempts = self._node.block_recovery_service.recovery_attempts_by_block[block_hash]
-        if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS:
+        recovery_timed_out = time.time() - block_awaiting_recovery.recovery_start_time >= \
+                             self._node.opts.blockchain_block_recovery_timeout_s
+        if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS or recovery_timed_out:
             logger.error("Giving up on attempting to recover block: {}", block_hash)
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
         else:

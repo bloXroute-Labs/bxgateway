@@ -198,10 +198,6 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
             return_value=time.time() + self.node1.block_processing_service._compute_hold_timeout(block))
         self.node1.alarm_queue.fire_alarms()
 
-        ping_msg = self.node1.get_bytes_to_send(self.relay_fileno)
-        self.assertIn(PingMessage.MESSAGE_TYPE, ping_msg.tobytes())
-        self.node1.on_bytes_sent(self.relay_fileno, len(ping_msg))
-
         # send ciphertext from node1, receipt from node2, key from node1
         relayed_block = self.node1.get_bytes_to_send(self.relay_fileno)
         self.assertIn(BroadcastMessage.MESSAGE_TYPE, relayed_block.tobytes())

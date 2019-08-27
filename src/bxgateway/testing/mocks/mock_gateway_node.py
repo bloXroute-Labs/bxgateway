@@ -1,6 +1,8 @@
 # pyre-ignore-all-errors
 from typing import Tuple
 
+from bxcommon.test_utils import helpers
+
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.node_type import NodeType
 from bxcommon.network.socket_connection import SocketConnection
@@ -15,6 +17,8 @@ class MockGatewayNode(AbstractGatewayNode):
     NODE_TYPE = NodeType.GATEWAY
 
     def __init__(self, opts):
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
         super(MockGatewayNode, self).__init__(opts)
 
         self.broadcast_messages = []

@@ -1,3 +1,4 @@
+import time
 from collections import defaultdict
 from typing import Dict, Set, List, NamedTuple
 
@@ -12,6 +13,7 @@ class BlockRecoveryInfo(NamedTuple):
     block_hash: Sha256Hash
     unknown_short_ids: Set[int]
     unknown_transaction_hashes: Set[Sha256Hash]
+    recovery_start_time: float
 
 
 class BlockRecoveryService(object):
@@ -93,8 +95,6 @@ class BlockRecoveryService(object):
     def get_blocks_awaiting_recovery(self) -> List[BlockRecoveryInfo]:
         """
         Fetch all blocks still awaiting recovery and retry.
-
-        TODO: maybe keep track of things in progress?
         """
         blocks_awaiting_recovery = []
         for block_hash, bx_block_hashes in self._block_hash_to_bx_block_hashes.items():
@@ -103,7 +103,8 @@ class BlockRecoveryService(object):
             for bx_block_hash in bx_block_hashes:
                 unknown_short_ids.update(self._bx_block_hash_to_sids[bx_block_hash])
                 unknown_transaction_hashes.update(self._bx_block_hash_to_tx_hashes[bx_block_hash])
-            blocks_awaiting_recovery.append(BlockRecoveryInfo(block_hash, unknown_short_ids, unknown_transaction_hashes))
+            blocks_awaiting_recovery.append(BlockRecoveryInfo(block_hash, unknown_short_ids, unknown_transaction_hashes,
+                                                              time.time()))
         return blocks_awaiting_recovery
 
     def check_missing_sid(self, sid: int) -> bool:

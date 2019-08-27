@@ -18,8 +18,8 @@ def update(opts, potential_relay_peers: List[OutboundPeerModel]):
     try:
         with open(opts.cookie_file_path, "r") as cookie_file:
             data = json.load(cookie_file)
-    except FileNotFoundError:
-            data = {}
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
+        data = {}
     cache_network_info = CacheNetworkInfo(
         relay_peers=[relay for relay in potential_relay_peers],
         blockchain_network=[blockchain for blockchain in opts.blockchain_networks
