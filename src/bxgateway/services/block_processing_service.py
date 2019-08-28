@@ -328,6 +328,7 @@ class BlockProcessingService:
         # TODO: determine if a real block or test block. Discard if test block.
         if self._node.node_conn:
             try:
+                # TODO: refactor and move message_converter out of the conn scope
                 block_message, block_info, unknown_sids, unknown_hashes = \
                     self._node.node_conn.message_converter.bx_block_to_block(bx_block, transaction_service)
             except MessageConversionError as e:
@@ -341,7 +342,6 @@ class BlockProcessingService:
                 logger.warn("failed to decompress block {} - {}", e.msg_hash, e)
                 return
         else:
-            transaction_service.on_block_cleaned_up(e.msg_hash)
             logger.info("discarding a block coming from {} since there is no connection to the blockchain node".
                         format(connection.peer_desc))
             return
