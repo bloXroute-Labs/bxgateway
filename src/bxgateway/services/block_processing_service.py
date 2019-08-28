@@ -2,6 +2,7 @@ import datetime
 import time
 from typing import TYPE_CHECKING, Optional, Iterable
 
+from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
@@ -320,22 +321,29 @@ class BlockProcessingService:
         connection.node.neutrality_service.propagate_block_to_network(bx_block, connection, block_info)
         self._node.get_tx_service().track_seen_short_ids_delayed(block_hash, block_info.short_ids)
 
-    def _handle_decrypted_block(self, bx_block, connection, encrypted_block_hash_hex=None, recovered=False):
+    def _handle_decrypted_block(self, bx_block: memoryview, connection: AbstractConnection,
+                                encrypted_block_hash_hex: bool = None, recovered: bool = False):
         transaction_service = self._node.get_tx_service()
 
         # TODO: determine if a real block or test block. Discard if test block.
-        try:
-            block_message, block_info, unknown_sids, unknown_hashes = \
-                connection.message_converter.bx_block_to_block(bx_block, transaction_service)
-        except MessageConversionError as e:
-            block_stats.add_block_event_by_block_hash(
-                e.msg_hash,
-                BlockStatEventType.BLOCK_CONVERSION_FAILED,
-                network_num=connection.network_num,
-                conversion_type=e.conversion_type.value
-            )
+        if self._node.node_conn:
+            try:
+                block_message, block_info, unknown_sids, unknown_hashes = \
+                    self._node.node_conn.message_converter.bx_block_to_block(bx_block, transaction_service)
+            except MessageConversionError as e:
+                block_stats.add_block_event_by_block_hash(
+                    e.msg_hash,
+                    BlockStatEventType.BLOCK_CONVERSION_FAILED,
+                    network_num=connection.network_num,
+                    conversion_type=e.conversion_type.value
+                )
+                transaction_service.on_block_cleaned_up(e.msg_hash)
+                logger.warn("failed to decompress block {} - {}", e.msg_hash, e)
+                return
+        else:
             transaction_service.on_block_cleaned_up(e.msg_hash)
-            logger.warn("failed to decompress block {} - {}", e.msg_hash, e)
+            logger.info("discarding a block coming from {} since there is no connection to the blockchain node".
+                        format(connection.peer_desc))
             return
 
         block_hash = block_info.block_hash
