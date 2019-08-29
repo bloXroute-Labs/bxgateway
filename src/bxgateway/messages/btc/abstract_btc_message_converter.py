@@ -57,7 +57,7 @@ def get_block_info(
     if btc_block_msg is not None:
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block))
         compressed_size = len(bx_block)
-        prev_block_hash = convert.bytes_to_hex(btc_block_msg.prev_block().binary)
+        prev_block_hash = convert.bytes_to_hex(btc_block_msg.prev_block_hash().binary)
         btc_block_len = len(btc_block_msg.rawbytes())
         compression_rate = 100 - float(compressed_size) / btc_block_len * 100
     else:

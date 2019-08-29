@@ -14,8 +14,11 @@ from bxgateway.testing.mocks import mock_eth_messages
 
 class EthNodeConnectionTest(AbstractTestCase):
     def setUp(self) -> None:
-        self.node = EthGatewayNode(helpers.get_gateway_opts(8000, include_default_eth_args=True,
-                                                            track_detailed_sent_messages=True))
+        opts = helpers.get_gateway_opts(8000, include_default_eth_args=True,
+                                 track_detailed_sent_messages=True)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        self.node = EthGatewayNode(opts)
         self.connection_fileno = 1
         self.connection = helpers.create_connection(EthNodeConnection, node=self.node, fileno=self.connection_fileno)
 

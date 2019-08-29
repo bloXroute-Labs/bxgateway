@@ -6,7 +6,7 @@ from bxgateway.services.block_queuing_service import BlockQueuingService
 
 class BtcBlockQueuingService(BlockQueuingService[BlockBtcMessage]):
     def get_previous_block_hash_from_message(self, block_message: BlockBtcMessage) -> Sha256Hash:
-        return block_message.prev_block()
+        return block_message.prev_block_hash()
 
     def on_block_sent(self, block_hash: Sha256Hash, block_message: BlockBtcMessage):
         # After sending block message to Bitcoin node sending INV message for the same block to the node

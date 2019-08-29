@@ -1,12 +1,15 @@
+import typing
 from datetime import datetime
 
-from bxcommon.utils import logger
+from bxcommon.utils import logger, convert
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.messages.btc.abstract_btc_message_converter import CompactBlockCompressionResult
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.block_transactions_btc_message import BlockTransactionsBtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType
@@ -50,7 +53,7 @@ class BtcBlockProcessingService(BlockProcessingService):
                     stats_format.duration(block_info.duration_ms),
                     block_info.txn_count)
             )
-
+            self._node.block_cleanup_service.on_new_block_received(block_hash, block_message.prev_block_hash())
             self._process_and_broadcast_compressed_block(
                 parse_result.bx_block,
                 connection,
@@ -114,7 +117,7 @@ class BtcBlockProcessingService(BlockProcessingService):
                 magic=msg.magic(),
                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
             )
-            connection.node.send_msg_to_node(get_data_msg)
+            self._node.send_msg_to_node(get_data_msg)
 
             return
         block_info = recovery_result.block_info
@@ -136,7 +139,8 @@ class BtcBlockProcessingService(BlockProcessingService):
                     len(msg.transactions())
                 )
             )
-
+            prev_block = Sha256Hash(convert.hex_to_bytes(block_info.prev_block_hash))
+            self._node.block_cleanup_service.on_new_block_received(block_hash, prev_block)
             self._process_and_broadcast_compressed_block(
                 recovery_result.bx_block,
                 connection,
@@ -170,4 +174,8 @@ class BtcBlockProcessingService(BlockProcessingService):
                     magic=msg.magic(),
                     inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
             )
-            connection.node.send_msg_to_node(get_data_msg)
+            self._node.send_msg_to_node(get_data_msg)
+
+    def _on_block_decompressed(self, block_msg):
+        msg = typing.cast(BlockBtcMessage, block_msg)
+        self._node.block_cleanup_service.on_new_block_received(msg.block_hash(), msg.prev_block_hash())

@@ -164,7 +164,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             block[off:next_off] = blob
             off = next_off
 
-        prev_block_hash = convert.bytes_to_hex(block_msg.prev_block().binary)
+        prev_block_hash = convert.bytes_to_hex(block_msg.prev_block_hash().binary)
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
         original_size = len(block_msg.rawbytes())
 

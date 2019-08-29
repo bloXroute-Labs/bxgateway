@@ -50,7 +50,7 @@ class BlockHeader(object):
             self._txn_count, size = btc_varint_to_int(self.buf, off)
         return self._version
 
-    def prev_block(self):
+    def prev_block_hash(self):
         if self._version is None:
             self.version()
         return self._prev_block

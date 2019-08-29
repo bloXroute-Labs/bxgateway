@@ -47,3 +47,6 @@ class BtcObjectHash(Sha256Hash):
 
     def __repr__(self):
         return "BtcObjectHash<binary: {}>".format(convert.bytes_to_hex(self.binary))
+
+
+NULL_BTC_BLOCK_HASH = BtcObjectHash(binary=bytearray(BTC_SHA_HASH_LEN))

@@ -88,7 +88,7 @@ class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
             self._version = struct.unpack_from("<I", self.buf, off)[0]
         return self._version
 
-    def prev_block(self) -> BtcObjectHash:
+    def prev_block_hash(self) -> BtcObjectHash:
         if self._prev_block is None:
             off = BTC_HDR_COMMON_OFF + UL_INT_SIZE_IN_BYTES
             self._prev_block = BtcObjectHash(self.buf, off, BTC_SHA_HASH_LEN)

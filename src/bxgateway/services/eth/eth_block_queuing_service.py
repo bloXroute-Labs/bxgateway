@@ -62,7 +62,7 @@ class EthBlockQueuingService(BlockQueuingService[NewBlockEthProtocolMessage]):
         return None
 
     def get_previous_block_hash_from_message(self, block_message: NewBlockEthProtocolMessage) -> Sha256Hash:
-        return block_message.get_previous_block()
+        return block_message.prev_block_hash()
 
     def on_block_sent(self, block_hash: Sha256Hash, _block_message: NewBlockEthProtocolMessage):
         if block_hash not in self.block_checking_alarms:

@@ -1,8 +1,11 @@
 import time
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
+from typing import List
+
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
+from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import logger
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
@@ -10,6 +13,8 @@ from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEven
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxgateway import gateway_constants
+from bxcommon.utils.object_hash import Sha256Hash
 
 
 class AbstractBlockchainConnectionProtocol:
@@ -53,14 +58,21 @@ class AbstractBlockchainConnectionProtocol:
         """
         Handle a block message. Sends to node for encryption, then broadcasts.
         """
+        return self._process_block_message(msg)
+
+    def _process_block_message(self, msg: AbstractBlockMessage) -> None:
         block_hash = msg.block_hash()
+        node = self.connection.node
+
+        node.block_cleanup_service.on_new_block_received(block_hash, msg.prev_block_hash())
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
                                                   network_num=self.connection.network_num,
-                                                  more_info="Protocol: {}, Network: {}. {}".format(
-                                                      self.connection.node.opts.blockchain_protocol,
-                                                      self.connection.node.opts.blockchain_network,
+                                                  more_info="Protocol: {}, Network: {}".format(
+                                                      node.opts.blockchain_protocol,
+                                                      node.opts.blockchain_network,
                                                       msg.extra_stats_data()
-                                                  ))
+                                                  )
+                                                  )
 
         if block_hash in self.connection.node.blocks_seen.contents:
             block_stats.add_block_event_by_block_hash(block_hash,
@@ -72,9 +84,10 @@ class AbstractBlockchainConnectionProtocol:
         if not self.is_valid_block_timestamp(msg):
             return
 
-        self.connection.node.track_block_from_node_handling_started(block_hash)
-        self.connection.node.on_block_seen_by_blockchain_node(block_hash)
-        self.connection.node.block_processing_service.queue_block_for_processing(msg, self.connection)
+        node.track_block_from_node_handling_started(block_hash)
+        node.on_block_seen_by_blockchain_node(block_hash)
+        node.block_processing_service.queue_block_for_processing(msg, self.connection)
+        return
 
     def msg_proxy_request(self, msg):
         """
@@ -96,3 +109,25 @@ class AbstractBlockchainConnectionProtocol:
             return False
 
         return True
+
+    def _request_blocks_confirmation(self):
+        node = self.connection.node
+        last_confirmed_block = node.block_cleanup_service.last_confirmed_block
+        tracked_blocks = node.get_tx_service().get_oldest_tracked_block(node.network.block_confirmations_count)
+
+        if last_confirmed_block is not None and len(tracked_blocks) <= node.network.block_confirmations_count + \
+                gateway_constants.BLOCK_CLEANUP_REQUEST_EXPECTED_ADDITIONAL_TRACKED_BLOCKS:
+            hashes = [last_confirmed_block]
+            hashes.extend(tracked_blocks)
+        else:
+            hashes = tracked_blocks
+        if hashes:
+            msg = self._build_get_blocks_message_for_block_confirmation(hashes)
+            self.connection.enqueue_msg(msg)
+            logger.info("BlockConfirmationRequest LastConfirmedBlock: {} Hashes: {}",
+                        last_confirmed_block, hashes)
+        return gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S
+
+    @abstractmethod
+    def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
+        pass

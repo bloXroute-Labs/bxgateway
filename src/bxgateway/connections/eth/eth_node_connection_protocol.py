@@ -1,3 +1,4 @@
+import typing
 from collections import deque
 from typing import List, Deque
 
@@ -16,9 +17,11 @@ from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import B
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
+from bxgateway import gateway_constants
 from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
+from bxcommon.messages.abstract_message import AbstractMessage
 from bxgateway.utils.eth import crypto_utils
 
 
@@ -39,6 +42,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             EthProtocolMessageType.BLOCK_BODIES: self.msg_block_bodies
         })
 
+        self.waiting_checkpoint_headers_request = True
+        self.node.alarm_queue.register_alarm(
+            gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S,
+            self._request_blocks_confirmation
+        )
+
         # uses block hash as a key, and NewBlockParts structure as value
         self._pending_new_blocks_parts: ExpiringDict[Sha256Hash, NewBlockParts] = \
             ExpiringDict(self.node.alarm_queue, eth_constants.NEW_BLOCK_PARTS_MAX_WAIT_S)
@@ -50,7 +59,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self._new_block_headers_requests: Deque[Sha256Hash] = deque(maxlen=eth_constants.REQUESTED_NEW_BLOCK_HEADERS_MAX_COUNT)
 
         # queue of lists of hashes that are awaiting block bodies response
-        self._new_block_bodies_requests: Deque[List[Sha256Hash]] = deque(maxlen=eth_constants.REQUESTED_NEW_BLOCK_BODIES_MAX_COUNT)
+        self._block_bodies_requests: Deque[List[Sha256Hash]] = deque(maxlen=eth_constants.REQUESTED_NEW_BLOCK_BODIES_MAX_COUNT)
 
     def msg_status(self, _msg):
         logger.debug("Status message received.")
@@ -67,7 +76,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self.node.set_known_total_difficulty(msg.block_hash(), msg.chain_difficulty())
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(msg)
-        super(EthNodeConnectionProtocol, self).msg_block(internal_new_block_msg)
+        self._process_block_message(internal_new_block_msg)
 
     def msg_new_block_hashes(self, msg: NewBlockHashesEthProtocolMessage):
         block_hash_number_pairs = []
@@ -81,15 +90,15 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                                                           msg.extra_stats_data()
                                                       ))
 
-            if block_hash in self.connection.node.blocks_seen.contents:
+            if block_hash in self.node.blocks_seen.contents:
                 block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                                           network_num=self.connection.network_num)
                 continue
 
-            self.connection.node.track_block_from_node_handling_started(block_hash)
+            self.node.track_block_from_node_handling_started(block_hash)
             block_hash_number_pairs.append((block_hash, block_number))
-            self.connection.node.on_block_seen_by_blockchain_node(block_hash)
+            self.node.on_block_seen_by_blockchain_node(block_hash)
 
         if not block_hash_number_pairs:
             return
@@ -101,9 +110,15 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             )
             self._new_block_headers_requests.append(block_hash)
 
-        self.node.send_msg_to_node(
-            GetBlockBodiesEthProtocolMessage(None, [block_hash.binary for block_hash, _ in block_hash_number_pairs]))
-        self._new_block_bodies_requests.append([block_hash for block_hash, _ in block_hash_number_pairs])
+        self.request_block_body([block_hash for block_hash, _ in block_hash_number_pairs])
+
+    def request_block_body(self, block_hashes: List[Sha256Hash]):
+        block_request_message = GetBlockBodiesEthProtocolMessage(
+            None,
+            block_hashes=[bytes(blk.binary) for blk in block_hashes]
+        )
+        self.node.send_msg_to_node(block_request_message)
+        self._block_bodies_requests.append(block_hashes)
 
     def msg_get_block_headers(self, msg: GetBlockHeadersEthProtocolMessage):
         if self._waiting_checkpoint_headers_request:
@@ -133,26 +148,56 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     self._check_pending_new_block(block_hash)
                     self._process_ready_new_blocks()
                 return
+        else:
+            block_headers = msg.get_block_headers()
+            if len(block_headers) > 0:
+                blocks = [blk.hash_object() for blk in block_headers]
+                blocks.insert(0, Sha256Hash(block_headers[0].prev_hash))
+                self.node.block_cleanup_service.mark_blocks_and_request_cleanup(blocks)
+            logger.debug("block headers msg {}", msg)
 
         block_hashes = [block_header.hash() for block_header in msg.get_block_headers()]
-        self.connection.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
+        self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
+
+    def _request_blocks_confirmation(self):
+        super(EthNodeConnectionProtocol, self)._request_blocks_confirmation()
+        return eth_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S
+
+    def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
+        return GetBlockHeadersEthProtocolMessage(
+                None,
+                block_hash=bytes(hashes[0].binary),
+                amount=100,
+                skip=0,
+                reverse=0
+            )
 
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage):
-        if self._new_block_bodies_requests:
-            requested_hashes = self._new_block_bodies_requests.pop()
+        if self._block_bodies_requests:
+            requested_hashes = self._block_bodies_requests.pop()
 
             bodies_bytes = msg.get_block_bodies_bytes()
 
             if len(requested_hashes) != len(bodies_bytes):
                 logger.warn("Expected {} bodies in response but received {}. Proxy message to remote node.",
                             len(requested_hashes), len(bodies_bytes))
-                self._new_block_bodies_requests.clear()
+                self._block_bodies_requests.clear()
                 return
 
             for block_hash, block_body_bytes in zip(requested_hashes, bodies_bytes):
                 if block_hash in self._pending_new_blocks_parts.contents:
                     self._pending_new_blocks_parts.contents[block_hash].block_body_bytes = block_body_bytes
                     self._check_pending_new_block(block_hash)
+                else:
+                    block_cleanup_service = self.node.block_processing_service
+                    if block_cleanup_service.is_marked_for_cleanup(block_hash):
+                        transactions_list = \
+                            BlockBodiesEthProtocolMessage.from_body_bytes(block_body_bytes).get_blocks()[0].transactions
+                        block_cleanup_service.clean_block_transactions_by_block_components(
+                            transaction_service=self.node.get_tx_service(),
+                            block_hash=block_hash,
+                            transactions_list=(tx.hash() for tx in transactions_list)
+                        )
 
             self._process_ready_new_blocks()
 

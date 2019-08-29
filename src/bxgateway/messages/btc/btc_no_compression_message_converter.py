@@ -31,7 +31,7 @@ class BtcNoCompressionMessageConverter(AbstractMessageConverter):
             (time.time() - start_time) * 1000,
             block_msg.txn_count(),
             block_msg.block_hash(),
-            convert.bytes_to_hex(block_msg.prev_block().binary),
+            convert.bytes_to_hex(block_msg.prev_block_hash().binary),
             len(block_msg.rawbytes()),
             len(block_msg.rawbytes()),
             0
@@ -54,7 +54,7 @@ class BtcNoCompressionMessageConverter(AbstractMessageConverter):
             (time.time() - start_time) * 1000,
             block_msg.txn_count(),
             block_msg.block_hash(),
-            convert.bytes_to_hex(block_msg.prev_block().binary),
+            convert.bytes_to_hex(block_msg.prev_block_hash().binary),
             len(block_msg.rawbytes()),
             len(block_msg.rawbytes()),
             0

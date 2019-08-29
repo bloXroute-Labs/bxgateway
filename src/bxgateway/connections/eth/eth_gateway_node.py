@@ -16,6 +16,8 @@ from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
+from bxgateway.services.eth.eth_block_cleanup_service import EthBlockCleanupService
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
 from bxgateway.services.block_queuing_service import BlockQueuingService
@@ -24,6 +26,7 @@ from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
+
 
 
 class EthGatewayNode(AbstractGatewayNode):
@@ -79,6 +82,9 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def build_block_queuing_service(self) -> BlockQueuingService:
         return EthBlockQueuingService(self)
+
+    def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
+        return EthBlockCleanupService(self, self.network_num)
 
     def on_updated_remote_blockchain_peer(self, peer):
         if "node_public_key" not in peer.attributes:

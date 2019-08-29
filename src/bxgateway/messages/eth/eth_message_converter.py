@@ -325,7 +325,7 @@ class EthMessageConverter(AbstractMessageConverter):
 
             block_info = BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
                                    (time.time() - decompress_start_timestamp) * 1000, tx_count, bx_block_hash,
-                                   convert.bytes_to_hex(block_msg.get_previous_block().binary),
+                                   convert.bytes_to_hex(block_msg.prev_block_hash().binary),
                                    len(block_msg.rawbytes()), compressed_size,
                                    100 - float(compressed_size) / content_size * 100)
 

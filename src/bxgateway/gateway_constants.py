@@ -5,7 +5,7 @@ from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
 GATEWAY_HELLO_MESSAGES = [GatewayMessageType.HELLO, BloxrouteMessageType.ACK]
 
-GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S = 60 * 60
+GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S = 60 * 60 * 24
 
 # Delay for blockchain sync message request before broadcasting to everyone
 # This constants is currently unused
@@ -58,3 +58,6 @@ CONFIG_OVERRIDE_NAME = "config.override.json"
 
 BLOCK_HANDLING_TIME_EXPIRATION_TIME_S = 300
 
+BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S = 60
+# ignore last confirmed block and request block confirmation since last tracked block instead
+BLOCK_CLEANUP_REQUEST_EXPECTED_ADDITIONAL_TRACKED_BLOCKS = 1

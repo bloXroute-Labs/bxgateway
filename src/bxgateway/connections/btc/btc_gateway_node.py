@@ -15,11 +15,14 @@ from bxgateway.services.btc.btc_block_processing_service import BtcBlockProcessi
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 from bxgateway.testing.btc_lossy_relay_connection import BtcLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
+from bxgateway.services.btc.btc_normal_block_cleanup_service import BtcNormalBlockCleanupService
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 
 
 class BtcGatewayNode(AbstractGatewayNode):
     def __init__(self, opts):
         super(BtcGatewayNode, self).__init__(opts)
+
         self.block_processing_service = BtcBlockProcessingService(self)
 
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
@@ -42,6 +45,14 @@ class BtcGatewayNode(AbstractGatewayNode):
 
     def build_block_queuing_service(self) -> BlockQueuingService:
         return BtcBlockQueuingService(self)
+
+    def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
+        if self.opts.use_extensions:
+            from bxgateway.services.btc.btc_extension_block_cleanup_service import BtcExtensionBlockCleanupService
+            block_cleanup_service = BtcExtensionBlockCleanupService(self, self.network_num)
+        else:
+            block_cleanup_service = BtcNormalBlockCleanupService(self, self.network_num)
+        return block_cleanup_service
 
     def send_msg_to_node(self, msg):
         super(BtcGatewayNode, self).send_msg_to_node(msg)

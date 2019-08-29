@@ -23,7 +23,12 @@ def _block_with_timestamp(timestamp):
 class EthConnectionProtocolTest(AbstractTestCase):
 
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_eth_args=True))
+        opts = helpers.get_gateway_opts(8000, include_default_eth_args=True,
+                                 track_detailed_sent_messages=True)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+
+        self.node = MockGatewayNode(opts)
         self.node.block_processing_service = MagicMock()
 
         self.connection = MagicMock()

@@ -2,7 +2,7 @@ import time
 from abc import ABCMeta, abstractmethod
 from argparse import Namespace
 from collections import deque
-from typing import Tuple, Optional, ClassVar, Type, Set, Deque, List
+from typing import Tuple, Optional, ClassVar, Type, Set, Deque, List, Iterable
 
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -13,6 +13,7 @@ from bxcommon.connections.node_type import NodeType
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
+from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.services import sdn_http_service
 from bxcommon.services.transaction_service import TransactionService
@@ -29,6 +30,7 @@ from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.utils import node_cache
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxgateway.utils import configuration_utils
@@ -62,6 +64,7 @@ class AbstractGatewayNode(AbstractNode):
     block_recovery_service: BlockRecoveryService
     block_queuing_service: BlockQueuingService
     block_processing_service: BlockProcessingService
+    block_cleanup_service: AbstractBlockCleanupService
     _tx_service: TransactionService
 
     def __init__(self, opts: Namespace):
@@ -85,6 +88,7 @@ class AbstractGatewayNode(AbstractNode):
         self.neutrality_service = NeutralityService(self)
         self.block_queuing_service = self.build_block_queuing_service()
         self.block_processing_service = BlockProcessingService(self)
+        self.block_cleanup_service = self.build_block_cleanup_service()
 
         self.send_request_for_relay_peers_num_of_calls = 0
         if not self.opts.peer_relays:
@@ -97,11 +101,14 @@ class AbstractGatewayNode(AbstractNode):
                 self.enqueue_connection(opts.remote_blockchain_ip, opts.remote_blockchain_port)
             else:
                 # offset SDN calls so all the peers aren't queued up at the same time
-                self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS + 1,
-                                                self.send_request_for_remote_blockchain_peer)
+                self.alarm_queue.register_alarm(
+                    constants.SDN_CONTACT_RETRY_SECONDS + 1,
+                    self.send_request_for_remote_blockchain_peer
+                )
 
         # offset SDN calls so all the peers aren't queued up at the same time
         self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS + 2, self._send_request_for_gateway_peers)
+        self.network = self._get_blockchain_network()
         if opts.use_extensions:
             from bxcommon.services.extension_transaction_service import ExtensionTransactionService
             self._tx_service = ExtensionTransactionService(self, self.network_num)
@@ -134,6 +141,10 @@ class AbstractGatewayNode(AbstractNode):
 
     @abstractmethod
     def build_block_queuing_service(self) -> BlockQueuingService:
+        pass
+
+    @abstractmethod
+    def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         pass
 
     def get_tx_service(self, network_num=None):
@@ -494,6 +505,20 @@ class AbstractGatewayNode(AbstractNode):
         self.blocks_seen.add(block_hash)
         self.block_recovery_service.cancel_recovery_for_block(block_hash)
         self.block_queuing_service.mark_block_seen_by_blockchain_node(block_hash)
+
+    def _get_blockchain_network(self) -> BlockchainNetworkModel:
+        for network in self.opts.blockchain_networks:
+            if network.network_num == self.network_num:
+                return network
+        return BlockchainNetworkModel()
+
+    def post_block_cleanup_tasks(
+            self,
+            block_hash: Sha256Hash,
+            short_ids: Iterable[int],
+            unknown_tx_hashes: Iterable[Sha256Hash]):
+        """post cleanup tasks for blocks, override method to implement"""
+        pass
 
     def init_node_config_update(self):
         self.alarm_queue.register_alarm(constants.ALARM_QUEUE_INIT_EVENT, self.update_node_config)

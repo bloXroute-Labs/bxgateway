@@ -1,0 +1,82 @@
+import typing
+import time
+from typing import TYPE_CHECKING
+from datetime import datetime
+
+from bxcommon.services.extension_transaction_service import ExtensionTransactionService
+from bxcommon.services.transaction_service import TransactionService
+from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
+from bxcommon.utils.proxy import task_pool_proxy
+from bxcommon.utils import logger, convert
+from bxcommon.utils.object_hash import Sha256Hash
+
+from bxgateway import btc_constants
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
+
+import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
+
+if TYPE_CHECKING:
+    from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
+
+
+class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
+
+    MINIMAL_SUB_TASK_TX_COUNT = btc_constants.BTC_MINIMAL_SUB_TASK_TX_COUNT
+
+    def __init__(self, node: "BtcGatewayNode", network_num: int):
+        super(BtcExtensionBlockCleanupService, self).__init__(node, network_num)
+        self.cleanup_tasks = TaskQueueProxy(self._create_cleanup_task)
+
+    def clean_block_transactions(
+            self, block_msg: BlockBtcMessage, transaction_service: TransactionService
+    ) -> None:
+        start_datetime = datetime.utcnow()
+        start_time = time.time()
+        cleanup_task = self.cleanup_tasks.borrow_task()
+        tx_service = typing.cast(ExtensionTransactionService, transaction_service)
+        cleanup_task.init(tpe.InputBytes(block_msg.buf), tx_service.proxy)
+        init_time = time.time()
+        task_pool_proxy.run_task(cleanup_task)
+        task_run_time = time.time()
+        unknown_tx_hashes_count = len(cleanup_task.unknown_tx_hashes())
+        tx_property_fetch_time = time.time()
+        short_ids = cleanup_task.short_ids()
+        short_ids_fetch_time = time.time()
+        short_ids_count = len(short_ids)
+        tx_service.update_removed_transactions(cleanup_task.total_content_removed(), short_ids)
+        remove_from_tx_service_time = time.time()
+        # TODO : clean the short ids/transactions from the alarm queue after refactoring the transaction service
+        block_hash = block_msg.block_hash()
+        tx_service.on_block_cleaned_up(block_hash)
+        end_datetime = datetime.utcnow()
+        end_time = time.time()
+
+        logger.statistics(
+            {
+                "type": "BlockTransactionsCleanup",
+                "block_hash": repr(block_hash),
+                "unknown_tx_hashes_count": unknown_tx_hashes_count,
+                "short_ids_count": short_ids_count,
+                "block_transactions_count": cleanup_task.tx_count(),
+                "start_datetime": start_datetime,
+                "end_datetime": end_datetime,
+                "task_init_time": init_time - start_time,
+                "task_run_time": task_run_time - init_time,
+                "tx_property_fetch_time": tx_property_fetch_time - task_run_time,
+                "short_ids_fetch_time": short_ids_fetch_time - tx_property_fetch_time,
+                "remove_from_tx_service_time": remove_from_tx_service_time - short_ids_fetch_time,
+                "duration": end_time - start_time
+            }
+        )
+        self.cleanup_tasks.return_task(cleanup_task)
+        self._block_hash_marked_for_cleanup.remove(block_hash)
+        self.node.post_block_cleanup_tasks(
+            block_hash=block_hash,
+            short_ids=short_ids,
+            unknown_tx_hashes=(
+                Sha256Hash(convert.hex_to_bytes(tx_hash.hex_string())) for tx_hash in cleanup_task.unknown_tx_hashes())
+        )
+
+    def _create_cleanup_task(self) -> tpe.BtcBlockCleanupTask:  # pyre-ignore
+        return tpe.BtcBlockCleanupTask(self.MINIMAL_SUB_TASK_TX_COUNT)

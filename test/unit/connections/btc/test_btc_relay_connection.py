@@ -317,7 +317,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         ((sent_block_msg,), _) = calls[0]
         self.assertEqual(btc_block.version(), sent_block_msg.version())
         self.assertEqual(btc_block.magic(), sent_block_msg.magic())
-        self.assertEqual(btc_block.prev_block(), sent_block_msg.prev_block())
+        self.assertEqual(btc_block.prev_block_hash(), sent_block_msg.prev_block_hash())
         self.assertEqual(btc_block.merkle_root(), sent_block_msg.merkle_root())
         self.assertEqual(btc_block.timestamp(), sent_block_msg.timestamp())
         self.assertEqual(btc_block.bits(), sent_block_msg.bits())

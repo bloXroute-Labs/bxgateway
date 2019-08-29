@@ -62,7 +62,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             self._enqueue_auth_message()
         else:
             logger.debug("Public key of remote node is not know. Waiting for handshake request.")
-            connection.node.alarm_queue.register_alarm(eth_constants.HANDSHAKE_TIMEOUT_SEC, self._handshake_timeout)
+            self.node.alarm_queue.register_alarm(eth_constants.HANDSHAKE_TIMEOUT_SEC, self._handshake_timeout)
 
     def msg_auth(self, msg):
         logger.debug("Begin process auth message")

@@ -67,7 +67,7 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
         else:
             return "New Block msg"
 
-    def get_previous_block(self) -> Sha256Hash:
+    def prev_block_hash(self) -> Sha256Hash:
         _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
         block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 

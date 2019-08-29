@@ -392,6 +392,8 @@ class BlockProcessingService:
                                                       matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
                                                       more_info=stats_format.duration(block_info.duration_ms))
+
+            self._on_block_decompressed(block_message)
             if recovered or block_hash in self._node.block_queuing_service:
                 self._node.block_queuing_service.update_recovered_block(block_hash, block_message)
             else:
@@ -479,3 +481,6 @@ class BlockProcessingService:
         self.start_transaction_recovery(block_awaiting_recovery.unknown_short_ids,
                                         block_awaiting_recovery.unknown_transaction_hashes,
                                         block_hash)
+
+    def _on_block_decompressed(self, block_msg):
+        pass

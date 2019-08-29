@@ -26,7 +26,7 @@ FULL_BLOCK_BYTES_HEX = "dab5bffa626c6f636b00000000000000e40c00008a8332a900000020
 
 
 def get_sample_block():
-    root_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     with open(os.path.join(root_dir, "sample_block.txt")) as sample_file:
         btc_block = sample_file.read().strip("\n")
     buf = bytearray(convert.hex_to_bytes(btc_block))
@@ -160,7 +160,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         self.assertEqual(parsed_btc_block.rawbytes().tobytes(), btc_block.rawbytes().tobytes())
         self.assertEqual(self.version, parsed_btc_block.version())
         self.assertEqual(self.magic, parsed_btc_block.magic())
-        self.assertEqual(prev_block_hash, parsed_btc_block.prev_block().get_little_endian())
+        self.assertEqual(prev_block_hash, parsed_btc_block.prev_block_hash().get_little_endian())
         self.assertEqual(merkle_root_hash, parsed_btc_block.merkle_root().get_little_endian())
         self.assertEqual(timestamp, parsed_btc_block.timestamp())
         self.assertEqual(bits, parsed_btc_block.bits())

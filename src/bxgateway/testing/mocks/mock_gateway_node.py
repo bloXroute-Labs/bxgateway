@@ -10,7 +10,21 @@ from bxcommon.services.transaction_service import TransactionService
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
+from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
+
+
+class _MockCleanupService(AbstractBtcBlockCleanupService):
+    def __init__(self, node):
+        super(_MockCleanupService, self).__init__(node, 1)
+
+    def clean_block_transactions(self, block_msg: BlockBtcMessage, transaction_service: TransactionService) -> None:
+        pass
+
+    def is_marked_for_cleanup(self, block_hash: BtcObjectHash) -> bool:
+        return False
 
 
 class MockGatewayNode(AbstractGatewayNode):
@@ -23,6 +37,8 @@ class MockGatewayNode(AbstractGatewayNode):
 
         self.broadcast_messages = []
         self.send_to_node_messages = []
+        self._tx_service = TransactionService(self, 0)
+        self.block_cleanup_service = self._get_cleanup_service()
         self.block_queuing_service = BtcBlockQueuingService(self)
         if opts.use_extensions:
             from bxcommon.services.extension_transaction_service import ExtensionTransactionService
@@ -55,3 +71,6 @@ class MockGatewayNode(AbstractGatewayNode):
     def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                            from_me: bool) -> AbstractGatewayBlockchainConnection:
         pass
+
+    def _get_cleanup_service(self) -> AbstractBtcBlockCleanupService:
+        return _MockCleanupService(self)

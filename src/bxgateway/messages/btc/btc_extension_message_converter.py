@@ -12,6 +12,7 @@ from bxcommon.utils.proxy.vector_proxy import VectorProxy
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxgateway.messages.btc import btc_normal_message_converter
 
+from bxgateway import btc_constants
 from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter, get_block_info, \
     CompactBlockCompressionResult
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
@@ -37,7 +38,8 @@ def create_recovered_transactions() -> VectorProxy[tpe.InputBytes, memoryview]: 
 
 class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
 
-    DEFAULT_BLOCK_SIZE = 621000
+    DEFAULT_BLOCK_SIZE = btc_constants.BTC_DEFAULT_BLOCK_SIZE
+    MINIMAL_SUB_TASK_TX_COUNT = btc_constants.BTC_MINIMAL_SUB_TASK_TX_COUNT
 
     def __init__(self, btc_magic):
         super(BtcExtensionMessageConverter, self).__init__(btc_magic)
@@ -236,10 +238,10 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         return CompactBlockCompressionResult(True, block_info, bx_block, None, [], [])
 
     def _create_compression_task(self) -> tpe.BtcBlockCompressionTask:  # pyre-ignore
-        return tpe.BtcBlockCompressionTask(self._default_block_size)
+        return tpe.BtcBlockCompressionTask(self._default_block_size, self.MINIMAL_SUB_TASK_TX_COUNT)
 
     def _create_decompression_task(self) -> tpe.BtcBlockDecompressionTask:  # pyre-ignore
-        return tpe.BtcBlockDecompressionTask(self._default_block_size)
+        return tpe.BtcBlockDecompressionTask(self._default_block_size, self.MINIMAL_SUB_TASK_TX_COUNT)
 
     def _create_compact_mapping_task(self) -> tpe.BtcCompactBlockMappingTask:  # pyre-ignore
         return tpe.BtcCompactBlockMappingTask(self._default_block_size)
