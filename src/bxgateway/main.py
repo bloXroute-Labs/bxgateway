@@ -160,6 +160,11 @@ def get_opts() -> argparse.Namespace:
         help="Cookie file path",
         type=str,
     )
+    arg_parser.add_argument("--config-update-interval",
+                            help="update the node configuration on cron, 0 to disable",
+                            type=int,
+                            default=gateway_constants.CONFIG_UPDATE_INTERVAL_S)
+
 
     opts = cli.parse_arguments(arg_parser)
 

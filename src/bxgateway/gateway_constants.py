@@ -1,3 +1,5 @@
+import os
+
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
@@ -50,4 +52,9 @@ COOKIE_FILE_PATH_TEMPLATE = ".cookie.blxrbdn-gw-{}"
 
 SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS = 10
 
+CONFIG_UPDATE_INTERVAL_S = 360
+CONFIG_FILE_NAME = "config.default.json"
+CONFIG_OVERRIDE_NAME = "config.override.json"
+
 BLOCK_HANDLING_TIME_EXPIRATION_TIME_S = 300
+

@@ -31,6 +31,7 @@ from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.utils import node_cache
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxgateway.utils import configuration_utils
 
 
 class AbstractGatewayNode(AbstractNode):
@@ -108,6 +109,8 @@ class AbstractGatewayNode(AbstractNode):
             self._tx_service = TransactionService(self, self.network_num)
 
         self.init_transaction_stat_logging()
+        self.init_node_config_update()
+
 
         self._block_from_node_handling_times: ExpiringDict[Sha256Hash, int] = ExpiringDict(self.alarm_queue,
                                                                                            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S)
@@ -491,3 +494,10 @@ class AbstractGatewayNode(AbstractNode):
         self.blocks_seen.add(block_hash)
         self.block_recovery_service.cancel_recovery_for_block(block_hash)
         self.block_queuing_service.mark_block_seen_by_blockchain_node(block_hash)
+
+    def init_node_config_update(self):
+        self.alarm_queue.register_alarm(constants.ALARM_QUEUE_INIT_EVENT, self.update_node_config)
+
+    def update_node_config(self):
+        configuration_utils.update_node_config(self)
+        return self.opts.config_update_interval
