@@ -377,6 +377,7 @@ class BlockProcessingService:
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
                                                       more_info=stats_format.duration(block_info.duration_ms))
             self._node.track_block_from_bdn_handling_ended(block_hash)
+            transaction_service.track_seen_short_ids(block_hash, all_sids)
             return
 
         if block_message is not None:
