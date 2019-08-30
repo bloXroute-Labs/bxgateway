@@ -469,7 +469,7 @@ class BlockProcessingService:
         recovery_timed_out = time.time() - block_awaiting_recovery.recovery_start_time >= \
                              self._node.opts.blockchain_block_recovery_timeout_s
         if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS or recovery_timed_out:
-            logger.error("Giving up on attempting to recover block: {}", block_hash)
+            logger.warn("Giving up on attempting to recover block: {}", block_hash)
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
         else:
             delay = gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[recovery_attempts]
