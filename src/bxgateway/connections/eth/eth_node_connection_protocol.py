@@ -189,7 +189,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     self._pending_new_blocks_parts.contents[block_hash].block_body_bytes = block_body_bytes
                     self._check_pending_new_block(block_hash)
                 else:
-                    block_cleanup_service = self.node.block_processing_service
+                    block_cleanup_service = self.node.block_cleanup_service
                     if block_cleanup_service.is_marked_for_cleanup(block_hash):
                         transactions_list = \
                             BlockBodiesEthProtocolMessage.from_body_bytes(block_body_bytes).get_blocks()[0].transactions
