@@ -11,6 +11,7 @@ from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 
 
 class BtcRemoteConnectionProtocol(BtcBaseConnectionProtocol):
+
     def __init__(self, connection):
         super(BtcRemoteConnectionProtocol, self).__init__(connection)
 
@@ -20,6 +21,7 @@ class BtcRemoteConnectionProtocol(BtcBaseConnectionProtocol):
             BtcMessageType.HEADERS: self.msg_proxy_response,
             BtcMessageType.INVENTORY: self.msg_inv,
         })
+        self.ping_interval_s: int = gateway_constants.BLOCKCHAIN_PING_INTERVAL_S
 
     def msg_version(self, _msg):
         """
@@ -30,7 +32,7 @@ class BtcRemoteConnectionProtocol(BtcBaseConnectionProtocol):
         self.connection.state |= ConnectionState.ESTABLISHED
         reply = VerAckBtcMessage(self.magic)
         self.connection.enqueue_msg(reply)
-        self.connection.node.alarm_queue.register_alarm(gateway_constants.BLOCKCHAIN_PING_INTERVAL_S,
+        self.connection.node.alarm_queue.register_alarm(self.ping_interval_s,
                                                         self.connection.send_ping)
 
         if self.connection.is_active():

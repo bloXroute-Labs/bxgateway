@@ -28,6 +28,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 
 
 class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
+
     def __init__(self, connection):
         super(BtcNodeConnectionProtocol, self).__init__(connection)
 
@@ -49,10 +50,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             self.node.alarm_queue,
             btc_constants.BTC_COMPACT_BLOCK_RECOVERY_TIMEOUT_S
         )
-        self.node.alarm_queue.register_alarm(
-            gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S,
-            self._request_blocks_confirmation
-        )
+        self.ping_interval_s: int = gateway_constants.BLOCKCHAIN_PING_INTERVAL_S
 
     def msg_version(self, msg: VersionBtcMessage) -> None:
         """
@@ -80,7 +78,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         )
 
         self.node.alarm_queue.register_alarm(
-            gateway_constants.BLOCKCHAIN_PING_INTERVAL_S,
+            self.ping_interval_s,
             self.connection.send_ping
         )
 

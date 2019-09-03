@@ -43,10 +43,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         })
 
         self.waiting_checkpoint_headers_request = True
-        self.node.alarm_queue.register_alarm(
-            gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S,
-            self._request_blocks_confirmation
-        )
 
         # uses block hash as a key, and NewBlockParts structure as value
         self._pending_new_blocks_parts: ExpiringDict[Sha256Hash, NewBlockParts] = \
@@ -158,10 +154,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
         block_hashes = [block_header.hash() for block_header in msg.get_block_headers()]
         self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
-
-    def _request_blocks_confirmation(self):
-        super(EthNodeConnectionProtocol, self)._request_blocks_confirmation()
-        return eth_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S
 
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
         return GetBlockHeadersEthProtocolMessage(

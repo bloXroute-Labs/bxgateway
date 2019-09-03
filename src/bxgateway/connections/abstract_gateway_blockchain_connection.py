@@ -77,7 +77,3 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
                                                           ))
         else:
             super(AbstractGatewayBlockchainConnection, self).advance_sent_bytes(bytes_sent)
-
-    def send_ping(self):
-        self.enqueue_msg(self.ping_message)
-        return gateway_constants.BLOCKCHAIN_PING_INTERVAL_S

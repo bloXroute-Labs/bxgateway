@@ -15,15 +15,23 @@ from bxgateway.connections.abstract_gateway_blockchain_connection import Abstrac
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxgateway import gateway_constants
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.connections.connection_state import ConnectionState
 
 
 class AbstractBlockchainConnectionProtocol:
     __metaclass__ = ABCMeta
-
     connection: AbstractGatewayBlockchainConnection
 
-    def __init__(self, connection: AbstractGatewayBlockchainConnection):
+    def __init__(
+            self,
+            connection: AbstractGatewayBlockchainConnection,
+            block_cleanup_poll_interval_s: int = gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S):
+        self.block_cleanup_poll_interval_s = block_cleanup_poll_interval_s
         self.connection = connection
+        self.connection.node.alarm_queue.register_alarm(
+            self.block_cleanup_poll_interval_s,
+            self._request_blocks_confirmation
+        )
 
     def msg_tx(self, msg):
         """
@@ -111,6 +119,8 @@ class AbstractBlockchainConnectionProtocol:
         return True
 
     def _request_blocks_confirmation(self):
+        if self.connection.state & ConnectionState.MARK_FOR_CLOSE:
+            return None
         node = self.connection.node
         last_confirmed_block = node.block_cleanup_service.last_confirmed_block
         tracked_blocks = node.get_tx_service().get_oldest_tracked_block(node.network.block_confirmations_count)
@@ -126,7 +136,7 @@ class AbstractBlockchainConnectionProtocol:
             self.connection.enqueue_msg(msg)
             logger.info("BlockConfirmationRequest LastConfirmedBlock: {} Hashes: {}",
                         last_confirmed_block, hashes)
-        return gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S
+        return self.block_cleanup_poll_interval_s
 
     @abstractmethod
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
