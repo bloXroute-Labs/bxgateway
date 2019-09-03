@@ -1,35 +1,35 @@
 import time
-import typing
-from collections import deque
 from typing import List
+from typing import TYPE_CHECKING
 
 from bxcommon.connections.connection_state import ConnectionState
+from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import logger, convert
 from bxcommon.utils.expiring_dict import ExpiringDict
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-from bxcommon.messages.abstract_message import AbstractMessage
-
 from bxgateway import gateway_constants, btc_constants
 from bxgateway.btc_constants import NODE_WITNESS_SERVICE_FLAG
 from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnectionProtocol
-from bxgateway.utils.btc.btc_object_hash import NULL_BTC_BLOCK_HASH
 from bxgateway.messages.btc.block_transactions_btc_message import BlockTransactionsBtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
+from bxgateway.messages.btc.data_btc_message import GetBlocksBtcMessage
 from bxgateway.messages.btc.get_block_transactions_btc_message import GetBlockTransactionsBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType, InvBtcMessage
 from bxgateway.messages.btc.send_compact_btc_message import SendCompactBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
-from bxgateway.messages.btc.data_btc_message import GetBlocksBtcMessage
+from bxgateway.utils.btc.btc_object_hash import NULL_BTC_BLOCK_HASH
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
-from bxcommon.utils.object_hash import Sha256Hash
+
+if TYPE_CHECKING:
+    from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 
 
 class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
-
-    def __init__(self, connection):
+    def __init__(self, connection: "BtcNodeConnection"):
         super(BtcNodeConnectionProtocol, self).__init__(connection)
 
         connection.message_handlers.update({
@@ -83,13 +83,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         )
 
         if self.connection.is_active():
-            for each_msg in self.node.node_msg_queue:
-                self.connection.enqueue_msg_bytes(each_msg)
-
-            if self.node.node_msg_queue:
-                self.node.node_msg_queue = deque()
-
-            self.node.node_conn = self.connection
+            self.connection.node.on_blockchain_connection_ready(self.connection)
 
     def msg_inv(self, msg: InvBtcMessage) -> None:
         """

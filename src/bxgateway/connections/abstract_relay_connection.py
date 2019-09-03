@@ -48,6 +48,10 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         self.message_converter = None
 
+    def msg_hello(self, msg):
+        super(AbstractRelayConnection, self).msg_hello(msg)
+        self.node.on_relay_connection_ready()
+
     def msg_broadcast(self, msg):
         """
         Handle broadcast message receive from bloXroute.

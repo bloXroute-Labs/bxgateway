@@ -1,5 +1,3 @@
-import os
-
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
@@ -57,6 +55,12 @@ CONFIG_FILE_NAME = "config.default.json"
 CONFIG_OVERRIDE_NAME = "config.override.json"
 
 BLOCK_HANDLING_TIME_EXPIRATION_TIME_S = 300
+
+INITIAL_LIVELINESS_CHECK_S = 30
+DEFAULT_STAY_ALIVE_DURATION_S = 30 * 60
+
+DEFAULT_BLOCKCHAIN_MESSAGE_TTL_S = 10
+DEFAULT_REMOTE_BLOCKCHAIN_MESSAGE_TTL_S = 10
 
 BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S = 60
 # ignore last confirmed block and request block confirmation since last tracked block instead

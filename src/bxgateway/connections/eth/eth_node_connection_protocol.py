@@ -61,10 +61,10 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         logger.debug("Status message received.")
 
         self.connection.state |= ConnectionState.ESTABLISHED
-        self.node.node_conn = self.connection
 
         self.connection.send_ping()
 
+        self.node.on_blockchain_connection_ready(self)
         self.node.alarm_queue.register_alarm(eth_constants.CHECKPOINT_BLOCK_HEADERS_REQUEST_WAIT_TIME_S,
                                              self._stop_waiting_checkpoint_headers_request)
 

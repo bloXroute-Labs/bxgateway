@@ -129,9 +129,11 @@ def get_opts() -> argparse.Namespace:
         type=convert.str_to_bool,
         default=constants.ACCEPT_COMPACT_BLOCK
     )
-    arg_parser.add_argument("--compact-block-min-tx-count",
-                            help="Minimal number of short transactions in compact block to attempt decompression.",
-                            type=int, default=btc_constants.BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT)
+    arg_parser.add_argument(
+        "--compact-block-min-tx-count",
+        help="Minimal number of short transactions in compact block to attempt decompression.",
+        type=int, default=btc_constants.BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT
+    )
     arg_parser.add_argument(
         "--dump-short-id-mapping-compression",
         help="If true, the gateway will dump all short ids and txhashes compressed into a block",
@@ -160,11 +162,30 @@ def get_opts() -> argparse.Namespace:
         help="Cookie file path",
         type=str,
     )
-    arg_parser.add_argument("--config-update-interval",
-                            help="update the node configuration on cron, 0 to disable",
-                            type=int,
-                            default=gateway_constants.CONFIG_UPDATE_INTERVAL_S)
-
+    arg_parser.add_argument(
+        "--blockchain-message-ttl",
+        help="Duration to queue up messages for if blockchain node connection is broken",
+        type=int,
+        default=gateway_constants.DEFAULT_BLOCKCHAIN_MESSAGE_TTL_S
+    )
+    arg_parser.add_argument(
+        "--remote-blockchain-message-ttl",
+        help="Duration to queue up messages for if remote blockchain node connection is broken",
+        type=int,
+        default=gateway_constants.DEFAULT_REMOTE_BLOCKCHAIN_MESSAGE_TTL_S
+    )
+    arg_parser.add_argument(
+        "--stay-alive-duration",
+        help="Duration Gateway should stay alive for without an active blockchain or relay connection",
+        type=int,
+        default=gateway_constants.DEFAULT_STAY_ALIVE_DURATION_S
+    )
+    arg_parser.add_argument(
+        "--config-update-interval",
+        help="update the node configuration on cron, 0 to disable",
+        type=int,
+        default=gateway_constants.CONFIG_UPDATE_INTERVAL_S
+    )
 
     opts = cli.parse_arguments(arg_parser)
 
