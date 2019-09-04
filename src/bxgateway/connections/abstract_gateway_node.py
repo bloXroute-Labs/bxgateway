@@ -332,7 +332,8 @@ class AbstractGatewayNode(AbstractNode):
         remote_blockchain_peer = sdn_http_service.fetch_remote_blockchain_peer(self.opts.blockchain_network_num)
         if remote_blockchain_peer is None:
             logger.trace("Did not receive expected remote blockchain peer. Retrying.".format(remote_blockchain_peer))
-            return constants.SDN_CONTACT_RETRY_SECONDS
+            self.alarm_queue.register_alarm(gateway_constants.REMOTE_BLOCKCHAIN_SDN_CONTACT_RETRY_SECONDS,
+                                            self.send_request_for_remote_blockchain_peer)
         else:
             logger.trace("Processing remote blockchain peer: {}".format(remote_blockchain_peer))
             return self.on_updated_remote_blockchain_peer(remote_blockchain_peer)
@@ -410,7 +411,8 @@ class AbstractGatewayNode(AbstractNode):
         return (super(AbstractGatewayNode, self).should_retry_connection(ip, port, connection_type)
                 or OutboundPeerModel(ip, port) in self.opts.peer_gateways
                 or connection_type == ConnectionType.BLOCKCHAIN_NODE
-                or (ip == self.opts.remote_blockchain_ip and port == self.opts.remote_blockchain_port))
+                or (connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE and
+                    self.num_retries_by_ip[(ip, port)] < gateway_constants.REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES))
 
     def destroy_conn(self, conn, retry_connection=False):
         if conn.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
