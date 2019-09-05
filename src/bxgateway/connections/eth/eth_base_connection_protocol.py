@@ -4,7 +4,7 @@ import typing
 
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.utils import logger, convert
-from bxgateway import eth_constants
+from bxgateway import eth_constants, gateway_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
@@ -146,7 +146,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
         hello_msg = HelloEthProtocolMessage(None,
                                             eth_constants.P2P_PROTOCOL_VERSION,
-                                            self.node.opts.source_version,
+                                            f"{gateway_constants.GATEWAY_PEER_NAME} {self.node.opts.source_version}",
                                             eth_constants.CAPABILITIES,
                                             self.connection.external_port,
                                             public_key)

@@ -50,6 +50,7 @@ COOKIE_FILE_PATH_TEMPLATE = ".cookie.blxrbdn-gw-{}"
 
 SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS = 10
 
+GATEWAY_PEER_NAME = "bloXroute Gateway"
 CONFIG_UPDATE_INTERVAL_S = 360
 CONFIG_FILE_NAME = "config.default.json"
 CONFIG_OVERRIDE_NAME = "config.override.json"
