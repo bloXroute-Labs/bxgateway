@@ -53,21 +53,24 @@ def update_node_config(node: AbstractNode):
     node_config = GatewayNodeConfigModel()
     node_config.merge(default_node_config)
     node_config.merge(override_node_config)
+
     logger.debug({"type": "update_node_config", "data": node_config})
     if node_config.log_config is not None:
-        try:
-            compare_and_update(LogLevel.from_string(node_config.log_config.log_level),
-                               logger._log_level,
-                               setter=logger.set_log_level,
-                               item="log_level")
-        except (AttributeError, KeyError):
-            logger.warn("Invalid LogLevel provided configuration Ignore")
-        compare_and_update(
-            node_config.log_config.log_flush_immediately,
-            logger._log.flush_immediately,
-            logger.set_immediate_flush,
-            item="set_immediate_flush"
-        )
+        log_config = node_config.log_config
+        if log_config.log_level is not None:
+            try:
+                log_level = LogLevel.from_string(log_config.log_level)
+                compare_and_update(log_level,
+                                   logger._log_level,
+                                   setter=logger.set_log_level,
+                                   item="log_level")
+            except (AttributeError, KeyError):
+                logger.warn("Invalid LogLevel provided configuration Ignore {}", log_config.log_level)
+        compare_and_update(log_config.log_flush_immediately,
+                           logger._log.flush_immediately,
+                           logger.set_immediate_flush,
+                           item="set_immediate_flush")
+
     if node_config.cron_config is not None:
         compare_and_update(node_config.cron_config.config_update_interval,
                            node.opts.config_update_interval,
