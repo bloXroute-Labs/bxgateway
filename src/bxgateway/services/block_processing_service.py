@@ -326,11 +326,12 @@ class BlockProcessingService:
         transaction_service = self._node.get_tx_service()
 
         # TODO: determine if a real block or test block. Discard if test block.
-        if self._node.node_conn:
+        if self._node.node_conn or self._node.remote_node_conn:
             try:
+                _connection = self._node.node_conn if self._node.node_conn else self._node.remote_node_conn
                 # TODO: refactor and move message_converter out of the conn scope
                 block_message, block_info, unknown_sids, unknown_hashes = \
-                    self._node.node_conn.message_converter.bx_block_to_block(bx_block, transaction_service)
+                    _connection.message_converter.bx_block_to_block(bx_block, transaction_service)
             except MessageConversionError as e:
                 block_stats.add_block_event_by_block_hash(
                     e.msg_hash,
@@ -342,7 +343,8 @@ class BlockProcessingService:
                 logger.warn("failed to decompress block {} - {}", e.msg_hash, e)
                 return
         else:
-            logger.info("discarding a block coming from {} since there is no connection to the blockchain node".
+            logger.info("discarding a block coming from {} since there is no connection to the "
+                        "blockchain node and to the remote blockchain node".
                         format(connection.peer_desc))
             return
 
