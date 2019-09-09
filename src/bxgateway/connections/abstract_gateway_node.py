@@ -448,6 +448,11 @@ class AbstractGatewayNode(AbstractNode):
         self.node_conn = connection
         self.cancel_blockchain_liveliness_check()
 
+    def on_remote_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection):
+        for msg in self.remote_node_msg_queue.pop_items():
+            connection.enqueue_msg_bytes(msg)
+        self.remote_node_conn = connection
+
     def on_relay_connection_ready(self):
         self.cancel_relay_liveliness_check()
 

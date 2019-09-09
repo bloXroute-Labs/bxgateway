@@ -36,13 +36,7 @@ class BtcRemoteConnectionProtocol(BtcBaseConnectionProtocol):
                                                         self.connection.send_ping)
 
         if self.connection.is_active():
-            for each_msg in self.connection.node.remote_node_msg_queue:
-                self.connection.enqueue_msg_bytes(each_msg)
-
-            if self.connection.node.remote_node_msg_queue:
-                self.connection.node.remote_node_msg_queue = deque()
-
-            self.connection.node.remote_node_conn = self.connection
+            self.connection.node.on_remote_blockchain_connection_ready(self)
 
     def msg_block(self, msg):
         # type: (BlockBtcMessage) -> None
