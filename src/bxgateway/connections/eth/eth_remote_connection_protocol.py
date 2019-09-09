@@ -22,7 +22,7 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
         logger.debug("Status message received.")
 
         self.connection.state |= ConnectionState.ESTABLISHED
-        self.node.on_blockchain_connection_ready(self)
+        self.node.on_remote_blockchain_connection_ready(self.connection)
 
         self.connection.send_ping()
 
