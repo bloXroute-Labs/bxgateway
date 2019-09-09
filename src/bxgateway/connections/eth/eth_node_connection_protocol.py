@@ -64,7 +64,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
         self.connection.send_ping()
 
-        self.node.on_blockchain_connection_ready(self)
+        self.node.on_blockchain_connection_ready(self.connection)
         self.node.alarm_queue.register_alarm(eth_constants.CHECKPOINT_BLOCK_HEADERS_REQUEST_WAIT_TIME_S,
                                              self._stop_waiting_checkpoint_headers_request)
 
