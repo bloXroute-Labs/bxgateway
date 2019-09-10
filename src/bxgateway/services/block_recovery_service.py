@@ -2,11 +2,15 @@ import time
 from collections import defaultdict
 from typing import Dict, Set, List, NamedTuple
 
+from bxutils import logging
+
 from bxcommon import constants
-from bxcommon.utils import logger, crypto
+from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.expiration_queue import ExpirationQueue
 from bxcommon.utils.object_hash import Sha256Hash
+
+logger = logging.get_logger(__name__)
 
 
 class BlockRecoveryInfo(NamedTuple):

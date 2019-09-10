@@ -1,4 +1,5 @@
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+
 from bxgateway.messages.gateway.v1.gateway_hello_message_v1 import GatewayHelloMessageV1
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage as GatewayHelloMessageV2
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager

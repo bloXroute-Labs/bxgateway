@@ -3,12 +3,13 @@ from typing import List
 
 from mock import MagicMock, Mock
 
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon import constants
 from bxcommon.constants import MISSING_BLOCK_EXPIRE_TIME
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway import gateway_constants
 from bxgateway.gateway_constants import MAX_INTERVAL_BETWEEN_BLOCKS_S, NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S
 from bxgateway.services.block_queuing_service import BlockQueuingService

@@ -4,12 +4,13 @@ import time
 from collections import deque
 from typing import Tuple, Optional, List
 
+from bxutils import logging
 from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.services.transaction_service import TransactionService
-from bxcommon.utils import logger, convert, crypto
+from bxcommon.utils import convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
@@ -17,6 +18,8 @@ from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import Tr
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.eth import rlp_utils
+
+logger = logging.get_logger(__name__)
 
 
 class EthMessageConverter(AbstractMessageConverter):
@@ -331,7 +334,7 @@ class EthMessageConverter(AbstractMessageConverter):
 
             return block_msg, block_info, unknown_tx_sids, unknown_tx_hashes
         else:
-            logger.warn("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in block: {2}"
+            logger.warning("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in block: {2}"
                         .format(len(unknown_tx_sids), len(unknown_tx_hashes), tx_count))
 
             return None, BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),

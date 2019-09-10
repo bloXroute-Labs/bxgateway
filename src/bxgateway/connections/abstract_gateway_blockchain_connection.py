@@ -2,18 +2,22 @@ import socket
 import time
 from typing import TYPE_CHECKING, cast
 
+from bxutils import logging
+
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
-from bxcommon.utils import logger
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+
 from bxgateway import gateway_constants
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+
+logger = logging.get_logger(__name__)
 
 
 class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNode"]):
@@ -39,7 +43,7 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
             # the socket buffer is at least the size set
             set_buffer_size = sock.socket_instance.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
             if set_buffer_size < gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE:
-                logger.warn("Socket buffer size set was unsuccessful, and was instead set to {}. Reverting to: {}",
+                logger.warning("Socket buffer size set was unsuccessful, and was instead set to {}. Reverting to: {}",
                             set_buffer_size, previous_buffer_size)
                 sock.socket_instance.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, previous_buffer_size)
 

@@ -1,9 +1,14 @@
+from bxutils import logging
+
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.utils import crypto, logger
+from bxcommon.utils import crypto
+
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+
+logger = logging.get_logger(__name__)
 
 
 class BtcRelayConnection(AbstractRelayConnection):

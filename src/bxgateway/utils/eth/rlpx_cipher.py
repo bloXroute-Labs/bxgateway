@@ -2,19 +2,22 @@ import os
 import random
 import struct
 import sys
-
 import pyelliptic
 import rlp
 from Crypto.Cipher import AES
 from rlp import sedes
 
+from bxutils import logging
+
 from bxcommon.exceptions import ParseError
-from bxcommon.utils import logger
+
 from bxgateway import eth_constants
 from bxgateway.eth_exceptions import InvalidKeyError, AuthenticationError
 from bxgateway.utils.eth import crypto_utils, rlp_utils
 from bxgateway.utils.eth.eccx import ECCx
 from bxgateway.utils.eth.frame import Frame
+
+logger = logging.get_logger(__name__)
 
 
 class RLPxCipher(object):

@@ -1,13 +1,16 @@
 from collections import deque
 from typing import Tuple, Optional, List
 
+from bxutils import logging
+
 from bxcommon import constants
 from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
-from bxcommon.utils import convert, logger
+from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+
 from bxgateway import eth_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -27,6 +30,7 @@ from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
 
+logger = logging.get_logger(__name__)
 
 
 class EthGatewayNode(AbstractGatewayNode):
@@ -88,7 +92,7 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def on_updated_remote_blockchain_peer(self, peer):
         if "node_public_key" not in peer.attributes:
-            logger.warn("Received remote blockchain peer without remote public key. This is currently unsupported.")
+            logger.warning("Received remote blockchain peer without remote public key. This is currently unsupported.")
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
             super(EthGatewayNode, self).on_updated_remote_blockchain_peer(peer)
@@ -201,7 +205,7 @@ class EthGatewayNode(AbstractGatewayNode):
             expected_blocks = self._requested_remote_blocks_queue.pop()
 
             if len(expected_blocks) != blocks_count:
-                logger.warn("Number of blocks received from remote blockchain node ({}) does not match expected ({}). "
+                logger.warning("Number of blocks received from remote blockchain node ({}) does not match expected ({}). "
                             "Temporarily suspend logging of remote blocks sync."
                             .format(blocks_count, len(expected_blocks)))
                 self._skip_remote_block_requests_stats_count = len(self._requested_remote_blocks_queue) * 2
@@ -216,7 +220,7 @@ class EthGatewayNode(AbstractGatewayNode):
                                                               self.opts.blockchain_protocol,
                                                               self.opts.blockchain_network))
         else:
-            logger.warn("Received blocks from remote node but nothing is expected.")
+            logger.warning("Received blocks from remote node but nothing is expected.")
 
     def init_eth_gateway_stat_logging(self):
         eth_gateway_stats_service.set_node(self)

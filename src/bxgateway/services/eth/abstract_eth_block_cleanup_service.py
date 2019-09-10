@@ -1,12 +1,16 @@
-from typing import Set, List, Optional, Iterable, TYPE_CHECKING
 import typing
+from typing import Iterable
 from abc import abstractmethod
 
-from bxcommon.utils import logger
-from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+from bxutils import logging
+
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+
+logger = logging.get_logger(__name__)
 
 
 class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
@@ -34,7 +38,7 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
                 connection_protocol.request_block_body([block_hash])
                 logger.debug("BlockCleanupRequest BlockHash: {}", repr(block_hash))
             else:
-                logger.warn("BlockCleanup for BlockHash: {} Failed, no connection to node", repr(block_hash))
+                logger.warning("BlockCleanup for BlockHash: {} Failed, no connection to node", repr(block_hash))
 
     def clean_block_transactions(
             self,

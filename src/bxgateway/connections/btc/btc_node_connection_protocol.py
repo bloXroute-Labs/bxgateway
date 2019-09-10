@@ -1,10 +1,11 @@
 import time
-from typing import List
-from typing import TYPE_CHECKING
+from typing import List, TYPE_CHECKING
+
+from bxutils import logging
 
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.messages.abstract_message import AbstractMessage
-from bxcommon.utils import logger, convert
+from bxcommon.utils import convert
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -26,6 +27,8 @@ from bxgateway.utils.errors.message_conversion_error import MessageConversionErr
 
 if TYPE_CHECKING:
     from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
+
+logger = logging.get_logger(__name__)
 
 
 class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
@@ -217,7 +220,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 network_num=self.connection.network_num,
                 conversion_type=e.conversion_type.value
             )
-            logger.warn("failed to process compact block {} - {}, requesting full block", e.msg_hash, e)
+            logger.warning("failed to process compact block {} - {}, requesting full block", e.msg_hash, e)
             get_data_msg = GetDataBtcMessage(
                 magic=self.magic,
                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]

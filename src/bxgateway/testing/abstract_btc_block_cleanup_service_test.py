@@ -1,28 +1,30 @@
 import os
 import random
 import typing
-
 from abc import abstractmethod
+
+from bxutils import logging
+from bxutils.logging.log_level import LogLevel
 
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
-from bxcommon.utils import convert, crypto, logger, log_level
-
+from bxcommon.utils import convert, crypto
 
 from bxgateway import btc_constants
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import InventoryType
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
-
 from bxgateway.testing.abstract_block_cleanup_service_test import AbstractBlockCleanupServiceTest
+
+logger = logging.get_logger(__name__)
 
 
 class AbstractBtcBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        logger.set_log_level(log_level.LogLevel.INFO)
+        logger.setLevel(LogLevel.INFO)
 
     def _get_sample_block(self, file_path):
         root_dir = os.path.dirname(os.path.dirname(os.path.abspath(file_path)))

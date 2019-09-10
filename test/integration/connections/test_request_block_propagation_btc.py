@@ -2,16 +2,18 @@ import time
 
 from mock import MagicMock
 
+from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
+
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.test_utils import helpers
 from bxcommon.utils.buffers.output_buffer import OutputBuffer
 from bxcommon.utils.expiring_set import ExpiringSet
-from bxgateway import gateway_constants
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
+
+from bxgateway import gateway_constants
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
-from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.testing.mocks.mock_btc_messages import btc_block
 
 

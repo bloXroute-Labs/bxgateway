@@ -3,13 +3,14 @@ import time
 
 from mock import MagicMock
 
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import convert, crypto
+
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_node_connection_protocol import BtcNodeConnectionProtocol

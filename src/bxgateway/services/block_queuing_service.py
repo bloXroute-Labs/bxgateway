@@ -3,9 +3,10 @@ from abc import ABCMeta, abstractmethod
 from collections import deque
 from typing import Optional, Dict, Tuple, Deque, TypeVar, Generic, TYPE_CHECKING, List
 
+from bxutils import logging
+
 from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
-from bxcommon.utils import logger
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
@@ -15,6 +16,8 @@ from bxgateway import gateway_constants
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+
+logger = logging.get_logger(__name__)
 
 T = TypeVar("T", bound=AbstractMessage)
 
@@ -214,7 +217,7 @@ class BlockQueuingService(Generic[T], metaclass=ABCMeta):
         waiting_recovery, block_msg = self._blocks[block_hash]
 
         if waiting_recovery:
-            logger.warn("Unable to send block to node, requires recovery. Block hash {}.".format(block_hash))
+            logger.warning("Unable to send block to node, requires recovery. Block hash {}.".format(block_hash))
             self._schedule_alarm_for_next_item()
             return
 
@@ -247,13 +250,13 @@ class BlockQueuingService(Generic[T], metaclass=ABCMeta):
         waiting_block_recovery = self._blocks[block_hash][0]
 
         if not waiting_block_recovery:
-            logger.warn("Unable to cancel recovery for block {}. Block is not in recovery."
+            logger.warning("Unable to cancel recovery for block {}. Block is not in recovery."
                         .format(block_hash))
             self._schedule_alarm_for_next_item()
             return constants.CANCEL_ALARMS
 
         if current_time - timestamp < constants.MISSING_BLOCK_EXPIRE_TIME:
-            logger.warn("Unable to cancel recovery for block {}. Block recovery did not timeout."
+            logger.warning("Unable to cancel recovery for block {}. Block recovery did not timeout."
                         .format(block_hash))
             self._schedule_alarm_for_next_item()
             return constants.CANCEL_ALARMS

@@ -1,7 +1,9 @@
 import rlp
 
+from bxutils.logging.log_level import LogLevel
+
 from bxcommon.utils import convert
-from bxcommon.utils.log_level import LogLevel
+
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 

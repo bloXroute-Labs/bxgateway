@@ -1,10 +1,9 @@
 import time
 
+from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
 from bxcommon.exceptions import PayloadLenError, ChecksumError
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils.helpers import create_input_buffer_with_bytes, create_input_buffer_with_message
-from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
+from bxcommon.test_utils.helpers import create_input_buffer_with_bytes
 from bxcommon.utils import crypto
 from bxgateway.btc_constants import BTC_HEADER_MINUS_CHECKSUM, BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
@@ -22,7 +21,6 @@ from bxgateway.messages.btc.tx_btc_message import TxIn, TxBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 from bxgateway.messages.btc.fee_filter_btc_message import FeeFilterBtcMessage
-from bxgateway.messages.btc.send_compact_btc_message import SendCompactBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 

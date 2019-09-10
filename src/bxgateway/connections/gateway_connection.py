@@ -1,5 +1,7 @@
 import random
 
+from bxutils import logging
+
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
@@ -7,15 +9,18 @@ from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.services import sdn_http_service
-from bxcommon.utils import logger, crypto
+from bxcommon.utils import crypto
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+
 from bxgateway import gateway_constants
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
+
+logger = logging.get_logger(__name__)
 
 
 class GatewayConnection(InternalNodeConnection):
@@ -79,7 +84,7 @@ class GatewayConnection(InternalNodeConnection):
 
         # naively set the the peer id to what reported
         if peer_id is None:
-            logger.warn("Hello message without peer_id received from {}".format(self))
+            logger.warning("Hello message without peer_id received from {}".format(self))
         self.peer_id = peer_id
 
         if not self.from_me:
@@ -91,18 +96,18 @@ class GatewayConnection(InternalNodeConnection):
 
             # connection already has correct ip / port info assigned
             if connection == self:
-                logger.warn("Duplicate hello message received. Ignoring.")
+                logger.warning("Duplicate hello message received. Ignoring.")
                 self.enqueue_msg(self.ack_message)
                 return
 
             if connection.is_active():
-                logger.warn("Duplicate established connection. Dropping.")
+                logger.warning("Duplicate established connection. Dropping.")
                 self.mark_for_close()
                 return
 
             # ordering numbers were the same; take over the slot and try again
             if connection.ordering == ordering:
-                logger.warn("Duplicate connection orderings could not be resolved. Investigate if this message appears "
+                logger.warning("Duplicate connection orderings could not be resolved. Investigate if this message appears "
                             "repeatedly.")
                 self.node.connection_pool.update_port(self.peer_port, port, self)
                 self._initialize_ordered_handshake()
@@ -112,7 +117,7 @@ class GatewayConnection(InternalNodeConnection):
             # if connection has same ordering or no ordering, it hasn't yet received its connection
             # so don't do anything and wait for the other connection to receive a HELLO message and itself or this one
             if connection.ordering == self.NULL_ORDERING:
-                logger.warn("Duplicate connections. Two connections have been opened on ip port: {}:{}. Awaiting other "
+                logger.warning("Duplicate connections. Two connections have been opened on ip port: {}:{}. Awaiting other "
                             "connection's resolution.".format(ip, port))
                 self.ordering = ordering
                 return

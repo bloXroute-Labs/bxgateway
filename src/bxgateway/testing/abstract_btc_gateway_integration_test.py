@@ -1,11 +1,12 @@
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon import constants
 from bxcommon.constants import LOCALHOST
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_bx_messages import hello_message
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
+
 from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.testing.mocks.mock_btc_messages import btc_version_message
 

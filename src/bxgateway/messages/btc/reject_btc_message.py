@@ -1,7 +1,8 @@
 import struct
 
+from bxutils.logging.log_level import LogLevel
+
 from bxcommon.utils import convert
-from bxcommon.utils.log_level import LogLevel
 from bxgateway import btc_constants
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage

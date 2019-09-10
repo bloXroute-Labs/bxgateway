@@ -1,10 +1,8 @@
 from abc import abstractmethod, ABCMeta
 
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.utils import logger, log_level
-
 
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
@@ -29,10 +27,6 @@ class AbstractBlockCleanupServiceTest(AbstractTestCase, metaclass=ABCMeta):
         self.node._tx_service = self.transaction_service
         self.node.block_cleanup_service = self.cleanup_service
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        logger.set_log_level(log_level.LogLevel.INFO)
 
     @abstractmethod
     def _get_sample_block(self, file_path):

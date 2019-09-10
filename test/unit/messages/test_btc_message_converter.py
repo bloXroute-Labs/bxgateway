@@ -3,18 +3,19 @@ import os
 import random
 from argparse import Namespace
 
-import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
-from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter
-from bxcommon.constants import LOCALHOST, DEFAULT_TX_MEM_POOL_BUCKET_SIZE
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.constants import DEFAULT_TX_MEM_POOL_BUCKET_SIZE
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils import convert, crypto
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
+
+import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
+from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage

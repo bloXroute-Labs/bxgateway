@@ -1,10 +1,13 @@
 import time
-
 from typing import Iterable
-from bxcommon.utils import logger
+
+from bxutils import logging
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway.services.eth.abstract_eth_block_cleanup_service import AbstractEthBlockCleanupService
+
+logger = logging.get_logger(__name__)
 
 
 class EthBlockCleanupService(AbstractEthBlockCleanupService):

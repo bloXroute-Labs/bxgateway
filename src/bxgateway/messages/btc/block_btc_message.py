@@ -1,10 +1,11 @@
 import struct
-
 from typing import Optional
+
+from bxutils.logging.log_level import LogLevel
+
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import crypto
-from bxcommon.utils.log_level import LogLevel
-from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType

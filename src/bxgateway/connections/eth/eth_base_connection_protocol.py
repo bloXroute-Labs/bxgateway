@@ -1,9 +1,11 @@
 import time
-
 import typing
 
+from bxutils import logging
+
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.utils import logger, convert
+from bxcommon.utils import convert
+
 from bxgateway import eth_constants, gateway_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
@@ -19,6 +21,8 @@ from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEt
 from bxgateway.utils.eth import frame_utils
 from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
+
+logger = logging.get_logger(__name__)
 
 
 class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):

@@ -3,12 +3,13 @@ import time
 
 from mock import MagicMock
 
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon import constants
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_alarm_queue import MockAlarmQueue
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 
 

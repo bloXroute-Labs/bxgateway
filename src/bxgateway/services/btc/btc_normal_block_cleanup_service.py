@@ -1,12 +1,15 @@
 import time
-from datetime import datetime
 
-from bxcommon.utils import crypto, logger
+from bxutils import logging
+
+from bxcommon.utils import crypto
 from bxcommon.services.transaction_service import TransactionService
 
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash, BTC_SHA_HASH_LEN
+
+logger = logging.get_logger(__name__)
 
 
 class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):

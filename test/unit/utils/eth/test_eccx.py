@@ -1,5 +1,6 @@
-from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils import helpers
+
 from bxgateway import eth_constants
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.eth.eccx import ECCx

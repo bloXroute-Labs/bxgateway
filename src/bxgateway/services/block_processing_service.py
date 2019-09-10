@@ -2,11 +2,13 @@ import datetime
 import time
 from typing import TYPE_CHECKING, Optional, Iterable
 
+from bxutils import logging
+
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
-from bxcommon.utils import crypto, convert, logger
+from bxcommon.utils import crypto, convert
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
@@ -15,6 +17,7 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -24,6 +27,8 @@ from bxgateway.utils.errors.message_conversion_error import MessageConversionErr
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+
+logger = logging.get_logger(__name__)
 
 
 class BlockHold(object):
@@ -154,7 +159,7 @@ class BlockProcessingService:
 
         cipherblob = msg.blob()
         if block_hash != Sha256Hash(crypto.double_sha256(cipherblob)):
-            logger.warn("Received a message with inconsistent hashes. Dropping.")
+            logger.warning("Received a message with inconsistent hashes. Dropping.")
             return
 
         if self._node.in_progress_blocks.has_encryption_key_for_hash(block_hash):
@@ -340,7 +345,7 @@ class BlockProcessingService:
                     conversion_type=e.conversion_type.value
                 )
                 transaction_service.on_block_cleaned_up(e.msg_hash)
-                logger.warn("failed to decompress block {} - {}", e.msg_hash, e)
+                logger.warning("failed to decompress block {} - {}", e.msg_hash, e)
                 return
         else:
             logger.info("discarding a block coming from {} since there is no connection to the "
@@ -471,7 +476,7 @@ class BlockProcessingService:
         recovery_timed_out = time.time() - block_awaiting_recovery.recovery_start_time >= \
                              self._node.opts.blockchain_block_recovery_timeout_s
         if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS or recovery_timed_out:
-            logger.warn("Giving up on attempting to recover block: {}", block_hash)
+            logger.warning("Giving up on attempting to recover block: {}", block_hash)
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
         else:
             delay = gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[recovery_attempts]

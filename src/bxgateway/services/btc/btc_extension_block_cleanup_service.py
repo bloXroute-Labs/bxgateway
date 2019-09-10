@@ -3,11 +3,13 @@ import time
 from typing import TYPE_CHECKING
 from datetime import datetime
 
+from bxutils import logging
+
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 from bxcommon.utils.proxy import task_pool_proxy
-from bxcommon.utils import logger, convert
+from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import btc_constants
@@ -18,6 +20,8 @@ import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (
 
 if TYPE_CHECKING:
     from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
+
+logger = logging.get_logger(__name__)
 
 
 class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):

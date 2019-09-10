@@ -1,11 +1,15 @@
 import struct
 
+from bxutils import logging
+from bxutils.logging.log_level import LogLevel
+
 from bxcommon.constants import MSG_NULL_BYTE
 from bxcommon.exceptions import ChecksumError, PayloadLenError
 from bxcommon.messages.abstract_message import AbstractMessage
-from bxcommon.utils import crypto, logger
-from bxcommon.utils.log_level import LogLevel
+from bxcommon.utils import crypto
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_MAGIC_NUMBERS, BTC_HEADER_MINUS_CHECKSUM
+
+logger = logging.get_logger(__name__)
 
 
 class BtcMessage(AbstractMessage):

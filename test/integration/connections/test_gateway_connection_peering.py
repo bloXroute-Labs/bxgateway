@@ -2,14 +2,15 @@ from contextlib import closing
 
 from mock import MagicMock
 
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import LOCALHOST
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network import network_event_loop_factory
 from bxcommon.services import sdn_http_service
 from bxcommon.test_utils import helpers, integration_helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.network_thread import NetworkThread
+
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.testing.null_gateway_node import NullGatewayNode

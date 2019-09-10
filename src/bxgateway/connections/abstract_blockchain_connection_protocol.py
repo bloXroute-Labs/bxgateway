@@ -2,20 +2,23 @@ import time
 from abc import ABCMeta, abstractmethod
 from typing import List
 
+from bxutils import logging
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
-from bxcommon.utils import logger
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.connections.connection_state import ConnectionState
+
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxgateway import gateway_constants
-from bxcommon.utils.object_hash import Sha256Hash
-from bxcommon.connections.connection_state import ConnectionState
+
+logger = logging.get_logger(__name__)
 
 
 class AbstractBlockchainConnectionProtocol:

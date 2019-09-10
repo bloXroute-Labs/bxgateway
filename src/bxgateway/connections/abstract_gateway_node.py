@@ -3,6 +3,8 @@ from abc import ABCMeta, abstractmethod
 from argparse import Namespace
 from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable
 
+from bxutils import logging
+
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
@@ -16,11 +18,12 @@ from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.services import sdn_http_service
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
-from bxcommon.utils import logger, network_latency
+from bxcommon.utils import network_latency
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -34,6 +37,8 @@ from bxgateway.utils import configuration_utils
 from bxgateway.utils import node_cache
 from bxgateway.utils.blockchain_message_queue import BlockchainMessageQueue
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+
+logger = logging.get_logger(__name__)
 
 
 class AbstractGatewayNode(AbstractNode):
@@ -394,7 +399,7 @@ class AbstractGatewayNode(AbstractNode):
         if self.node_conn is not None:
             self.node_conn.enqueue_msg(msg)
         else:
-            logger.trace("Adding message to local node's message queue: {}".format(msg))
+            logger.trace("Adding message to local node's message queue: {}", msg)
             self.node_msg_queue.append(msg.rawbytes())
 
     def send_msg_to_remote_node(self, msg):

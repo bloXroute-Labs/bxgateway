@@ -3,10 +3,14 @@ import os
 from dataclasses import dataclass
 from typing import List, Optional
 
+from bxutils import logging
+
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
-from bxcommon.utils import model_loader, logger, config
+from bxcommon.utils import model_loader, config
 from bxcommon.utils.class_json_encoder import ClassJsonEncoder
+
+logger = logging.get_logger(__name__)
 
 
 @dataclass

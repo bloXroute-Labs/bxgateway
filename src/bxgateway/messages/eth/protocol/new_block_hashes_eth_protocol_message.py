@@ -1,11 +1,11 @@
-from typing import List, Tuple, Optional
-
 import rlp
+from typing import List, Tuple
+
+from bxutils.logging.log_level import LogLevel
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
-from bxcommon.utils.log_level import LogLevel
-from bxcommon.utils.object_hash import Sha256Hash, NULL_SHA256_HASH
-from bxcommon.utils import logger
+from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.serializers.block_hash import BlockHash

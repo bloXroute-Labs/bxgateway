@@ -1,17 +1,19 @@
+import time
 from collections import deque
 from datetime import datetime
-import time
 from typing import Tuple, List, Optional, Dict, NamedTuple
 
-from bxcommon.utils import convert, logger
+from bxutils import logging
+
+from bxcommon.utils import convert
 from bxcommon.utils.object_encoder import ObjectEncoder
 from bxcommon.utils.proxy import task_pool_proxy
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 from bxcommon.utils.proxy.vector_proxy import VectorProxy
 from bxcommon.messages.abstract_message import AbstractMessage
-from bxgateway.messages.btc import btc_normal_message_converter
 
+from bxgateway.messages.btc import btc_normal_message_converter
 from bxgateway import btc_constants
 from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter, get_block_info, \
     CompactBlockCompressionResult
@@ -19,9 +21,11 @@ from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMess
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.btc.btc_object_hash import Sha256Hash, BtcObjectHash
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.utils.errors import message_conversion_error
 
 import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
-from bxgateway.utils.errors import message_conversion_error
+
+logger = logging.get_logger(__name__)
 
 
 class ExtensionCompactBlockRecoveryData(NamedTuple):
@@ -111,7 +115,7 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
             )
         else:
             btc_block_msg = None
-            logger.warn("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in bx_block: {2}"
+            logger.warning("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in bx_block: {2}"
                         .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
         block_info = get_block_info(
             bx_block_msg,

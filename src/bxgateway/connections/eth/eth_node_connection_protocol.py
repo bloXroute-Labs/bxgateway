@@ -1,13 +1,15 @@
-import typing
 from collections import deque
 from typing import List, Deque
 
+from bxutils import logging
+
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.utils import logger
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxcommon.messages.abstract_message import AbstractMessage
+
 from bxgateway import eth_constants
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
@@ -17,12 +19,12 @@ from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import B
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
-from bxgateway import gateway_constants
 from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
-from bxcommon.messages.abstract_message import AbstractMessage
 from bxgateway.utils.eth import crypto_utils
+
+logger = logging.get_logger(__name__)
 
 
 class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
@@ -171,7 +173,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             bodies_bytes = msg.get_block_bodies_bytes()
 
             if len(requested_hashes) != len(bodies_bytes):
-                logger.warn("Expected {} bodies in response but received {}. Proxy message to remote node.",
+                logger.warning("Expected {} bodies in response but received {}. Proxy message to remote node.",
                             len(requested_hashes), len(bodies_bytes))
                 self._block_bodies_requests.clear()
                 return

@@ -1,7 +1,9 @@
 import typing
 from datetime import datetime
 
-from bxcommon.utils import logger, convert
+from bxutils import logging
+
+from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -15,6 +17,8 @@ from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMess
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType
 from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
+
+logger = logging.get_logger(__name__)
 
 
 class BtcBlockProcessingService(BlockProcessingService):
@@ -112,7 +116,7 @@ class BtcBlockProcessingService(BlockProcessingService):
                 network_num=connection.network_num,
                 conversion_type=e.conversion_type.value
             )
-            logger.warn("failed to process compact block recovery {} - {}, requesting full block", e.msg_hash, e)
+            logger.warning("failed to process compact block recovery {} - {}, requesting full block", e.msg_hash, e)
             get_data_msg = GetDataBtcMessage(
                 magic=msg.magic(),
                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]

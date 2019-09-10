@@ -1,6 +1,10 @@
+from bxutils import logging
+
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.utils import logger
+
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
+
+logger = logging.get_logger(__name__)
 
 
 class EthBaseConnection(AbstractGatewayBlockchainConnection):

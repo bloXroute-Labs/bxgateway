@@ -1,6 +1,8 @@
 from abc import ABCMeta
 from typing import TYPE_CHECKING
 
+from bxutils import logging
+
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
@@ -9,14 +11,17 @@ from bxcommon.messages.bloxroute.disconnect_relay_peer_message import Disconnect
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
-from bxcommon.utils import logger, convert
+from bxcommon.utils import convert
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+
+logger = logging.get_logger(__name__)
 
 
 class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):

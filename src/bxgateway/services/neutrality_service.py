@@ -1,19 +1,24 @@
 import datetime
 import time
 
+from bxutils import logging
+
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
-from bxcommon.utils import logger, convert, crypto
+from bxcommon.utils import convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
+
 from bxgateway import gateway_constants
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
+
+logger = logging.get_logger(__name__)
 
 
 class NeutralityService(object):
@@ -33,7 +38,7 @@ class NeutralityService(object):
         :param bx_block compressed block
         """
         if cipher_hash in self._receipt_tracker:
-            logger.warn("Ignoring duplicate bx_block hash for tracking receiving: {0}".format(cipher_hash))
+            logger.warning("Ignoring duplicate bx_block hash for tracking receiving: {0}".format(cipher_hash))
             return
 
         self._receipt_tracker[cipher_hash] = 0
@@ -168,7 +173,7 @@ class NeutralityService(object):
             list(filter(lambda conn: conn.is_active(),
                         self._node.connection_pool.get_by_connection_type(ConnectionType.GATEWAY))))
         if active_gateway_peer_count == 0:
-            logger.warn("No active gateway peers to get block receipts from.")
+            logger.warning("No active gateway peers to get block receipts from.")
             enough_by_percent = False
         else:
             enough_by_percent = (receipt_count / active_gateway_peer_count * 100 >=
@@ -192,7 +197,7 @@ class NeutralityService(object):
         bx_block_hash = crypto.double_sha256(bx_block)
         hex_bx_block_hash = convert.bytes_to_hex(bx_block_hash)
 
-        logger.warn("Did not receive enough receipts for: {}. Propagating compressed block to other gateways: {}"
+        logger.warning("Did not receive enough receipts for: {}. Propagating compressed block to other gateways: {}"
                     .format(cipher_hash, hex_bx_block_hash))
         self._send_key(cipher_hash)
 

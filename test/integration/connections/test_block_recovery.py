@@ -3,6 +3,8 @@ from typing import List
 
 from mock import MagicMock
 
+from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
+
 from bxcommon.constants import LOCALHOST
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
@@ -14,11 +16,11 @@ from bxcommon.models.transaction_info import TransactionInfo
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
+
 from bxgateway import btc_constants, gateway_constants
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc import btc_message_converter_factory
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
-from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 

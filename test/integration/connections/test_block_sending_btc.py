@@ -2,20 +2,21 @@ import time
 
 from mock import patch, MagicMock
 
+from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
+
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
-from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert, crypto
 from bxcommon.utils.buffers.output_buffer import OutputBuffer
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
+
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
-from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.testing.mocks.mock_btc_messages import btc_block, RealBtcBlocks
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 

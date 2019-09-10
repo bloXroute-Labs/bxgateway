@@ -1,18 +1,20 @@
 # pyre-ignore-all-errors
-
 import socket
 from argparse import Namespace
 from typing import Tuple
 
-from bxcommon.test_utils import helpers
+from bxutils import logging
 
+from bxcommon.test_utils import helpers
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.constants import LOCALHOST
 from bxcommon.network.socket_connection import SocketConnection
-from bxcommon.utils import logger
+
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
+
+logger = logging.get_logger(__name__)
 
 
 class NullConnection(AbstractConnection):

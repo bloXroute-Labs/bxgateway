@@ -1,7 +1,8 @@
 import typing
 
+from bxutils import logging
+
 import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
-from bxcommon.utils import logger
 from bxgateway import btc_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
@@ -11,6 +12,8 @@ from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, Inventor
 from bxgateway.messages.btc.ping_btc_message import PingBtcMessage
 from bxgateway.messages.btc.pong_btc_message import PongBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
+
+logger = logging.get_logger(__name__)
 
 
 class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):

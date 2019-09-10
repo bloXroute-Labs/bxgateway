@@ -1,22 +1,24 @@
-from datetime import datetime
 import struct
 import time
 import hashlib
+from datetime import datetime
 
-from bxgateway.utils.errors import message_conversion_error
 from csiphash import siphash24
 from collections import deque
 from typing import Tuple, Optional, List, Deque, Union, NamedTuple
 
+from bxutils import logging
+
 from bxcommon import constants
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.abstract_message import AbstractMessage
-from bxcommon.utils import crypto, convert, logger
+from bxcommon.utils import crypto, convert
 from bxcommon.messages.bloxroute.compact_block_short_ids_serializer import BlockOffsets
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import btc_constants
+from bxgateway.utils.errors import message_conversion_error
 from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter, get_block_info, \
     CompactBlockCompressionResult
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
@@ -26,6 +28,8 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.utils.block_header_info import BlockHeaderInfo
 from bxgateway.messages.btc import btc_messages_util
+
+logger = logging.get_logger(__name__)
 
 
 class CompactBlockRecoveryData(NamedTuple):
@@ -219,7 +223,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             )
         else:
             btc_block_msg = None
-            logger.warn("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in bx_block: {2}"
+            logger.warning("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in bx_block: {2}"
                         .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
         block_info = get_block_info(
             bx_block_msg,
@@ -259,7 +263,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             if tx_short_id in short_ids:
                 tx_content = transaction_service.get_transaction_by_hash(tx_hash)
                 if tx_content is None:
-                    logger.warn("Hash {} is known by transactions service but content is missing.", tx_hash)
+                    logger.warning("Hash {} is known by transactions service but content is missing.", tx_hash)
                 else:
                     short_id_to_tx_contents[tx_short_id] = tx_content
             if len(short_id_to_tx_contents) == len(short_ids):
