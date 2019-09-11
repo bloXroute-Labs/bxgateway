@@ -63,10 +63,11 @@ def update_node_config(node: AbstractNode):
     log_config_model = node_config.log_config
     if log_config_model is not None:
         try:
-            compare_and_update(log_level.from_string(log_config_model.log_level),
-                               logger.level,
-                               setter=functools.partial(log_config.set_level, ["bxcommon", "bxgateway"]),
-                               item="log_level")
+            if log_config_model.log_level is not None:
+                compare_and_update(log_level.from_string(log_config_model.log_level),
+                                   logger.level,
+                                   setter=functools.partial(log_config.set_level, ["bxcommon", "bxgateway"]),
+                                   item="log_level")
         except (AttributeError, KeyError):
             logger.warning("Invalid LogLevel provided configuration Ignore {}", log_config_model.log_level)
             
