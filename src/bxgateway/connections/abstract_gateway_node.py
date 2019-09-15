@@ -124,6 +124,7 @@ class AbstractGatewayNode(AbstractNode):
         # offset SDN calls so all the peers aren't queued up at the same time
         self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS + 2, self._send_request_for_gateway_peers)
         self.network = self._get_blockchain_network()
+
         if opts.use_extensions:
             from bxcommon.services.extension_transaction_service import ExtensionTransactionService
             self._tx_service = ExtensionTransactionService(self, self.network_num)
@@ -140,6 +141,9 @@ class AbstractGatewayNode(AbstractNode):
 
         self.schedule_blockchain_liveliness_check(gateway_constants.INITIAL_LIVELINESS_CHECK_S)
         self.schedule_relay_liveliness_check(gateway_constants.INITIAL_LIVELINESS_CHECK_S)
+
+        self.opts.has_fully_updated_tx_service = False
+        self.alarm_queue.register_alarm(constants.TX_SERVICE_SYNC_PROCESS_S, self.sync_tx_services)
 
     @abstractmethod
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
@@ -603,3 +607,26 @@ class AbstractGatewayNode(AbstractNode):
             if network.network_num == self.network_num:
                 return network
         return BlockchainNetworkModel()
+
+    def sync_tx_services(self):
+        logger.info("Starting sync tx service on gateway: {}", self.opts.external_ip)
+        if self.opts.sync_tx_service:
+            relay_connections = []
+            relay_tx_connections = []
+            relay_block_connections = []
+            if self.opts.split_relays:
+                relay_tx_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION)
+                relay_block_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)
+            else:
+                relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)
+
+            if relay_connections and relay_connections[0].is_active():
+                relay_connections[0].send_tx_service_sync_req(self.network_num)
+            elif relay_tx_connections and relay_tx_connections[0].is_active() and \
+                    relay_block_connections and relay_tx_connections[0].is_active():
+                relay_tx_connections[0].send_tx_service_sync_req(self.network_num)
+                relay_block_connections[0].send_tx_service_sync_req(self.network_num)
+            else:
+                return constants.TX_SERVICE_SYNC_PROCESS_S
+        else:
+            self.on_fully_updated_tx_service()

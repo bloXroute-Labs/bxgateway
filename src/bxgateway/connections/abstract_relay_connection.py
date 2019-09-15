@@ -1,5 +1,6 @@
 from abc import ABCMeta
 from typing import TYPE_CHECKING
+import time
 
 from bxutils import logging
 
@@ -48,7 +49,9 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             BloxrouteMessageType.TRANSACTION: self.msg_tx,
             BloxrouteMessageType.TRANSACTIONS: self.msg_txs,
             BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding,
-            BloxrouteMessageType.DISCONNECT_RELAY_PEER: self.msg_disconnect_relay_peer
+            BloxrouteMessageType.DISCONNECT_RELAY_PEER: self.msg_disconnect_relay_peer,
+            BloxrouteMessageType.TX_SERVICE_SYNC_TXS: self.msg_tx_service_sync_txs,
+            BloxrouteMessageType.TX_SERVICE_SYNC_COMPLETE: self.msg_tx_service_sync_complete
         }
 
         self.message_converter = None
@@ -200,4 +203,3 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         """
         logger.info("Received disconnect request from relay {}:{} - dropping connection", self.peer_ip, self.peer_port)
         self.node.destroy_conn(self)
-

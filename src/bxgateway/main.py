@@ -105,6 +105,7 @@ def get_opts() -> argparse.Namespace:
                             ),
                             default="",
                             nargs="*")
+    arg_parser.add_argument("--sync-tx-service", help="sync tx service in gateway", type=convert.str_to_bool, default=True)
 
     # Bitcoin specific
     arg_parser.add_argument("--blockchain-version", help="Bitcoin protocol version", type=int)

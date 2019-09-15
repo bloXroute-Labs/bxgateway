@@ -46,7 +46,7 @@ class GatewayConnection(InternalNodeConnection):
             GatewayMessageType.BLOCK_RECEIVED: self.msg_block_received,
             GatewayMessageType.BLOCK_PROPAGATION_REQUEST: self.msg_block_propagation_request,
             BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding,
-            BloxrouteMessageType.KEY: self.msg_key
+            BloxrouteMessageType.KEY: self.msg_key,
         }
         self.version_manager = gateway_version_manager
         self.protocol_version = self.version_manager.CURRENT_PROTOCOL_VERSION
