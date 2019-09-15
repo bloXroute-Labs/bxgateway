@@ -3,6 +3,7 @@ from typing import Iterable
 from abc import abstractmethod
 
 from bxutils import logging
+from bxutils.logging.log_record_type import LogRecordType
 
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
@@ -10,7 +11,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 
-logger = logging.get_logger(__name__)
+logger = logging.get_logger(LogRecordType.BlockCleanup)
 
 
 class AbstractEthBlockCleanupService(AbstractBlockCleanupService):

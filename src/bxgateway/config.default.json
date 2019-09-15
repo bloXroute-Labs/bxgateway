@@ -1,7 +1,9 @@
 {
   "log_config": {
+    "__comment": "use DEBUG, INFO, WARN, ERROR for log levels. or use {\"bxgateway\":\"INFO\"} in log_level_overrides }",
     "log_level": null,
-    "log_flush_immediately": null
+    "log_flush_immediately": null,
+    "log_level_overrides": {}
   },
   "stats_config": {
     "enable_block_stats": null,

@@ -1,6 +1,8 @@
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
 from bxgateway import gateway_constants
+from bxutils import logging
+from bxutils.logging.log_record_type import LogRecordType
 
 
 class EthGatewayStatInterval(StatsIntervalData):
@@ -35,7 +37,8 @@ class _EthGatewayStatsService(StatisticsService):
     def __init__(self, interval: int = gateway_constants.ETH_GATEWAY_STATS_INTERVAL,
                  look_back: int = gateway_constants.ETH_GATEWAY_STATS_LOOKBACK):
         self.interval_data: EthGatewayStatInterval = None
-        super(_EthGatewayStatsService, self).__init__("EthGatewayStatsService", interval, look_back, reset=True)
+        super(_EthGatewayStatsService, self).__init__("EthGatewayStatsService", interval, look_back, reset=True,
+                                                      logger=logging.get_logger(LogRecordType.TransactionStats))
 
     def log_encrypted_message(self, time: float) -> None:
         self.interval_data.total_encryption_time += time

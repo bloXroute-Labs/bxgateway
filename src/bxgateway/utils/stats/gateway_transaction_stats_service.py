@@ -3,7 +3,8 @@ from collections import deque
 
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
 from bxgateway import gateway_constants
-
+from bxutils.logging.log_record_type import LogRecordType
+from bxutils import logging
 
 class GatewayTransactionStatInterval(StatsIntervalData):
     __slots__ = [
@@ -38,7 +39,8 @@ class _GatewayTransactionStatsService(StatisticsService):
     def __init__(self, interval=gateway_constants.GATEWAY_TRANSACTION_STATS_INTERVAL_S,
                  look_back=gateway_constants.GATEWAY_TRANSACTION_STATS_LOOKBACK):
         super(_GatewayTransactionStatsService, self).__init__("GatewayTransactionStats", interval, look_back,
-                                                              reset=True)
+                                                              reset=True,
+                                                              logger=logging.get_logger(LogRecordType.TransactionStats))
 
     def log_transaction_from_blockchain(self, transaction_hash):
         self.interval_data.new_transactions_received_from_blockchain += 1

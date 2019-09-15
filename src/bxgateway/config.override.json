@@ -1,1 +1,7 @@
-{}
+{
+  "log_config": {
+    "log_level": null,
+    "log_flush_immediately": null,
+        "log_level_overrides": {}
+  }
+}

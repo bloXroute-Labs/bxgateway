@@ -2,12 +2,13 @@ from typing import Set, List, Optional
 from abc import ABCMeta, abstractmethod
 
 from bxutils import logging
+from bxutils.logging.log_record_type import LogRecordType
 
 from bxcommon.services.transaction_service import TransactionService
 
 from bxgateway.utils.btc.btc_object_hash import Sha256Hash
 
-logger = logging.get_logger(__name__)
+logger = logging.get_logger(LogRecordType.BlockCleanup)
 
 
 class AbstractBlockCleanupService(metaclass=ABCMeta):

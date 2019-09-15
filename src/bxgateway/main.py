@@ -11,7 +11,6 @@ import random
 import sys
 from typing import List, Optional
 
-from bxutils.logging.log_level import LogLevel
 from bxutils.logging import log_config
 
 from bxcommon import node_runner, constants
@@ -61,7 +60,7 @@ def get_sdn_hostname(sdn_url: str) -> str:
     return new_sdn_url
 
 
-def get_opts(logger_names: List[Optional[str]]) -> argparse.Namespace:
+def get_opts() -> argparse.Namespace:
     config.set_working_directory(os.path.dirname(__file__))
 
     # Parse gateway specific command line parameters
@@ -193,11 +192,6 @@ def get_opts(logger_names: List[Optional[str]]) -> argparse.Namespace:
     )
 
     opts = cli.parse_arguments(arg_parser)
-    log_format = opts.log_format
-    log_level = opts.log_level
-    log_config.create_logger(None, log_level=LogLevel.WARNING, log_format=log_format)
-    for logger_name in logger_names:
-        log_config.create_logger(logger_name, log_level, log_format)
 
     if not opts.blockchain_network:
         cache_file_info = node_cache.read(opts)
@@ -221,7 +215,7 @@ def get_opts(logger_names: List[Optional[str]]) -> argparse.Namespace:
 def main():
     logger_names = node_runner.LOGGER_NAMES.copy()
     logger_names.append("bxgateway")
-    opts = get_opts(logger_names)
+    opts = get_opts()
     node_type = get_gateway_node_type(opts.blockchain_protocol, opts.blockchain_network)
     node_runner.run_node(config.get_relative_file(PID_FILE_NAME), opts, node_type, logger_names=logger_names)
 

@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from datetime import datetime
 
 from bxutils import logging
+from bxutils.logging.log_record_type import LogRecordType
 
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.services.transaction_service import TransactionService
@@ -21,7 +22,7 @@ import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (
 if TYPE_CHECKING:
     from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 
-logger = logging.get_logger(__name__)
+logger = logging.get_logger(LogRecordType.BlockCleanup)
 
 
 class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):

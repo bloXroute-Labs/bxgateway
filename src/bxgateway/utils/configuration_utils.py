@@ -15,6 +15,7 @@ from bxcommon.utils import config
 from bxgateway import gateway_constants
 
 logger = logging.get_logger(__name__)
+project_root_logger = logging.get_logger(__name__.split(".")[0])
 
 config_file_last_updated = defaultdict(float)
 last_config_model = defaultdict(GatewayNodeConfigModel)
@@ -65,9 +66,11 @@ def update_node_config(node: AbstractNode):
         try:
             if log_config_model.log_level is not None:
                 compare_and_update(log_level.from_string(log_config_model.log_level),
-                                   logger.level,
-                                   setter=functools.partial(log_config.set_level, ["bxcommon", "bxgateway"]),
+                                   project_root_logger.level,
+                                   setter=functools.partial(log_config.set_level, node.opts.logger_names),
                                    item="log_level")
+            if log_config_model.log_level_overrides is not None:
+                log_config.set_log_levels(log_config_model.log_level_overrides)
         except (AttributeError, KeyError):
             logger.warning("Invalid LogLevel provided configuration Ignore {}", log_config_model.log_level)
             
