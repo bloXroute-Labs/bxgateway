@@ -96,7 +96,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         tx_hash = Sha256Hash(helpers.generate_bytearray(SHA256_HASH_LEN))
         tx = helpers.generate_bytearray(self.AVERAGE_TX_SIZE)
 
-        tx_msg = TxMessage(tx_hash=tx_hash, network_num=12345, tx_val=tx)
+        tx_msg = TxMessage(message_hash=tx_hash, network_num=12345, tx_val=tx)
 
         btc_tx_msg = self.btc_message_converter.bx_tx_to_tx(tx_msg)
 

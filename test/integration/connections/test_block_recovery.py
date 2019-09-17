@@ -61,11 +61,11 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
             for tx_btc_message in self.btc_transactions
         ]
         self.transactions_with_short_ids = [
-            TxMessage(tx_message.tx_hash(), tx_message.network_num(), i + 1, tx_message.tx_val())
+            TxMessage(tx_message.tx_hash(), tx_message.network_num(), "", i + 1, tx_message.tx_val())
             for i, tx_message in enumerate(self.transactions)
         ]
         self.transactions_with_no_content = [
-            TxMessage(tx_message.tx_hash(), tx_message.network_num(), i + 1)
+            TxMessage(tx_message.tx_hash(), tx_message.network_num(), "", i + 1)
             for i, tx_message in enumerate(self.transactions)
         ]
         self.transactions_by_short_id = {tx_message.short_id(): tx_message

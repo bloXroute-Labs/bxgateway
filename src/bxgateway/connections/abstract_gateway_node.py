@@ -3,6 +3,8 @@ from abc import ABCMeta, abstractmethod
 from argparse import Namespace
 from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable
 
+from bxcommon.services.broadcast_service import BroadcastService
+from bxgateway.services.gateway_broadcast_service import GatewayBroadcastService
 from bxutils import logging
 
 from bxcommon import constants
@@ -167,6 +169,9 @@ class AbstractGatewayNode(AbstractNode):
     @abstractmethod
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         pass
+
+    def get_broadcast_service(self) -> BroadcastService:
+        return GatewayBroadcastService(self.connection_pool)
 
     def init_transaction_stat_logging(self):
         gateway_transaction_stats_service.set_node(self)

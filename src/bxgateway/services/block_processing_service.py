@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
-class BlockHold(object):
+class BlockHold:
     """
     Data class for holds on block messages.
 
@@ -111,9 +111,8 @@ class BlockProcessingService:
         else:
             # Broadcast BlockHoldingMessage through relays and gateways
             conns = self._node.broadcast(BlockHoldingMessage(block_hash, self._node.network_num),
-                                         broadcasting_conn=connection,
-                                         connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY],
-                                         prepend_to_queue=True)
+                                         broadcasting_conn=connection, prepend_to_queue=True,
+                                         connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY])
             if len(conns) > 0:
                 block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,

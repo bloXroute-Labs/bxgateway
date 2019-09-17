@@ -88,7 +88,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         key, ciphertext = symmetric_encrypt(bx_block)
         block_hash = crypto.double_sha256(ciphertext)
-        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, True, ciphertext)
+        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "", True, ciphertext)
 
         self.sut.msg_broadcast(broadcast_message)
 
@@ -99,7 +99,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.gateway_node.send_msg_to_node.assert_not_called()
         self.assertEqual(1, len(self.gateway_node.in_progress_blocks))
 
-        key_message = KeyMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, key)
+        key_message = KeyMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "", key)
         self.sut.msg_key(key_message)
 
         self._assert_block_sent(btc_block)
@@ -120,8 +120,9 @@ class BtcRelayConnectionTest(AbstractTestCase):
                                                                                     unknown_sid_transaction_service)[0])
         unknown_key, unknown_cipher = symmetric_encrypt(unknown_short_id_block)
         unknown_block_hash = crypto.double_sha256(unknown_cipher)
-        unknown_message = BroadcastMessage(Sha256Hash(unknown_block_hash), self.TEST_NETWORK_NUM, True, unknown_cipher)
-        unknown_key_message = KeyMessage(Sha256Hash(unknown_block_hash), self.TEST_NETWORK_NUM, unknown_key)
+        unknown_message = BroadcastMessage(Sha256Hash(unknown_block_hash), self.TEST_NETWORK_NUM, "", True,
+                                           unknown_cipher)
+        unknown_key_message = KeyMessage(Sha256Hash(unknown_block_hash), self.TEST_NETWORK_NUM, "", unknown_key)
 
         local_transaction_service = self.gateway_node.get_tx_service()
         for i, transaction in enumerate(transactions):
@@ -132,8 +133,8 @@ class BtcRelayConnectionTest(AbstractTestCase):
                                                                                   local_transaction_service)[0])
         known_key, known_cipher = symmetric_encrypt(known_short_id_block)
         known_block_hash = crypto.double_sha256(known_cipher)
-        known_message = BroadcastMessage(Sha256Hash(known_block_hash), self.TEST_NETWORK_NUM, True, known_cipher)
-        known_key_message = KeyMessage(Sha256Hash(known_block_hash), self.TEST_NETWORK_NUM, known_key)
+        known_message = BroadcastMessage(Sha256Hash(known_block_hash), self.TEST_NETWORK_NUM, "", True, known_cipher)
+        known_key_message = KeyMessage(Sha256Hash(known_block_hash), self.TEST_NETWORK_NUM, "", known_key)
 
         self.sut.msg_broadcast(unknown_message)
         self.sut.msg_key(unknown_key_message)
@@ -159,7 +160,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         self.gateway_node.send_msg_to_node.assert_not_called()
 
-        key_message = KeyMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, key)
+        key_message = KeyMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "", key)
         self.sut.msg_key(key_message)
 
         # handle duplicate broadcasts
@@ -168,7 +169,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         self.assertEqual(1, len(self.gateway_node.in_progress_blocks))
 
-        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, True, ciphertext)
+        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "", True, ciphertext)
         self.sut.msg_broadcast(broadcast_message)
 
         self._assert_block_sent(btc_block)
@@ -247,8 +248,8 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         key, ciphertext = symmetric_encrypt(bx_block)
         block_hash = crypto.double_sha256(ciphertext)
-        key_message = KeyMessage(Sha256Hash(block_hash), DEFAULT_NETWORK_NUM, key)
-        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), DEFAULT_NETWORK_NUM, True, ciphertext)
+        key_message = KeyMessage(Sha256Hash(block_hash), DEFAULT_NETWORK_NUM, "", key)
+        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), DEFAULT_NETWORK_NUM, "", True, ciphertext)
 
         self.sut.msg_broadcast(broadcast_message)
 

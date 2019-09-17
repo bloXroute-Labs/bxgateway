@@ -52,7 +52,7 @@ class EthMessageConverter(AbstractMessageConverter):
             tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
             tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
             msg_hash = Sha256Hash(tx_hash_bytes)
-            bx_tx_msg = TxMessage(tx_hash=msg_hash, network_num=network_num, tx_val=tx_bytes)
+            bx_tx_msg = TxMessage(message_hash=msg_hash, network_num=network_num, tx_val=tx_bytes)
             bx_tx_msgs.append((bx_tx_msg, msg_hash, tx_bytes))
 
             tx_start_index = tx_item_start + tx_item_length

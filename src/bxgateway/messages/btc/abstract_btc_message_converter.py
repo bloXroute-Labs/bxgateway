@@ -143,6 +143,6 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
         if not isinstance(btc_tx_msg, TxBtcMessage):
             raise TypeError("tx_msg is expected to be of type TxBTCMessage")
 
-        tx_msg = TxMessage(tx_hash=btc_tx_msg.tx_hash(), network_num=network_num, tx_val=btc_tx_msg.tx())
+        tx_msg = TxMessage(btc_tx_msg.tx_hash(), network_num, tx_val=btc_tx_msg.tx())
 
         return [(tx_msg, btc_tx_msg.tx_hash(), btc_tx_msg.tx())]

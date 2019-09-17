@@ -120,7 +120,8 @@ class NeutralityService(object):
                                                   more_info=encryption_details)
 
         cipher_hash = Sha256Hash(raw_cipher_hash)
-        broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, True, encrypted_block)
+        broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, is_encrypted=True,
+                                             blob=encrypted_block)
 
         conns = self._node.broadcast(broadcast_message, connection, connection_types=[ConnectionType.RELAY_BLOCK])
 
@@ -141,7 +142,8 @@ class NeutralityService(object):
         if block_info is None:
             raise ValueError("Block info is required to propagate unencrypted block")
 
-        broadcast_message = BroadcastMessage(block_info.block_hash, self._node.network_num, False, bx_block)
+        broadcast_message = BroadcastMessage(block_info.block_hash, self._node.network_num, is_encrypted=False,
+                                             blob=bx_block)
         conns = self._node.broadcast(broadcast_message, connection, connection_types=[ConnectionType.RELAY_BLOCK])
         handling_duration = self._node.track_block_from_node_handling_ended(block_info.block_hash)
         block_stats.add_block_event_by_block_hash(block_info.block_hash,
@@ -217,10 +219,9 @@ class NeutralityService(object):
 
     def _send_key(self, cipher_hash):
         key = self._node.in_progress_blocks.get_encryption_key(bytes(cipher_hash.binary))
-        key_message = KeyMessage(cipher_hash, self._node.network_num, key)
-        conns = self._node.broadcast(
-            key_message, None, connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY]
-        )
+        key_message = KeyMessage(cipher_hash, self._node.network_num, key=key)
+        conns = self._node.broadcast(key_message, None,
+                                     connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY])
         block_stats.add_block_event_by_block_hash(
             cipher_hash,
             BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,

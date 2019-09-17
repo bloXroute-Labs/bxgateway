@@ -1,5 +1,6 @@
 import struct
 from bxcommon import constants
+from bxcommon.messages.abstract_internal_message import AbstractInternalMessage
 from bxcommon.messages.versioning.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.gateway.v1.gateway_hello_message_v1 import GatewayHelloMessageV1
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage as GatewayHelloMessageV2
@@ -8,7 +9,7 @@ from bxcommon.messages.bloxroute.abstract_bloxroute_message import AbstractBloxr
 
 
 class GatewayHelloMessageConverterV1(AbstractMessageConverter):
-    def convert_to_older_version(self, msg):
+    def convert_to_older_version(self, msg: AbstractInternalMessage) -> AbstractInternalMessage:
 
         if not isinstance(msg, GatewayHelloMessageV2):
             raise TypeError("GatewayHelloMessage is expected")
@@ -23,7 +24,7 @@ class GatewayHelloMessageConverterV1(AbstractMessageConverter):
 
         return AbstractBloxrouteMessage.initialize_class(GatewayHelloMessageV1, result_bytes, (GatewayMessageType.HELLO, payload_len))
 
-    def convert_from_older_version(self, msg):
+    def convert_from_older_version(self, msg: AbstractInternalMessage) -> AbstractInternalMessage:
 
         if not isinstance(msg, GatewayHelloMessageV1):
             raise TypeError("GatewayHelloMessageV1 is expected")

@@ -1,5 +1,8 @@
+from typing import Type
+
 from bxcommon.exceptions import ParseError, UnrecognizedCommandError
-from bxcommon.messages.abstract_message_factory import AbstractMessageFactory
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.messages.abstract_message_factory import AbstractMessageFactory, MessagePreview
 from bxcommon.utils.buffers.input_buffer import InputBuffer
 from bxgateway import eth_constants
 from bxgateway.messages.eth.discovery.eth_discovery_message import EthDiscoveryMessage
@@ -17,11 +20,12 @@ class _EthDiscoveryMessageFactory(AbstractMessageFactory):
 
     def __init__(self):
         super(_EthDiscoveryMessageFactory, self).__init__()
-
         self.message_type_mapping = self._MESSAGE_TYPE_MAPPING
-        self.base_message_type = EthDiscoveryMessage
 
-    def get_message_header_preview_from_input_buffer(self, input_buffer):
+    def get_base_message_type(self) -> Type[AbstractMessage]:
+        return EthDiscoveryMessage
+
+    def get_message_header_preview_from_input_buffer(self, input_buffer: InputBuffer) -> MessagePreview:
         """
         Peeks at a message, determining if its full.
         Returns (is_full_message, command, payload_length)
@@ -32,13 +36,13 @@ class _EthDiscoveryMessageFactory(AbstractMessageFactory):
         msg_type = self._peek_message_type(input_buffer)
 
         if msg_type is None:
-            return False, None, None
+            return MessagePreview(False, None, None)
 
         msg_len = self._peek_message_len(input_buffer)
 
         is_full = input_buffer.length >= msg_len
 
-        return is_full, msg_type, msg_len
+        return MessagePreview(is_full, msg_type, msg_len)
 
     def create_message_from_buffer(self, buf):
         """
@@ -96,5 +100,6 @@ class _EthDiscoveryMessageFactory(AbstractMessageFactory):
 
         msg_type = rlp_utils.safe_ord(msg_bytes[msg_type_position:msg_type_position + eth_constants.MSG_TYPE_LEN])
         return msg_type
+
 
 eth_discovery_message_factory = _EthDiscoveryMessageFactory()

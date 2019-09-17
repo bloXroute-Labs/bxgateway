@@ -37,7 +37,7 @@ class AbstractRelayConnectionTest(AbstractTestCase):
         msg_bytes = helpers.generate_bytearray(50)
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
 
-        broadcast_msg = BroadcastMessage(msg_hash=msg_hash, network_num=1, is_encrypted=True, blob=msg_bytes)
+        broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=True, blob=msg_bytes)
 
         self.connection.msg_broadcast(broadcast_msg)
 
@@ -51,7 +51,7 @@ class AbstractRelayConnectionTest(AbstractTestCase):
         msg_bytes = helpers.generate_bytearray(50)
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
 
-        broadcast_msg = BroadcastMessage(msg_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
+        broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
 
         self.connection.msg_broadcast(broadcast_msg)
 

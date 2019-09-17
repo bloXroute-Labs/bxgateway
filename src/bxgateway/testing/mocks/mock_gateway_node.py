@@ -46,8 +46,7 @@ class MockGatewayNode(AbstractGatewayNode):
         else:
             self._tx_service = TransactionService(self, self.network_num)
 
-    def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, network_num=None,
-                  connection_types=None, exclude_relays=False):
+    def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, connection_types=None):
         if connection_types is None:
             connection_types = [ConnectionType.RELAY_ALL]
 
