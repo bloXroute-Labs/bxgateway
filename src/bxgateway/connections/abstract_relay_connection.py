@@ -1,6 +1,5 @@
 from abc import ABCMeta
-from typing import TYPE_CHECKING
-import time
+from typing import TYPE_CHECKING, Optional, Set
 
 from bxutils import logging
 
@@ -13,8 +12,11 @@ from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.utils import convert
+from bxcommon.utils.stats import hooks
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxcommon.utils.memory_utils import SpecialTuple, ObjectSize
+from bxcommon.utils import memory_utils
 
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
@@ -203,3 +205,24 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         """
         logger.info("Received disconnect request from relay {}:{} - dropping connection", self.peer_ip, self.peer_port)
         self.node.destroy_conn(self)
+
+    def log_connection_mem_stats(self) -> None:
+        """
+        logs the connection's memory stats
+        """
+        super(AbstractRelayConnection, self).log_connection_mem_stats()
+        if self.message_converter is not None:
+            hooks.increment_obj_mem_stats(
+                self.__class__.__name__,
+                self.network_num,
+                self.message_converter,
+                "message_converter",
+                ObjectSize(
+                    "message_converter", memory_utils.get_special_size(self.message_converter).size, is_actual_size=True
+                )
+            )
+
+    def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
+        special_size = memory_utils.get_special_size(self.message_converter, ids)
+        size = special_size.size + super(AbstractRelayConnection, self).special_memory_size(ids).size
+        return SpecialTuple(size, special_size.seen_ids)

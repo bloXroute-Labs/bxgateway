@@ -1,15 +1,18 @@
 import socket
 import time
-from typing import TYPE_CHECKING, cast
+import typing
+from typing import TYPE_CHECKING, Optional, Set
 
 from bxutils import logging
 
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
-from bxcommon.utils.stats import stats_format
+from bxcommon.utils.stats import stats_format, hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxcommon.utils.memory_utils import SpecialTuple, ObjectSize
+from bxcommon.utils import memory_utils
 
 from bxgateway import gateway_constants
 
@@ -59,7 +62,7 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
             super(AbstractGatewayBlockchainConnection, self).advance_sent_bytes(bytes_sent)
 
             if not self.message_tracker.is_sending_block_message():
-                block_message = cast(AbstractBlockMessage, entry.message)
+                block_message = typing.cast(AbstractBlockMessage, entry.message)
                 block_message_queue_time = entry.queued_time
                 block_message_length = entry.length
                 block_hash = block_message.block_hash()
@@ -81,3 +84,24 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
                                                           ))
         else:
             super(AbstractGatewayBlockchainConnection, self).advance_sent_bytes(bytes_sent)
+
+    def log_connection_mem_stats(self) -> None:
+        """
+        logs the connection's memory stats
+        """
+        super(AbstractGatewayBlockchainConnection, self).log_connection_mem_stats()
+        if self.message_converter is not None:
+            hooks.increment_obj_mem_stats(
+                self.__class__.__name__,
+                self.network_num,
+                self.message_converter,
+                "message_converter",
+                ObjectSize(
+                    "message_converter", memory_utils.get_special_size(self.message_converter).size, is_actual_size=True
+                )
+            )
+
+    def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
+        special_size = memory_utils.get_special_size(self.message_converter, ids)
+        size = special_size.size + super(AbstractGatewayBlockchainConnection, self).special_memory_size(ids).size
+        return SpecialTuple(size, special_size.seen_ids)

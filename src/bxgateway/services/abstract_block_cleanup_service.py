@@ -5,13 +5,15 @@ from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
 
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
+from bxcommon.utils import memory_utils
 
 from bxgateway.utils.btc.btc_object_hash import Sha256Hash
 
 logger = logging.get_logger(LogRecordType.BlockCleanup)
 
 
-class AbstractBlockCleanupService(metaclass=ABCMeta):
+class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
     """
     Service for managing block cleanup.
     """
@@ -106,3 +108,7 @@ class AbstractBlockCleanupService(metaclass=ABCMeta):
     @abstractmethod
     def block_cleanup_request(self, block_hash: Sha256Hash) -> None:
         pass
+
+    def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
+        obj_size = memory_utils.get_object_size(self)
+        return SpecialTuple(obj_size.size, ids)

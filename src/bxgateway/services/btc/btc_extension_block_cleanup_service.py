@@ -1,6 +1,6 @@
 import typing
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Set
 from datetime import datetime
 
 from bxutils import logging
@@ -12,6 +12,8 @@ from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 from bxcommon.utils.proxy import task_pool_proxy
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.memory_utils import SpecialTuple
+from bxcommon.utils import memory_utils
 
 from bxgateway import btc_constants
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -82,6 +84,11 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
             unknown_tx_hashes=(
                 Sha256Hash(convert.hex_to_bytes(tx_hash.hex_string())) for tx_hash in cleanup_task.unknown_tx_hashes())
         )
+
+    def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
+        special_size = memory_utils.get_special_size(self.cleanup_tasks, ids)
+        size = special_size.size + memory_utils.get_object_size(self).size
+        return SpecialTuple(size, special_size.seen_ids)
 
     def _create_cleanup_task(self) -> tpe.BtcBlockCleanupTask:  # pyre-ignore
         return tpe.BtcBlockCleanupTask(self.MINIMAL_SUB_TASK_TX_COUNT)

@@ -20,11 +20,12 @@ from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.services import sdn_http_service
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
-from bxcommon.utils import network_latency
+from bxcommon.utils import network_latency, memory_utils
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.stats import hooks
 
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
@@ -187,6 +188,18 @@ class AbstractGatewayNode(AbstractNode):
 
     def record_mem_stats(self):
         self._tx_service.log_tx_service_mem_stats()
+        block_cleanup_service_size = memory_utils.get_special_size(self.block_cleanup_service).size
+        hooks.add_obj_mem_stats(
+            self.__class__.__name__,
+            0,
+            self.block_cleanup_service,
+            "block_cleanup_service",
+            memory_utils.ObjectSize(
+                size=block_cleanup_service_size,
+                flat_size=0,
+                is_actual_size=True),
+            block_cleanup_service_size
+        )
         return super(AbstractGatewayNode, self).record_mem_stats()
 
     def get_tx_service(self, network_num=None):
