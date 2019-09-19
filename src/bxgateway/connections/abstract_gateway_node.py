@@ -631,19 +631,29 @@ class AbstractGatewayNode(AbstractNode):
             relay_connections = []
             relay_tx_connections = []
             relay_block_connections = []
+
+            retry = True
             if self.opts.split_relays:
                 relay_tx_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION)
                 relay_block_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)
+
+                if relay_tx_connections and relay_block_connections:
+                    relay_tx_connection = next(iter(relay_tx_connections))
+                    relay_block_connection = next(iter(relay_block_connections))
+
+                    if relay_tx_connection.is_active() and relay_block_connection.is_active():
+                        relay_tx_connection.send_tx_service_sync_req(self.network_num)
+                        relay_block_connection.send_tx_service_sync_req(self.network_num)
+                        retry = False
             else:
                 relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)
+                if relay_connections:
+                    relay_connection = next(iter(relay_connections))
+                    if relay_connection.is_active():
+                        relay_connection.send_tx_service_sync_req(self.network_num)
+                        retry = False
 
-            if relay_connections and relay_connections[0].is_active():
-                relay_connections[0].send_tx_service_sync_req(self.network_num)
-            elif relay_tx_connections and relay_tx_connections[0].is_active() and \
-                    relay_block_connections and relay_tx_connections[0].is_active():
-                relay_tx_connections[0].send_tx_service_sync_req(self.network_num)
-                relay_block_connections[0].send_tx_service_sync_req(self.network_num)
-            else:
+            if retry:
                 return constants.TX_SERVICE_SYNC_PROCESS_S
         else:
             self.on_fully_updated_tx_service()
