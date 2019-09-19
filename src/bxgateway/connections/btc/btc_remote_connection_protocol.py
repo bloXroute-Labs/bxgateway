@@ -8,6 +8,7 @@ from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnec
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
+from bxcommon import constants
 
 
 class BtcRemoteConnectionProtocol(BtcBaseConnectionProtocol):
@@ -22,6 +23,7 @@ class BtcRemoteConnectionProtocol(BtcBaseConnectionProtocol):
             BtcMessageType.INVENTORY: self.msg_inv,
         })
         self.ping_interval_s: int = gateway_constants.BLOCKCHAIN_PING_INTERVAL_S
+        self.block_cleanup_poll_interval_s = constants.CANCEL_ALARMS
 
     def msg_version(self, _msg):
         """
