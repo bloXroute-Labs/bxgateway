@@ -20,3 +20,4 @@ class BtcMessageType(object):
     GET_BLOCK_TRANSACTIONS = b"getblocktxn"
     BLOCK_TRANSACTIONS = b"blocktxn"
     FEE_FILTER = b"feefilter"
+    XVERSION = b"xversion"

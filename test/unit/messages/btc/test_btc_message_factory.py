@@ -8,6 +8,7 @@ from bxcommon.utils import crypto
 from bxgateway.btc_constants import BTC_HEADER_MINUS_CHECKSUM, BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_factory import btc_message_factory
 from bxgateway.messages.btc.data_btc_message import GetHeadersBtcMessage, GetBlocksBtcMessage
 from bxgateway.messages.btc.get_addr_btc_message import GetAddrBtcMessage
@@ -21,6 +22,7 @@ from bxgateway.messages.btc.tx_btc_message import TxIn, TxBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 from bxgateway.messages.btc.fee_filter_btc_message import FeeFilterBtcMessage
+from bxgateway.messages.btc.xversion_btc_message import XversionBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
@@ -68,6 +70,7 @@ class BtcMessageFactoryTest(MessageFactoryTestCase):
                                               RejectBtcMessage.MESSAGE_TYPE, 32)
         self.get_message_preview_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage.MESSAGE_TYPE, 0)
         self.get_message_preview_successfully(FeeFilterBtcMessage(self.MAGIC, fee_rate=100), FeeFilterBtcMessage.MESSAGE_TYPE, 8)
+        self.get_message_preview_successfully(BtcMessage(self.MAGIC, b'xversion', 0, bytearray(30)), XversionBtcMessage.MESSAGE_TYPE, 0)
 
     def test_peek_message_incomplete(self):
         is_full_message, command, payload_length = btc_message_factory.get_message_header_preview_from_input_buffer(
@@ -117,6 +120,8 @@ class BtcMessageFactoryTest(MessageFactoryTestCase):
         self.create_message_successfully(SendHeadersBtcMessage(self.MAGIC), SendHeadersBtcMessage)
 
         self.create_message_successfully(FeeFilterBtcMessage(self.MAGIC, fee_rate=100), FeeFilterBtcMessage)
+
+        self.create_message_successfully(BtcMessage(self.MAGIC, b'xversion', 0, bytearray(30)), XversionBtcMessage)
 
     def test_parse_message_incomplete(self):
         with self.assertRaises(PayloadLenError):
