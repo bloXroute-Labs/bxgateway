@@ -57,7 +57,7 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                 block_msg=msg
             )
         else:
-            self._process_block_message(msg)
+            super().msg_block(msg)
 
         # After receiving block message sending INV message for the same block to Bitcoin node
         # This is needed to update Synced Headers value of the gateway peer on the Bitcoin node

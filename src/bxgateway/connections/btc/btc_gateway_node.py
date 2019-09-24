@@ -53,13 +53,3 @@ class BtcGatewayNode(AbstractGatewayNode):
         else:
             block_cleanup_service = BtcNormalBlockCleanupService(self, self.network_num)
         return block_cleanup_service
-
-    def send_msg_to_node(self, msg):
-        super(BtcGatewayNode, self).send_msg_to_node(msg)
-
-        # After sending block message to Bitcoin node sending INV message for the same block to the node
-        # This is needed to update Synced Headers value of the gateway peer on the Bitcoin node
-        # If Synced Headers is not up-to-date than Bitcoin node does not push compact blocks to the gateway
-        if isinstance(msg, BlockBtcMessage):
-            inv_msg = InvBtcMessage(magic=msg.magic(), inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())])
-            self.send_msg_to_node(inv_msg)

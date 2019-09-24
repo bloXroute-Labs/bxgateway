@@ -74,7 +74,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self.node.set_known_total_difficulty(msg.block_hash(), msg.chain_difficulty())
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(msg)
-        self._process_block_message(internal_new_block_msg)
+        super().msg_block(internal_new_block_msg)
 
     def msg_new_block_hashes(self, msg: NewBlockHashesEthProtocolMessage):
         block_hash_number_pairs = []
@@ -89,6 +89,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                                                       ))
 
             if block_hash in self.node.blocks_seen.contents:
+                self.node.on_block_seen_by_blockchain_node(block_hash)
                 block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                                           network_num=self.connection.network_num)

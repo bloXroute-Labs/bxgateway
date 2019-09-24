@@ -173,6 +173,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         )
 
         if block_hash in self.node.blocks_seen.contents:
+            self.node.on_block_seen_by_blockchain_node(block_hash)
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.COMPACT_BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,

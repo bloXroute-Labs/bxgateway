@@ -69,9 +69,6 @@ class AbstractBlockchainConnectionProtocol:
         """
         Handle a block message. Sends to node for encryption, then broadcasts.
         """
-        return self._process_block_message(msg)
-
-    def _process_block_message(self, msg: AbstractBlockMessage) -> None:
         block_hash = msg.block_hash()
         node = self.connection.node
 
@@ -86,6 +83,7 @@ class AbstractBlockchainConnectionProtocol:
                                                   )
 
         if block_hash in self.connection.node.blocks_seen.contents:
+            node.on_block_seen_by_blockchain_node(block_hash)
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                                       network_num=self.connection.network_num)
