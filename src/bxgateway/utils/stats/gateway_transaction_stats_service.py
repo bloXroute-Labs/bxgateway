@@ -80,22 +80,22 @@ class _GatewayTransactionStatsService(StatisticsService):
             max_short_id_assign_time = 0
             avg_short_id_assign_time = 0
 
-        return dict(
-            node_id=self.interval_data.node_id,
-            transactions_received_from_blockchain=self.interval_data.new_transactions_received_from_blockchain,
-            transactions_received_from_relays=self.interval_data.new_transactions_received_from_relays,
-            compact_transactions_received_from_relays=self.interval_data.compact_transactions_received_from_relays,
-            duplicate_transactions_received_from_blockchain=self.interval_data.duplicate_transactions_received_from_blockchain,
-            duplicate_transactions_received_from_relays=self.interval_data.duplicate_transactions_received_from_relays,
-            short_ids_assignments_processed=self.interval_data.short_id_assignments_processed,
-            redundant_transaction_content_messages=self.interval_data.redundant_transaction_content_messages,
-            start_time=self.interval_data.start_time,
-            end_time=self.interval_data.end_time,
-            min_short_id_assign_time=min_short_id_assign_time,
-            max_short_id_assign_time=max_short_id_assign_time,
-            avg_short_id_assign_time=avg_short_id_assign_time,
-            **self.node._tx_service.get_tx_service_aggregate_stats()
-        )
+        return {
+            "node_id": self.interval_data.node_id,
+            "transactions_received_from_blockchain": self.interval_data.new_transactions_received_from_blockchain,
+            "transactions_received_from_relays": self.interval_data.new_transactions_received_from_relays,
+            "compact_transactions_received_from_relays": self.interval_data.compact_transactions_received_from_relays,
+            "duplicate_transactions_received_from_blockchain": self.interval_data.duplicate_transactions_received_from_blockchain,
+            "duplicate_transactions_received_from_relays": self.interval_data.duplicate_transactions_received_from_relays,
+            "short_ids_assignments_processed": self.interval_data.short_id_assignments_processed,
+            "redundant_transaction_content_messages": self.interval_data.redundant_transaction_content_messages,
+            "start_time": self.interval_data.start_time,
+            "end_time": self.interval_data.end_time,
+            "min_short_id_assign_time": min_short_id_assign_time,
+            "max_short_id_assign_time": max_short_id_assign_time,
+            "avg_short_id_assign_time": avg_short_id_assign_time,
+            **self.node._tx_service.get_aggregate_stats()
+        }
 
 
 gateway_transaction_stats_service = _GatewayTransactionStatsService()
