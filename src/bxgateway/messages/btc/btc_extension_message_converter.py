@@ -203,11 +203,9 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         )
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
-        special_size = memory_utils.add_special_objects(
+        return memory_utils.add_special_objects(
             self.compression_tasks, self.decompression_tasks, self.compact_mapping_tasks, ids=ids
         )
-        size = special_size.size + memory_utils.get_object_size(self).size
-        return SpecialTuple(size, special_size.seen_ids)
 
     def _extension_recovered_compact_block_to_bx_block(
             self,

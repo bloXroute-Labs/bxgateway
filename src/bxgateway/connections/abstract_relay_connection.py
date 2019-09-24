@@ -221,8 +221,3 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                     "message_converter", memory_utils.get_special_size(self.message_converter).size, is_actual_size=True
                 )
             )
-
-    def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
-        special_size = memory_utils.get_special_size(self.message_converter, ids)
-        size = special_size.size + super(AbstractRelayConnection, self).special_memory_size(ids).size
-        return SpecialTuple(size, special_size.seen_ids)

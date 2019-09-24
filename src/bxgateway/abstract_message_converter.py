@@ -67,5 +67,4 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         pass
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
-        obj_size = memory_utils.get_object_size(self)
-        return SpecialTuple(obj_size.size, ids)
+        return super(AbstractMessageConverter, self).special_memory_size(ids)

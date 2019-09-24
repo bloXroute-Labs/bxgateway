@@ -86,9 +86,7 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
         )
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
-        special_size = memory_utils.get_special_size(self.cleanup_tasks, ids)
-        size = special_size.size + memory_utils.get_object_size(self).size
-        return SpecialTuple(size, special_size.seen_ids)
+        return memory_utils.get_special_size(self.cleanup_tasks, ids)
 
     def _create_cleanup_task(self) -> tpe.BtcBlockCleanupTask:  # pyre-ignore
         return tpe.BtcBlockCleanupTask(self.MINIMAL_SUB_TASK_TX_COUNT)

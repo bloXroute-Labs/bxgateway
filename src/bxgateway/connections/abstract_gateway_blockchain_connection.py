@@ -1,7 +1,7 @@
 import socket
 import time
 import typing
-from typing import TYPE_CHECKING, Optional, Set
+from typing import TYPE_CHECKING
 
 from bxutils import logging
 
@@ -11,7 +11,7 @@ from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils.stats import stats_format, hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-from bxcommon.utils.memory_utils import SpecialTuple, ObjectSize
+from bxcommon.utils.memory_utils import ObjectSize
 from bxcommon.utils import memory_utils
 
 from bxgateway import gateway_constants
@@ -100,8 +100,3 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
                     "message_converter", memory_utils.get_special_size(self.message_converter).size, is_actual_size=True
                 )
             )
-
-    def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
-        special_size = memory_utils.get_special_size(self.message_converter, ids)
-        size = special_size.size + super(AbstractGatewayBlockchainConnection, self).special_memory_size(ids).size
-        return SpecialTuple(size, special_size.seen_ids)
