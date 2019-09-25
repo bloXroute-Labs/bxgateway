@@ -14,7 +14,12 @@ class BlockHeadersEthProtocolMessage(EthProtocolMessage):
     fields = [("block_headers", rlp.sedes.CountableList(BlockHeader))]
 
     def __repr__(self):
-        return f"BlockHeadersEthProtocolMessage<headers_count: {len(self.get_block_headers_bytes())}>"
+        headers = self.get_block_headers()
+        headers_repr = list(headers[:1])
+        if len(headers) > 1:
+            headers_repr.append(headers[-1])
+        return f"BlockHeadersEthProtocolMessage<headers_count: {len(headers)} " \
+               f"headers: [{'...'.join([h.hash().hex() for h in headers_repr])}]>"
 
     def get_block_headers(self):
         return self.get_field_value("block_headers")
