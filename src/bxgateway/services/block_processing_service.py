@@ -398,7 +398,10 @@ class BlockProcessingService:
                                                       blockchain_protocol=self._node.opts.blockchain_network,
                                                       matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
-                                                      more_info=stats_format.duration(block_info.duration_ms))
+                                                      more_info="Compression rate {}, Decompression time {}".format(
+                                                          stats_format.percentage(block_info.compression_rate),
+                                                          stats_format.duration(block_info.duration_ms))
+                                                      )
 
             self._on_block_decompressed(block_message)
             if recovered or block_hash in self._node.block_queuing_service:
