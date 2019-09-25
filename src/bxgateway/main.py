@@ -207,8 +207,7 @@ def get_opts() -> argparse.Namespace:
         opts.remote_blockchain_peer = None
 
     if not opts.cookie_file_path:
-        opts.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
-            f"{get_sdn_hostname(opts.sdn_url)}_{opts.external_ip}")
+        opts.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format("{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip))
 
     return opts
 
