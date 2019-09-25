@@ -623,7 +623,8 @@ class AbstractGatewayNode(AbstractNode):
         for network in self.opts.blockchain_networks:
             if network.network_num == self.network_num:
                 return network
-        return BlockchainNetworkModel()
+        raise EnvironmentError(f"Unexpectedly did not find network num {self.network} in set of blockchain networks: "
+                               f"{self.opts.blockchain_networks}")
 
     def sync_tx_services(self):
         logger.info("Starting sync tx service on gateway: {}", self.opts.external_ip)
@@ -641,7 +642,7 @@ class AbstractGatewayNode(AbstractNode):
                     relay_tx_connection = next(iter(relay_tx_connections))
                     relay_block_connection = next(iter(relay_block_connections))
 
-                    if relay_tx_connection.is_active() and relay_block_connection.is_active():
+                    if relay_tx_connection.is_sendable() and relay_block_connection.is_sendable():
                         relay_tx_connection.send_tx_service_sync_req(self.network_num)
                         relay_block_connection.send_tx_service_sync_req(self.network_num)
                         retry = False
@@ -649,7 +650,7 @@ class AbstractGatewayNode(AbstractNode):
                 relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)
                 if relay_connections:
                     relay_connection = next(iter(relay_connections))
-                    if relay_connection.is_active():
+                    if relay_connection.is_sendable():
                         relay_connection.send_tx_service_sync_req(self.network_num)
                         retry = False
 
