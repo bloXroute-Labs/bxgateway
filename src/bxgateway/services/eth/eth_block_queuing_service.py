@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Dict, Optional
+from collections import defaultdict
 
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
@@ -17,12 +18,14 @@ if TYPE_CHECKING:
 
 class EthBlockQueuingService(BlockQueuingService[NewBlockEthProtocolMessage]):
     block_checking_alarms: Dict[Sha256Hash, AlarmId]
+    block_repeat_count: Dict[Sha256Hash, int]
 
     def __init__(self, node: "AbstractGatewayNode"):
         super().__init__(node)
         self.block_checking_alarms = {}
         self._sent_new_block_headers: ExpiringDict[Sha256Hash, NewBlockParts] = \
             ExpiringDict(node.alarm_queue, eth_constants.SENT_NEW_BLOCK_HEADERS_EXPIRE_TIME_S)
+        self.block_repeat_count = defaultdict(int)
 
     def _send_block_to_node(self, block_hash: Sha256Hash, block_msg: InternalEthBlockInfo):
 
@@ -75,8 +78,15 @@ class EthBlockQueuingService(BlockQueuingService[NewBlockEthProtocolMessage]):
         super().mark_block_seen_by_blockchain_node(block_hash)
         if block_hash in self.block_checking_alarms:
             self.node.alarm_queue.unregister_alarm(self.block_checking_alarms[block_hash])
+            del self.block_checking_alarms[block_hash]
 
     def _check_for_block_on_repeat(self, block_hash: Sha256Hash) -> float:
         get_confirmation_message = GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, 0)
         self.node.send_msg_to_node(get_confirmation_message)
-        return eth_constants.CHECK_BLOCK_RECEIPT_INTERVAL_S
+        if self.block_repeat_count[block_hash] < 5:
+            self.block_repeat_count[block_hash] += 1
+            return eth_constants.CHECK_BLOCK_RECEIPT_INTERVAL_S
+        else:
+            del self.block_repeat_count[block_hash]
+            return 0
+
