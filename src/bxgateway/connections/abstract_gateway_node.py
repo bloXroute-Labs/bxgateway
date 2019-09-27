@@ -142,8 +142,8 @@ class AbstractGatewayNode(AbstractNode):
         self._block_from_bdn_handling_times = ExpiringDict(self.alarm_queue,
                                                            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S)
 
-        self.schedule_blockchain_liveliness_check(gateway_constants.INITIAL_LIVELINESS_CHECK_S)
-        self.schedule_relay_liveliness_check(gateway_constants.INITIAL_LIVELINESS_CHECK_S)
+        self.schedule_blockchain_liveliness_check(self.opts.initial_liveliness_check)
+        self.schedule_relay_liveliness_check(self.opts.initial_liveliness_check)
 
         self.opts.has_fully_updated_tx_service = False
         self.alarm_queue.register_alarm(constants.TX_SERVICE_SYNC_PROCESS_S, self.sync_tx_services)
@@ -318,6 +318,7 @@ class AbstractGatewayNode(AbstractNode):
         """
         potential_relay_peers = sdn_http_service.fetch_potential_relay_peers_by_network(self.opts.node_id,
                                                                                         self.network_num)
+
         if potential_relay_peers:
             node_cache.update(self.opts, potential_relay_peers)
             self._register_potential_relay_peers(potential_relay_peers)

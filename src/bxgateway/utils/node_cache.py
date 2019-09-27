@@ -56,6 +56,9 @@ def update(opts: Namespace, potential_relay_peers: List[OutboundPeerModel]):
 
 def read(opts: Namespace) -> Optional[CacheNetworkInfo]:
     cache_file_info = None
+    if not opts.enable_node_cache:
+        return cache_file_info
+
     try:
         relative_path = config.get_relative_file(opts.cookie_file_path)
         if os.path.exists(relative_path):

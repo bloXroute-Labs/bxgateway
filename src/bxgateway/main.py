@@ -113,6 +113,9 @@ def get_opts() -> argparse.Namespace:
     arg_parser.add_argument("--blockchain-net-magic", help="Bitcoin net.magic parameter",
                             type=convert_net_magic)
     arg_parser.add_argument("--blockchain-services", help="Bitcoin services parameter", type=int)
+    arg_parser.add_argument("--enable-node-cache", help="Retrieve peers from cookie if unavailable",
+                            type=convert.str_to_bool,
+                            default=True)
 
     # Ethereum specific
     arg_parser.add_argument("--node-public-key", help="Public key of Ethereum node for encrypted communication",
@@ -184,6 +187,12 @@ def get_opts() -> argparse.Namespace:
         help="Duration Gateway should stay alive for without an active blockchain or relay connection",
         type=int,
         default=gateway_constants.DEFAULT_STAY_ALIVE_DURATION_S
+    )
+    arg_parser.add_argument(
+        "--initial-liveliness-check",
+        help="Duration Gateway should stay alive for without an initial blockchain or relay connection",
+        type=int,
+        default=gateway_constants.INITIAL_LIVELINESS_CHECK_S
     )
     arg_parser.add_argument(
         "--config-update-interval",
