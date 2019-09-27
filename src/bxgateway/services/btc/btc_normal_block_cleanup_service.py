@@ -14,7 +14,6 @@ logger = logging.get_logger(LogRecordType.BlockCleanup)
 
 
 class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):
-
     """
     Service for managing block cleanup.
     """
@@ -29,6 +28,7 @@ class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):
         start_time = time.time()
         short_ids_count: int = 0
         unknown_tx_hashes_count: int = 0
+        tx_hash_to_contents_len_before_cleanup = transaction_service.get_tx_hash_to_contents_len()
         for tx in block_msg.txns():
             tx_hash = BtcObjectHash(buf=crypto.double_sha256(tx), length=BTC_SHA_HASH_LEN)
             short_ids = transaction_service.remove_transaction_by_tx_hash(tx_hash)
@@ -42,9 +42,19 @@ class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):
         transaction_service.on_block_cleaned_up(block_hash)
         end_time = time.time()
         duration = end_time - start_time
-        logger.info(
-            "BlockTransactionsCleanup BlockHash: {} UnknownTxHashes: {} ShortIdCount: {} BlockTxCount: {} Duration: {}",
-            repr(block_hash), unknown_tx_hashes_count, short_ids_count, block_msg.txn_count(), duration
+        tx_hash_to_contents_len_after_cleanup = transaction_service.get_tx_hash_to_contents_len()
+
+        logger.statistics(
+            {
+                "type": "BlockTransactionsCleanup",
+                "block_hash": repr(block_hash),
+                "unknown_tx_hashes_count": unknown_tx_hashes_count,
+                "short_ids_count": short_ids_count,
+                "block_transactions_count": block_msg.txn_count(),
+                "duration": duration,
+                "tx_hash_to_contents_len_before_cleanup": tx_hash_to_contents_len_before_cleanup,
+                "tx_hash_to_contents_len_after_cleanup": tx_hash_to_contents_len_after_cleanup,
+            }
         )
 
         self._block_hash_marked_for_cleanup.remove(block_hash)

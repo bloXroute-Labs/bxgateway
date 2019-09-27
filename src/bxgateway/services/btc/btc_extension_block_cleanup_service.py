@@ -40,6 +40,7 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
     ) -> None:
         start_datetime = datetime.utcnow()
         start_time = time.time()
+        tx_hash_to_contents_len_before_cleanup = transaction_service.get_tx_hash_to_contents_len()
         cleanup_task = self.cleanup_tasks.borrow_task()
         tx_service = typing.cast(ExtensionTransactionService, transaction_service)
         cleanup_task.init(tpe.InputBytes(block_msg.buf), tx_service.proxy)
@@ -56,6 +57,7 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
         # TODO : clean the short ids/transactions from the alarm queue after refactoring the transaction service
         block_hash = block_msg.block_hash()
         tx_service.on_block_cleaned_up(block_hash)
+        tx_hash_to_contents_len_after_cleanup = transaction_service.get_tx_hash_to_contents_len()
         end_datetime = datetime.utcnow()
         end_time = time.time()
 
@@ -73,7 +75,9 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
                 "tx_property_fetch_time": tx_property_fetch_time - task_run_time,
                 "short_ids_fetch_time": short_ids_fetch_time - tx_property_fetch_time,
                 "remove_from_tx_service_time": remove_from_tx_service_time - short_ids_fetch_time,
-                "duration": end_time - start_time
+                "duration": end_time - start_time,
+                "tx_hash_to_contents_len_before_cleanup": tx_hash_to_contents_len_before_cleanup,
+                "tx_hash_to_contents_len_after_cleanup": tx_hash_to_contents_len_after_cleanup,
             }
         )
         self.cleanup_tasks.return_task(cleanup_task)
