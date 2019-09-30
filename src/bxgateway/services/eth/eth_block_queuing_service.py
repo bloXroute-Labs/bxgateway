@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Dict, Optional
 from collections import defaultdict
 
+from bxcommon import constants
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
@@ -79,6 +80,7 @@ class EthBlockQueuingService(BlockQueuingService[NewBlockEthProtocolMessage]):
         if block_hash in self.block_checking_alarms:
             self.node.alarm_queue.unregister_alarm(self.block_checking_alarms[block_hash])
             del self.block_checking_alarms[block_hash]
+            self.block_repeat_count.pop(block_hash, 0)
 
     def _check_for_block_on_repeat(self, block_hash: Sha256Hash) -> float:
         get_confirmation_message = GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, 0)
@@ -88,5 +90,6 @@ class EthBlockQueuingService(BlockQueuingService[NewBlockEthProtocolMessage]):
             return eth_constants.CHECK_BLOCK_RECEIPT_INTERVAL_S
         else:
             del self.block_repeat_count[block_hash]
-            return 0
+            return constants.CANCEL_ALARMS
+
 

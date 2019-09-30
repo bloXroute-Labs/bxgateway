@@ -155,7 +155,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 self.node.block_cleanup_service.mark_blocks_and_request_cleanup(blocks)
             logger.debug("block headers msg {}", msg)
 
-        block_hashes = [block_header.hash() for block_header in msg.get_block_headers()]
+        block_hashes = [block_header.hash_object() for block_header in msg.get_block_headers()]
         self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
 
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
