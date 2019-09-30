@@ -3,10 +3,6 @@ from abc import ABCMeta, abstractmethod
 from argparse import Namespace
 from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable
 
-from bxcommon.services.broadcast_service import BroadcastService
-from bxgateway.services.gateway_broadcast_service import GatewayBroadcastService
-from bxutils import logging
-
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
@@ -18,6 +14,7 @@ from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.services import sdn_http_service
+from bxcommon.services.broadcast_service import BroadcastService
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
 from bxcommon.utils import network_latency, memory_utils
@@ -26,7 +23,6 @@ from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks
-
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -35,11 +31,13 @@ from bxgateway.services.abstract_block_cleanup_service import AbstractBlockClean
 from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
+from bxgateway.services.gateway_broadcast_service import GatewayBroadcastService
 from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.utils import configuration_utils
 from bxgateway.utils import node_cache
 from bxgateway.utils.blockchain_message_queue import BlockchainMessageQueue
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -443,11 +441,16 @@ class AbstractGatewayNode(AbstractNode):
 
     def destroy_conn(self, conn, retry_connection=False):
         if conn.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
-            sdn_http_service.submit_peer_connection_event(NodeEventType.BLOCKCHAIN_NODE_CONN_ERR, self.opts.node_id,
-                                                          conn.peer_ip, conn.peer_port)
-            self.node_conn = None
-            self.node_msg_queue.pop_items()
-            self.schedule_blockchain_liveliness_check(self.opts.stay_alive_duration)
+            if self.node_conn == conn or self.node_conn is None:
+                sdn_http_service.submit_peer_connection_event(NodeEventType.BLOCKCHAIN_NODE_CONN_ERR, self.opts.node_id,
+                                                              conn.peer_ip, conn.peer_port)
+                self.node_conn = None
+                self.node_msg_queue.pop_items()
+                self.schedule_blockchain_liveliness_check(self.opts.stay_alive_duration)
+            else:
+                logger.warning("Detected attempt to close node connection when another is already established. "
+                               "Connection being destroyed - {}. Established connection - {}.",
+                               conn.peer_desc, self.node_conn.peer_desc)
         elif conn.CONNECTION_TYPE == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
             sdn_http_service.submit_peer_connection_event(NodeEventType.REMOTE_BLOCKCHAIN_CONN_ERR, self.opts.node_id,
                                                           conn.peer_ip, conn.peer_port)
