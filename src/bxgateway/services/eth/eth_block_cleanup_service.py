@@ -30,6 +30,7 @@ class EthBlockCleanupService(AbstractEthBlockCleanupService):
         start_time = time.time()
         short_ids_count: int = 0
         unknown_tx_hashes_count: int = 0
+        tx_hash_to_contents_len_before_cleanup = transaction_service.get_tx_hash_to_contents_len()
         for tx_hash in transactions_list:
             short_ids = transaction_service.remove_transaction_by_tx_hash(tx_hash)
             if short_ids is None:
@@ -41,10 +42,17 @@ class EthBlockCleanupService(AbstractEthBlockCleanupService):
         transaction_service.on_block_cleaned_up(block_hash)
         end_time = time.time()
         duration = end_time - start_time
+        block_tx_count = unknown_tx_hashes_count + short_ids_count
+        tx_hash_to_contents_len_after_cleanup = transaction_service.get_tx_hash_to_contents_len()
+
         logger.info(
             "BlockTransactionsCleanup BlockHash: {} UnknownTxHashes: {} ShortIdCount: {} Duration: {}",
-            repr(block_hash), unknown_tx_hashes_count, short_ids_count, duration
+            block_hash, unknown_tx_hashes_count, short_ids_count, duration
         )
+
+        transaction_service.log_block_transaction_cleanup_stats(block_hash, block_tx_count,
+                                                                tx_hash_to_contents_len_before_cleanup,
+                                                                tx_hash_to_contents_len_after_cleanup)
 
         self._block_hash_marked_for_cleanup.remove(block_hash)
         self.node.post_block_cleanup_tasks(

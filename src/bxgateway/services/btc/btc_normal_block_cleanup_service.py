@@ -44,18 +44,14 @@ class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):
         duration = end_time - start_time
         tx_hash_to_contents_len_after_cleanup = transaction_service.get_tx_hash_to_contents_len()
 
-        logger.statistics(
-            {
-                "type": "BlockTransactionsCleanup",
-                "block_hash": repr(block_hash),
-                "unknown_tx_hashes_count": unknown_tx_hashes_count,
-                "short_ids_count": short_ids_count,
-                "block_transactions_count": block_msg.txn_count(),
-                "duration": duration,
-                "tx_hash_to_contents_len_before_cleanup": tx_hash_to_contents_len_before_cleanup,
-                "tx_hash_to_contents_len_after_cleanup": tx_hash_to_contents_len_after_cleanup,
-            }
+        logger.info(
+            "BlockTransactionsCleanup BlockHash: {} UnknownTxHashes: {} ShortIdCount: {} Duration: {}",
+            block_hash, unknown_tx_hashes_count, short_ids_count, duration
         )
+
+        transaction_service.log_block_transaction_cleanup_stats(block_hash, block_msg.txn_count(),
+                                                                tx_hash_to_contents_len_before_cleanup,
+                                                                tx_hash_to_contents_len_after_cleanup)
 
         self._block_hash_marked_for_cleanup.remove(block_hash)
         self.node.post_block_cleanup_tasks(
