@@ -90,13 +90,20 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
         logs the connection's memory stats
         """
         super(AbstractGatewayBlockchainConnection, self).log_connection_mem_stats()
+        t0 = time.time()
+        class_name = self.__class__.__name__
         if self.message_converter is not None:
-            hooks.increment_obj_mem_stats(
-                self.__class__.__name__,
+            hooks.add_obj_mem_stats(
+                class_name,
                 self.network_num,
                 self.message_converter,
                 "message_converter",
-                ObjectSize(
+                memory_utils.ObjectSize(
                     "message_converter", memory_utils.get_special_size(self.message_converter).size, is_actual_size=True
-                )
+                ),
+                object_item_count=1,
+                object_type=memory_utils.ObjectType.META,
+                size_type=memory_utils.SizeType.SPECIAL
             )
+        t_m_c_diff = round(time.time() - t0, 3)
+        logger.info("Recording {} message_converter MemoryStats took: {} seconds".format(class_name, t_m_c_diff))

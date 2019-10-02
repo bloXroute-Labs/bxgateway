@@ -12,11 +12,11 @@ from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.utils import convert
+from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import hooks
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-from bxcommon.utils.memory_utils import SpecialTuple, ObjectSize
-from bxcommon.utils import memory_utils
+
 
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
@@ -212,12 +212,15 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         """
         super(AbstractRelayConnection, self).log_connection_mem_stats()
         if self.message_converter is not None:
-            hooks.increment_obj_mem_stats(
+            hooks.add_obj_mem_stats(
                 self.__class__.__name__,
                 self.network_num,
                 self.message_converter,
                 "message_converter",
-                ObjectSize(
+                memory_utils.ObjectSize(
                     "message_converter", memory_utils.get_special_size(self.message_converter).size, is_actual_size=True
-                )
+                ),
+                object_item_count=1,
+                object_type=memory_utils.ObjectType.META,
+                size_type=memory_utils.SizeType.SPECIAL
             )

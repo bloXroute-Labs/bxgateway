@@ -195,7 +195,9 @@ class AbstractGatewayNode(AbstractNode):
             memory_utils.ObjectSize(
                 size=block_cleanup_service_size,
                 flat_size=0,
-                is_actual_size=True)
+                is_actual_size=True),
+            object_type=memory_utils.ObjectType.META,
+            size_type=memory_utils.SizeType.SPECIAL
         )
         return super(AbstractGatewayNode, self).record_mem_stats()
 
