@@ -211,9 +211,11 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         logs the connection's memory stats
         """
         super(AbstractRelayConnection, self).log_connection_mem_stats()
+
+        class_name = self.__class__.__name__
         if self.message_converter is not None:
             hooks.add_obj_mem_stats(
-                self.__class__.__name__,
+                class_name,
                 self.network_num,
                 self.message_converter,
                 "message_converter",
