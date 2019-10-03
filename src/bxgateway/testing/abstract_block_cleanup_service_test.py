@@ -15,7 +15,7 @@ class AbstractBlockCleanupServiceTest(AbstractTestCase, metaclass=ABCMeta):
         self.block_confirmations_count = 3
         opts = helpers.get_gateway_opts(
             8000,
-            block_confirmations_count=self.block_confirmations_count,
+            block_confirmations_count=self.block_confirmations_count - 1,
             include_default_btc_args=True
         )
         if opts.use_extensions:
