@@ -1,7 +1,6 @@
 from bxutils import logging
 
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon import constants
 
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
@@ -22,7 +21,6 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
             EthProtocolMessageType.NODE_DATA: self.msg_proxy_response,
             EthProtocolMessageType.RECEIPTS: self.msg_block_receipts
         })
-        self.block_cleanup_poll_interval_s = constants.CANCEL_ALARMS
 
     def msg_status(self, _msg):
         logger.debug("Status message received.")

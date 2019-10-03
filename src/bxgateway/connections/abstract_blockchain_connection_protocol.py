@@ -31,10 +31,6 @@ class AbstractBlockchainConnectionProtocol:
             block_cleanup_poll_interval_s: int = gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S):
         self.block_cleanup_poll_interval_s = block_cleanup_poll_interval_s
         self.connection = connection
-        self.connection.node.alarm_queue.register_alarm(
-            self.block_cleanup_poll_interval_s,
-            self._request_blocks_confirmation
-        )
 
     def msg_tx(self, msg):
         """

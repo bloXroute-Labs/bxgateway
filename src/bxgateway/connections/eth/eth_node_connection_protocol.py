@@ -59,6 +59,11 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         # queue of lists of hashes that are awaiting block bodies response
         self._block_bodies_requests: Deque[List[Sha256Hash]] = deque(maxlen=eth_constants.REQUESTED_NEW_BLOCK_BODIES_MAX_COUNT)
 
+        self.connection.node.alarm_queue.register_alarm(
+            self.block_cleanup_poll_interval_s,
+            self._request_blocks_confirmation
+        )
+
     def msg_status(self, _msg):
         logger.debug("Status message received.")
 

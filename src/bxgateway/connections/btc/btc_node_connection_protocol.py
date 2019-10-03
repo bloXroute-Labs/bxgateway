@@ -54,6 +54,10 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             btc_constants.BTC_COMPACT_BLOCK_RECOVERY_TIMEOUT_S
         )
         self.ping_interval_s: int = gateway_constants.BLOCKCHAIN_PING_INTERVAL_S
+        self.connection.node.alarm_queue.register_alarm(
+            self.block_cleanup_poll_interval_s,
+            self._request_blocks_confirmation
+        )
 
     def msg_version(self, msg: VersionBtcMessage) -> None:
         """
