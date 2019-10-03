@@ -454,10 +454,15 @@ class AbstractGatewayNode(AbstractNode):
                                "Connection being destroyed - {}. Established connection - {}.",
                                conn.peer_desc, self.node_conn.peer_desc)
         elif conn.CONNECTION_TYPE == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
-            sdn_http_service.submit_peer_connection_event(NodeEventType.REMOTE_BLOCKCHAIN_CONN_ERR, self.opts.node_id,
-                                                          conn.peer_ip, conn.peer_port)
-            self.remote_node_conn = None
-            self.remote_node_msg_queue.pop_items()
+            if self.remote_node_conn == conn or self.remote_node_conn is None:
+                sdn_http_service.submit_peer_connection_event(NodeEventType.REMOTE_BLOCKCHAIN_CONN_ERR, self.opts.node_id,
+                                                              conn.peer_ip, conn.peer_port)
+                self.remote_node_conn = None
+                self.remote_node_msg_queue.pop_items()
+            else:
+                logger.warning("Detected attempt to close remote node connection when another is already established. "
+                               "Connection being destroyed - {}. Established connection - {}.",
+                               conn.peer_desc, self.remote_node_conn.peer_desc)
 
         super(AbstractGatewayNode, self).destroy_conn(conn, retry_connection)
 
