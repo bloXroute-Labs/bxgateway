@@ -5,10 +5,14 @@ from bxutils.logging.log_record_type import LogRecordType
 
 from bxcommon.utils import crypto
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.messages.bloxroute.block_confirmation_message import BlockConfirmationMessage
 
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash, BTC_SHA_HASH_LEN
+
+from bxcommon.services import normal_cleanup_service_helpers
 
 logger = logging.get_logger(LogRecordType.BlockCleanup)
 
@@ -59,3 +63,9 @@ class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):
             short_ids=block_short_ids,
             unknown_tx_hashes=block_unknown_tx_hashes
         )
+
+    def contents_cleanup(self,
+                         transaction_service: TransactionService,
+                         block_confirmation_message: BlockConfirmationMessage
+                         ):
+        normal_cleanup_service_helpers.contents_cleanup(transaction_service, block_confirmation_message)

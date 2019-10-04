@@ -23,6 +23,9 @@ class _MockCleanupService(AbstractBtcBlockCleanupService):
     def clean_block_transactions(self, block_msg: BlockBtcMessage, transaction_service: TransactionService) -> None:
         pass
 
+    def contents_cleanup(self, block_msg: BlockBtcMessage, transaction_service: TransactionService) -> None:
+        pass
+
     def is_marked_for_cleanup(self, block_hash: BtcObjectHash) -> bool:
         return False
 

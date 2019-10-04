@@ -7,6 +7,7 @@ from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
 
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
+from bxcommon.messages.bloxroute.block_confirmation_message import BlockConfirmationMessage
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 from bxcommon.utils.proxy import task_pool_proxy
@@ -14,6 +15,7 @@ from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.memory_utils import SpecialTuple
 from bxcommon.utils import memory_utils
+from bxcommon.services import extention_cleanup_service_helpers, normal_cleanup_service_helpers
 
 from bxgateway import btc_constants
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -27,13 +29,18 @@ if TYPE_CHECKING:
 logger = logging.get_logger(LogRecordType.BlockCleanup)
 
 
+def create_block_confirmation_cleanup_task() -> tpe.BlockConfirmationCleanupTask:  # pyre-ignore
+    return tpe.BlockConfirmationCleanupTask()
+
+
 class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
 
     MINIMAL_SUB_TASK_TX_COUNT = btc_constants.BTC_MINIMAL_SUB_TASK_TX_COUNT
 
     def __init__(self, node: "BtcGatewayNode", network_num: int):
         super(BtcExtensionBlockCleanupService, self).__init__(node, network_num)
-        self.cleanup_tasks = TaskQueueProxy(self._create_cleanup_task)
+        self.block_cleanup_tasks = TaskQueueProxy(self._create_block_cleanup_task)
+        self.block_confirmation_cleanup_tasks = TaskQueueProxy(create_block_confirmation_cleanup_task)
 
     def clean_block_transactions(
             self, block_msg: BlockBtcMessage, transaction_service: TransactionService
@@ -41,7 +48,7 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
         start_datetime = datetime.utcnow()
         start_time = time.time()
         tx_hash_to_contents_len_before_cleanup = transaction_service.get_tx_hash_to_contents_len()
-        cleanup_task = self.cleanup_tasks.borrow_task()
+        cleanup_task = self.block_cleanup_tasks.borrow_task()
         tx_service = typing.cast(ExtensionTransactionService, transaction_service)
         cleanup_task.init(tpe.InputBytes(block_msg.buf), tx_service.proxy)
         init_time = time.time()
@@ -80,7 +87,7 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
                 "tx_hash_to_contents_len_after_cleanup": tx_hash_to_contents_len_after_cleanup,
             }
         )
-        self.cleanup_tasks.return_task(cleanup_task)
+        self.block_cleanup_tasks.return_task(cleanup_task)
         self._block_hash_marked_for_cleanup.remove(block_hash)
         self.node.post_block_cleanup_tasks(
             block_hash=block_hash,
@@ -90,7 +97,15 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
         )
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
-        return memory_utils.get_special_size(self.cleanup_tasks, ids)
+        return memory_utils.add_special_objects(self.block_cleanup_tasks, self.block_confirmation_cleanup_tasks, ids)
 
-    def _create_cleanup_task(self) -> tpe.BtcBlockCleanupTask:  # pyre-ignore
+    def _create_block_cleanup_task(self) -> tpe.BtcBlockCleanupTask:  # pyre-ignore
         return tpe.BtcBlockCleanupTask(self.MINIMAL_SUB_TASK_TX_COUNT)
+
+    def contents_cleanup(self,
+                         transaction_service: TransactionService,
+                         block_confirmation_message: BlockConfirmationMessage
+                         ):
+        extention_cleanup_service_helpers.contents_cleanup(transaction_service,
+                                                           block_confirmation_message,
+                                                           self.block_confirmation_cleanup_tasks)

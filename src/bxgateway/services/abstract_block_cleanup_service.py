@@ -4,6 +4,8 @@ from abc import ABCMeta, abstractmethod
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
 
+from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
+from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
 from bxcommon.utils import memory_utils
@@ -111,3 +113,32 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
         return super(AbstractBlockCleanupService, self).special_memory_size(ids)
+
+    @abstractmethod
+    def contents_cleanup(self,
+                         transaction_service: TransactionService,
+                         block_confirmation_message: AbstractCleanupMessage
+                         ):
+        pass
+
+    def process_cleanup_message(
+            self,
+            msg: AbstractCleanupMessage,
+            node: "AbstractGatewayNode",
+    ):
+        block_cleanup = msg.MESSAGE_TYPE == BloxrouteMessageType.BLOCK_CONFIRMATION
+        message_hash = msg.message_hash()
+        transaction_service = node.get_tx_service()
+        tracked_blocks = transaction_service.get_tracked_blocks()
+        if message_hash in node.block_cleanup_processed_blocks:
+            if message_hash in tracked_blocks and block_cleanup:
+                logger.info(
+                    "BlockConfirmation BlockHash: {} already processed, TrackedBlocks: {}, block tracked reprocessing",
+                    message_hash, tracked_blocks
+                )
+            else:
+                logger.info("Cleanup Message already processed MessageHash: {} already processed skip", message_hash)
+                return
+        logger.info("Processing CleanupMessage MessageHash: {}", message_hash)
+        node.block_cleanup_processed_blocks.add(message_hash)
+        self.contents_cleanup(transaction_service, msg)

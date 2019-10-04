@@ -12,6 +12,9 @@ class BtcNormalBlockCleanupServiceTest(AbstractBtcBlockCleanupServiceTest):
     def test_block_cleanup(self):
         self._test_block_cleanup()
 
+    def test_block_confirmation_cleanup(self):
+        self._test_block_confirmation_cleanup()
+
     def _get_transaction_service(self) -> TransactionService:
         return TransactionService(self.node, 1)
 
@@ -20,3 +23,4 @@ class BtcNormalBlockCleanupServiceTest(AbstractBtcBlockCleanupServiceTest):
 
     def _get_file_path(self) -> str:
         return __file__
+

@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from typing import TYPE_CHECKING, Optional, Set
+from typing import TYPE_CHECKING, Optional, Set, Union
 
 from bxutils import logging
 
@@ -11,6 +11,7 @@ from bxcommon.messages.bloxroute.disconnect_relay_peer_message import Disconnect
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
+from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.utils import convert
 from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import hooks
@@ -53,7 +54,9 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding,
             BloxrouteMessageType.DISCONNECT_RELAY_PEER: self.msg_disconnect_relay_peer,
             BloxrouteMessageType.TX_SERVICE_SYNC_TXS: self.msg_tx_service_sync_txs,
-            BloxrouteMessageType.TX_SERVICE_SYNC_COMPLETE: self.msg_tx_service_sync_complete
+            BloxrouteMessageType.TX_SERVICE_SYNC_COMPLETE: self.msg_tx_service_sync_complete,
+            BloxrouteMessageType.BLOCK_CONFIRMATION: self.msg_cleanup,
+            BloxrouteMessageType.TRANSACTION_CLEANUP: self.msg_cleanup,
         }
 
         self.message_converter = None
@@ -226,3 +229,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 object_type=memory_utils.ObjectType.META,
                 size_type=memory_utils.SizeType.SPECIAL
             )
+
+    def msg_cleanup(self, msg: AbstractCleanupMessage):
+        self.node.block_cleanup_service.process_cleanup_message(msg, self.node)

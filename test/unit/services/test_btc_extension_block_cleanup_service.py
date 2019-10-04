@@ -1,4 +1,3 @@
-import time
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService, TransactionService
 from bxcommon.test_utils import helpers
 
@@ -15,6 +14,9 @@ class BtcExtensionBlockCleanupServiceTest(AbstractBtcBlockCleanupServiceTest):
 
     def test_mark_blocks_and_request_cleanup(self):
         self._test_mark_blocks_and_request_cleanup()
+
+    def test_block_confirmation_cleanup(self):
+        self._test_block_confirmation_cleanup()
 
     def test_block_cleanup(self):
         self._test_block_cleanup()

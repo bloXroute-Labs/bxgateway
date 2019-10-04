@@ -10,7 +10,6 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBl
 from bxgateway.testing.abstract_block_cleanup_service_test import AbstractBlockCleanupServiceTest
 from bxgateway.services.eth.abstract_eth_block_cleanup_service import AbstractEthBlockCleanupService
 from bxgateway.services.eth.eth_block_cleanup_service import EthBlockCleanupService
-from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 
 
 class EthBlockCleanupServiceTests(AbstractBlockCleanupServiceTest):
@@ -72,6 +71,9 @@ class EthBlockCleanupServiceTests(AbstractBlockCleanupServiceTest):
 
     def test_block_cleanup(self):
         self._test_block_cleanup()
+
+    def test_block_confirmation_cleanup(self):
+        self._test_block_confirmation_cleanup()
 
     def _get_transaction_service(self) -> TransactionService:
         return TransactionService(self.node, 1)

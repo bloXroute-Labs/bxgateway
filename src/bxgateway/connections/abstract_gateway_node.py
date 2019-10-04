@@ -145,6 +145,8 @@ class AbstractGatewayNode(AbstractNode):
 
         self.opts.has_fully_updated_tx_service = False
         self.alarm_queue.register_alarm(constants.TX_SERVICE_SYNC_PROCESS_S, self.sync_tx_services)
+        self.block_cleanup_processed_blocks = ExpiringSet(self.alarm_queue,
+                                                          gateway_constants.BLOCK_CONFIRMATION_EXPIRE_TIME_S)
 
     @abstractmethod
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
