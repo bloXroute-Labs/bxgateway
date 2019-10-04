@@ -15,7 +15,7 @@ from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.memory_utils import SpecialTuple
 from bxcommon.utils import memory_utils
-from bxcommon.services import extention_cleanup_service_helpers, normal_cleanup_service_helpers
+from bxcommon.services import extension_cleanup_service_helpers, normal_cleanup_service_helpers
 
 from bxgateway import btc_constants
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -106,6 +106,6 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
                          transaction_service: TransactionService,
                          block_confirmation_message: BlockConfirmationMessage
                          ):
-        extention_cleanup_service_helpers.contents_cleanup(transaction_service,
+        extension_cleanup_service_helpers.contents_cleanup(transaction_service,
                                                            block_confirmation_message,
                                                            self.block_confirmation_cleanup_tasks)

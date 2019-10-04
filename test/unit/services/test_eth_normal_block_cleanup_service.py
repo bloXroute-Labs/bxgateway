@@ -9,7 +9,7 @@ from bxcommon.utils.object_hash import Sha256Hash, SHA256_HASH_LEN
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.testing.abstract_block_cleanup_service_test import AbstractBlockCleanupServiceTest
 from bxgateway.services.eth.abstract_eth_block_cleanup_service import AbstractEthBlockCleanupService
-from bxgateway.services.eth.eth_block_cleanup_service import EthBlockCleanupService
+from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlockCleanupService
 
 
 class EthBlockCleanupServiceTests(AbstractBlockCleanupServiceTest):
@@ -79,7 +79,7 @@ class EthBlockCleanupServiceTests(AbstractBlockCleanupServiceTest):
         return TransactionService(self.node, 1)
 
     def _get_cleanup_service(self) -> AbstractEthBlockCleanupService:
-        return EthBlockCleanupService(self.node, 1)
+        return EthNormalBlockCleanupService(self.node, 1)
 
     def _get_file_path(self) -> str:
         return __file__

@@ -7,15 +7,13 @@ from bxgateway.connections.abstract_relay_connection import AbstractRelayConnect
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
-from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.btc.btc_block_processing_service import BtcBlockProcessingService
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
+from bxgateway.services.btc.btc_normal_block_cleanup_service import BtcNormalBlockCleanupService
 from bxgateway.testing.btc_lossy_relay_connection import BtcLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
-from bxgateway.services.btc.btc_normal_block_cleanup_service import BtcNormalBlockCleanupService
-from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 
 
 class BtcGatewayNode(AbstractGatewayNode):

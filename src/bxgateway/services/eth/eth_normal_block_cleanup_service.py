@@ -14,7 +14,7 @@ from bxgateway.services.eth.abstract_eth_block_cleanup_service import AbstractEt
 logger = logging.get_logger(LogRecordType.BlockCleanup)
 
 
-class EthBlockCleanupService(AbstractEthBlockCleanupService):
+class EthNormalBlockCleanupService(AbstractEthBlockCleanupService):
 
     """
     Service for managing block cleanup.

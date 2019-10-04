@@ -1,8 +1,6 @@
 from collections import deque
 from typing import Tuple, Optional, List
 
-from bxutils import logging
-
 from bxcommon import constants
 from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
@@ -10,7 +8,6 @@ from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-
 from bxgateway import eth_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -19,16 +16,17 @@ from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
-from bxgateway.services.eth.eth_block_cleanup_service import EthBlockCleanupService
-from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
-from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.block_queuing_service import BlockQueuingService
+from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
+from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlockCleanupService
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -88,7 +86,11 @@ class EthGatewayNode(AbstractGatewayNode):
         return EthBlockQueuingService(self)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
-        return EthBlockCleanupService(self, self.network_num)
+        if self.opts.use_extensions:
+            from bxgateway.services.eth.eth_extension_block_cleanup_service import EthExtensionBlockCleanupService
+            return EthExtensionBlockCleanupService(self, self.network_num)
+        else:
+            return EthNormalBlockCleanupService(self, self.network_num)
 
     def on_updated_remote_blockchain_peer(self, peer):
         if "node_public_key" not in peer.attributes:
@@ -205,9 +207,10 @@ class EthGatewayNode(AbstractGatewayNode):
             expected_blocks = self._requested_remote_blocks_queue.pop()
 
             if len(expected_blocks) != blocks_count:
-                logger.warning("Number of blocks received from remote blockchain node ({}) does not match expected ({}). "
-                            "Temporarily suspend logging of remote blocks sync."
-                            .format(blocks_count, len(expected_blocks)))
+                logger.warning(
+                    "Number of blocks received from remote blockchain node ({}) does not match expected ({}). "
+                    "Temporarily suspend logging of remote blocks sync."
+                    .format(blocks_count, len(expected_blocks)))
                 self._skip_remote_block_requests_stats_count = len(self._requested_remote_blocks_queue) * 2
                 self._requested_remote_blocks_queue.clear()
                 return
