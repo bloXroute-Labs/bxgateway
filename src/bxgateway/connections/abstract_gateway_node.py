@@ -446,21 +446,14 @@ class AbstractGatewayNode(AbstractNode):
     def destroy_conn(self, conn, retry_connection=False):
         if conn.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
             if self.node_conn == conn or self.node_conn is None:
-                sdn_http_service.submit_peer_connection_event(NodeEventType.BLOCKCHAIN_NODE_CONN_ERR, self.opts.node_id,
-                                                              conn.peer_ip, conn.peer_port)
-                self.node_conn = None
-                self.node_msg_queue.pop_items()
-                self.schedule_blockchain_liveliness_check(self.opts.stay_alive_duration)
+                self.on_blockchain_connection_destroyed(conn)
             else:
                 logger.warning("Detected attempt to close node connection when another is already established. "
                                "Connection being destroyed - {}. Established connection - {}.",
                                conn.peer_desc, self.node_conn.peer_desc)
         elif conn.CONNECTION_TYPE == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
             if self.remote_node_conn == conn or self.remote_node_conn is None:
-                sdn_http_service.submit_peer_connection_event(NodeEventType.REMOTE_BLOCKCHAIN_CONN_ERR, self.opts.node_id,
-                                                              conn.peer_ip, conn.peer_port)
-                self.remote_node_conn = None
-                self.remote_node_msg_queue.pop_items()
+                self.on_remote_blockchain_connection_destroyed(conn)
             else:
                 logger.warning("Detected attempt to close remote node connection when another is already established. "
                                "Connection being destroyed - {}. Established connection - {}.",
@@ -487,10 +480,23 @@ class AbstractGatewayNode(AbstractNode):
         self.node_conn = connection
         self.cancel_blockchain_liveliness_check()
 
+    def on_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection):
+        sdn_http_service.submit_peer_connection_event(NodeEventType.BLOCKCHAIN_NODE_CONN_ERR, self.opts.node_id,
+                                                      connection.peer_ip, connection.peer_port)
+        self.node_conn = None
+        self.node_msg_queue.pop_items()
+        self.schedule_blockchain_liveliness_check(self.opts.stay_alive_duration)
+
     def on_remote_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection):
         for msg in self.remote_node_msg_queue.pop_items():
             connection.enqueue_msg_bytes(msg)
         self.remote_node_conn = connection
+
+    def on_remote_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection):
+        sdn_http_service.submit_peer_connection_event(NodeEventType.REMOTE_BLOCKCHAIN_CONN_ERR, self.opts.node_id,
+                                                      connection.peer_ip, connection.peer_port)
+        self.remote_node_conn = None
+        self.remote_node_msg_queue.pop_items()
 
     def on_relay_connection_ready(self):
         self.cancel_relay_liveliness_check()
