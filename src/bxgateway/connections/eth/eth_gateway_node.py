@@ -178,14 +178,14 @@ class EthGatewayNode(AbstractGatewayNode):
                 break
 
         if previous_block_total_difficulty is None:
-            logger.info("Unable to calculate total difficulty after block {}.", convert.bytes_to_hex(block_hash.binary))
+            logger.debug("Unable to calculate total difficulty after block {}.", convert.bytes_to_hex(block_hash.binary))
             return None
 
         block_total_difficulty = previous_block_total_difficulty + new_block_parts.get_block_difficulty()
 
         self._last_known_difficulties.append((block_hash, block_total_difficulty))
-        logger.info("Calculated total difficulty after block {} = {}.",
-                    convert.bytes_to_hex(block_hash.binary), block_total_difficulty)
+        logger.debug("Calculated total difficulty after block {} = {}.",
+                     convert.bytes_to_hex(block_hash.binary), block_total_difficulty)
 
         return block_total_difficulty
 
@@ -209,8 +209,8 @@ class EthGatewayNode(AbstractGatewayNode):
             if len(expected_blocks) != blocks_count:
                 logger.warning(
                     "Number of blocks received from remote blockchain node ({}) does not match expected ({}). "
-                    "Temporarily suspend logging of remote blocks sync."
-                    .format(blocks_count, len(expected_blocks)))
+                    "Temporarily suspending logging of remote blocks sync.",
+                    blocks_count, len(expected_blocks))
                 self._skip_remote_block_requests_stats_count = len(self._requested_remote_blocks_queue) * 2
                 self._requested_remote_blocks_queue.clear()
                 return

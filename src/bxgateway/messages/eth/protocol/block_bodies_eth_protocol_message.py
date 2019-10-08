@@ -36,5 +36,5 @@ class BlockBodiesEthProtocolMessage(EthProtocolMessage):
         return cls(msg_bytes)
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 

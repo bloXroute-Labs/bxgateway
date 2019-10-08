@@ -21,7 +21,7 @@ class GetBlockHeadersEthProtocolMessage(EthProtocolMessage):
             f"amount: ${self.get_amount()}, skip: {self.get_skip()}, reverse: {self.get_reverse()}>"
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def get_block_hash(self) -> memoryview:
         # Note that the field may be empty, or block number provided instead of hash by ETH node

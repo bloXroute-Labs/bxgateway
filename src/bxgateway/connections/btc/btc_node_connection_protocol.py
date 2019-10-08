@@ -1,9 +1,6 @@
 import time
 from typing import List, TYPE_CHECKING, Union
 
-from bxutils import logging
-
-from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.expiring_dict import ExpiringDict
@@ -27,8 +24,6 @@ from bxgateway.utils.errors.message_conversion_error import MessageConversionErr
 
 if TYPE_CHECKING:
     from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
-
-logger = logging.get_logger(__name__)
 
 
 class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
@@ -69,9 +64,9 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         self.request_witness_data = msg.services() & NODE_WITNESS_SERVICE_FLAG > 0
 
         if self.request_witness_data:
-            logger.info("Detected connection with BTC node supporting SegWit.")
+            self.connection.log_debug("Connection with Bitcoin node supports SegWit.")
 
-        self.connection.state |= ConnectionState.ESTABLISHED
+        self.connection.on_connection_established()
         reply = VerAckBtcMessage(self.magic)
         self.connection.enqueue_msg(reply)
 
@@ -79,7 +74,6 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             self.magic, on_flag=self.node.opts.compact_block, version=1
         )
 
-        logger.info("Sending SENDCMPCT message")
         self.node.alarm_queue.register_alarm(
             2, self.connection.enqueue_msg, send_compact_msg
         )
@@ -184,20 +178,21 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 network_num=self.connection.network_num,
                 peer=self.connection.peer_desc
             )
-            logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
+            self.connection.log_trace("Ignoring duplicate block: {}", block_hash)
             return
 
         max_time_offset = self.node.opts.blockchain_block_interval * self.node.opts.blockchain_ignore_block_interval_count
         if time.time() - msg.timestamp() >= max_time_offset:
-            logger.debug(
-                "Received block {} more than {} seconds after it was created ({}). "
-                "Ignoring.".format(block_hash, max_time_offset, msg.timestamp()))
+            self.connection.log_trace(
+                "Received block {} more than {} seconds after it was created ({}). Ignoring.",
+                block_hash, max_time_offset, msg.timestamp()
+            )
             return
 
         self.node.track_block_from_node_handling_started(block_hash)
 
         if short_ids_count < self.node.opts.compact_block_min_tx_count:
-            logger.info(
+            self.connection.log_debug(
                 "Compact block {} contains {} short transactions, less than limit {}. Requesting full block.",
                 convert.bytes_to_hex(msg.block_hash().binary),
                 short_ids_count,
@@ -225,7 +220,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 network_num=self.connection.network_num,
                 conversion_type=e.conversion_type.value
             )
-            logger.warning("failed to process compact block {} - {}, requesting full block", e.msg_hash, e)
+            self.connection.log_warning("Failed to process compact block: {}. Request full block. Error: {}",
+                                        e.msg_hash, e)
             get_data_msg = GetDataBtcMessage(
                 magic=self.magic,
                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]

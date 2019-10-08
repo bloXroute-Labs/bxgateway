@@ -22,4 +22,4 @@ class GetBlockBodiesEthProtocolMessage(EthProtocolMessage):
         return rlp_utils.get_first_list_field_items_bytes(self._memory_view, remove_items_length_prefix=True)
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG

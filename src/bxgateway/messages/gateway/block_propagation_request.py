@@ -28,7 +28,7 @@ class BlockPropagationRequestMessage(AbstractBloxrouteMessage):
         self._blob = None
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def blob(self):
         if self._blob is None:

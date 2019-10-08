@@ -28,7 +28,7 @@ class EthNormalBlockCleanupService(AbstractEthBlockCleanupService):
          ) -> None:
         block_short_ids = []
         block_unknown_tx_hashes = []
-        logger.debug("BlockCleanupFlow processing cleanup BlockHash: {}", block_hash)
+        logger.trace("Processing block for cleanup: {}", block_hash)
         start_time = time.time()
         short_ids_count: int = 0
         unknown_tx_hashes_count: int = 0
@@ -47,8 +47,8 @@ class EthNormalBlockCleanupService(AbstractEthBlockCleanupService):
         block_tx_count = unknown_tx_hashes_count + short_ids_count
         tx_hash_to_contents_len_after_cleanup = transaction_service.get_tx_hash_to_contents_len()
 
-        logger.info(
-            "BlockTransactionsCleanup BlockHash: {} UnknownTxHashes: {} ShortIdCount: {} Duration: {}",
+        logger.debug(
+            "Finished cleaning up block {}. Unknown hashes: {}, short ids: {}, duration: {:.3f}.",
             block_hash, unknown_tx_hashes_count, short_ids_count, duration
         )
 

@@ -20,7 +20,7 @@ class BlockRecoveryInfo(NamedTuple):
     recovery_start_time: float
 
 
-class BlockRecoveryService(object):
+class BlockRecoveryService:
     """
     Service class that handles blocks gateway receives with unknown transaction short ids are contents.
 
@@ -78,8 +78,8 @@ class BlockRecoveryService(object):
         :param unknown_tx_sids: list of unknown short ids
         :param unknown_tx_hashes: list of unknown tx ObjectHashes
         """
-        logger.debug("Recovering block with {} unknown short ids and {} contents: {}"
-                     .format(len(unknown_tx_sids), len(unknown_tx_hashes), block_hash))
+        logger.trace("Recovering block with {} unknown short ids and {} contents: {}", len(unknown_tx_sids),
+                     len(unknown_tx_hashes), block_hash)
         bx_block_hash = Sha256Hash(crypto.double_sha256(bx_block))
 
         self._bx_block_hash_to_block[bx_block_hash] = bx_block
@@ -117,7 +117,7 @@ class BlockRecoveryService(object):
         :param sid: SID info that has been processed
         """
         if sid in self._sid_to_bx_block_hashes:
-            logger.debug("Resolved previously unknown short id: {0}.".format(sid))
+            logger.trace("Resolved previously unknown short id: {0}.", sid)
 
             bx_block_hashes = self._sid_to_bx_block_hashes[sid]
             for bx_block_hash in bx_block_hashes:
@@ -137,7 +137,7 @@ class BlockRecoveryService(object):
         :param tx_hash: transaction info that has been processed
         """
         if tx_hash in self._tx_hash_to_bx_block_hashes:
-            logger.debug("Resolved previously unknown transaction hash {0}.".format(tx_hash))
+            logger.trace("Resolved previously unknown transaction hash {0}.", tx_hash)
 
             bx_block_hashes = self._tx_hash_to_bx_block_hashes[tx_hash]
             for bx_block_hash in bx_block_hashes:
@@ -157,7 +157,7 @@ class BlockRecoveryService(object):
         :param block_hash: ObjectHash
         """
         if block_hash in self._block_hash_to_bx_block_hashes:
-            logger.debug("Cancelled block recovery for block: {}".format(block_hash))
+            logger.trace("Cancelled block recovery for block: {}", block_hash)
             self._remove_recovered_block_hash(block_hash)
 
     def cleanup_old_blocks(self, clean_up_time: float = None):
@@ -165,12 +165,12 @@ class BlockRecoveryService(object):
         Cleans up old compressed blocks awaiting recovery.
         :param clean_up_time:
         """
-        logger.info("Cleaning up block recovery.")
+        logger.debug("Cleaning up block recovery.")
         num_blocks_awaiting_recovery = len(self._bx_block_hash_to_block)
         self._blocks_expiration_queue.remove_expired(current_time=clean_up_time,
                                                      remove_callback=self._remove_not_recovered_block)
-        logger.info("Cleaned up {} blocks awaiting recovery."
-                    .format(num_blocks_awaiting_recovery - len(self._bx_block_hash_to_block)))
+        logger.debug("Cleaned up {} blocks awaiting recovery.",
+                     num_blocks_awaiting_recovery - len(self._bx_block_hash_to_block))
 
         if self._bx_block_hash_to_block:
             return constants.MISSING_BLOCK_EXPIRE_TIME
@@ -184,8 +184,7 @@ class BlockRecoveryService(object):
         Cleans up blocks that have finished recovery.
         :return:
         """
-        logger.debug("Cleaning up {} recovered blocks."
-                     .format(len(self.recovered_blocks)))
+        logger.trace("Cleaning up {} recovered blocks.", len(self.recovered_blocks))
         del self.recovered_blocks[:]
 
     def _check_if_recovered(self, bx_block_hash: Sha256Hash):
@@ -196,7 +195,7 @@ class BlockRecoveryService(object):
         :return:
         """
         if self._is_block_recovered(bx_block_hash):
-            logger.debug("Recovered block: {}".format(bx_block_hash))
+            logger.trace("Recovered block: {}", bx_block_hash)
             bx_block = self._bx_block_hash_to_block[bx_block_hash]
             block_hash = self._bx_block_hash_to_block_hash[bx_block_hash]
             self._remove_recovered_block_hash(block_hash)
@@ -254,7 +253,7 @@ class BlockRecoveryService(object):
         :param bx_block_hash: ObjectHash
         """
         if bx_block_hash in self._bx_block_hash_to_block:
-            logger.debug("Block has failed recovery: {}".format(bx_block_hash))
+            logger.trace("Block has failed recovery: {}", bx_block_hash)
 
             self._remove_sid_and_tx_mapping_for_bx_block_hash(bx_block_hash)
             del self._bx_block_hash_to_block[bx_block_hash]
@@ -266,6 +265,6 @@ class BlockRecoveryService(object):
 
     def _schedule_cleanup(self):
         if not self._cleanup_scheduled and self._bx_block_hash_to_block:
-            logger.debug("Scheduling block recovery cleanup in {} seconds.".format(constants.MISSING_BLOCK_EXPIRE_TIME))
+            logger.trace("Scheduling block recovery cleanup in {} seconds.", constants.MISSING_BLOCK_EXPIRE_TIME)
             self._alarm_queue.register_alarm(constants.MISSING_BLOCK_EXPIRE_TIME, self.cleanup_old_blocks)
             self._cleanup_scheduled = True

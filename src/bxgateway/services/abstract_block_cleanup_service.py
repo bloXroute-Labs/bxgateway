@@ -1,16 +1,13 @@
-from typing import Set, List, Optional
 from abc import ABCMeta, abstractmethod
-
-from bxutils import logging
-from bxutils.logging.log_record_type import LogRecordType
+from typing import Set, List, Optional
 
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
-from bxcommon.utils import memory_utils
-
 from bxgateway.utils.btc.btc_object_hash import Sha256Hash
+from bxutils import logging
+from bxutils.logging.log_record_type import LogRecordType
 
 logger = logging.get_logger(LogRecordType.BlockCleanup)
 
@@ -64,24 +61,23 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
             confirmed_blocks = block_hashes[:-skip_block_count]
             unconfirmed_blocks = block_hashes[-skip_block_count:]
             if tracked_blocks:
-                logger.info("BlocksMarkedForCleanup TrackedBlocks: {} ConfirmedBlocks: {} UnConfirmedBlocks: {}",
-                            tracked_blocks, confirmed_blocks, unconfirmed_blocks,
-                )
+                logger.debug("Block cleanup flow report: tracked blocks: {}, confirmed blocks: {}, "
+                             "unconfirmed blocks: {}", tracked_blocks, confirmed_blocks, unconfirmed_blocks)
                 cross_match_idx: Optional[int] = None
                 for block_hash in reversed(confirmed_blocks):
                     if block_hash in tracked_blocks:
                         tracked_idx = tracked_blocks[block_hash]
                         if cross_match_idx is None or cross_match_idx < tracked_idx:
                             cross_match_idx = tracked_idx
-                        logger.debug("BlockCleanupFlow request block cleanup BlockHash: {}", block_hash)
+                        logger.trace("Block cleanup flow requested block: {}", block_hash)
                         self.block_cleanup_request(block_hash)
                         del tracked_blocks[block_hash]
                     else:
-                        logger.debug("BlockCleanupFlow confirmed block is not tracked BlockHash: {}", block_hash)
+                        logger.trace("Block cleanup flow confirmed block is not tracked: {}", block_hash)
                 if cross_match_idx is not None:
                     for tracked_block, idx in tracked_blocks.items():
                         if idx <= cross_match_idx:
-                            logger.info("TrackedBlockNotExists BlockHash: {}", repr(tracked_block))
+                            logger.debug("Tracked block does not exist: {}", tracked_block)
                             tx_service.on_block_cleaned_up(tracked_block)
 
     def on_new_block_received(self, block_hash: Sha256Hash, prev_block_hash: Sha256Hash) -> None:
@@ -97,7 +93,8 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
             tx_service = self.node.get_tx_service(self.network_num)
             if tx_service.get_tracked_seen_block_count() == 0:
                 tx_service.track_seen_short_ids(prev_block_hash, [])
-                logger.debug("RootBlockTrackedSeen FirstBlockHash: {} PrevBlock: {}", block_hash, prev_block_hash)
+                logger.trace("Setting root block hash for cleanup: first block: {} previous block: {}", block_hash,
+                             prev_block_hash)
 
     @abstractmethod
     def clean_block_transactions(
@@ -132,13 +129,11 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
         tracked_blocks = transaction_service.get_tracked_blocks()
         if message_hash in node.block_cleanup_processed_blocks:
             if message_hash in tracked_blocks and block_cleanup:
-                logger.info(
-                    "BlockConfirmation BlockHash: {} already processed, TrackedBlocks: {}, block tracked reprocessing",
-                    message_hash, tracked_blocks
-                )
+                logger.debug("Block confirmation message already processed: {}. Reprocessing tracked blocks: {}.",
+                             message_hash, tracked_blocks)
             else:
-                logger.info("Cleanup Message already processed MessageHash: {} already processed skip", message_hash)
+                logger.debug("Cleanup message was already processed. Skipping: {}", message_hash)
                 return
-        logger.info("Processing CleanupMessage MessageHash: {}", message_hash)
+        logger.debug("Processing cleanup message: {}", message_hash)
         node.block_cleanup_processed_blocks.add(message_hash)
         self.contents_cleanup(transaction_service, msg)

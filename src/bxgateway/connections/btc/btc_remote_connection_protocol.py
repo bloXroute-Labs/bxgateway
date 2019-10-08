@@ -1,4 +1,3 @@
-from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
@@ -27,7 +26,7 @@ class BtcRemoteConnectionProtocol(BtcBaseConnectionProtocol):
         Gateway initiates connection, so do not check for misbehavior. Record that we received the version message,
         send a verack, and synchronize chains if need be.
         """
-        self.connection.state |= ConnectionState.ESTABLISHED
+        self.connection.on_connection_established()
         reply = VerAckBtcMessage(self.magic)
         self.connection.enqueue_msg(reply)
         self.connection.node.alarm_queue.register_alarm(self.ping_interval_s,

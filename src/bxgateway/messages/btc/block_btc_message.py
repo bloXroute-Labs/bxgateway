@@ -48,7 +48,7 @@ class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
         self._timestamp = 0
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def version(self):
         if self._version is None:

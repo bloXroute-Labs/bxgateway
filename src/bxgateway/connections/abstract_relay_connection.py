@@ -1,31 +1,25 @@
 from abc import ABCMeta
-from typing import TYPE_CHECKING, Optional, Set, Union
-
-from bxutils import logging
+from typing import TYPE_CHECKING
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
+from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.messages.bloxroute.disconnect_relay_peer_message import DisconnectRelayPeerMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
-from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.utils import convert
 from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import hooks
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-
-
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
-
-logger = logging.get_logger(__name__)
 
 
 class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
@@ -73,7 +67,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         if self.CONNECTION_TYPE & ConnectionType.RELAY_BLOCK:
             self.node.block_processing_service.process_block_broadcast(msg, self)
         else:
-            logger.error("Received unexpected block message on non-block relay connection: {}, {}", msg, self)
+            self.log_error("Received unexpected block message on non-block relay connection: {}", msg)
 
     def msg_key(self, msg):
         """
@@ -83,14 +77,14 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         if self.CONNECTION_TYPE & ConnectionType.RELAY_BLOCK:
             self.node.block_processing_service.process_block_key(msg, self)
         else:
-            logger.error("Received unexpected key message on non-block relay connection: {}, {}", msg, self)
+            self.log_error("Received unexpected key message on non-block relay connection: {}", msg)
 
     def msg_tx(self, msg):
         """
         Handle transactions receive from bloXroute network.
         """
         if not self.CONNECTION_TYPE & ConnectionType.RELAY_TRANSACTION:
-            logger.error("Received unexpected tx message on non-tx relay connection: {}, {}", msg, self)
+            self.log_error("Received unexpected tx message on non-tx relay connection: {}", msg)
             return
 
         tx_service = self.node.get_tx_service()
@@ -107,7 +101,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             tx_stats.add_tx_by_hash_event(tx_hash,
                                           TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
                                           network_num=network_num, short_id=short_id, peer=self.peer_desc)
-            logger.debug("Transaction has already been seen.")
+            self.log_trace("Transaction has already been seen: {}", tx_hash)
             return
 
         tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER,
@@ -128,7 +122,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                                           network_num=network_num, short_id=short_id, peer=self.peer_desc)
 
         if tx_service.has_transaction_contents(tx_hash):
-            logger.debug("Transaction has been seen, but short id newly assigned.")
+            self.log_trace("Transaction has been seen, but short id newly assigned.")
             if tx_val != TxMessage.EMPTY_TX_VAL:
                 tx_stats.add_tx_by_hash_event(tx_hash,
                                               TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
@@ -140,7 +134,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             return
 
         if tx_val != TxMessage.EMPTY_TX_VAL:
-            logger.debug("Adding hash value to tx service and forwarding it to node")
+            self.log_trace("Adding hash value to tx service and forwarding it to node")
             tx_service.set_transaction_contents(tx_hash, msg.tx_val())
             attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
@@ -156,7 +150,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_txs(self, msg: TxsMessage):
         if not self.CONNECTION_TYPE & ConnectionType.RELAY_TRANSACTION:
-            logger.error("Received unexpected txs message on non-tx relay connection: {}, {}", msg, self)
+            self.log_error("Received unexpected txs message on non-tx relay connection: {}", msg)
             return
 
         transactions = msg.get_txs()
@@ -206,7 +200,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         Drop relay peer request handler. Forces a gateway to drop its relay connection and request a new one
         :return: None
         """
-        logger.info("Received disconnect request from relay {}:{} - dropping connection", self.peer_ip, self.peer_port)
+        self.log_info("Received disconnect request. Dropping.")
         self.node.destroy_conn(self)
 
     def log_connection_mem_stats(self) -> None:

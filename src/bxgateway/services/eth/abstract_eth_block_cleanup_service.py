@@ -37,9 +37,9 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
                     typing.cast("bxgateway.connections.eth.eth_node_connection_protocol.EthNodeConnectionProtocol",
                                 self.node.node_conn.connection_protocol)
                 connection_protocol.request_block_body([block_hash])
-                logger.debug("BlockCleanupRequest BlockHash: {}", repr(block_hash))
+                logger.trace("Block cleanup request for {}", block_hash)
             else:
-                logger.warning("BlockCleanup for BlockHash: {} Failed, no connection to node", repr(block_hash))
+                logger.debug("Block cleanup for '{}' failed. No connection to node.", repr(block_hash))
 
     def clean_block_transactions(
             self,

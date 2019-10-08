@@ -12,7 +12,7 @@ class EthBaseConnection(AbstractGatewayBlockchainConnection):
         if self.state & ConnectionState.MARK_FOR_CLOSE:
             return
 
-        logger.log(msg.log_level(), "Enqueued message: {} on connection: {}".format(msg, self))
+        self._log_message(msg.log_level(), "Enqueued message: {}", msg)
 
         full_message_bytes = bytearray()
         for message_bytes in self.connection_protocol.get_message_bytes(msg):

@@ -98,9 +98,6 @@ class BtcMessage(AbstractMessage):
             self._payload = self.buf[BTC_HDR_COMMON_OFF:self.payload_len() + BTC_HDR_COMMON_OFF]
         return self._payload
 
-    def log_level(self):
-        return LogLevel.INFO
-
     def __eq__(self, other):
         """
         Expensive equality comparison. Use only for tests.

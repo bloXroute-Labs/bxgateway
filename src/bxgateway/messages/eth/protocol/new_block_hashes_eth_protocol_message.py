@@ -79,7 +79,7 @@ class NewBlockHashesEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage)
         return cls(msg_bytes)
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def prev_block_hash(self) -> Sha256Hash:
         raise NotImplementedError()

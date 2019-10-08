@@ -25,7 +25,7 @@ def read_config_file(full_path: str) -> GatewayNodeConfigModel:
     try:
         file_mod_time = os.stat(full_path).st_mtime
     except FileNotFoundError:
-        logger.warning("config file not found {}", full_path)
+        logger.debug("Config file not found {}", full_path)
         return GatewayNodeConfigModel()
     if config_file_last_updated.get(full_path) != file_mod_time:
         try:
@@ -35,10 +35,10 @@ def read_config_file(full_path: str) -> GatewayNodeConfigModel:
                 config_file_last_updated[full_path] = file_mod_time
                 last_config_model[full_path] = config_model
         except (TypeError, JSONDecodeError):
-            logger.warning("Invalid Configuration payload in file {} \n{}  ", full_path)
+            logger.warning("Payload in gateway config file ({}) was invalid.", full_path)
             return GatewayNodeConfigModel()
         except Exception as e:
-            logger.warning("File Handling Error {} {}", full_path, e)
+            logger.warning("Could not read contents of gateway config file ({}): {}", full_path, e)
             return GatewayNodeConfigModel()
         return config_model
     else:
@@ -49,7 +49,7 @@ def compare_and_update(new_value, target, setter, item=None):
     if new_value is not None:
         if new_value != target:
             setter(new_value)
-            logger.info("ConfigUpdate Item: {}, New: {} Old: {}", item, repr(new_value), repr(target))
+            logger.trace("Updating item: {}. New value: {}, old value: {}.", item, repr(new_value), repr(target))
             return
 
 
@@ -60,7 +60,7 @@ def update_node_config(node: AbstractNode):
     node_config.merge(default_node_config)
     node_config.merge(override_node_config)
 
-    logger.debug({"type": "update_node_config", "data": node_config})
+    logger.trace({"type": "update_node_config", "data": node_config})
     log_config_model = node_config.log_config
     if log_config_model is not None:
         try:
@@ -72,7 +72,7 @@ def update_node_config(node: AbstractNode):
             if log_config_model.log_level_overrides is not None:
                 log_config.set_log_levels(log_config_model.log_level_overrides)
         except (AttributeError, KeyError):
-            logger.warning("Invalid LogLevel provided configuration Ignore {}", log_config_model.log_level)
+            logger.warning("Invalid log level provided in config: {}.", log_config_model.log_level)
             
     if node_config.cron_config is not None:
         compare_and_update(node_config.cron_config.config_update_interval,

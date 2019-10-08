@@ -1,9 +1,8 @@
 import datetime
 import time
 
-from bxutils import logging
-
 from bxcommon import constants
+from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
@@ -13,10 +12,10 @@ from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
-
 from bxgateway import gateway_constants
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -38,15 +37,15 @@ class NeutralityService(object):
         :param bx_block compressed block
         """
         if cipher_hash in self._receipt_tracker:
-            logger.warning("Ignoring duplicate bx_block hash for tracking receiving: {0}".format(cipher_hash))
+            logger.debug("Ignoring duplicate bx_block hash for tracking receiving: {0}", cipher_hash)
             return
 
         self._receipt_tracker[cipher_hash] = 0
         if gateway_constants.NEUTRALITY_POLICY == NeutralityPolicy.RELEASE_IMMEDIATELY:
-            logger.debug("Neutrality policy: releasing key immediately.")
+            logger.trace("Neutrality policy: releasing key immediately.")
             self._send_key(cipher_hash)
         else:
-            logger.debug("Neutrality policy: waiting for receipts before releasing key.")
+            logger.trace("Neutrality policy: waiting for receipts before releasing key.")
             alarm_id = self._node.alarm_queue.register_alarm(gateway_constants.NEUTRALITY_BROADCAST_BLOCK_TIMEOUT_S,
                                                              lambda: self._propagate_block_to_gateway_peers(cipher_hash,
                                                                                                             bx_block))
@@ -68,8 +67,8 @@ class NeutralityService(object):
                                                           self._receipt_tracker[cipher_hash]))
 
             if self._are_enough_receipts_received(cipher_hash):
-                logger.info("Received enough block receipt messages. Releasing key for block with hash: {}"
-                            .format(convert.bytes_to_hex(cipher_hash.binary)))
+                logger.debug("Received enough block receipt messages. Releasing key for block with hash: {}",
+                             convert.bytes_to_hex(cipher_hash.binary))
                 self._send_key(cipher_hash)
                 self._node.alarm_queue.unregister_alarm(self._alarms[cipher_hash])
                 del self._receipt_tracker[cipher_hash]
@@ -155,6 +154,7 @@ class NeutralityService(object):
                                                       stats_format.connections(conns),
                                                       self._format_block_info_stats(block_info),
                                                       stats_format.duration(handling_duration)))
+        logger.info("Propagating block {} to the BDN.", block_info.block_hash)
         return broadcast_message
 
     def _format_block_info_stats(self, block_info):
@@ -175,7 +175,7 @@ class NeutralityService(object):
             list(filter(lambda conn: conn.is_active(),
                         self._node.connection_pool.get_by_connection_type(ConnectionType.GATEWAY))))
         if active_gateway_peer_count == 0:
-            logger.warning("No active gateway peers to get block receipts from.")
+            logger.debug("No active gateway peers to get block receipts from.")
             enough_by_percent = False
         else:
             enough_by_percent = (receipt_count / active_gateway_peer_count * 100 >=
@@ -199,8 +199,8 @@ class NeutralityService(object):
         bx_block_hash = crypto.double_sha256(bx_block)
         hex_bx_block_hash = convert.bytes_to_hex(bx_block_hash)
 
-        logger.warning("Did not receive enough receipts for: {}. Propagating compressed block to other gateways: {}"
-                    .format(cipher_hash, hex_bx_block_hash))
+        logger.debug("Did not receive enough receipts for: {}. Propagating compressed block to other gateways: {}",
+                     cipher_hash, hex_bx_block_hash)
         self._send_key(cipher_hash)
 
         request = BlockPropagationRequestMessage(bx_block)

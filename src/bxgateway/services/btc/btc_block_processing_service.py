@@ -83,9 +83,8 @@ class BtcBlockProcessingService(BlockProcessingService):
                     duration * 1000
                 )
             )
-            logger.info(
-                "Compact block was parsed with {} unknown short ids. "
-                "Requesting unknown transactions.",
+            logger.warning(
+                "Compact block was parsed with {} unknown short ids. Requesting unknown transactions.",
                 missing_indices_count
             )
         return parse_result
@@ -116,7 +115,8 @@ class BtcBlockProcessingService(BlockProcessingService):
                 network_num=connection.network_num,
                 conversion_type=e.conversion_type.value
             )
-            logger.warning("failed to process compact block recovery {} - {}, requesting full block", e.msg_hash, e)
+            logger.warning("Failed to process compact block '{}' after recovery. Requesting full block. Error: {}",
+                           e.msg_hash, e)
             get_data_msg = GetDataBtcMessage(
                 magic=msg.magic(),
                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
@@ -169,10 +169,9 @@ class BtcBlockProcessingService(BlockProcessingService):
                     len(msg.transactions())
                 )
             )
-            logger.info(
-                "Unable to recover compact block '{}' "
-                "after receiving BLOCK TRANSACTIONS message. Requesting full block.",
-                msg.block_hash()
+            logger.warning(
+                "Failed to recover compact block '{}' after receiving BLOCK_TRANSACTIONS message. "
+                "Requesting full block.", msg.block_hash()
             )
             get_data_msg = GetDataBtcMessage(
                     magic=msg.magic(),

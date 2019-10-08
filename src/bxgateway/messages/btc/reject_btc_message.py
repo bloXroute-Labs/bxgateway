@@ -80,7 +80,7 @@ class RejectBtcMessage(BtcMessage):
         return self._obj_hash
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def __repr__(self):
         return "RejectBtcMessage<message: {}, ccode: {}, reason: {}, obj hash {}".format(

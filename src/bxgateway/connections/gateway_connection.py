@@ -1,9 +1,6 @@
 import random
 
-from bxutils import logging
-
 from bxcommon import constants
-from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.messages.bloxroute.ack_message import AckMessage
@@ -13,14 +10,11 @@ from bxcommon.utils import crypto
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-
 from bxgateway import gateway_constants
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
-
-logger = logging.get_logger(__name__)
 
 
 class GatewayConnection(InternalNodeConnection):
@@ -67,14 +61,14 @@ class GatewayConnection(InternalNodeConnection):
         """
         network_num = msg.network_num()
         if network_num != self.node.network_num:
-            logger.error("Network number mismatch. Current network num {}, remote network num {}. Closing connection."
-                         .format(self.network_num, network_num))
+            self.log_error("Network number mismatch. Current network num {}, remote network num {}. "
+                           "Closing connection.", self.network_num, network_num)
             self.mark_for_close()
             return
 
         ip = msg.ip()
         if ip != self.peer_ip:
-            logger.error("Received hello message with mismatched IP address. Disconnecting.")
+            self.log_error("Received hello message with mismatched IP address. Disconnecting.")
             self.mark_for_close()
             return
 
@@ -84,11 +78,11 @@ class GatewayConnection(InternalNodeConnection):
 
         # naively set the the peer id to what reported
         if peer_id is None:
-            logger.warning("Hello message without peer_id received from {}".format(self))
+            self.log_warning("Received hello message without peer id.")
         self.peer_id = peer_id
 
         if not self.from_me:
-            logger.debug("{0} connection established with {1}".format(self.CONNECTION_TYPE, self.peer_id))
+            self.log_trace("Connection established with peer: {}.", peer_id)
             sdn_http_service.submit_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)
 
         if self.node.connection_exists(ip, port):
@@ -96,19 +90,19 @@ class GatewayConnection(InternalNodeConnection):
 
             # connection already has correct ip / port info assigned
             if connection == self:
-                logger.warning("Duplicate hello message received. Ignoring.")
+                self.log_debug("Duplicate hello message received. Ignoring.")
                 self.enqueue_msg(self.ack_message)
                 return
 
             if connection.is_active():
-                logger.warning("Duplicate established connection. Dropping.")
+                self.log_debug("Duplicate established connection. Dropping.")
                 self.mark_for_close()
                 return
 
             # ordering numbers were the same; take over the slot and try again
             if connection.ordering == ordering:
-                logger.warning("Duplicate connection orderings could not be resolved. Investigate if this message appears "
-                            "repeatedly.")
+                self.log_debug("Duplicate connection orderings could not be resolved. Investigate if this "
+                               "message appears repeatedly.")
                 self.node.connection_pool.update_port(self.peer_port, port, self)
                 self._initialize_ordered_handshake()
                 return
@@ -117,29 +111,31 @@ class GatewayConnection(InternalNodeConnection):
             # if connection has same ordering or no ordering, it hasn't yet received its connection
             # so don't do anything and wait for the other connection to receive a HELLO message and itself or this one
             if connection.ordering == self.NULL_ORDERING:
-                logger.warning("Duplicate connections. Two connections have been opened on ip port: {}:{}. Awaiting other "
-                            "connection's resolution.".format(ip, port))
+                self.log_debug(
+                    "Duplicate connections. Two connections have been opened on ip port: {}:{}. Awaiting other "
+                    "connection's resolution.", ip, port)
                 self.ordering = ordering
                 return
 
             if connection.ordering > ordering:
-                logger.debug("Connection already exists, with higher priority. Dropping connection {} and keeping {}."
-                             .format(self.fileno, connection.fileno))
+                self.log_warning("Connection already exists, with higher priority. Dropping connection {} and "
+                                 "keeping {}.", self.fileno, connection.fileno)
                 self.mark_for_close(force_destroy_now=True)
-                connection.state |= ConnectionState.ESTABLISHED
+                connection.on_connection_established()
                 connection.enqueue_msg(connection.ack_message)
             else:
-                logger.debug("Connection already exists, with lower priority. Dropping connection {} and keeping {}."
-                             .format(connection.fileno, self.fileno))
+                self.log_warning(
+                    "Connection already exists, with lower priority. Dropping connection {} and keeping {}.",
+                    connection.fileno, self.fileno)
                 connection.mark_for_close(force_destroy_now=True)
-                self.state |= ConnectionState.ESTABLISHED
+                self.on_connection_established()
                 self.enqueue_msg(self.ack_message)
                 self.node.connection_pool.update_port(self.peer_port, port, self)
         else:
-            logger.debug("Connection is only one of its kind. Updating port reference.")
+            self.log_debug("Connection is only one of its kind. Updating port reference.")
             self.node.connection_pool.update_port(self.peer_port, port, self)
             self.enqueue_msg(self.ack_message)
-            self.state |= ConnectionState.ESTABLISHED
+            self.on_connection_established()
 
         self._update_port_info(port)
         self.ordering = ordering
@@ -148,8 +144,7 @@ class GatewayConnection(InternalNodeConnection):
         """
         Acks hello message and establishes connection.
         """
-        logger.debug("Received ack. Initializing connection.")
-        self.state |= ConnectionState.ESTABLISHED
+        self.on_connection_established()
 
     def msg_block_received(self, msg):
         self.node.neutrality_service.record_block_receipt(msg.block_hash(), self)
@@ -187,6 +182,5 @@ class GatewayConnection(InternalNodeConnection):
         super(GatewayConnection, self).mark_for_close(force_destroy_now=force_destroy_now)
 
         if not self.from_me:
-            logger.debug("{0} connection with {1} closed".format(self.CONNECTION_TYPE, self.peer_id))
             if self.peer_id:
                 sdn_http_service.delete_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)

@@ -191,9 +191,6 @@ class TxBtcMessage(BtcMessage):
     def tx(self):
         return self.payload()
 
-    def log_level(self):
-        return LogLevel.TRACE
-
     def __repr__(self):
         return ("TxBtcMessage<version: {}, length: {}, tx_hash: {}, rawbytes: {}>"
                 .format(self.version(),

@@ -1,7 +1,5 @@
 import typing
 
-from bxutils import logging
-
 import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway import btc_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
@@ -12,6 +10,7 @@ from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, Inventor
 from bxgateway.messages.btc.ping_btc_message import PingBtcMessage
 from bxgateway.messages.btc.pong_btc_message import PongBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -51,7 +50,7 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         """
         block_hash = msg.block_hash()
         if self.node.block_cleanup_service.is_marked_for_cleanup(block_hash):
-            logger.debug("Block Marked for cleanup BlockHash: {}", block_hash)
+            self.connection.log_trace("Marked block for cleanup: {}", block_hash)
             self.node.block_cleanup_service.clean_block_transactions(
                 transaction_service=self.node.get_tx_service(),
                 block_msg=msg

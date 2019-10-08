@@ -83,7 +83,7 @@ class InventoryBtcMessage(BtcMessage):
             off += 32
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def __repr__(self):
         return "InventoryBtcMessage<type: {}, length: {}, items: ({})>".format(self.MESSAGE_TYPE, len(self.rawbytes()),

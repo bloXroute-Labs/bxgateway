@@ -1,11 +1,8 @@
 import time
 import typing
 
-from bxutils import logging
-
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.utils import convert
-
 from bxgateway import eth_constants, gateway_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
@@ -21,6 +18,7 @@ from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEt
 from bxgateway.utils.eth import frame_utils
 from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -65,18 +63,18 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         self._waiting_checkpoint_headers_request = True
 
         if is_handshake_initiator:
-            logger.debug("Public key of remote node is known. Starting handshake.")
+            self.connection.log_trace("Public key is known. Starting handshake.")
             self._enqueue_auth_message()
         else:
-            logger.debug("Public key of remote node is not know. Waiting for handshake request.")
+            self.connection.log_trace("Public key is unknown. Waiting for handshake request.")
             self.node.alarm_queue.register_alarm(eth_constants.HANDSHAKE_TIMEOUT_SEC, self._handshake_timeout)
 
     def msg_auth(self, msg):
-        logger.debug("Begin process auth message")
+        self.connection.log_trace("Beginning processing of auth message.")
         msg_bytes = msg.rawbytes()
         decrypted_auth_msg, size = self.rlpx_cipher.decrypt_auth_message(bytes(msg_bytes))
         if decrypted_auth_msg is None:
-            logger.debug("Auth message is not complete. Continue waiting for more bytes.")
+            self.connection.log_trace("Auth message is incomplete. Waiting for more bytes.")
             return
 
         self.rlpx_cipher.parse_auth_message(decrypted_auth_msg)
@@ -87,7 +85,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         self.connection.message_factory.reset_expected_msg_type()
 
     def msg_auth_ack(self, msg):
-        logger.debug("Begin process auth ack message")
+        self.connection.log_trace("Beginning processing of auth ack message.")
         auth_ack_msg_bytes = msg.rawbytes()
         self.rlpx_cipher.decrypt_auth_ack_message(bytes(auth_ack_msg_bytes))
         self._finalize_handshake()
@@ -103,15 +101,15 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         self._last_ping_pong_time = time.time()
 
     def msg_hello(self, msg):
-        logger.debug("Hello message received.")
+        self.connection.log_trace("Hello message received.")
         self._enqueue_status_message()
 
     def msg_disconnect(self, msg):
-        logger.debug("Disconnect message received. Disconnect reason {0}.".format(msg.get_reason()))
+        self.connection.log_trace("Disconnect message received. Disconnect reason {0}.", msg.get_reason())
         self.connection.mark_for_close()
 
     def msg_get_block_headers(self, msg):
-        logger.info("Replying with empty headers message to the get headers request")
+        self.connection.log_trace("Replying with empty headers message to the get headers request")
         block_headers_msg = BlockHeadersEthProtocolMessage(None, [])
         self.connection.enqueue_msg(block_headers_msg)
         self._waiting_checkpoint_headers_request = False
@@ -128,7 +126,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             eth_gateway_stats_service.log_serialized_message(time.time() - serialization_start_time)
 
             assert frames
-            logger.debug("Broke message into {0} frames.".format(len(frames)))
+            self.connection.log_trace("Broke message into {} frames", len(frames))
 
             encryption_start_time = time.time()
             for frame in frames:
@@ -137,12 +135,12 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
     def _enqueue_auth_message(self):
         auth_msg_bytes = self._get_auth_msg_bytes()
-        logger.info("Enqueued auth bytes on: {}".format(self.connection))
+        self.connection.log_debug("Enqueued auth bytes.")
         self.connection.enqueue_msg_bytes(auth_msg_bytes)
 
     def _enqueue_auth_ack_message(self):
         auth_ack_msg_bytes = self._get_auth_ack_msg_bytes()
-        logger.info("Enqueued auth ack bytes on: {}".format(self.connection))
+        self.connection.log_debug("Enqueued auth ack bytes.")
         self.connection.enqueue_msg_bytes(auth_ack_msg_bytes)
 
     def _enqueue_hello_message(self):
@@ -154,13 +152,9 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                             eth_constants.CAPABILITIES,
                                             self.connection.external_port,
                                             public_key)
-
-        logger.info("Enqueued hello bytes on: {}".format(self.connection))
         self.connection.enqueue_msg(hello_msg)
 
     def _enqueue_status_message(self):
-        logger.debug("Sending status message")
-
         network_id = self.node.opts.network_id
         chain_difficulty = int(self.node.opts.chain_difficulty, 16)
         chain_head_hash = convert.hex_to_bytes(self.node.opts.genesis_hash)
@@ -176,8 +170,6 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         self.connection.enqueue_msg(status_msg)
 
     def _enqueue_disconnect_message(self, disconnect_reason):
-        logger.debug("Sending disconnect message")
-
         disconnect_msg = DisconnectEthProtocolMessage(None, [disconnect_reason])
         self.connection.enqueue_msg(disconnect_msg)
 
@@ -196,7 +188,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
     def _finalize_handshake(self):
         self._handshake_complete = True
 
-        logger.debug("Setting up cipher.")
+        self.connection.log_trace("Setting up cipher.")
         self.rlpx_cipher.setup_cipher()
 
         self._last_ping_pong_time = time.time()
@@ -204,10 +196,10 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
     def _handshake_timeout(self):
         if not self._handshake_complete:
-            logger.debug("Handshake was not completed within defined timeout. Closing connection.")
+            self.connection.log_trace("Handshake was not completed within defined timeout. Closing connection.")
             self.connection.mark_for_close(force_destroy_now=True)
         else:
-            logger.debug("Handshake completed within defined timeout.")
+            self.connection.log_trace("Handshake completed within defined timeout.")
         return 0
 
     def _ping_timeout(self):
@@ -215,19 +207,18 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             return 0
 
         time_since_last_ping_pong = time.time() - self._last_ping_pong_time
-        logger.debug("Ping time out: {} seconds since last ping / pong received from node"
-                     .format(time_since_last_ping_pong))
+        self.connection.log_trace("Ping timeout: {} seconds since last ping / pong received from node.",
+                                  time_since_last_ping_pong)
 
         if time_since_last_ping_pong > eth_constants.PING_PONG_TIMEOUT_SEC:
-            logger.debug("Node has not replied with ping / pong for {0} seconds, more than {1}. Disconnecting."
-                         .format(time_since_last_ping_pong, eth_constants.PING_PONG_TIMEOUT_SEC))
+            self.connection.log_trace("Node has not replied with ping / pong for {} seconds, more than {} limit."
+                                      "Disconnecting", time_since_last_ping_pong, eth_constants.PING_PONG_TIMEOUT_SEC)
             self._enqueue_disconnect_message(eth_constants.DISCONNECT_REASON_TIMEOUT)
-            self.node.alarm_queue.register_alarm(eth_constants.DISCONNECT_DELAY_SEC,
-                                                            self.connection.mark_for_close)
+            self.node.alarm_queue.register_alarm(eth_constants.DISCONNECT_DELAY_SEC, self.connection.mark_for_close)
             return 0
 
         if time_since_last_ping_pong > eth_constants.PING_PONG_INTERVAL_SEC:
             self.connection.send_ping()
         else:
-            logger.debug("Last ping / pong was received {0} seconds ago. No actions needed."
-                         .format(time_since_last_ping_pong))
+            self.connection.log_trace("Last ping / pong was received {0} seconds ago. No actions needed.",
+                                      time_since_last_ping_pong)

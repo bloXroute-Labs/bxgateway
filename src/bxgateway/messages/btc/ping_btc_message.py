@@ -41,6 +41,3 @@ class PingBtcMessage(BtcMessage):
                 self._nonce = struct.unpack_from("<Q", self.buf, BTC_HDR_COMMON_OFF)[0]
 
         return self._nonce
-
-    def log_level(self):
-        return LogLevel.DEBUG

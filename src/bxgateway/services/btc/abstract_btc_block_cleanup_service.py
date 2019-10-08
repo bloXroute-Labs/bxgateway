@@ -36,7 +36,7 @@ class AbstractBtcBlockCleanupService(AbstractBlockCleanupService):
                 request_witness_data=False
             )
             self.node.send_msg_to_node(block_request_message)
-            logger.debug("BlockCleanupRequest BlockHash: {}", block_hash)
+            logger.trace("Received block cleanup request: {}", block_hash)
 
     @abstractmethod
     def clean_block_transactions(

@@ -44,14 +44,13 @@ class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection):
         self.hello_messages = [EthDiscoveryMessageType.PING, EthDiscoveryMessageType.PONG]
 
     def msg_ping(self, msg):
-        logger.debug("Discovery ping message received. Ignoring.")
+        pass
 
     def msg_pong(self, msg):
-        logger.debug("Discovery pong received.")
         self.node.set_remote_public_key(self, msg.get_public_key())
         self._pong_received = True
 
     def _pong_timeout(self):
         if not self._pong_received:
-            logger.warning("Pong message was not received within allocated timeout connection. Closing connection.")
+            self.log_warning("Pong message was not received within allocated timeout connection. Closing.")
             self.mark_for_close(force_destroy_now=True)

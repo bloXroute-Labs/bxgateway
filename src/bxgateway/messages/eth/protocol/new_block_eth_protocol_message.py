@@ -77,7 +77,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
         return cls(new_block_bytes)
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def __repr__(self):
         return f"NewBlockEthProtocolMessage<{self.block_hash()}"

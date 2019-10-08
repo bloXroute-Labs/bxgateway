@@ -2,6 +2,9 @@
   "log_config": {
     "log_level": null,
     "log_flush_immediately": null,
-        "log_level_overrides": {}
+        "log_level_overrides": {
+          "stats": "NOTSET",
+          "bx": "NOTSET"
+        }
   }
 }

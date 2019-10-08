@@ -2,21 +2,19 @@ import time
 from abc import ABCMeta, abstractmethod
 from typing import List, Union
 
-from bxutils import logging
-
+from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-from bxcommon.utils.object_hash import Sha256Hash
-from bxcommon.connections.connection_state import ConnectionState
-
+from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
-from bxgateway import gateway_constants
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -83,7 +81,7 @@ class AbstractBlockchainConnectionProtocol:
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                                       network_num=self.connection.network_num)
-            logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
+            self.connection.log_trace("Have seen block {0} before. Ignoring.", block_hash)
             return
 
         if not self.is_valid_block_timestamp(msg):
@@ -109,8 +107,8 @@ class AbstractBlockchainConnectionProtocol:
     def is_valid_block_timestamp(self, msg: AbstractBlockMessage) -> bool:
         max_time_offset = self.connection.node.opts.blockchain_block_interval * self.connection.node.opts.blockchain_ignore_block_interval_count
         if time.time() - msg.timestamp() >= max_time_offset:
-            logger.debug("Received block {} more than {} seconds after it was created ({}). Ignoring."
-                         .format(msg.block_hash(), max_time_offset, msg.timestamp()))
+            self.connection.log_trace("Received block {} more than {} seconds after it was created ({}). Ignoring.",
+                                      msg.block_hash(), max_time_offset, msg.timestamp())
             return False
 
         return True
@@ -131,8 +129,8 @@ class AbstractBlockchainConnectionProtocol:
         if hashes:
             msg = self._build_get_blocks_message_for_block_confirmation(hashes)
             self.connection.enqueue_msg(msg)
-            logger.info("BlockConfirmationRequest LastConfirmedBlock: {} Hashes: {}",
-                        last_confirmed_block, hashes)
+            self.connection.log_debug("Sending block confirmation request. Last confirmed block: {}, hashes: {}",
+                                      last_confirmed_block, hashes)
         return self.block_cleanup_poll_interval_s
 
     @abstractmethod
