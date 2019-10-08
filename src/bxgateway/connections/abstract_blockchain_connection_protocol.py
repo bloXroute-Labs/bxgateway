@@ -1,6 +1,6 @@
 import time
 from abc import ABCMeta, abstractmethod
-from typing import List
+from typing import List, Union
 
 from bxutils import logging
 
@@ -59,7 +59,7 @@ class AbstractBlockchainConnectionProtocol:
                                           network_num=self.connection.network_num,
                                           peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),
                                                     broadcast_peers))
-            self.connection.node.get_tx_service().set_transaction_contents(tx_hash, tx_bytes)
+            self._set_transaction_contents(tx_hash, tx_bytes)
 
     def msg_block(self, msg: AbstractBlockMessage):
         """
@@ -137,4 +137,15 @@ class AbstractBlockchainConnectionProtocol:
 
     @abstractmethod
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
+        pass
+
+    @abstractmethod
+    def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
+        """
+        set the transaction contents in the connection transaction service.
+        since some buffers needs to be copied while others should not, this handler was added.
+        avoid calling transaction_service.set_transactions_contents directly from this class or its siblings.
+        :param tx_hash: the transaction hash
+        :param tx_content: the transaction contents buffer
+        """
         pass
