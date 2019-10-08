@@ -24,10 +24,12 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
 
     def gateway_1_opts(self):
         return helpers.get_gateway_opts(9000, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
+                                        sync_tx_service=False,
                                         include_default_btc_args=True)
 
     def gateway_2_opts(self):
         return helpers.get_gateway_opts(9001, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
+                                        sync_tx_service=False,
                                         include_default_btc_args=True)
 
     def reinitialize_gateways(self, opts1, opts2):

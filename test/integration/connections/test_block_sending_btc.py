@@ -189,12 +189,6 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         block_hash = block.block_hash()
         block_hold_msg_bytes = BlockHoldingMessage(block_hash, 1).rawbytes()
 
-        time.time = MagicMock(return_value=time.time() + TX_SERVICE_SYNC_PROGRESS_S)
-        self.node1.alarm_queue.fire_alarms()
-
-        tx_sync_msg = self.node1.get_bytes_to_send(self.relay_fileno)
-        self.node1.on_bytes_sent(self.relay_fileno, len(tx_sync_msg))
-
         helpers.receive_node_message(self.node1, self.gateway_fileno, block_hold_msg_bytes)
         helpers.receive_node_message(self.node1, self.blockchain_fileno, block.rawbytes())
         block_hold_msg_bytes_to_send = self.node1.get_bytes_to_send(self.relay_fileno)
