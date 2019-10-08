@@ -11,7 +11,7 @@ from bxcommon.utils import convert, crypto
 from bxcommon.utils.buffers.output_buffer import OutputBuffer
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
-from bxcommon.constants import TX_SERVICE_SYNC_PROCESS_S
+from bxcommon.constants import TX_SERVICE_SYNC_PROGRESS_S
 
 from bxgateway.btc_constants import BTC_SHA_HASH_LEN
 from bxgateway.gateway_constants import NeutralityPolicy
@@ -189,7 +189,7 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         block_hash = block.block_hash()
         block_hold_msg_bytes = BlockHoldingMessage(block_hash, 1).rawbytes()
 
-        time.time = MagicMock(return_value=time.time() + TX_SERVICE_SYNC_PROCESS_S)
+        time.time = MagicMock(return_value=time.time() + TX_SERVICE_SYNC_PROGRESS_S)
         self.node1.alarm_queue.fire_alarms()
 
         tx_sync_msg = self.node1.get_bytes_to_send(self.relay_fileno)
