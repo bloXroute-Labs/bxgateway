@@ -370,7 +370,7 @@ class AbstractGatewayNode(AbstractNode):
         """
         remote_blockchain_peer = sdn_http_service.fetch_remote_blockchain_peer(self.opts.blockchain_network_num)
         if remote_blockchain_peer is None:
-            logger.info("Did not receive expected remote blockchain peer from BDN. Retrying.")
+            logger.debug("Did not receive expected remote blockchain peer from BDN. Retrying.")
             self.alarm_queue.register_alarm(gateway_constants.REMOTE_BLOCKCHAIN_SDN_CONTACT_RETRY_SECONDS,
                                             self.send_request_for_remote_blockchain_peer)
         else:

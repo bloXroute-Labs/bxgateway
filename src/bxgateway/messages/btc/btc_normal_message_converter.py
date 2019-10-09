@@ -263,7 +263,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             if tx_short_id in short_ids:
                 tx_content = transaction_service.get_transaction_by_hash(tx_hash)
                 if tx_content is None:
-                    logger.warning("Hash {} is known by transactions service but content is missing.", tx_hash)
+                    logger.debug("Hash {} is known by transactions service but content is missing.", tx_hash)
                 else:
                     short_id_to_tx_contents[tx_short_id] = tx_content
             if len(short_id_to_tx_contents) == len(short_ids):
@@ -377,7 +377,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         recovered_transactions = compression_result.recovered_transactions
         block_transactions = recovery_item.block_transactions
         if len(missing_indices) != len(recovered_transactions):
-            logger.info(
+            logger.debug(
                 "Number of transactions missing in compact block does not match number of recovered transactions."
                 "Missing transactions - {}. Recovered transactions - {}", len(missing_indices),
                 len(recovered_transactions))

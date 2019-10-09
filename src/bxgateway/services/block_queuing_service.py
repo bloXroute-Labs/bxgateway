@@ -224,14 +224,14 @@ class BlockQueuingService(Generic[T], metaclass=ABCMeta):
         self._block_queue.popleft()
         del self._blocks[block_hash]
 
-        logger.info("Forwarding block {} to blockchain node.", block_hash)
-
         self._send_block_to_node(block_hash, block_msg)
         self._schedule_alarm_for_next_item()
 
         return 0
 
     def _send_block_to_node(self, block_hash: Sha256Hash, block_msg: T):
+        logger.info("Forwarding block {} to blockchain node.", block_hash)
+
         self.node.send_msg_to_node(block_msg)
         handling_time, relay_desc = self.node.track_block_from_bdn_handling_ended(block_hash)
         # if tracking detailed send info, log this event only after all bytes written to sockets

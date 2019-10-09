@@ -22,7 +22,7 @@ def pack_ip_port(buf, offset, ip, port):
             buf[offset: offset + 16] = socket.inet_pton(socket.AF_INET6, ip)
             struct.pack_into(PORT_PACKING_FORMAT, buf, offset + 16, port)
         except socket.error as e:
-            logger.warning("Packing ip port failed!: {}".format(e))
+            logger.debug("Packing ip port failed!: {}", e)
 
 
 def unpack_ip_port(buf):
