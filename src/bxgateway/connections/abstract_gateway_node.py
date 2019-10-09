@@ -543,7 +543,7 @@ class AbstractGatewayNode(AbstractNode):
         pass
 
     def schedule_blockchain_liveliness_check(self, time_from_now_s: int):
-        if not self._blockchain_liveliness_alarm:
+        if not self._blockchain_liveliness_alarm and self.opts.require_blockchain_connection:
             self._blockchain_liveliness_alarm = self.alarm_queue.register_alarm(time_from_now_s,
                                                                                 self.check_blockchain_liveliness)
 

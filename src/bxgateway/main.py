@@ -9,14 +9,10 @@ import argparse
 import os
 import random
 import sys
-from typing import List, Optional
-
-from bxutils.logging import log_config
 
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
-
 from bxgateway import btc_constants, gateway_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
@@ -105,7 +101,8 @@ def get_opts() -> argparse.Namespace:
                             ),
                             default="",
                             nargs="*")
-    arg_parser.add_argument("--sync-tx-service", help="sync tx service in gateway", type=convert.str_to_bool, default=True)
+    arg_parser.add_argument("--sync-tx-service", help="sync tx service in gateway", type=convert.str_to_bool,
+                            default=True)
 
     # Bitcoin specific
     arg_parser.add_argument("--blockchain-version", help="Bitcoin protocol version", type=int)
@@ -200,6 +197,10 @@ def get_opts() -> argparse.Namespace:
         type=int,
         default=gateway_constants.CONFIG_UPDATE_INTERVAL_S
     )
+    arg_parser.add_argument("--require-blockchain-connection",
+                            help="Close gateway if connection with blockchain node can't be established "
+                                 "when the flag is set to True",
+                            type=convert.str_to_bool)
 
     opts = cli.parse_arguments(arg_parser)
 
@@ -216,7 +217,8 @@ def get_opts() -> argparse.Namespace:
         opts.remote_blockchain_peer = None
 
     if not opts.cookie_file_path:
-        opts.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format("{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip))
+        opts.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
+            "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip))
 
     return opts
 
