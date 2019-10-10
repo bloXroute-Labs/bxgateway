@@ -96,7 +96,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         attempt_recovery = False
 
-        if tx_service.has_transaction_short_id(tx_hash) and not short_id:
+        if not short_id and tx_service.has_transaction_short_id(tx_hash) and \
+                tx_service.has_transaction_contents(tx_hash):
             gateway_transaction_stats_service.log_duplicate_transaction_from_relay()
             tx_stats.add_tx_by_hash_event(tx_hash,
                                           TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
