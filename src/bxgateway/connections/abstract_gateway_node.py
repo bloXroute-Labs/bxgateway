@@ -9,6 +9,7 @@ from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.node_type import NodeType
+from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -426,7 +427,7 @@ class AbstractGatewayNode(AbstractNode):
     def is_local_blockchain_address(self, ip, port):
         return ip == self.opts.blockchain_ip and port == self.opts.blockchain_port
 
-    def send_msg_to_node(self, msg):
+    def send_msg_to_node(self, msg: AbstractMessage):
         """
         Sends a message to the blockchain node this is connected to.
         """
@@ -434,9 +435,9 @@ class AbstractGatewayNode(AbstractNode):
             self.node_conn.enqueue_msg(msg)
         else:
             logger.trace("Adding message to local node's message queue: {}", msg)
-            self.node_msg_queue.append(msg.rawbytes())
+            self.node_msg_queue.append(msg)
 
-    def send_msg_to_remote_node(self, msg):
+    def send_msg_to_remote_node(self, msg: AbstractMessage):
         """
         Sends a message to remote connected blockchain node.
         """
@@ -444,7 +445,7 @@ class AbstractGatewayNode(AbstractNode):
             self.remote_node_conn.enqueue_msg(msg)
         else:
             logger.trace("Adding message to remote node's message queue: {}", msg)
-            self.remote_node_msg_queue.append(msg.rawbytes())
+            self.remote_node_msg_queue.append(msg)
 
     def should_retry_connection(self, ip: str, port: int, connection_type: ConnectionType) -> bool:
         return (super(AbstractGatewayNode, self).should_retry_connection(ip, port, connection_type)
@@ -485,7 +486,7 @@ class AbstractGatewayNode(AbstractNode):
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection):
         for msg in self.node_msg_queue.pop_items():
-            connection.enqueue_msg_bytes(msg)
+            connection.enqueue_msg(msg)
 
         self.node_conn = connection
         self.cancel_blockchain_liveliness_check()
@@ -499,7 +500,7 @@ class AbstractGatewayNode(AbstractNode):
 
     def on_remote_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection):
         for msg in self.remote_node_msg_queue.pop_items():
-            connection.enqueue_msg_bytes(msg)
+            connection.enqueue_msg(msg)
         self.remote_node_conn = connection
 
     def on_remote_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection):

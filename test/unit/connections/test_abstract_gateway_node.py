@@ -316,7 +316,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         queued_message = PingMessage(12345)
         node.send_msg_to_node(queued_message)
         self.assertEqual(1, len(node.node_msg_queue._queue))
-        self.assertEqual(queued_message.rawbytes(), node.node_msg_queue._queue[0])
+        self.assertEqual(queued_message, node.node_msg_queue._queue[0])
 
         node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, True)
         next_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
@@ -335,7 +335,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         queued_message = PingMessage(12345)
         node.send_msg_to_node(queued_message)
         self.assertEqual(1, len(node.node_msg_queue._queue))
-        self.assertEqual(queued_message.rawbytes(), node.node_msg_queue._queue[0])
+        self.assertEqual(queued_message, node.node_msg_queue._queue[0])
 
         # queue has been cleared
         time.time = MagicMock(return_value=time.time() + node.opts.blockchain_message_ttl + 0.1)
@@ -354,7 +354,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         queued_message = PingMessage(12345)
         node.send_msg_to_node(queued_message)
         self.assertEqual(1, len(node.node_msg_queue._queue))
-        self.assertEqual(queued_message.rawbytes(), node.node_msg_queue._queue[0])
+        self.assertEqual(queued_message, node.node_msg_queue._queue[0])
 
         node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, True)
         reestablished_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
