@@ -61,7 +61,8 @@ def create_block_message(block_hash=None, previous_block_hash=None) -> TestBlock
 class BlockQueuingServiceTest(AbstractTestCase):
 
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000))
+        self.node = MockGatewayNode(helpers.get_gateway_opts(
+            8000, max_block_interval=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S))
 
         self.node_connection = Mock()
         self.node_connection.is_active = MagicMock(return_value=True)
