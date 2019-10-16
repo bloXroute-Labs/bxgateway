@@ -48,7 +48,6 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
                     set_buffer_size, previous_buffer_size)
                 sock.socket_instance.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, previous_buffer_size)
 
-        self.message_converter = None
         self.connection_protocol = None
         self.is_server = False
 
@@ -90,14 +89,14 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
         super(AbstractGatewayBlockchainConnection, self).log_connection_mem_stats()
         t0 = time.time()
         class_name = self.__class__.__name__
-        if self.message_converter is not None:
+        if self.node.message_converter is not None:
             hooks.add_obj_mem_stats(
                 class_name,
                 self.network_num,
-                self.message_converter,
+                self.node.message_converter,
                 "message_converter",
                 memory_utils.ObjectSize(
-                    "message_converter", memory_utils.get_special_size(self.message_converter).size, is_actual_size=True
+                    "message_converter", memory_utils.get_special_size(self.node.message_converter).size, is_actual_size=True
                 ),
                 object_item_count=1,
                 object_type=memory_utils.ObjectType.META,

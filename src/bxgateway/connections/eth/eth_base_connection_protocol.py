@@ -5,7 +5,6 @@ from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.utils import convert
 from bxgateway import eth_constants, gateway_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
-from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
 from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import DisconnectEthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_factory import EthProtocolMessageFactory
@@ -47,7 +46,6 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         expected_first_msg_type = EthProtocolMessageType.AUTH_ACK if is_handshake_initiator \
             else EthProtocolMessageType.AUTH
         connection.message_factory.set_expected_msg_type(expected_first_msg_type)
-        connection.message_converter = EthMessageConverter()
         connection.message_handlers = {
             EthProtocolMessageType.AUTH: self.msg_auth,
             EthProtocolMessageType.AUTH_ACK: self.msg_auth_ack,

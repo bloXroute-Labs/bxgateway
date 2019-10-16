@@ -33,7 +33,7 @@ class BtcBlockProcessingService(BlockProcessingService):
         :param connection: receiving connection (AbstractBlockchainConnection)
         """
         block_hash = block_message.block_hash()
-        parse_result = connection.message_converter.compact_block_to_bx_block(  # pyre-ignore
+        parse_result = self._node.message_converter.compact_block_to_bx_block(  # pyre-ignore
             block_message,
             self._node.get_tx_service()
         )
@@ -105,7 +105,7 @@ class BtcBlockProcessingService(BlockProcessingService):
             failure_result.recovered_transactions.append(txn)
 
         try:
-            recovery_result = connection.message_converter.recovered_compact_block_to_bx_block(  # pyre-ignore
+            recovery_result = self._node.message_converter.recovered_compact_block_to_bx_block(  # pyre-ignore
                 failure_result
             )
         except MessageConversionError as e:

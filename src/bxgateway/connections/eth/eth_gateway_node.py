@@ -17,6 +17,7 @@ from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDisco
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
+from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
@@ -60,6 +61,8 @@ class EthGatewayNode(AbstractGatewayNode):
         self._skip_remote_block_requests_stats_count = 0
 
         self.init_eth_gateway_stat_logging()
+
+        self.message_converter = EthMessageConverter()
 
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                     from_me: bool) -> AbstractGatewayBlockchainConnection:

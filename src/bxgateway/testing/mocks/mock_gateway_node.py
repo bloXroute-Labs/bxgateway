@@ -14,6 +14,7 @@ from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
+from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
 
 
 class _MockCleanupService(AbstractBtcBlockCleanupService):
@@ -43,6 +44,7 @@ class MockGatewayNode(AbstractGatewayNode):
         self._tx_service = TransactionService(self, 0)
         self.block_cleanup_service = self._get_cleanup_service()
         self.block_queuing_service = BtcBlockQueuingService(self)
+        self.message_converter = MockMessageConverter()
         if opts.use_extensions:
             from bxcommon.services.extension_transaction_service import ExtensionTransactionService
             self._tx_service = ExtensionTransactionService(self, self.network_num)

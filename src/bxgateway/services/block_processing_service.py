@@ -269,7 +269,7 @@ class BlockProcessingService:
         """
         block_hash = block_message.block_hash()
         try:
-            bx_block, block_info = connection.message_converter.block_to_bx_block(
+            bx_block, block_info = self._node.message_converter.block_to_bx_block(
                 block_message,self._node.get_tx_service()
             )
         except MessageConversionError as e:
@@ -333,10 +333,8 @@ class BlockProcessingService:
         # TODO: determine if a real block or test block. Discard if test block.
         if self._node.node_conn or self._node.remote_node_conn:
             try:
-                _connection = self._node.node_conn if self._node.node_conn else self._node.remote_node_conn
-                # TODO: refactor and move message_converter out of the conn scope
                 block_message, block_info, unknown_sids, unknown_hashes = \
-                    _connection.message_converter.bx_block_to_block(bx_block, transaction_service)
+                    self._node.message_converter.bx_block_to_block(bx_block, transaction_service)
             except MessageConversionError as e:
                 block_stats.add_block_event_by_block_hash(
                     e.msg_hash,

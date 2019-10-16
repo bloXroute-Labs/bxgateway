@@ -6,7 +6,7 @@ from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.block_hash_message import BlockHashMessage
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto, convert
-from bxcommon.utils.object_hash import Sha256Hash, AbstractObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.block_info import BlockInfo
@@ -39,4 +39,3 @@ class MockMessageConverter(AbstractMessageConverter):
 class MockBlockchainConnection(AbstractGatewayBlockchainConnection):
     def __init__(self, sock, address, node):
         super(MockBlockchainConnection, self).__init__(sock, address, node)
-        self.message_converter = MockMessageConverter()

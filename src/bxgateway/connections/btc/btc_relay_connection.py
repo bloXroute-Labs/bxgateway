@@ -1,4 +1,3 @@
-import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway.messages.btc import btc_messages_util
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -11,11 +10,6 @@ class BtcRelayConnection(AbstractRelayConnection):
 
     def __init__(self, sock, address, node, from_me=False):
         super(BtcRelayConnection, self).__init__(sock, address, node, from_me=from_me)
-
-        self.message_converter = converter_factory.create_btc_message_converter(
-            node.opts.blockchain_net_magic,
-            node.opts
-        )
 
     def msg_tx(self, msg):
         if msg.tx_val() != TxMessage.EMPTY_TX_VAL:

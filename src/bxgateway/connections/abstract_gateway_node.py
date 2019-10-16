@@ -151,6 +151,8 @@ class AbstractGatewayNode(AbstractNode):
         self.block_cleanup_processed_blocks = ExpiringSet(self.alarm_queue,
                                                           gateway_constants.BLOCK_CONFIRMATION_EXPIRE_TIME_S)
 
+        self.message_converter = None
+
     @abstractmethod
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                     from_me: bool) -> AbstractGatewayBlockchainConnection:

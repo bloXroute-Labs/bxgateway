@@ -25,7 +25,7 @@ def mock_connection(message_converter=None, connection_type=None):
     if message_converter is None:
         message_converter = MagicMock()
     connection = MagicMock()
-    connection.message_converter = message_converter
+    connection.node.message_converter = message_converter
     connection.CONNECTION_TYPE = connection_type
     connection.peer_desc = "127.0.0.1 8000"
     return connection

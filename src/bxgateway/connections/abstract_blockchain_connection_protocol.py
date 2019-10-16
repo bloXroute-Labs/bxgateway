@@ -34,7 +34,7 @@ class AbstractBlockchainConnectionProtocol:
         """
         Handle a TX message by broadcasting to the entire network
         """
-        bx_tx_messages = self.connection.message_converter.tx_to_bx_txs(msg, self.connection.network_num)
+        bx_tx_messages = self.connection.node.message_converter.tx_to_bx_txs(msg, self.connection.network_num)
 
         for (bx_tx_message, tx_hash, tx_bytes) in bx_tx_messages:
             if self.connection.node.get_tx_service().has_transaction_contents(tx_hash):

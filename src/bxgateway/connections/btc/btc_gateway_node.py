@@ -15,12 +15,19 @@ from bxgateway.services.btc.btc_normal_block_cleanup_service import BtcNormalBlo
 from bxgateway.testing.btc_lossy_relay_connection import BtcLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 
+import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
+
 
 class BtcGatewayNode(AbstractGatewayNode):
     def __init__(self, opts):
         super(BtcGatewayNode, self).__init__(opts)
 
         self.block_processing_service = BtcBlockProcessingService(self)
+
+        self.message_converter = converter_factory.create_btc_message_converter(
+            self.opts.blockchain_net_magic,
+            self.opts
+        )
 
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                     from_me: bool) -> AbstractGatewayBlockchainConnection:

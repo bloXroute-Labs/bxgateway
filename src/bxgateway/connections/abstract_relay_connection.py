@@ -53,8 +53,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             BloxrouteMessageType.TRANSACTION_CLEANUP: self.msg_cleanup,
         }
 
-        self.message_converter = None
-
     def msg_hello(self, msg):
         super(AbstractRelayConnection, self).msg_hello(msg)
         self.node.on_relay_connection_ready()
@@ -140,7 +138,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
             if self.node.node_conn is not None:
-                btc_tx_msg = self.message_converter.bx_tx_to_tx(msg)
+                btc_tx_msg = self.node.message_converter.bx_tx_to_tx(msg)
                 self.node.send_msg_to_node(btc_tx_msg)
 
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
@@ -211,14 +209,14 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         super(AbstractRelayConnection, self).log_connection_mem_stats()
 
         class_name = self.__class__.__name__
-        if self.message_converter is not None:
+        if self.node.message_converter is not None:
             hooks.add_obj_mem_stats(
                 class_name,
                 self.network_num,
-                self.message_converter,
+                self.node.message_converter,
                 "message_converter",
                 memory_utils.ObjectSize(
-                    "message_converter", memory_utils.get_special_size(self.message_converter).size, is_actual_size=True
+                    "message_converter", memory_utils.get_special_size(self.node.message_converter).size, is_actual_size=True
                 ),
                 object_item_count=1,
                 object_type=memory_utils.ObjectType.META,
