@@ -40,21 +40,20 @@ class AbstractBlockchainConnectionProtocol:
             if self.connection.node.get_tx_service().has_transaction_contents(tx_hash):
                 tx_stats.add_tx_by_hash_event(tx_hash,
                                               TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
-                                              network_num=self.connection.network_num,
+                                              self.connection.network_num,
                                               peer=self.connection.peer_desc)
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
                 continue
 
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE,
-                                          network_num=self.connection.network_num,
-                                          peer=self.connection.peer_desc)
+                                          self.connection.network_num, peer=self.connection.peer_desc)
             gateway_transaction_stats_service.log_transaction_from_blockchain(tx_hash)
 
             # All connections outside of this one is a bloXroute server
             broadcast_peers = self.connection.node.broadcast(bx_tx_message, self.connection,
                                                              connection_types=[ConnectionType.RELAY_TRANSACTION])
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
-                                          network_num=self.connection.network_num,
+                                          self.connection.network_num,
                                           peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),
                                                     broadcast_peers))
             self._set_transaction_contents(tx_hash, tx_bytes)
