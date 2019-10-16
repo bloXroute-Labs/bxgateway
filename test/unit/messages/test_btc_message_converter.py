@@ -221,14 +221,16 @@ class BtcMessageConverterTests(AbstractTestCase):
     def test_segwit_partial_compression(self):
         parsed_block = get_segwit_block()
         transactions_short = parsed_block.txns()[:]
-        random.shuffle(transactions_short)
         transactions_short = transactions_short[:int(len(transactions_short) * 0.9)]
+        random.shuffle(transactions_short)
+
         for short_id, txn in enumerate(transactions_short):
-            bx_tx_hash = BtcObjectHash(buf=crypto.double_sha256(txn),
-                                       length=BTC_SHA_HASH_LEN)
+            bx_tx_hash = btc_messages_util.get_txid(txn)
             self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
             self.tx_service.set_transaction_contents(bx_tx_hash, txn)
         bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
+        self.assertEqual(len(transactions_short), len(block_info.short_ids), "not all txs were compressed")
+        self.assertEqual(int(block_info.txn_count * 0.9), len(block_info.short_ids), "not all txs were compressed")
         ref_block, _, _, _ = self.btc_message_converter.bx_block_to_block(
             bx_block, self.tx_service
         )
@@ -267,7 +269,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         index = 0
         for idx, tx in enumerate(recovered_block.txns()):
             if index % 2 == 0:
-                tx_hash = BtcObjectHash(crypto.bitcoin_hash(tx), length=BTC_SHA_HASH_LEN)
+                tx_hash = btc_messages_util.get_txid(tx)
                 self.tx_service.assign_short_id(tx_hash, idx + 1)
                 self.tx_service.set_transaction_contents(tx_hash, tx)
             else:
