@@ -144,7 +144,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         buf.append(header)
 
         for tx in block_msg.txns():
-            tx_hash = BtcObjectHash(buf=crypto.double_sha256(tx), length=btc_constants.BTC_SHA_HASH_LEN)
+
+            tx_hash = btc_messages_util.get_txid(tx)
             short_id = tx_service.get_short_id(tx_hash)
             if short_id == constants.NULL_TX_SID:
                 buf.append(tx)

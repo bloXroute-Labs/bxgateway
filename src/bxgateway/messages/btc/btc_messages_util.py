@@ -1,12 +1,13 @@
 import socket
 import struct
-
+from bxcommon.utils import crypto
 from bxcommon import constants
 from bxcommon.constants import UL_INT_SIZE_IN_BYTES
 from bxgateway import btc_constants
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
-
+from typing import Union
+from hashlib import sha256
 
 def ipaddrport_to_btcbytearray(ip_addr, ip_port):
     try:
@@ -81,12 +82,23 @@ def btc_varint_to_int(buf, off):
 
 
 def get_next_tx_size(buf, off, tail=-1):
-    segwit_flag, = struct.unpack_from(">h", buf, off + 4)
+    segwit_flag = is_segwit(buf, off)
 
-    if segwit_flag == btc_constants.TX_SEGWIT_FLAG_VALUE:
+    if segwit_flag:
         return get_next_segwit_tx_size(buf, off, tail)
     else:
         return get_next_non_segwit_tx_size(buf, off, tail)
+
+
+def is_segwit(buf: Union[memoryview, bytearray], off: int = 0) -> bool:
+    """
+    Determines if a transaction is a segwit transaction by reading the marker and flag bytes
+    :param buf: the bytes of the transaction contents
+    :param off: the desired offset
+    :return: boolean indicating segwit
+    """
+    segwit_flag, = struct.unpack_from(">h", buf, off + btc_constants.TX_VERSION_LEN)
+    return segwit_flag == btc_constants.TX_SEGWIT_FLAG_VALUE
 
 
 def get_next_non_segwit_tx_size(buf, off, tail=-1):
@@ -139,6 +151,23 @@ def get_next_segwit_tx_size(buf, off, tail=-1):
     return end - off
 
 
+def get_txid(buffer: Union[memoryview, bytearray]) -> BtcObjectHash:
+    """
+    Actually gets the txid, which is the same as the hash for non segwit transactions
+    :param buffer: the bytes of the transaction contents
+    :return: hash object
+    """
+
+    flag_len = btc_constants.TX_SEGWIT_FLAG_LEN if is_segwit(buffer) else 0
+    txid = sha256(buffer[:btc_constants.TX_VERSION_LEN])
+    end = btc_constants.TX_VERSION_LEN + flag_len
+    io_size, _, _ = _get_tx_io_count_and_size(buffer, end, tail=-1)
+    txid.update(buffer[end:end + io_size])
+    txid.update(buffer[-btc_constants.TX_LOCK_TIME_LEN:])
+
+    return BtcObjectHash(buf=sha256(txid.digest()).digest(), length=BTC_SHA_HASH_LEN)
+
+
 def pack_block_header(buffer: bytearray, version: int, prev_block: BtcObjectHash, merkle_root: BtcObjectHash,
                       timestamp: int, bits: int, block_nonce: int) -> int:
     """
@@ -166,7 +195,7 @@ def pack_block_header(buffer: bytearray, version: int, prev_block: BtcObjectHash
     return off
 
 
-def _get_tx_io_count_and_size(buf, start, tail):
+def _get_tx_io_count_and_size(buf: Union[memoryview, bytearray], start, tail):
     end = start
 
     txin_c, size = btc_varint_to_int(buf, end)

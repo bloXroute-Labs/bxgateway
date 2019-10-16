@@ -8,6 +8,7 @@ from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+from bxgateway.messages.btc.tx_btc_message import TxBtcMessage, TxIn, TxOut
 
 
 class RealBtcBlocks:
@@ -41,3 +42,11 @@ def btc_version_message():
     return VersionBtcMessage(12345, 12345, LISTEN_ON_IP_ADDRESS, 1000, LISTEN_ON_IP_ADDRESS,
                              1000, 1, 2, b"bloxroute")
 
+def generate_btc_tx() -> TxBtcMessage:
+
+    inps = [TxIn(prev_outpoint_hash=bytearray("0" * 32, "utf-8"), prev_out_index=10, sig_script=bytearray(1000),
+                 sequence=32)]
+
+    outs = [TxOut(value=10, pk_script=bytearray(1000))]
+
+    return TxBtcMessage(magic=100, version=1, tx_in=inps, tx_out=outs, lock_time=12345)
