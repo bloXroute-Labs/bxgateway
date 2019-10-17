@@ -658,7 +658,7 @@ class AbstractGatewayNode(AbstractNode):
         raise EnvironmentError(f"Unexpectedly did not find network num {self.network} in set of blockchain networks: "
                                f"{self.opts.blockchain_networks}")
 
-    def sync_tx_services(self):
+    def _sync_tx_services(self):
         if self.opts.sync_tx_service:
             retry = True
             if self.opts.split_relays:
