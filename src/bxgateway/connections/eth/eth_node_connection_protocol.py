@@ -2,6 +2,7 @@ from collections import deque
 from typing import List, Deque, Union
 
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils import convert
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -49,9 +50,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
         # hashes of new blocks constructed from headers and bodies, ready to send to BDN
         self._ready_new_blocks: Deque[Sha256Hash] = deque()
-
-        # queue of block headers requests
-        self._new_block_headers_requests: Deque[Sha256Hash] = deque(maxlen=eth_constants.REQUESTED_NEW_BLOCK_HEADERS_MAX_COUNT)
 
         # queue of lists of hashes that are awaiting block bodies response
         self._block_bodies_requests: Deque[List[Sha256Hash]] = deque(maxlen=eth_constants.REQUESTED_NEW_BLOCK_BODIES_MAX_COUNT)
@@ -107,7 +105,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             self.node.send_msg_to_node(
                 GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, False)
             )
-            self._new_block_headers_requests.append(block_hash)
 
         self.request_block_body([block_hash for block_hash, _ in block_hash_number_pairs])
 
@@ -135,27 +132,25 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             self.msg_proxy_request(msg)
 
     def msg_block_headers(self, msg: BlockHeadersEthProtocolMessage):
-        if self._new_block_headers_requests and len(msg.get_block_headers_bytes()) == 1:
+        block_headers = msg.get_block_headers()
+
+        if self._pending_new_blocks_parts.contents and len(block_headers) == 1:
             header_bytes = msg.get_block_headers_bytes()[0]
             block_hash_bytes = crypto_utils.keccak_hash(header_bytes)
             block_hash = Sha256Hash(block_hash_bytes)
 
-            if block_hash == self._new_block_headers_requests[0]:
-                self._new_block_headers_requests.pop()
-                if block_hash in self._pending_new_blocks_parts.contents:
-                    self._pending_new_blocks_parts.contents[block_hash].block_header_bytes = header_bytes
-                    self._check_pending_new_block(block_hash)
-                    self._process_ready_new_blocks()
+            if block_hash in self._pending_new_blocks_parts.contents:
+                logger.debug("Received block header for new block {}", convert.bytes_to_hex(block_hash.binary))
+                self._pending_new_blocks_parts.contents[block_hash].block_header_bytes = header_bytes
+                self._check_pending_new_block(block_hash)
+                self._process_ready_new_blocks()
                 return
-        else:
-            block_headers = msg.get_block_headers()
-            if len(block_headers) > 0:
-                blocks = [blk.hash_object() for blk in block_headers]
-                blocks.insert(0, Sha256Hash(block_headers[0].prev_hash))
-                self.node.block_cleanup_service.mark_blocks_and_request_cleanup(blocks)
 
-        block_hashes = [block_header.hash_object() for block_header in msg.get_block_headers()]
-        self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
+        if len(block_headers) > 0:
+            block_hashes = [blk.hash_object() for blk in block_headers]
+            block_hashes.insert(0, Sha256Hash(block_headers[0].prev_hash))
+            self.node.block_cleanup_service.mark_blocks_and_request_cleanup(block_hashes)
+            self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
 
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
         return GetBlockHeadersEthProtocolMessage(
@@ -178,20 +173,27 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 self._block_bodies_requests.clear()
                 return
 
+            logger.debug("Processing expected block bodies messages for blocks [{}]",
+                         ", ".join([convert.bytes_to_hex(block_hash.binary) for block_hash in requested_hashes]))
+
             for block_hash, block_body_bytes in zip(requested_hashes, bodies_bytes):
                 if block_hash in self._pending_new_blocks_parts.contents:
+                    logger.debug("Received block body for pending new block {}",
+                                 convert.bytes_to_hex(block_hash.binary))
                     self._pending_new_blocks_parts.contents[block_hash].block_body_bytes = block_body_bytes
                     self._check_pending_new_block(block_hash)
+                elif self.node.block_cleanup_service.is_marked_for_cleanup(block_hash):
+                    transactions_list = \
+                        BlockBodiesEthProtocolMessage.from_body_bytes(block_body_bytes).get_blocks()[0].transactions
+                    self.node.block_cleanup_service.clean_block_transactions_by_block_components(
+                        transaction_service=self.node.get_tx_service(),
+                        block_hash=block_hash,
+                        transactions_list=(tx.hash() for tx in transactions_list)
+                    )
                 else:
-                    block_cleanup_service = self.node.block_cleanup_service
-                    if block_cleanup_service.is_marked_for_cleanup(block_hash):
-                        transactions_list = \
-                            BlockBodiesEthProtocolMessage.from_body_bytes(block_body_bytes).get_blocks()[0].transactions
-                        block_cleanup_service.clean_block_transactions_by_block_components(
-                            transaction_service=self.node.get_tx_service(),
-                            block_hash=block_hash,
-                            transactions_list=(tx.hash() for tx in transactions_list)
-                        )
+                    logger.warning(
+                        "Block body for hash {} is not in the list of pending new blocks and not marked for cleanup.",
+                        convert.bytes_to_hex(block_hash.binary))
 
             self._process_ready_new_blocks()
 
