@@ -42,29 +42,41 @@ class EthBlockCleanupServiceTests(AbstractBlockCleanupServiceTest):
 
     def _test_block_cleanup(self):
         block_msg = self._get_sample_block(self._get_file_path())
-        transactions = list(block_msg.txns()[:])
-        block_hash = typing.cast(Sha256Hash, block_msg.block_hash())
-        random.shuffle(transactions)
-        short_len = int(len(transactions) * 0.9)
-        transactions_short = transactions[:short_len]
-        unknown_transactions = transactions[short_len:]
-        transaction_hashes = []
-        for idx, tx in enumerate(transactions_short):
+        transactions = list(block_msg.txns())
+
+        block_hash = block_msg.block_hash()
+        known_transaction_count = int(len(transactions) * 0.9)
+        known_transactions = transactions[:known_transaction_count]
+        unknown_transactions = transactions[known_transaction_count:]
+
+        known_transaction_hashes = [tx.hash() for tx in known_transactions]
+        known_short_ids = []
+        unknown_transaction_hashes = [tx.hash() for tx in unknown_transactions]
+
+        for idx, tx in enumerate(known_transactions):
             tx_hash = tx.hash()
-            transaction_hashes.append(tx_hash)
             self.transaction_service.set_transaction_contents(tx_hash, str(tx))
             self.transaction_service.assign_short_id(tx_hash, idx + 1)
+            known_short_ids.append(idx + 1)
         for idx, tx in enumerate(unknown_transactions):
             tx_hash = tx.hash()
-            transaction_hashes.append(tx_hash)
             if idx % 2 == 0:
                 self.transaction_service.set_transaction_contents(tx_hash, str(tx))
+
         self.cleanup_service._block_hash_marked_for_cleanup.add(block_hash)
         self.cleanup_service.clean_block_transactions(block_msg, self.transaction_service)
+
         self.assertEqual(0, self.transaction_service._total_tx_contents_size)
-        for tx_hash in transaction_hashes:
+        for tx_hash in known_transaction_hashes:
+            self.assertFalse(self.transaction_service.has_transaction_contents(tx_hash))
+        for tx_hash in unknown_transaction_hashes:
             self.assertFalse(self.transaction_service.has_transaction_contents(tx_hash))
 
+        self.node.post_block_cleanup_tasks.assert_called_once_with(
+            block_hash,
+            known_short_ids,
+            unknown_transaction_hashes
+        )
 
     def test_mark_blocks_and_request_cleanup(self):
         self._test_mark_blocks_and_request_cleanup()

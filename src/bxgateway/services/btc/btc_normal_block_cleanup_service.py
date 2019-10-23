@@ -30,9 +30,14 @@ class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):
         block_short_ids = []
         block_unknown_tx_hashes = []
         start_time = time.time()
-        short_ids_count: int = 0
-        unknown_tx_hashes_count: int = 0
+
+        short_ids_count = 0
+        unknown_tx_hashes_count = 0
+        transactions_processed = 0
+
         tx_hash_to_contents_len_before_cleanup = transaction_service.get_tx_hash_to_contents_len()
+        short_id_count_before_cleanup = transaction_service.get_short_id_count()
+
         for tx in block_msg.txns():
             tx_hash = BtcObjectHash(buf=crypto.double_sha256(tx), length=BTC_SHA_HASH_LEN)
             short_ids = transaction_service.remove_transaction_by_tx_hash(tx_hash)
@@ -40,20 +45,28 @@ class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):
                 unknown_tx_hashes_count += 1
                 block_unknown_tx_hashes.append(tx_hash)
             else:
-                short_ids_count += 1
+                short_ids_count += len(short_ids)
                 block_short_ids.extend(short_ids)
+            transactions_processed += 1
         block_hash = block_msg.block_hash()
         transaction_service.on_block_cleaned_up(block_hash)
         end_time = time.time()
         duration = end_time - start_time
         tx_hash_to_contents_len_after_cleanup = transaction_service.get_tx_hash_to_contents_len()
+        short_id_count_after_cleanup = transaction_service.get_short_id_count()
 
-        logger.debug("Cleaned up block {}. Unknown hashes: {}, short ids: {}, duration: {}.",
-                     unknown_tx_hashes_count, short_ids_count, duration)
+        logger.debug("Cleaned up block {}. Unknown hashes: {}, short ids: {}, duration: {}.",unknown_tx_hashes_count, short_ids_count, duration)
+        logger.debug(
+            "Finished cleaning up block {}. Processed {} hashes, {} of which were unknown, and cleaned up {} "
+            "short ids. Took {:.3f}s.",
+            block_hash, transactions_processed, unknown_tx_hashes_count, short_ids_count, duration
+        )
 
         transaction_service.log_block_transaction_cleanup_stats(block_hash, block_msg.txn_count(),
                                                                 tx_hash_to_contents_len_before_cleanup,
-                                                                tx_hash_to_contents_len_after_cleanup)
+                                                                tx_hash_to_contents_len_after_cleanup,
+                                                                short_id_count_before_cleanup,
+                                                                short_id_count_after_cleanup)
 
         self._block_hash_marked_for_cleanup.remove(block_hash)
         self.node.post_block_cleanup_tasks(
