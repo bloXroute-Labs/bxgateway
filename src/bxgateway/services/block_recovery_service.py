@@ -151,7 +151,7 @@ class BlockRecoveryService:
         else:
             return False
 
-    def cancel_recovery_for_block(self, block_hash: Sha256Hash):
+    def cancel_recovery_for_block(self, block_hash: Sha256Hash) -> bool:
         """
         Cancels recovery for all compressed blocks matching a block hash
         :param block_hash: ObjectHash
@@ -159,6 +159,9 @@ class BlockRecoveryService:
         if block_hash in self._block_hash_to_bx_block_hashes:
             logger.trace("Cancelled block recovery for block: {}", block_hash)
             self._remove_recovered_block_hash(block_hash)
+            return True
+        else:
+            return False
 
     def cleanup_old_blocks(self, clean_up_time: float = None):
         """

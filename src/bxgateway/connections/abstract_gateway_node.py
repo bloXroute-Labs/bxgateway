@@ -24,6 +24,8 @@ from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks
+from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
+from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -534,7 +536,11 @@ class AbstractGatewayNode(AbstractNode):
 
     def on_block_seen_by_blockchain_node(self, block_hash: Sha256Hash):
         self.blocks_seen.add(block_hash)
-        self.block_recovery_service.cancel_recovery_for_block(block_hash)
+        recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
+        if recovery_canceled:
+            block_stats.add_block_event_by_block_hash(block_hash,
+                                                      BlockStatEventType.BLOCK_RECOVERY_CANCELED,
+                                                      network_num=self.network_num)
         self.block_queuing_service.mark_block_seen_by_blockchain_node(block_hash)
 
     def post_block_cleanup_tasks(
