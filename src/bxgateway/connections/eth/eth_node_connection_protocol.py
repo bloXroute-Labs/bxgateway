@@ -9,6 +9,7 @@ from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import eth_constants
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
+from bxgateway.eth_exceptions import CipherNotInitializedError
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
@@ -152,15 +153,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             self.node.block_cleanup_service.mark_blocks_and_request_cleanup(block_hashes)
             self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
 
-    def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
-        return GetBlockHeadersEthProtocolMessage(
-                None,
-                block_hash=bytes(hashes[0].binary),
-                amount=100,
-                skip=0,
-                reverse=0
-            )
-
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage):
         if self._block_bodies_requests:
             requested_hashes = self._block_bodies_requests.pop()
@@ -236,3 +228,22 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
     def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
         _tx_content = tx_content if isinstance(tx_content, bytearray) else bytearray(tx_content)
         self.connection.node.get_tx_service().set_transaction_contents(tx_hash, _tx_content)
+
+    def _request_blocks_confirmation(self):
+        try:
+            super(EthNodeConnectionProtocol, self)._request_blocks_confirmation()
+        except CipherNotInitializedError:
+            logger.info(
+                "Failed to request block confirmation due to bad cipher state, "
+                "probably because the handshake was not completed yet."
+            )
+        return self.block_cleanup_poll_interval_s
+
+    def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
+        return GetBlockHeadersEthProtocolMessage(
+                None,
+                block_hash=bytes(hashes[0].binary),
+                amount=100,
+                skip=0,
+                reverse=0
+            )

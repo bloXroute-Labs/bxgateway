@@ -115,26 +115,21 @@ class AbstractBlockchainConnectionProtocol:
     def _request_blocks_confirmation(self):
         if self.connection.state & ConnectionState.MARK_FOR_CLOSE:
             return None
-        try:
-            node = self.connection.node
-            last_confirmed_block = node.block_cleanup_service.last_confirmed_block
-            tracked_blocks = node.get_tx_service().get_oldest_tracked_block(node.network.block_confirmations_count)
+        node = self.connection.node
+        last_confirmed_block = node.block_cleanup_service.last_confirmed_block
+        tracked_blocks = node.get_tx_service().get_oldest_tracked_block(node.network.block_confirmations_count)
 
-            if last_confirmed_block is not None and len(tracked_blocks) <= node.network.block_confirmations_count + \
-                    gateway_constants.BLOCK_CLEANUP_REQUEST_EXPECTED_ADDITIONAL_TRACKED_BLOCKS:
-                hashes = [last_confirmed_block]
-                hashes.extend(tracked_blocks)
-            else:
-                hashes = tracked_blocks
-            if hashes:
-                msg = self._build_get_blocks_message_for_block_confirmation(hashes)
-                self.connection.enqueue_msg(msg)
-                self.connection.log_debug("Sending block confirmation request. Last confirmed block: {}, hashes: {}",
-                                          last_confirmed_block, hashes)
-        except Exception as e:
-            # per @Uri Margalit's request,
-            # block confirmation should keep running regardless of any error being raised here.
-            logger.exception("error while attempting to request block confirmation: {}", e)
+        if last_confirmed_block is not None and len(tracked_blocks) <= node.network.block_confirmations_count + \
+                gateway_constants.BLOCK_CLEANUP_REQUEST_EXPECTED_ADDITIONAL_TRACKED_BLOCKS:
+            hashes = [last_confirmed_block]
+            hashes.extend(tracked_blocks)
+        else:
+            hashes = tracked_blocks
+        if hashes:
+            msg = self._build_get_blocks_message_for_block_confirmation(hashes)
+            self.connection.enqueue_msg(msg)
+            self.connection.log_debug("Sending block confirmation request. Last confirmed block: {}, hashes: {}",
+                                      last_confirmed_block, hashes)
         return self.block_cleanup_poll_interval_s
 
     @abstractmethod

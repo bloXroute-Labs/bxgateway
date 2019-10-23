@@ -28,3 +28,8 @@ class AuthenticationError(ETHError):
 class DecryptionError(ETHError):
     def __init__(self, msg):
         super(DecryptionError, self).__init__(msg)
+
+
+class CipherNotInitializedError(ETHError):
+    def __init__(self, msg):
+        super(CipherNotInitializedError, self).__init__(msg)
