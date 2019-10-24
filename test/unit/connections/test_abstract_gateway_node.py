@@ -132,7 +132,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         node.on_connection_added(MockSocketConnection(), LOCALHOST, 8002, True)
         not_cli_peer_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
-        node.destroy_conn(not_cli_peer_conn)
+        node.destroy_conn(not_cli_peer_conn, force_destroy=True)
 
         time.time = MagicMock(return_value=time.time() + SDN_CONTACT_RETRY_SECONDS * 2)
         node.alarm_queue.fire_alarms()
@@ -309,7 +309,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
     def test_queuing_messages_no_blockchain_connection(self):
         node = self._initialize_gateway(True, True)
         blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
-        blockchain_conn.mark_for_close(force_destroy_now=True)
+        blockchain_conn.mark_for_close()
+        node.destroy_conn(blockchain_conn)
 
         self.assertIsNone(node.node_conn)
 
@@ -328,7 +329,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
     def test_queuing_messages_cleared_after_timeout(self):
         node = self._initialize_gateway(True, True)
         blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
-        blockchain_conn.mark_for_close(force_destroy_now=True)
+        blockchain_conn.mark_for_close()
+        node.destroy_conn(blockchain_conn)
 
         self.assertIsNone(node.node_conn)
 
@@ -348,7 +350,9 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.on_blockchain_connection_ready(next_conn)
         self.assertEqual(0, next_conn.outputbuf.length)
 
-        next_conn.mark_for_close(force_destroy_now=True)
+        next_conn.mark_for_close()
+        node.destroy_conn(next_conn)
+
         self.assertIsNone(node.node_conn)
 
         queued_message = PingMessage(12345)
@@ -381,7 +385,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = self._initialize_gateway(True, True)
 
         blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
-        blockchain_conn.mark_for_close(force_destroy_now=True)
+        blockchain_conn.mark_for_close()
+        node.destroy_conn(blockchain_conn)
 
         self.assertIsNone(node.node_conn)
 
@@ -399,6 +404,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         relay_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
         # skip retries
+        relay_conn.mark_for_close()
         node.destroy_conn(relay_conn, retry_connection=False)
 
         time.time = MagicMock(return_value=time.time() + gateway_constants.INITIAL_LIVELINESS_CHECK_S)

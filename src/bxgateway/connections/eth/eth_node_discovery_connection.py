@@ -53,4 +53,4 @@ class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection):
     def _pong_timeout(self):
         if not self._pong_received:
             self.log_warning("Pong message was not received within allocated timeout connection. Closing.")
-            self.mark_for_close(force_destroy_now=True)
+            self.mark_for_close()

@@ -120,14 +120,14 @@ class GatewayConnection(InternalNodeConnection):
             if connection.ordering > ordering:
                 self.log_warning("Connection already exists, with higher priority. Dropping connection {} and "
                                  "keeping {}.", self.fileno, connection.fileno)
-                self.mark_for_close(force_destroy_now=True)
+                self.mark_for_close()
                 connection.on_connection_established()
                 connection.enqueue_msg(connection.ack_message)
             else:
                 self.log_warning(
                     "Connection already exists, with lower priority. Dropping connection {} and keeping {}.",
                     connection.fileno, self.fileno)
-                connection.mark_for_close(force_destroy_now=True)
+                connection.mark_for_close()
                 self.on_connection_established()
                 self.enqueue_msg(self.ack_message)
                 self.node.connection_pool.update_port(self.peer_port, port, self)
@@ -178,8 +178,8 @@ class GatewayConnection(InternalNodeConnection):
         self.peer_port = new_port
         self.peer_desc = "%s %d" % (self.peer_ip, self.peer_port)
 
-    def mark_for_close(self, force_destroy_now=False):
-        super(GatewayConnection, self).mark_for_close(force_destroy_now=force_destroy_now)
+    def mark_for_close(self):
+        super(GatewayConnection, self).mark_for_close()
 
         if not self.from_me:
             if self.peer_id:

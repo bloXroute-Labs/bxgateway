@@ -458,7 +458,7 @@ class AbstractGatewayNode(AbstractNode):
                 or (connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE and
                     self.num_retries_by_ip[(ip, port)] < gateway_constants.REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES))
 
-    def destroy_conn(self, conn, retry_connection=False):
+    def destroy_conn(self, conn, retry_connection: bool = False, force_destroy: bool = False):
         if conn.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
             if self.node_conn == conn or self.node_conn is None:
                 self.on_blockchain_connection_destroyed(conn)
@@ -474,7 +474,7 @@ class AbstractGatewayNode(AbstractNode):
                                "Connection being destroyed - {}. Established connection - {}.",
                                conn.peer_desc, self.remote_node_conn.peer_desc)
 
-        super(AbstractGatewayNode, self).destroy_conn(conn, retry_connection)
+        super(AbstractGatewayNode, self).destroy_conn(conn, retry_connection, force_destroy)
 
     def on_connection_initialized(self, fileno):
         super(AbstractGatewayNode, self).on_connection_initialized(fileno)
@@ -624,6 +624,7 @@ class AbstractGatewayNode(AbstractNode):
                 transaction_connection = self.connection_pool.get_by_ipport(ip, port + 1)
                 logger.debug("Removing relay transaction connection matching block relay host: {}",
                              transaction_connection)
+                transaction_connection.mark_for_close()
                 self.destroy_conn(transaction_connection, False)
             self._remove_relay_transaction_peer(ip, port + 1, False)
 
@@ -647,6 +648,7 @@ class AbstractGatewayNode(AbstractNode):
             block_connection = self.connection_pool.get_by_ipport(ip, port - 1)
             logger.debug("Removing relay block connection matching transaction relay host: {}",
                          block_connection)
+            block_connection.mark_for_close()
             self.destroy_conn(block_connection, False)
 
     def _find_active_connection(self, outbound_peers):

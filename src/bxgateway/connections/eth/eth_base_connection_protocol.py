@@ -195,7 +195,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
     def _handshake_timeout(self):
         if not self._handshake_complete:
             self.connection.log_trace("Handshake was not completed within defined timeout. Closing connection.")
-            self.connection.mark_for_close(force_destroy_now=True)
+            self.connection.mark_for_close()
         else:
             self.connection.log_trace("Handshake completed within defined timeout.")
         return 0
