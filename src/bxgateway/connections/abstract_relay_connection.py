@@ -198,6 +198,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         :return: None
         """
         self.log_info("Received disconnect request. Dropping.")
+        self.mark_for_close()
         self.node.destroy_conn(self)
 
     def log_connection_mem_stats(self) -> None:
