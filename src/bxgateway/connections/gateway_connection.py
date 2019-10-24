@@ -181,6 +181,9 @@ class GatewayConnection(InternalNodeConnection):
     def mark_for_close(self):
         super(GatewayConnection, self).mark_for_close()
 
+    def close(self):
+        super().close()
+
         if not self.from_me:
             if self.peer_id:
                 sdn_http_service.delete_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)

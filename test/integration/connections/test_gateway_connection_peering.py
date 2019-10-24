@@ -1,17 +1,15 @@
 from contextlib import closing
-from unittest import skip
 
 from mock import MagicMock
 
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import LOCALHOST
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network import network_event_loop_factory
 from bxcommon.services import sdn_http_service
 from bxcommon.test_utils import helpers, integration_helpers
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.network_thread import NetworkThread
-
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.testing.null_gateway_node import NullGatewayNode
@@ -166,6 +164,9 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             self.assertTrue(peer_initiated_connection.is_active())
             self.assertTrue(peer_initiated_connection_on_peer.is_active())
 
+            for item in self.main_gateway.disconnect_queue:
+                self.main_gateway.on_connection_closed(item.fileno, item.should_retry)
+
             # connection is cleaned up from byipaddr but not byfileno
             self.assertEqual(1, len(self.main_gateway.connection_pool))
             self.assertEqual(1, len(list(self.main_gateway.connection_pool.items())))
@@ -180,7 +181,6 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
 
         self._test_gateway_to_gateway_connection_resolution(peer_initiated_equal_then_higher)
 
-    @skip("For now –– testing needs updates.")
     def test_gateway_to_gateway_connection_resolve_duplicate_peer_initiated_higher(self):
         def peer_initiated_higher(main_initiated_connection, peer_initiated_connection,
                                   main_initiated_connection_on_peer, peer_initiated_connection_on_peer):
@@ -205,21 +205,22 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             self.assertTrue(peer_initiated_connection.is_active())
             self.assertTrue(peer_initiated_connection_on_peer.is_active())
 
+            # clean up after processing
+            self.main_gateway.on_connection_closed(main_initiated_connection.fileno, False)
+
             # connection is cleaned up
-            self.assertEqual(1, len(self.main_gateway.connection_pool))
-            self.assertEqual(1, len(list(self.main_gateway.connection_pool.items())))
+            self.assertIsNone(self.main_gateway.connection_pool.get_by_fileno(main_initiated_connection.fileno))
 
             # peer thread will cleanup dead connection later
             integration_helpers.wait_while(lambda: len(self.peer_gateway.connection_pool) > 2)
 
             self.assertEqual(peer_initiated_connection,
-                              self.main_gateway.connection_pool.get_by_ipport(LOCALHOST, self.peer_port))
+                             self.main_gateway.connection_pool.get_by_ipport(LOCALHOST, self.peer_port))
             self.assertEqual(peer_initiated_connection_on_peer,
-                              self.peer_gateway.connection_pool.get_by_ipport(LOCALHOST, self.main_port))
+                             self.peer_gateway.connection_pool.get_by_ipport(LOCALHOST, self.main_port))
 
         self._test_gateway_to_gateway_connection_resolution(peer_initiated_higher)
 
-    @skip("For now –– testing needs updates.")
     def test_gateway_to_gateway_connection_resolve_duplicate_connections_peer_initiated_lower(self):
         def peer_initiated_lower(main_initiated_connection, peer_initiated_connection,
                                  main_initiated_connection_on_peer, peer_initiated_connection_on_peer):
@@ -245,17 +246,19 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             self.assertTrue(peer_initiated_connection.state & ConnectionState.MARK_FOR_CLOSE)
             self.assertTrue(peer_initiated_connection_on_peer.state & ConnectionState.MARK_FOR_CLOSE)
 
+            for item in self.main_gateway.disconnect_queue:
+                self.main_gateway.on_connection_closed(item.fileno, item.should_retry)
+
             # connection is cleaned up
-            self.assertEqual(1, len(self.main_gateway.connection_pool))
-            self.assertEqual(1, len(list(self.main_gateway.connection_pool.items())))
+            self.assertIsNone(self.main_gateway.connection_pool.get_by_fileno(peer_initiated_connection.fileno))
 
             # peer thread should cleanup completely
             integration_helpers.wait_while(lambda: len(self.peer_gateway.connection_pool) > 1)
 
             self.assertEqual(main_initiated_connection,
-                              self.main_gateway.connection_pool.get_by_ipport(LOCALHOST, self.peer_port))
+                             self.main_gateway.connection_pool.get_by_ipport(LOCALHOST, self.peer_port))
             self.assertEqual(main_initiated_connection_on_peer,
-                              self.peer_gateway.connection_pool.get_by_ipport(LOCALHOST, self.main_port))
+                             self.peer_gateway.connection_pool.get_by_ipport(LOCALHOST, self.main_port))
 
         self._test_gateway_to_gateway_connection_resolution(peer_initiated_lower)
 

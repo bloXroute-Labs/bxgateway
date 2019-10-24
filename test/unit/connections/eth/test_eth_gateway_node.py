@@ -85,7 +85,7 @@ class EthGatewayNodeTest(AbstractTestCase):
 
         self.assertEqual(0, len(self.node.connection_pool))
         self.assertEqual(1, len(self.node.disconnect_queue))
-        self.assertEqual(dummy_con_fileno, self.node.disconnect_queue.pop())
+        self.assertEqual((dummy_con_fileno, False), self.node.disconnect_queue.pop())
 
         updated_node_public_key = node.get_node_public_key()
         self.assertIsNotNone(updated_node_public_key)

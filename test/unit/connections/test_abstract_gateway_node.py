@@ -104,13 +104,15 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = GatewayNode(opts)
         node.enqueue_connection = MagicMock()
         node.alarm_queue.register_alarm = MagicMock()
-        node.enqueue_disconnect = MagicMock()
 
-        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, True)
+        node.on_connection_added(MockSocketConnection(7), LOCALHOST, 8001, True)
         cli_peer_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
         node.num_retries_by_ip[(LOCALHOST, 8001)] = MAX_CONNECT_RETRIES
         node._connection_timeout(cli_peer_conn)
 
+        self.assertIn((7, True), node.disconnect_queue)
+
+        node.on_connection_closed(7, True)
         # timeout is fib(3) == 3
         node.alarm_queue.register_alarm.assert_has_calls([call(3, node._retry_init_client_socket,
                                                                LOCALHOST, 8001, ConnectionType.GATEWAY)])
@@ -132,7 +134,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         node.on_connection_added(MockSocketConnection(), LOCALHOST, 8002, True)
         not_cli_peer_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
-        node.destroy_conn(not_cli_peer_conn, force_destroy=True)
+        node._destroy_conn(not_cli_peer_conn, force_destroy=True)
 
         time.time = MagicMock(return_value=time.time() + SDN_CONTACT_RETRY_SECONDS * 2)
         node.alarm_queue.fire_alarms()
@@ -215,12 +217,12 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = initialize_split_relay_node()
 
         relay_block_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
-        node.on_connection_closed(relay_block_conn.fileno)
+        relay_block_conn.mark_for_close()
+        node.on_connection_closed(relay_block_conn.fileno, True)
 
         self.assertEqual(1, len(node.alarm_queue.alarms))
         self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[0].alarm.fn)
         self.assertEqual(True, node.should_retry_connection(LOCALHOST, 8001, relay_block_conn.CONNECTION_TYPE))
-        node.enqueue_disconnect.assert_called_once_with(relay_block_conn.fileno)
 
         time.time = MagicMock(return_value=time.time() + 1)
         node.alarm_queue.fire_alarms()
@@ -230,12 +232,12 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = initialize_split_relay_node()
 
         relay_tx_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
-        node.on_connection_closed(relay_tx_conn.fileno)
+        relay_tx_conn.mark_for_close()
+        node.on_connection_closed(relay_tx_conn.fileno, True)
 
         self.assertEqual(1, len(node.alarm_queue.alarms))
         self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[0].alarm.fn)
         self.assertEqual(True, node.should_retry_connection(LOCALHOST, 8002, relay_tx_conn.CONNECTION_TYPE))
-        node.enqueue_disconnect.assert_called_once_with(relay_tx_conn.fileno)
 
         time.time = MagicMock(return_value=time.time() + 1)
         node.alarm_queue.fire_alarms()
@@ -251,28 +253,20 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(False, node.should_retry_connection(LOCALHOST, 8001, relay_block_conn.CONNECTION_TYPE))
         self.assertEqual(True, node.should_retry_connection(LOCALHOST, 8002, relay_transaction_conn.CONNECTION_TYPE))
 
-        node.on_connection_closed(relay_block_conn.fileno)
+        relay_block_conn.mark_for_close()
+        node.on_connection_closed(relay_block_conn.fileno, True)
         self.assertEqual(1, len(node.alarm_queue.alarms))
         self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[0].alarm.fn)
-        node.enqueue_disconnect.assert_called_once_with(relay_block_conn.fileno)
-        node.enqueue_disconnect.reset_mock()
+        self.assertFalse(node.connection_exists(LOCALHOST, 8001))
 
         # invoke timeout with typical max timeout == 3s
         time.time = MagicMock(return_value=time.time() + 3)
         node.alarm_queue.fire_alarms()
 
-        node.enqueue_connection.assert_not_called()
-        sdn_http_service.submit_peer_connection_error_event.assert_has_calls(
-            [
-                call(node.opts.node_id, LOCALHOST, 8001),
-                call(node.opts.node_id, LOCALHOST, 8002),
-            ],
-            any_order=True
-        )
+        sdn_http_service.submit_peer_connection_error_event.called_once_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-
-        node.enqueue_disconnect.assert_called_once_with(relay_transaction_conn.fileno)
+        node.enqueue_disconnect.assert_called_once_with(relay_transaction_conn.fileno, False)
 
     def test_split_relay_no_reconnect_disconnect_transaction(self):
         sdn_http_service.submit_peer_connection_error_event = MagicMock()
@@ -284,33 +278,26 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(True, node.should_retry_connection(LOCALHOST, 8001, relay_block_conn.CONNECTION_TYPE))
         self.assertEqual(False, node.should_retry_connection(LOCALHOST, 8002, relay_transaction_conn.CONNECTION_TYPE))
 
-        node.on_connection_closed(relay_transaction_conn.fileno)
+        relay_transaction_conn.mark_for_close()
+        node.on_connection_closed(relay_transaction_conn.fileno, True)
         self.assertEqual(1, len(node.alarm_queue.alarms))
         self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[0].alarm.fn)
-        node.enqueue_disconnect.assert_called_once_with(relay_transaction_conn.fileno)
-        node.enqueue_disconnect.reset_mock()
 
         time.time = MagicMock(return_value=time.time() + 3)
         node.alarm_queue.fire_alarms()
 
         node.enqueue_connection.assert_not_called()
-        sdn_http_service.submit_peer_connection_error_event.assert_has_calls(
-            [
-                call(node.opts.node_id, LOCALHOST, 8001),
-                call(node.opts.node_id, LOCALHOST, 8002),
-            ],
-            any_order=True
-        )
+        sdn_http_service.submit_peer_connection_error_event.assert_called_once_with(node.opts.node_id, LOCALHOST, 8002)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
 
-        node.enqueue_disconnect.assert_called_once_with(relay_block_conn.fileno)
+        node.enqueue_disconnect.assert_called_once_with(relay_block_conn.fileno, False)
 
     def test_queuing_messages_no_blockchain_connection(self):
         node = self._initialize_gateway(True, True)
         blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
         blockchain_conn.mark_for_close()
-        node.destroy_conn(blockchain_conn)
+        node._destroy_conn(blockchain_conn)
 
         self.assertIsNone(node.node_conn)
 
@@ -330,7 +317,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = self._initialize_gateway(True, True)
         blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
         blockchain_conn.mark_for_close()
-        node.destroy_conn(blockchain_conn)
+        node._destroy_conn(blockchain_conn)
 
         self.assertIsNone(node.node_conn)
 
@@ -351,7 +338,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(0, next_conn.outputbuf.length)
 
         next_conn.mark_for_close()
-        node.destroy_conn(next_conn)
+        node._destroy_conn(next_conn)
 
         self.assertIsNone(node.node_conn)
 
@@ -386,7 +373,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
         blockchain_conn.mark_for_close()
-        node.destroy_conn(blockchain_conn)
+        node._destroy_conn(blockchain_conn)
 
         self.assertIsNone(node.node_conn)
 
@@ -405,7 +392,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         relay_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
         # skip retries
         relay_conn.mark_for_close()
-        node.destroy_conn(relay_conn, retry_connection=False)
+        node._destroy_conn(relay_conn, retry_connection=False)
 
         time.time = MagicMock(return_value=time.time() + gateway_constants.INITIAL_LIVELINESS_CHECK_S)
         node.alarm_queue.fire_alarms()
