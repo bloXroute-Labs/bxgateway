@@ -114,6 +114,9 @@ class BlockQueuingService(Generic[T], metaclass=ABCMeta):
             self._send_block_to_node(block_hash, block_msg)
             return
 
+        logger.debug("Queuing up block {} for sending to the blockchain node. Block is behind {} others.",
+                     block_hash, len(self._block_queue))
+
         self._block_queue.append((block_hash, time.time()))
         self._blocks[block_hash] = (waiting_for_recovery, block_msg)
 
@@ -188,7 +191,7 @@ class BlockQueuingService(Generic[T], metaclass=ABCMeta):
         waiting_recovery = self._blocks[block_hash][0]
 
         if waiting_recovery:
-            timeout = constants.MISSING_BLOCK_EXPIRE_TIME - (time.time() - timestamp)
+            timeout = gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME - (time.time() - timestamp)
             self._run_or_schedule_alarm(timeout, self._top_block_recovery_timeout)
         else:
             if self.can_send_block_message(block_hash, self._blocks[block_hash][1]):
@@ -256,7 +259,7 @@ class BlockQueuingService(Generic[T], metaclass=ABCMeta):
             self._schedule_alarm_for_next_item()
             return constants.CANCEL_ALARMS
 
-        if current_time - timestamp < constants.MISSING_BLOCK_EXPIRE_TIME:
+        if current_time - timestamp < gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME:
             logger.debug("Unable to cancel recovery for block {}. Block recovery did not timeout.", block_hash)
             self._schedule_alarm_for_next_item()
             return constants.CANCEL_ALARMS

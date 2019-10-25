@@ -12,6 +12,7 @@ BLOCKCHAIN_PING_INTERVAL_S = 15
 
 BLOCK_RECOVERY_RECOVERY_INTERVAL_S = [0.1, 0.5, 1, 2, 5]
 BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS = len(BLOCK_RECOVERY_RECOVERY_INTERVAL_S)
+BLOCK_RECOVERY_MAX_QUEUE_TIME = 15  # slightly more than sum(BLOCK_RECOVERY_RECOVERY_INTERVAL_S)
 
 
 # enum for setting Gateway neutrality assertion policy for releasing encryption keys

@@ -486,6 +486,7 @@ class BlockProcessingService:
         if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS or recovery_timed_out:
             logger.error("Could not decompress block {} after attempts to recover short ids. Discarding.", block_hash)
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
+            self._node.block_queuing_service.remove(block_hash)
         else:
             delay = gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[recovery_attempts]
             self._node.alarm_queue.register_approx_alarm(delay, delay / 2, self._trigger_recovery_retry,

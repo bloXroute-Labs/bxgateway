@@ -2,9 +2,9 @@ import time
 from collections import defaultdict
 from typing import Dict, Set, List, NamedTuple
 
+from bxgateway import gateway_constants
 from bxutils import logging
 
-from bxcommon import constants
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.expiration_queue import ExpirationQueue
@@ -67,7 +67,7 @@ class BlockRecoveryService:
         self._block_hash_to_bx_block_hashes = defaultdict(set)
         self._sid_to_bx_block_hashes = defaultdict(set)
         self._tx_hash_to_bx_block_hashes: Dict[Sha256Hash, Set[Sha256Hash]] = defaultdict(set)
-        self._blocks_expiration_queue = ExpirationQueue(constants.MISSING_BLOCK_EXPIRE_TIME)
+        self._blocks_expiration_queue = ExpirationQueue(gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME)
 
     def add_block(self, bx_block: memoryview, block_hash: Sha256Hash, unknown_tx_sids: List[int],
                   unknown_tx_hashes: List[Sha256Hash]):
@@ -176,7 +176,7 @@ class BlockRecoveryService:
                      num_blocks_awaiting_recovery - len(self._bx_block_hash_to_block))
 
         if self._bx_block_hash_to_block:
-            return constants.MISSING_BLOCK_EXPIRE_TIME
+            return gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME
 
         # disable clean up until receive the next block with unknown tx
         self._cleanup_scheduled = False
@@ -268,6 +268,7 @@ class BlockRecoveryService:
 
     def _schedule_cleanup(self):
         if not self._cleanup_scheduled and self._bx_block_hash_to_block:
-            logger.trace("Scheduling block recovery cleanup in {} seconds.", constants.MISSING_BLOCK_EXPIRE_TIME)
-            self._alarm_queue.register_alarm(constants.MISSING_BLOCK_EXPIRE_TIME, self.cleanup_old_blocks)
+            logger.trace("Scheduling block recovery cleanup in {} seconds.",
+                         gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME)
+            self._alarm_queue.register_alarm(gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME, self.cleanup_old_blocks)
             self._cleanup_scheduled = True

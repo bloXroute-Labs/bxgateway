@@ -4,14 +4,13 @@ from typing import List
 from mock import MagicMock, Mock
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon import constants
-from bxcommon.constants import MISSING_BLOCK_EXPIRE_TIME
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.test_utils import helpers
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import gateway_constants
-from bxgateway.gateway_constants import MAX_INTERVAL_BETWEEN_BLOCKS_S, NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S
+from bxgateway.gateway_constants import MAX_INTERVAL_BETWEEN_BLOCKS_S, NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S, \
+    BLOCK_RECOVERY_MAX_QUEUE_TIME
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 
@@ -211,13 +210,13 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(3, len(self.block_queuing_service))
 
         # fire alarm when block recovery not expired
-        time.time = MagicMock(return_value=time.time() + MISSING_BLOCK_EXPIRE_TIME / 2 + 1)
+        time.time = MagicMock(return_value=time.time() + BLOCK_RECOVERY_MAX_QUEUE_TIME / 2 + 1)
         self.node.alarm_queue.fire_alarms()
         self.assertEqual(0, len(self.node.send_to_node_messages))
         self.assertEqual(3, len(self.block_queuing_service))
 
         # fire alarm after recovery expires and is not successful
-        time.time = MagicMock(return_value=time.time() + MISSING_BLOCK_EXPIRE_TIME)
+        time.time = MagicMock(return_value=time.time() + BLOCK_RECOVERY_MAX_QUEUE_TIME)
         self.node.alarm_queue.fire_alarms()
         self.assertEqual(1, len(self.node.send_to_node_messages))
         self.assertEqual(1, len(self.block_queuing_service))
@@ -313,7 +312,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(3, len(self.block_queuing_service))
 
         # trigger automatic removal of top block recovery
-        time.time = MagicMock(return_value=time.time() + constants.MISSING_BLOCK_EXPIRE_TIME)
+        time.time = MagicMock(return_value=time.time() + gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME)
         self.node.alarm_queue.fire_alarms()
 
         self.assertEqual(1, len(self.node.send_to_node_messages))
