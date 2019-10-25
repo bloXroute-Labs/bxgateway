@@ -137,7 +137,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self._node_public_key = node_public_key
 
         # close UDP connection
-        self.enqueue_disconnect(discovery_connection.socket_connection.fileno(), False)
+        self.mark_connection_for_close(discovery_connection, False)
 
         self.connection_pool.delete(discovery_connection)
 
@@ -155,7 +155,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self._remote_public_key = remote_public_key
 
         # close UDP connection
-        self.enqueue_disconnect(discovery_connection.socket_connection.fileno(), False)
+        self.mark_connection_for_close(discovery_connection, False)
 
         self.connection_pool.delete(discovery_connection)
 

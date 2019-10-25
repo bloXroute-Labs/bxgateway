@@ -624,8 +624,7 @@ class AbstractGatewayNode(AbstractNode):
                 transaction_connection = self.connection_pool.get_by_ipport(ip, port + 1)
                 logger.debug("Removing relay transaction connection matching block relay host: {}",
                              transaction_connection)
-                transaction_connection.mark_for_close()
-                self.enqueue_disconnect(transaction_connection.fileno, False)
+                self.mark_connection_for_close(transaction_connection, False)
             self._remove_relay_transaction_peer(ip, port + 1, False)
 
         self.outbound_peers = self._get_all_peers()
@@ -648,8 +647,7 @@ class AbstractGatewayNode(AbstractNode):
             block_connection = self.connection_pool.get_by_ipport(ip, port - 1)
             logger.debug("Removing relay block connection matching transaction relay host: {}",
                          block_connection)
-            block_connection.mark_for_close()
-            self.enqueue_disconnect(block_connection.fileno, False)
+            self.mark_connection_for_close(block_connection, False)
             self._remove_relay_peer(ip, port - 1)
 
     def _find_active_connection(self, outbound_peers):

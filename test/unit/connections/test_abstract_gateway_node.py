@@ -266,7 +266,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         sdn_http_service.submit_peer_connection_error_event.called_once_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        node.enqueue_disconnect.assert_called_once_with(relay_transaction_conn.fileno, False)
+        node.enqueue_disconnect.assert_called_once_with(relay_transaction_conn.socket_connection, False)
 
     def test_split_relay_no_reconnect_disconnect_transaction(self):
         sdn_http_service.submit_peer_connection_error_event = MagicMock()
@@ -291,7 +291,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
 
-        node.enqueue_disconnect.assert_called_once_with(relay_block_conn.fileno, False)
+        node.enqueue_disconnect.assert_called_once_with(relay_block_conn.socket_connection, False)
 
     def test_queuing_messages_no_blockchain_connection(self):
         node = self._initialize_gateway(True, True)
