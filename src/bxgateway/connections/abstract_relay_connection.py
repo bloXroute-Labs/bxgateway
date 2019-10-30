@@ -11,7 +11,7 @@ from bxcommon.messages.bloxroute.disconnect_relay_peer_message import Disconnect
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
-from bxcommon.messages.validation.message_validation_settings import MessageValidationSettings
+from bxcommon.messages.validation.message_size_validation_settings import MessageSizeValidationSettings
 from bxcommon.utils import convert
 from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import hooks
@@ -55,9 +55,9 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             BloxrouteMessageType.TRANSACTION_CLEANUP: self.msg_cleanup,
         }
 
-        msg_validation_settings = MessageValidationSettings(self.node.network.max_block_size_bytes,
-                                                            self.node.network.max_tx_size_bytes)
-        self.message_validator = BloxrouteMessageValidator(msg_validation_settings, self.protocol_version)
+        msg_size_validation_settings = MessageSizeValidationSettings(self.node.network.max_block_size_bytes,
+                                                                self.node.network.max_tx_size_bytes)
+        self.message_validator = BloxrouteMessageValidator(msg_size_validation_settings, self.protocol_version)
 
     def msg_hello(self, msg):
         super(AbstractRelayConnection, self).msg_hello(msg)
