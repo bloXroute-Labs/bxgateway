@@ -155,7 +155,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage):
         if self._block_bodies_requests:
-            requested_hashes = self._block_bodies_requests.pop()
+            requested_hashes = self._block_bodies_requests.popleft()
 
             bodies_bytes = msg.get_block_bodies_bytes()
 
