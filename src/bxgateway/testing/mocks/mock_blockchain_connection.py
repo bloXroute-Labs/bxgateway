@@ -39,4 +39,3 @@ class MockMessageConverter(AbstractMessageConverter):
 class MockBlockchainConnection(AbstractGatewayBlockchainConnection):
     def __init__(self, sock, address, node):
         super(MockBlockchainConnection, self).__init__(sock, address, node)
-        self.message_converter = MockMessageConverter()

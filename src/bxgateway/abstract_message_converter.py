@@ -1,19 +1,20 @@
 from abc import ABCMeta, abstractmethod
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Set
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
+from bxcommon.utils import memory_utils
+
 from bxgateway.utils.block_info import BlockInfo
 
 
-class AbstractMessageConverter(object):
+class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
     """
     Message converter abstract class.
 
     Converts messages of specific blockchain protocol to internal messages
     """
-
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def tx_to_bx_txs(self, tx_msg, network_num):
@@ -64,3 +65,6 @@ class AbstractMessageConverter(object):
         """
 
         pass
+
+    def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
+        return super(AbstractMessageConverter, self).special_memory_size(ids)

@@ -1,9 +1,13 @@
+from bxutils import logging
+
 from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.utils import logger
+
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
+
+logger = logging.get_logger(__name__)
 
 
 class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
@@ -19,10 +23,8 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
         })
 
     def msg_status(self, _msg):
-        logger.debug("Status message received.")
-
-        self.connection.state |= ConnectionState.ESTABLISHED
-        self.connection.node.remote_node_conn = self.connection
+        self.connection.on_connection_established()
+        self.node.on_remote_blockchain_connection_ready(self.connection)
 
         self.connection.send_ping()
 

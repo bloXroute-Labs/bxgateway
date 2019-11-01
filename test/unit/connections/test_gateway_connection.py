@@ -1,5 +1,6 @@
 from mock import MagicMock
 
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.connections.connection_pool import ConnectionPool
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import LOCALHOST, DEFAULT_NETWORK_NUM
@@ -7,12 +8,12 @@ from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage

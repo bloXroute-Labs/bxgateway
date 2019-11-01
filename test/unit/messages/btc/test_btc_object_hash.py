@@ -1,7 +1,6 @@
-import unittest
-
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils.crypto import SHA256_HASH_LEN
+
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 

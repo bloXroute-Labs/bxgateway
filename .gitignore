@@ -109,3 +109,4 @@ ENV/
 *.orig
 
 .pyre_configuration_*
+.cookie*

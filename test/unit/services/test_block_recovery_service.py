@@ -3,12 +3,13 @@ import time
 
 from mock import MagicMock
 
-from bxcommon import constants
-from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_alarm_queue import MockAlarmQueue
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
+from bxgateway import gateway_constants
+
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 
 
@@ -99,18 +100,18 @@ class BlockRecoveryManagerTest(AbstractTestCase):
 
         # Verify that clean up is scheduled
         self.assertEqual(len(self.alarm_queue.alarms), 1)
-        self.assertEqual(self.alarm_queue.alarms[0][0], constants.MISSING_BLOCK_EXPIRE_TIME)
+        self.assertEqual(self.alarm_queue.alarms[0][0], gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME)
         self.assertEqual(self.alarm_queue.alarms[0][1], self.block_recovery_service.cleanup_old_blocks)
 
         self.assertTrue(self.block_recovery_service._cleanup_scheduled)
 
         # Run clean up before message expires and check that it is still there
-        self.block_recovery_service.cleanup_old_blocks(time.time() + constants.MISSING_BLOCK_EXPIRE_TIME / 2)
+        self.block_recovery_service.cleanup_old_blocks(time.time() + gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME / 2)
         self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_block), 1)
         self.assertTrue(self.block_recovery_service._cleanup_scheduled)
 
         # Run clean up after message expires and check that it is removed
-        self.block_recovery_service.cleanup_old_blocks(time.time() + constants.MISSING_BLOCK_EXPIRE_TIME + 1)
+        self.block_recovery_service.cleanup_old_blocks(time.time() + gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME + 1)
         self._assert_no_blocks_awaiting_recovery()
         self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_block), 0)
         self.assertFalse(self.block_recovery_service._cleanup_scheduled)
@@ -141,15 +142,15 @@ class BlockRecoveryManagerTest(AbstractTestCase):
 
         # Verify that clean up scheduled
         self.assertEqual(len(self.alarm_queue.alarms), 1)
-        self.assertEqual(self.alarm_queue.alarms[0][0], constants.MISSING_BLOCK_EXPIRE_TIME)
+        self.assertEqual(self.alarm_queue.alarms[0][0], gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME)
         self.assertEqual(self.alarm_queue.alarms[0][1], self.block_recovery_service.cleanup_old_blocks)
 
         # Verify that both blocks are there before the first one expires
-        self.block_recovery_service.cleanup_old_blocks(time.time() + constants.MISSING_BLOCK_EXPIRE_TIME / 2)
+        self.block_recovery_service.cleanup_old_blocks(time.time() + gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME / 2)
         self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_block), 2)
 
         # Verify that first block is remove and the second left 2 seconds before second block expires
-        self.block_recovery_service.cleanup_old_blocks(time.time() + constants.MISSING_BLOCK_EXPIRE_TIME - 2)
+        self.block_recovery_service.cleanup_old_blocks(time.time() + gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME - 2)
         self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_block), 1)
 
         self.assertTrue(self.block_recovery_service._cleanup_scheduled)

@@ -2,10 +2,11 @@ import datetime
 import time
 from typing import TYPE_CHECKING, Optional, Iterable
 
+from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
-from bxcommon.utils import crypto, convert, logger
+from bxcommon.utils import crypto, convert
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
@@ -19,12 +20,16 @@ from bxgateway.connections.abstract_gateway_blockchain_connection import Abstrac
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.services.block_recovery_service import BlockRecoveryInfo
+from bxgateway.utils.errors.message_conversion_error import MessageConversionError
+from bxutils import logging
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
+logger = logging.get_logger(__name__)
 
-class BlockHold(object):
+
+class BlockHold:
     """
     Data class for holds on block messages.
 
@@ -56,7 +61,7 @@ class BlockProcessingService:
 
     def __init__(self, node):
         self._node: AbstractGatewayNode = node
-        self._holds = ExpiringDict(node.alarm_queue, gateway_constants.BLOCK_HOLD_DURATION_S)
+        self._holds = ExpiringDict(node.alarm_queue, node.opts.blockchain_block_hold_timeout_s)
 
     def place_hold(self, block_hash, connection):
         """
@@ -97,16 +102,15 @@ class BlockProcessingService:
                                                       more_info=stats_format.connection(hold.holding_connection))
 
             if hold.alarm is None:
-                hold.alarm = self._node.alarm_queue.register_alarm(gateway_constants.BLOCK_HOLDING_TIMEOUT_S,
+                hold.alarm = self._node.alarm_queue.register_alarm(self._node.opts.blockchain_block_hold_timeout_s,
                                                                    self._holding_timeout, block_hash, hold)
                 hold.block_message = block_message
                 hold.connection = connection
         else:
             # Broadcast BlockHoldingMessage through relays and gateways
             conns = self._node.broadcast(BlockHoldingMessage(block_hash, self._node.network_num),
-                                         broadcasting_conn=connection,
-                                         connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY],
-                                         prepend_to_queue=True)
+                                         broadcasting_conn=connection, prepend_to_queue=True,
+                                         connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY])
             if len(conns) > 0:
                 block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
@@ -130,7 +134,7 @@ class BlockProcessingService:
                 self._node.alarm_queue.unregister_alarm(hold.alarm)
             del self._holds.contents[block_hash]
 
-    def process_block_broadcast(self, msg, connection):
+    def process_block_broadcast(self, msg, connection: AbstractRelayConnection):
         """
         Handle broadcast message receive from bloXroute.
         This is typically an encrypted block.
@@ -143,6 +147,7 @@ class BlockProcessingService:
 
         block_hash = msg.block_hash()
         is_encrypted = msg.is_encrypted()
+        self._node.track_block_from_bdn_handling_started(block_hash, connection.peer_desc)
 
         if not is_encrypted:
             block = msg.blob()
@@ -150,12 +155,15 @@ class BlockProcessingService:
             return
 
         cipherblob = msg.blob()
-        if block_hash != Sha256Hash(crypto.double_sha256(cipherblob)):
-            logger.warn("Received a message with inconsistent hashes. Dropping.")
+        expected_hash = Sha256Hash(crypto.double_sha256(cipherblob))
+        if block_hash != expected_hash:
+            connection.log_warning("Received a block with inconsistent hashes from the BDN. "
+                                   "Expected: {}. Actual: {}. Dropping.",
+                                   expected_hash, block_hash)
             return
 
         if self._node.in_progress_blocks.has_encryption_key_for_hash(block_hash):
-            logger.debug("Already had key for received block. Sending block to node.")
+            connection.log_trace("Already had key for received block. Sending block to node.")
             decrypt_start_timestamp = time.time()
             decrypt_start_datetime = datetime.datetime.utcnow()
             block = self._node.in_progress_blocks.decrypt_ciphertext(block_hash, cipherblob)
@@ -174,7 +182,7 @@ class BlockProcessingService:
                                             BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
                                             network_num=connection.network_num)
         else:
-            logger.debug("Received encrypted block. Storing.")
+            connection.log_trace("Received encrypted block. Storing.")
             self._node.in_progress_blocks.add_ciphertext(block_hash, cipherblob)
             block_received_message = BlockReceivedMessage(block_hash)
             conns = self._node.broadcast(block_received_message, self, connection_types=[ConnectionType.GATEWAY])
@@ -183,7 +191,7 @@ class BlockProcessingService:
                                                       network_num=connection.network_num,
                                                       more_info=stats_format.connections(conns))
 
-    def process_block_key(self, msg, connection):
+    def process_block_key(self, msg, connection: AbstractRelayConnection):
         """
         Handles key message receive from bloXroute.
         Looks for the encrypted block and decrypts; otherwise stores for later.
@@ -201,7 +209,7 @@ class BlockProcessingService:
             return
 
         if self._node.in_progress_blocks.has_ciphertext_for_hash(block_hash):
-            logger.debug("Cipher text found. Decrypting and sending to node.")
+            connection.log_trace("Cipher text found. Decrypting and sending to node.")
             decrypt_start_timestamp = time.time()
             decrypt_start_datetime = datetime.datetime.utcnow()
             block = self._node.in_progress_blocks.decrypt_and_get_payload(block_hash, key)
@@ -221,7 +229,7 @@ class BlockProcessingService:
                                                           BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
                                                           network_num=connection.network_num)
         else:
-            logger.debug("No cipher text found on key message. Storing.")
+            connection.log_trace("No cipher text found on key message. Storing.")
             self._node.in_progress_blocks.add_key(block_hash, key)
 
         conns = self._node.broadcast(msg, connection, connection_types=[ConnectionType.GATEWAY])
@@ -245,7 +253,7 @@ class BlockProcessingService:
         :param block_message: block message to hold
         :return: time in seconds to wait
         """
-        return gateway_constants.BLOCK_HOLDING_TIMEOUT_S
+        return self._node.opts.blockchain_block_hold_timeout_s
 
     def _holding_timeout(self, block_hash, hold):
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_TIMED_OUT,
@@ -253,15 +261,27 @@ class BlockProcessingService:
                                                   more_info=stats_format.connection(hold.connection))
         self._process_and_broadcast_block(hold.block_message, hold.connection)
 
-    def _process_and_broadcast_block(self, block_message, connection):
+    def _process_and_broadcast_block(self, block_message, connection: AbstractGatewayBlockchainConnection):
         """
         Compresses and propagates block message.
         :param block_message: block message to propagate
         :param connection: receiving connection (AbstractBlockchainConnection)
         """
         block_hash = block_message.block_hash()
-        bx_block, block_info = connection.message_converter.block_to_bx_block(block_message,
-                                                                              self._node.get_tx_service())
+        try:
+            bx_block, block_info = self._node.message_converter.block_to_bx_block(
+                block_message,self._node.get_tx_service()
+            )
+        except MessageConversionError as e:
+            block_stats.add_block_event_by_block_hash(
+                e.msg_hash,
+                BlockStatEventType.BLOCK_CONVERSION_FAILED,
+                network_num=connection.network_num,
+                conversion_type=e.conversion_type.value
+            )
+            connection.log_error("Failed to compress block {} - {}", e.msg_hash, e)
+            return
+
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.BLOCK_COMPRESSED,
                                                   start_date_time=block_info.start_datetime,
@@ -274,7 +294,7 @@ class BlockProcessingService:
                                                   blockchain_protocol=self._node.opts.blockchain_network,
                                                   matching_block_hash=block_info.compressed_block_hash,
                                                   matching_block_type=StatBlockType.COMPRESSED.value,
-                                                  more_info="Compression: {}->{}bytes, {}, {}; Tx count: {}".format(
+                                                  more_info="Compression: {}->{} bytes, {}, {}; Tx count: {}".format(
                                                       block_info.original_size,
                                                       block_info.compressed_size,
                                                       stats_format.percentage(block_info.compression_rate),
@@ -304,22 +324,30 @@ class BlockProcessingService:
         :param block_hash: block hash
         """
         connection.node.neutrality_service.propagate_block_to_network(bx_block, connection, block_info)
+        self._node.get_tx_service().track_seen_short_ids_delayed(block_hash, block_info.short_ids)
 
-        connection.node.block_recovery_service.cancel_recovery_for_block(block_hash)
-        connection.node.block_queuing_service.remove(block_hash)
-        connection.node.blocks_seen.add(block_hash)
-        self._node.get_tx_service().track_seen_short_ids_delayed(block_info.short_ids)
-
-    def _handle_decrypted_block(self, bx_block, connection, encrypted_block_hash_hex=None, recovered=False):
-        if self._node.node_conn is None:
-            logger.warn("Connection to blockchain node is not established. Discarding block received from BDN.")
-            return
-
+    def _handle_decrypted_block(self, bx_block: memoryview, connection: AbstractConnection,
+                                encrypted_block_hash_hex: bool = None, recovered: bool = False):
         transaction_service = self._node.get_tx_service()
 
         # TODO: determine if a real block or test block. Discard if test block.
-        block_message, block_info, unknown_sids, unknown_hashes = \
-            self._node.node_conn.message_converter.bx_block_to_block(bx_block, transaction_service)
+        if self._node.node_conn or self._node.remote_node_conn:
+            try:
+                block_message, block_info, unknown_sids, unknown_hashes = \
+                    self._node.message_converter.bx_block_to_block(bx_block, transaction_service)
+            except MessageConversionError as e:
+                block_stats.add_block_event_by_block_hash(
+                    e.msg_hash,
+                    BlockStatEventType.BLOCK_CONVERSION_FAILED,
+                    network_num=connection.network_num,
+                    conversion_type=e.conversion_type.value
+                )
+                transaction_service.on_block_cleaned_up(e.msg_hash)
+                connection.log_warning("Failed to decompress block {} - {}", e.msg_hash, e)
+                return
+        else:
+            connection.log_warning("Discarding block. No connection currently exists to the blockchain node.")
+            return
 
         block_hash = block_info.block_hash
         all_sids = block_info.short_ids
@@ -351,7 +379,14 @@ class BlockProcessingService:
                                                       matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
                                                       more_info=stats_format.duration(block_info.duration_ms))
+            self._node.track_block_from_bdn_handling_ended(block_hash)
+            transaction_service.track_seen_short_ids(block_hash, all_sids)
             return
+
+        if not recovered:
+            connection.log_info("Received block {} from the BDN.", block_hash)
+        else:
+            connection.log_info("Successfully recovered block {}.", block_hash)
 
         if block_message is not None:
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_SUCCESS,
@@ -365,7 +400,13 @@ class BlockProcessingService:
                                                       blockchain_protocol=self._node.opts.blockchain_network,
                                                       matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
-                                                      more_info=stats_format.duration(block_info.duration_ms))
+                                                      more_info="Compression rate {}, Decompression time {}".format(
+                                                          stats_format.percentage(block_info.compression_rate),
+                                                          stats_format.duration(block_info.duration_ms))
+                                                      )
+
+
+            self._on_block_decompressed(block_message)
             if recovered or block_hash in self._node.block_queuing_service:
                 self._node.block_queuing_service.update_recovered_block(block_hash, block_message)
             else:
@@ -373,10 +414,10 @@ class BlockProcessingService:
 
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self._node.blocks_seen.add(block_hash)
-            transaction_service.track_seen_short_ids(all_sids)
+            transaction_service.track_seen_short_ids(block_hash, all_sids)
         else:
             if block_hash in self._node.block_queuing_service and not recovered:
-                logger.debug("Handling already queued block again. Ignoring.")
+                connection.log_trace("Handling already queued block again. Ignoring.")
                 return
 
             self._node.block_recovery_service.add_block(bx_block, block_hash, unknown_sids, unknown_hashes)
@@ -388,10 +429,13 @@ class BlockProcessingService:
                                                       more_info="{} sids, {} hashes".format(
                                                           len(unknown_sids), len(unknown_hashes)))
 
+            connection.log_warning("Block {} requires short id recovery. Querying BDN...", block_hash)
+
             self.start_transaction_recovery(unknown_sids, unknown_hashes, block_hash, connection)
             if recovered:
                 # should never happen –– this should not be called on blocks that have not recovered
-                logger.error("Unexpectedly, could not decompress block {} after block was recovered.", block_hash)
+                connection.log_error("Unexpectedly, could not decompress block {} after block was recovered.",
+                                     block_hash)
             else:
                 self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
 
@@ -437,8 +481,12 @@ class BlockProcessingService:
         """
         block_hash = block_awaiting_recovery.block_hash
         recovery_attempts = self._node.block_recovery_service.recovery_attempts_by_block[block_hash]
-        if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS:
-            logger.error("Giving up on attempting to recover block: {}", block_hash)
+        recovery_timed_out = time.time() - block_awaiting_recovery.recovery_start_time >= \
+                             self._node.opts.blockchain_block_recovery_timeout_s
+        if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS or recovery_timed_out:
+            logger.error("Could not decompress block {} after attempts to recover short ids. Discarding.", block_hash)
+            self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
+            self._node.block_queuing_service.remove(block_hash)
         else:
             delay = gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[recovery_attempts]
             self._node.alarm_queue.register_approx_alarm(delay, delay / 2, self._trigger_recovery_retry,
@@ -450,3 +498,6 @@ class BlockProcessingService:
         self.start_transaction_recovery(block_awaiting_recovery.unknown_short_ids,
                                         block_awaiting_recovery.unknown_transaction_hashes,
                                         block_hash)
+
+    def _on_block_decompressed(self, block_msg):
+        pass

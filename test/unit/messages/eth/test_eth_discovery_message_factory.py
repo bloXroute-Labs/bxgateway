@@ -1,8 +1,9 @@
 import time
 
-from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils import helpers
 from bxcommon.utils.buffers.input_buffer import InputBuffer
+
 from bxgateway import eth_constants
 from bxgateway.eth_exceptions import WrongMACError
 from bxgateway.messages.eth.discovery.eth_discovery_message_factory import eth_discovery_message_factory

@@ -3,6 +3,8 @@ from typing import List
 
 from mock import MagicMock
 
+from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
+
 from bxcommon.constants import LOCALHOST
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
@@ -14,11 +16,11 @@ from bxcommon.models.transaction_info import TransactionInfo
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
+
 from bxgateway import btc_constants, gateway_constants
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc import btc_message_converter_factory
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
-from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
@@ -59,11 +61,11 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
             for tx_btc_message in self.btc_transactions
         ]
         self.transactions_with_short_ids = [
-            TxMessage(tx_message.tx_hash(), tx_message.network_num(), i + 1, tx_message.tx_val())
+            TxMessage(tx_message.tx_hash(), tx_message.network_num(), "", i + 1, tx_message.tx_val())
             for i, tx_message in enumerate(self.transactions)
         ]
         self.transactions_with_no_content = [
-            TxMessage(tx_message.tx_hash(), tx_message.network_num(), i + 1)
+            TxMessage(tx_message.tx_hash(), tx_message.network_num(), "", i + 1)
             for i, tx_message in enumerate(self.transactions)
         ]
         self.transactions_by_short_id = {tx_message.short_id(): tx_message

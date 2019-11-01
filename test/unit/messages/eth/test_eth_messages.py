@@ -3,10 +3,11 @@ import time
 
 import rlp
 
-from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway import eth_constants
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
 from bxgateway.messages.eth.discovery.pong_eth_discovery_message import PongEthDiscoveryMessage

@@ -1,9 +1,11 @@
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
+
+
 from bxgateway import eth_constants
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
@@ -83,7 +85,7 @@ class EthGatewayNodeTest(AbstractTestCase):
 
         self.assertEqual(0, len(self.node.connection_pool))
         self.assertEqual(1, len(self.node.disconnect_queue))
-        self.assertEqual(dummy_con_fileno, self.node.disconnect_queue.pop())
+        self.assertEqual((dummy_con_fileno, False), self.node.disconnect_queue.pop())
 
         updated_node_public_key = node.get_node_public_key()
         self.assertIsNotNone(updated_node_public_key)

@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import ABC
 
 import rlp
 from rlp.sedes import List
@@ -6,7 +6,7 @@ from rlp.sedes import List
 from bxcommon.messages.abstract_message import AbstractMessage
 
 
-class AbstractEthMessage(AbstractMessage):
+class AbstractEthMessage(AbstractMessage, ABC):
     msg_type = None
     fields = []
 

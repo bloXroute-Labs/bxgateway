@@ -1,6 +1,12 @@
 from typing import List, Tuple, Optional
 
 import rlp
+from typing import List, Tuple
+
+from bxutils.logging.log_level import LogLevel
+
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
+from bxcommon.utils.object_hash import Sha256Hash
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils.log_level import LogLevel
@@ -78,4 +84,7 @@ class NewBlockHashesEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage)
         return cls(msg_bytes)
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
+
+    def prev_block_hash(self) -> Sha256Hash:
+        raise NotImplementedError()

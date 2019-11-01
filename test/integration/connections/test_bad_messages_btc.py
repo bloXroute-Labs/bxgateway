@@ -2,10 +2,13 @@ import struct
 
 from mock import patch, MagicMock
 
+from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
+
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
+
 from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
@@ -14,7 +17,6 @@ from bxgateway.messages.btc.tx_btc_message import TxBtcMessage, TxIn, TxOut
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 from bxgateway.testing import spies
-from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 

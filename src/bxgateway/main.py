@@ -13,9 +13,10 @@ import sys
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
-from bxgateway import btc_constants
+from bxgateway import btc_constants, gateway_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
+from bxgateway.utils import node_cache
 from bxgateway.utils.eth import crypto_utils
 
 MAX_NUM_CONN = 8192
@@ -45,6 +46,14 @@ def parse_peer_string(peer_string):
             port = int(ip_port_list[1])
             peers.append(OutboundPeerModel(ip, port))
     return peers
+
+
+def get_sdn_hostname(sdn_url: str) -> str:
+    new_sdn_url = sdn_url
+    if "://" in sdn_url:
+        new_sdn_url = sdn_url.split("://")[1]
+
+    return new_sdn_url
 
 
 def get_opts() -> argparse.Namespace:
@@ -92,6 +101,8 @@ def get_opts() -> argparse.Namespace:
                             ),
                             default="",
                             nargs="*")
+    arg_parser.add_argument("--sync-tx-service", help="sync tx service in gateway", type=convert.str_to_bool,
+                            default=True)
 
     # Bitcoin specific
     arg_parser.add_argument("--blockchain-version", help="Bitcoin protocol version", type=int)
@@ -99,6 +110,9 @@ def get_opts() -> argparse.Namespace:
     arg_parser.add_argument("--blockchain-net-magic", help="Bitcoin net.magic parameter",
                             type=convert_net_magic)
     arg_parser.add_argument("--blockchain-services", help="Bitcoin services parameter", type=int)
+    arg_parser.add_argument("--enable-node-cache", help="Retrieve peers from cookie if unavailable",
+                            type=convert.str_to_bool,
+                            default=True)
 
     # Ethereum specific
     arg_parser.add_argument("--node-public-key", help="Public key of Ethereum node for encrypted communication",
@@ -120,9 +134,11 @@ def get_opts() -> argparse.Namespace:
         type=convert.str_to_bool,
         default=constants.ACCEPT_COMPACT_BLOCK
     )
-    arg_parser.add_argument("--compact-block-min-tx-count",
-                            help="Minimal number of short transactions in compact block to attempt decompression.",
-                            type=int, default=btc_constants.BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT)
+    arg_parser.add_argument(
+        "--compact-block-min-tx-count",
+        help="Minimal number of short transactions in compact block to attempt decompression.",
+        type=int, default=btc_constants.BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT
+    )
     arg_parser.add_argument(
         "--dump-short-id-mapping-compression",
         help="If true, the gateway will dump all short ids and txhashes compressed into a block",
@@ -134,15 +150,64 @@ def get_opts() -> argparse.Namespace:
         help="Folder to dump compressed short ids to",
         default="/app/bxgateway/debug/compressed-short-ids"
     )
-
     arg_parser.add_argument(
         "--tune-send-buffer-size",
         help="If true, then the gateway will increase the send buffer's size for the blockchain connection",
         default=False,
         type=convert.str_to_bool
     )
+    arg_parser.add_argument(
+        "--max-block-interval",
+        help="Maximum time gateway holds a block while waiting for confirmation of receipt from blockchain node",
+        type=int,
+        default=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S
+    )
+    arg_parser.add_argument(
+        "--cookie-file-path",
+        help="Cookie file path",
+        type=str,
+    )
+    arg_parser.add_argument(
+        "--blockchain-message-ttl",
+        help="Duration to queue up messages for if blockchain node connection is broken",
+        type=int,
+        default=gateway_constants.DEFAULT_BLOCKCHAIN_MESSAGE_TTL_S
+    )
+    arg_parser.add_argument(
+        "--remote-blockchain-message-ttl",
+        help="Duration to queue up messages for if remote blockchain node connection is broken",
+        type=int,
+        default=gateway_constants.DEFAULT_REMOTE_BLOCKCHAIN_MESSAGE_TTL_S
+    )
+    arg_parser.add_argument(
+        "--stay-alive-duration",
+        help="Duration Gateway should stay alive for without an active blockchain or relay connection",
+        type=int,
+        default=gateway_constants.DEFAULT_STAY_ALIVE_DURATION_S
+    )
+    arg_parser.add_argument(
+        "--initial-liveliness-check",
+        help="Duration Gateway should stay alive for without an initial blockchain or relay connection",
+        type=int,
+        default=gateway_constants.INITIAL_LIVELINESS_CHECK_S
+    )
+    arg_parser.add_argument(
+        "--config-update-interval",
+        help="update the node configuration on cron, 0 to disable",
+        type=int,
+        default=gateway_constants.CONFIG_UPDATE_INTERVAL_S
+    )
+    arg_parser.add_argument("--require-blockchain-connection",
+                            help="Close gateway if connection with blockchain node can't be established "
+                                 "when the flag is set to True",
+                            type=convert.str_to_bool)
 
     opts = cli.parse_arguments(arg_parser)
+
+    if not opts.blockchain_network:
+        cache_file_info = node_cache.read(opts)
+        if cache_file_info is not None:
+            opts.blockchain_network = cache_file_info.blockchain_network
 
     opts.outbound_peers = opts.peer_gateways + opts.peer_relays
 
@@ -151,13 +216,19 @@ def get_opts() -> argparse.Namespace:
     else:
         opts.remote_blockchain_peer = None
 
+    if not opts.cookie_file_path:
+        opts.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
+            "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip))
+
     return opts
 
 
 def main():
+    logger_names = node_runner.LOGGER_NAMES.copy()
+    logger_names.append("bxgateway")
     opts = get_opts()
     node_type = get_gateway_node_type(opts.blockchain_protocol, opts.blockchain_network)
-    node_runner.run_node(config.get_relative_file(PID_FILE_NAME), opts, node_type)
+    node_runner.run_node(config.get_relative_file(PID_FILE_NAME), opts, node_type, logger_names=logger_names)
 
 
 if __name__ == "__main__":

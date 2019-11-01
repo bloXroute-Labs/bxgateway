@@ -2,19 +2,22 @@ import os
 import random
 import struct
 import sys
-
 import pyelliptic
 import rlp
 from Crypto.Cipher import AES
 from rlp import sedes
 
+from bxutils import logging
+
 from bxcommon.exceptions import ParseError
-from bxcommon.utils import logger
+
 from bxgateway import eth_constants
-from bxgateway.eth_exceptions import InvalidKeyError, AuthenticationError
+from bxgateway.eth_exceptions import InvalidKeyError, AuthenticationError, CipherNotInitializedError
 from bxgateway.utils.eth import crypto_utils, rlp_utils
 from bxgateway.utils.eth.eccx import ECCx
 from bxgateway.utils.eth.frame import Frame
+
+logger = logging.get_logger(__name__)
 
 
 class RLPxCipher(object):
@@ -352,7 +355,6 @@ class RLPxCipher(object):
     def encrypt_frame(self, frame):
         """
         Encrypts frame
-        :param header: frame header data
         :param frame: frame data
         :return: encrypted frame
         """
@@ -360,7 +362,8 @@ class RLPxCipher(object):
         if not isinstance(frame, Frame):
             raise TypeError("frame must be of type Frame but was {0}".format(type(frame)))
 
-        assert self._is_ready is True
+        if not self._is_ready:
+            raise CipherNotInitializedError(f"failed to encrypt frame {frame}, the cipher was never initialized!")
 
         header = frame.get_header()
         body = frame.get_body()
@@ -396,7 +399,8 @@ class RLPxCipher(object):
             raise ValueError("Frame header len is expected to be {0} but was {1}"
                              .format(eth_constants.FRAME_HDR_TOTAL_LEN, len(data)))
 
-        assert self._is_ready is True
+        if not self._is_ready:
+            raise CipherNotInitializedError("failed to decrypt frame header, the cipher was never initialized!")
 
         header_cipher_text = data[:eth_constants.FRAME_HDR_DATA_LEN]
         header_mac = data[eth_constants.FRAME_HDR_DATA_LEN:eth_constants.FRAME_HDR_TOTAL_LEN]
@@ -422,7 +426,9 @@ class RLPxCipher(object):
         :return: decrypted frame body
         """
 
-        assert self._is_ready is True
+        if not self._is_ready:
+            raise CipherNotInitializedError("failed to decrypt frame body, the cipher was never initialized!")
+
 
         # frame-size: 3-byte integer size of frame, big endian encoded (excludes padding)
         # frame relates to body w/o padding w/o mac

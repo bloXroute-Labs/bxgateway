@@ -2,19 +2,24 @@ from datetime import datetime
 import struct
 import time
 import hashlib
+from datetime import datetime
+
 from csiphash import siphash24
 from collections import deque
 from typing import Tuple, Optional, List, Deque, Union, NamedTuple
 
+from bxutils import logging
+
 from bxcommon import constants
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.abstract_message import AbstractMessage
-from bxcommon.utils import crypto, convert, logger
+from bxcommon.utils import crypto, convert
 from bxcommon.messages.bloxroute.compact_block_short_ids_serializer import BlockOffsets
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import btc_constants
+from bxgateway.utils.errors import message_conversion_error
 from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter, get_block_info, \
     CompactBlockCompressionResult
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
@@ -24,6 +29,8 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.utils.block_header_info import BlockHeaderInfo
 from bxgateway.messages.btc import btc_messages_util
+
+logger = logging.get_logger(__name__)
 
 
 class CompactBlockRecoveryData(NamedTuple):
@@ -66,6 +73,7 @@ def parse_bx_block_header(
 
 
 def parse_bx_block_transactions(
+        block_hash: Sha256Hash,
         bx_block: memoryview,
         offset: int,
         short_ids: List[int],
@@ -81,7 +89,14 @@ def parse_bx_block_transactions(
     output_offset = offset
     while offset < block_offsets.short_id_offset:
         if bx_block[offset] == btc_constants.BTC_SHORT_ID_INDICATOR:
-            sid = short_ids[short_tx_index]
+            try:
+                sid = short_ids[short_tx_index]
+            except IndexError:
+                raise message_conversion_error.btc_block_decompression_error(
+                    block_hash,
+                    f"Message is improperly formatted, short id index ({short_tx_index}) "
+                    f"exceeded its array bounds (size: {len(short_ids)})"
+                )
             tx_hash, tx, _ = tx_service.get_transaction(sid)
             offset += btc_constants.BTC_SHORT_ID_INDICATOR_LENGTH
             short_tx_index += 1
@@ -130,7 +145,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         buf.append(header)
 
         for tx in block_msg.txns():
-            tx_hash = BtcObjectHash(buf=crypto.double_sha256(tx), length=btc_constants.BTC_SHA_HASH_LEN)
+
+            tx_hash = btc_messages_util.get_txid(tx)
             short_id = tx_service.get_short_id(tx_hash)
             if short_id == constants.NULL_TX_SID:
                 buf.append(tx)
@@ -154,7 +170,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             block[off:next_off] = blob
             off = next_off
 
-        prev_block_hash = convert.bytes_to_hex(block_msg.prev_block().binary)
+        prev_block_hash = convert.bytes_to_hex(block_msg.prev_block_hash().binary)
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
         original_size = len(block_msg.rawbytes())
 
@@ -192,6 +208,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         block_pieces = deque()
         header_info = parse_bx_block_header(bx_block_msg, block_pieces)
         unknown_tx_sids, unknown_tx_hashes, offset = parse_bx_block_transactions(
+            header_info.block_hash,
             bx_block_msg,
             header_info.offset,
             header_info.short_ids,
@@ -208,7 +225,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             )
         else:
             btc_block_msg = None
-            logger.warn("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in bx_block: {2}"
+            logger.warning("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in bx_block: {2}"
                         .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
         block_info = get_block_info(
             bx_block_msg,
@@ -248,7 +265,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             if tx_short_id in short_ids:
                 tx_content = transaction_service.get_transaction_by_hash(tx_hash)
                 if tx_content is None:
-                    logger.warn("Hash {} is known by transactions service but content is missing.", tx_hash)
+                    logger.debug("Hash {} is known by transactions service but content is missing.", tx_hash)
                 else:
                     short_id_to_tx_contents[tx_short_id] = tx_content
             if len(short_id_to_tx_contents) == len(short_ids):
@@ -362,7 +379,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         recovered_transactions = compression_result.recovered_transactions
         block_transactions = recovery_item.block_transactions
         if len(missing_indices) != len(recovered_transactions):
-            logger.info(
+            logger.debug(
                 "Number of transactions missing in compact block does not match number of recovered transactions."
                 "Missing transactions - {}. Recovered transactions - {}", len(missing_indices),
                 len(recovered_transactions))

@@ -4,16 +4,17 @@ import struct
 
 import rlp
 
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon import constants
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
@@ -90,7 +91,7 @@ class EthMessageConverterTests(AbstractTestCase):
         tx_hash_bytes = hashlib.sha256(tx_bytes).digest()
         tx_hash = Sha256Hash(tx_hash_bytes)
 
-        bx_tx_message = TxMessage(tx_hash=tx_hash, network_num=self.test_network_num, tx_val=tx_bytes)
+        bx_tx_message = TxMessage(message_hash=tx_hash, network_num=self.test_network_num, tx_val=tx_bytes)
 
         tx_message = self.message_parser.bx_tx_to_tx(bx_tx_message)
 
@@ -260,7 +261,8 @@ class EthMessageConverterTests(AbstractTestCase):
         compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
         compact_block_hash = Sha256Hash(compact_block_hash_bytes)
 
-        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, True, compact_block_msg_bytes)
+        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, is_encrypted=True,
+                                        blob=compact_block_msg_bytes)
 
         block_msg, block_info, unknown_tx_sids, unknown_tx_hashes = self.message_parser.bx_block_to_block(
             bx_block_msg.blob(), self.tx_service)
@@ -330,7 +332,8 @@ class EthMessageConverterTests(AbstractTestCase):
         compact_block_hash_bytes = hashlib.sha256(compact_block_msg_bytes).digest()
         compact_block_hash = Sha256Hash(compact_block_hash_bytes)
 
-        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, True, compact_block_msg_bytes)
+        bx_block_msg = BroadcastMessage(compact_block_hash, self.test_network_num, is_encrypted=True,
+                                        blob=compact_block_msg_bytes)
 
         block_msg, block_info, unknown_tx_sids, unknown_tx_hashes = self.message_parser.bx_block_to_block(
             bx_block_msg.blob(), self.tx_service)

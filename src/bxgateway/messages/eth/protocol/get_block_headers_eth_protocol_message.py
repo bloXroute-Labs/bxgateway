@@ -1,7 +1,9 @@
 import rlp
 
+from bxutils.logging.log_level import LogLevel
+
 from bxcommon.utils import convert
-from bxcommon.utils.log_level import LogLevel
+
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 
@@ -19,7 +21,7 @@ class GetBlockHeadersEthProtocolMessage(EthProtocolMessage):
             f"amount: ${self.get_amount()}, skip: {self.get_skip()}, reverse: {self.get_reverse()}>"
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def get_block_hash(self) -> memoryview:
         # Note that the field may be empty, or block number provided instead of hash by ETH node
@@ -28,8 +30,8 @@ class GetBlockHeadersEthProtocolMessage(EthProtocolMessage):
     def get_amount(self) -> int:
         return self.get_field_value("amount")
 
-    def get_skip(self):
+    def get_skip(self) -> int:
         return self.get_field_value("skip")
 
-    def get_reverse(self):
+    def get_reverse(self) -> int:
         return self.get_field_value("reverse")

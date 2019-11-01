@@ -1,5 +1,8 @@
-from bxcommon.utils import logger
+from bxutils import logging
+
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
+
+logger = logging.get_logger(__name__)
 
 
 class BtcLossyRelayConnection(BtcRelayConnection):

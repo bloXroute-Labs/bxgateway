@@ -4,7 +4,7 @@ from typing import Tuple, Optional, List
 from bxcommon import constants
 from bxcommon.network.socket_connection import SocketConnection
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
-from bxcommon.utils import convert, logger
+from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
@@ -17,12 +17,19 @@ from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDisco
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
+from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
+from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlockCleanupService
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
+from bxutils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class EthGatewayNode(AbstractGatewayNode):
@@ -57,6 +64,8 @@ class EthGatewayNode(AbstractGatewayNode):
 
         self.init_eth_gateway_stat_logging()
 
+        self.message_converter = EthMessageConverter()
+
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                     from_me: bool) -> AbstractGatewayBlockchainConnection:
         if self._is_in_local_discovery():
@@ -78,9 +87,19 @@ class EthGatewayNode(AbstractGatewayNode):
                                            from_me: bool) -> AbstractGatewayBlockchainConnection:
         return EthRemoteConnection(socket_connection, address, self, from_me)
 
+    def build_block_queuing_service(self) -> BlockQueuingService:
+        return EthBlockQueuingService(self)
+
+    def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
+        if self.opts.use_extensions:
+            from bxgateway.services.eth.eth_extension_block_cleanup_service import EthExtensionBlockCleanupService
+            return EthExtensionBlockCleanupService(self, self.network_num)
+        else:
+            return EthNormalBlockCleanupService(self, self.network_num)
+
     def on_updated_remote_blockchain_peer(self, peer):
         if "node_public_key" not in peer.attributes:
-            logger.warn("Received remote blockchain peer without remote public key. This is currently unsupported.")
+            logger.warning("Received remote blockchain peer without remote public key. This is currently unsupported.")
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
             super(EthGatewayNode, self).on_updated_remote_blockchain_peer(peer)
@@ -120,7 +139,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self._node_public_key = node_public_key
 
         # close UDP connection
-        self.enqueue_disconnect(discovery_connection.socket_connection.fileno())
+        self.mark_connection_for_close(discovery_connection, False)
 
         self.connection_pool.delete(discovery_connection)
 
@@ -138,7 +157,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self._remote_public_key = remote_public_key
 
         # close UDP connection
-        self.enqueue_disconnect(discovery_connection.socket_connection.fileno())
+        self.mark_connection_for_close(discovery_connection, False)
 
         self.connection_pool.delete(discovery_connection)
 
@@ -164,14 +183,14 @@ class EthGatewayNode(AbstractGatewayNode):
                 break
 
         if previous_block_total_difficulty is None:
-            logger.info("Unable to calculate total difficulty after block {}.", convert.bytes_to_hex(block_hash.binary))
+            logger.debug("Unable to calculate total difficulty after block {}.", convert.bytes_to_hex(block_hash.binary))
             return None
 
         block_total_difficulty = previous_block_total_difficulty + new_block_parts.get_block_difficulty()
 
         self._last_known_difficulties.append((block_hash, block_total_difficulty))
-        logger.info("Calculated total difficulty after block {} = {}.",
-                    convert.bytes_to_hex(block_hash.binary), block_total_difficulty)
+        logger.debug("Calculated total difficulty after block {} = {}.",
+                     convert.bytes_to_hex(block_hash.binary), block_total_difficulty)
 
         return block_total_difficulty
 
@@ -193,9 +212,10 @@ class EthGatewayNode(AbstractGatewayNode):
             expected_blocks = self._requested_remote_blocks_queue.pop()
 
             if len(expected_blocks) != blocks_count:
-                logger.warn("Number of blocks received from remote blockchain node ({}) does not match expected ({}). "
-                            "Temporarily suspend logging of remote blocks sync."
-                            .format(blocks_count, len(expected_blocks)))
+                logger.warning(
+                    "Number of blocks received from remote blockchain node ({}) does not match expected ({}). "
+                    "Temporarily suspending logging of remote blocks sync.",
+                    blocks_count, len(expected_blocks))
                 self._skip_remote_block_requests_stats_count = len(self._requested_remote_blocks_queue) * 2
                 self._requested_remote_blocks_queue.clear()
                 return
@@ -208,7 +228,7 @@ class EthGatewayNode(AbstractGatewayNode):
                                                               self.opts.blockchain_protocol,
                                                               self.opts.blockchain_network))
         else:
-            logger.warn("Received blocks from remote node but nothing is expected.")
+            logger.warning("Received blocks from remote node but nothing is expected.")
 
     def init_eth_gateway_stat_logging(self):
         eth_gateway_stats_service.set_node(self)

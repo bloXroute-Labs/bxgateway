@@ -1,6 +1,8 @@
+from bxutils.logging.log_level import LogLevel
+
 from bxcommon import constants
 from bxcommon.messages.bloxroute.abstract_bloxroute_message import AbstractBloxrouteMessage
-from bxcommon.utils.log_level import LogLevel
+
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
 
@@ -12,8 +14,8 @@ class BlockPropagationRequestMessage(AbstractBloxrouteMessage):
 
     def __init__(self, blob=None, buf=None):
         if buf is None:
-            payload_len = len(blob)
-            buf = bytearray(self.HEADER_LENGTH + len(blob))
+            payload_len = len(blob) + constants.CONTROL_FLAGS_LEN
+            buf = bytearray(self.HEADER_LENGTH + payload_len)
 
             off = self.HEADER_LENGTH
             buf[off:off + len(blob)] = blob
@@ -26,10 +28,10 @@ class BlockPropagationRequestMessage(AbstractBloxrouteMessage):
         self._blob = None
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def blob(self):
         if self._blob is None:
             off = self.HEADER_LENGTH
-            self._blob = self.buf[off: off + self.payload_len()]
+            self._blob = self.buf[off: off + self.payload_len() - constants.CONTROL_FLAGS_LEN]
         return self._blob

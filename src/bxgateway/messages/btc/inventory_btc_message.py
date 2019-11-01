@@ -1,8 +1,9 @@
 import struct
 from typing import Iterator, Tuple
 
+from bxutils.logging.log_level import LogLevel
+
 from bxcommon.utils import convert
-from bxcommon.utils.log_level import LogLevel
 from bxgateway import btc_constants
 from bxgateway.messages.btc import btc_messages_util
 from bxgateway.messages.btc.btc_message import BtcMessage
@@ -82,7 +83,7 @@ class InventoryBtcMessage(BtcMessage):
             off += 32
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def __repr__(self):
         return "InventoryBtcMessage<type: {}, length: {}, items: ({})>".format(self.MESSAGE_TYPE, len(self.rawbytes()),

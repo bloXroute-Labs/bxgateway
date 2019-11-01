@@ -1,8 +1,9 @@
 import sys
 from unittest import skip
 
-from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.models.outbound_peer_model import OutboundPeerModel
+
 from bxgateway import main
 
 

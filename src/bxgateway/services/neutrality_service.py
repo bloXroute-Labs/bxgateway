@@ -2,10 +2,11 @@ import datetime
 import time
 
 from bxcommon import constants
+from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
-from bxcommon.utils import logger, convert, crypto
+from bxcommon.utils import convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -14,6 +15,9 @@ from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxgateway import gateway_constants
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
+from bxutils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class NeutralityService(object):
@@ -33,15 +37,15 @@ class NeutralityService(object):
         :param bx_block compressed block
         """
         if cipher_hash in self._receipt_tracker:
-            logger.warn("Ignoring duplicate bx_block hash for tracking receiving: {0}".format(cipher_hash))
+            logger.debug("Ignoring duplicate bx_block hash for tracking receiving: {0}", cipher_hash)
             return
 
         self._receipt_tracker[cipher_hash] = 0
         if gateway_constants.NEUTRALITY_POLICY == NeutralityPolicy.RELEASE_IMMEDIATELY:
-            logger.debug("Neutrality policy: releasing key immediately.")
+            logger.trace("Neutrality policy: releasing key immediately.")
             self._send_key(cipher_hash)
         else:
-            logger.debug("Neutrality policy: waiting for receipts before releasing key.")
+            logger.trace("Neutrality policy: waiting for receipts before releasing key.")
             alarm_id = self._node.alarm_queue.register_alarm(gateway_constants.NEUTRALITY_BROADCAST_BLOCK_TIMEOUT_S,
                                                              lambda: self._propagate_block_to_gateway_peers(cipher_hash,
                                                                                                             bx_block))
@@ -63,8 +67,8 @@ class NeutralityService(object):
                                                           self._receipt_tracker[cipher_hash]))
 
             if self._are_enough_receipts_received(cipher_hash):
-                logger.info("Received enough block receipt messages. Releasing key for block with hash: {}"
-                            .format(convert.bytes_to_hex(cipher_hash.binary)))
+                logger.debug("Received enough block receipt messages. Releasing key for block with hash: {}",
+                             convert.bytes_to_hex(cipher_hash.binary))
                 self._send_key(cipher_hash)
                 self._node.alarm_queue.unregister_alarm(self._alarms[cipher_hash])
                 del self._receipt_tracker[cipher_hash]
@@ -115,16 +119,21 @@ class NeutralityService(object):
                                                   more_info=encryption_details)
 
         cipher_hash = Sha256Hash(raw_cipher_hash)
-        broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, True, encrypted_block)
+        broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, is_encrypted=True,
+                                             blob=encrypted_block)
 
         conns = self._node.broadcast(broadcast_message, connection, connection_types=[ConnectionType.RELAY_BLOCK])
+
+        handling_duration = self._node.track_block_from_node_handling_ended(block_hash)
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
                                                   requested_by_peer=requested_by_peer,
-                                                  more_info="Peers: {}; {}; {}; Requested by peer: {}".format(
+                                                  more_info="Peers: {}; {}; {}; Requested by peer: {}; Handled in {}"
+                                                  .format(
                                                       stats_format.connections(conns), encryption_details,
-                                                      self._format_block_info_stats(block_info), requested_by_peer))
+                                                      self._format_block_info_stats(block_info), requested_by_peer,
+                                                      stats_format.duration(handling_duration)))
         self.register_for_block_receipts(cipher_hash, bx_block)
         return broadcast_message
 
@@ -132,16 +141,20 @@ class NeutralityService(object):
         if block_info is None:
             raise ValueError("Block info is required to propagate unencrypted block")
 
-        broadcast_message = BroadcastMessage(block_info.block_hash, self._node.network_num, False, bx_block)
+        broadcast_message = BroadcastMessage(block_info.block_hash, self._node.network_num, is_encrypted=False,
+                                             blob=bx_block)
         conns = self._node.broadcast(broadcast_message, connection, connection_types=[ConnectionType.RELAY_BLOCK])
+        handling_duration = self._node.track_block_from_node_handling_ended(block_info.block_hash)
         block_stats.add_block_event_by_block_hash(block_info.block_hash,
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
                                                   requested_by_peer=False,
                                                   peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns),
-                                                  more_info="Peers: {}; Unencrypted; {}".format(
+                                                  more_info="Peers: {}; Unencrypted; {}; Handled in {}".format(
                                                       stats_format.connections(conns),
-                                                      self._format_block_info_stats(block_info)))
+                                                      self._format_block_info_stats(block_info),
+                                                      stats_format.duration(handling_duration)))
+        logger.info("Propagating block {} to the BDN.", block_info.block_hash)
         return broadcast_message
 
     def _format_block_info_stats(self, block_info):
@@ -162,7 +175,7 @@ class NeutralityService(object):
             list(filter(lambda conn: conn.is_active(),
                         self._node.connection_pool.get_by_connection_type(ConnectionType.GATEWAY))))
         if active_gateway_peer_count == 0:
-            logger.warn("No active gateway peers to get block receipts from.")
+            logger.debug("No active gateway peers to get block receipts from.")
             enough_by_percent = False
         else:
             enough_by_percent = (receipt_count / active_gateway_peer_count * 100 >=
@@ -186,8 +199,8 @@ class NeutralityService(object):
         bx_block_hash = crypto.double_sha256(bx_block)
         hex_bx_block_hash = convert.bytes_to_hex(bx_block_hash)
 
-        logger.warn("Did not receive enough receipts for: {}. Propagating compressed block to other gateways: {}"
-                    .format(cipher_hash, hex_bx_block_hash))
+        logger.debug("Did not receive enough receipts for: {}. Propagating compressed block to other gateways: {}",
+                     cipher_hash, hex_bx_block_hash)
         self._send_key(cipher_hash)
 
         request = BlockPropagationRequestMessage(bx_block)
@@ -206,10 +219,9 @@ class NeutralityService(object):
 
     def _send_key(self, cipher_hash):
         key = self._node.in_progress_blocks.get_encryption_key(bytes(cipher_hash.binary))
-        key_message = KeyMessage(cipher_hash, self._node.network_num, key)
-        conns = self._node.broadcast(
-            key_message, None, connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY]
-        )
+        key_message = KeyMessage(cipher_hash, self._node.network_num, key=key)
+        conns = self._node.broadcast(key_message, None,
+                                     connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY])
         block_stats.add_block_event_by_block_hash(
             cipher_hash,
             BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,

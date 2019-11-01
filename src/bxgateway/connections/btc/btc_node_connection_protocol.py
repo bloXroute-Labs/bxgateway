@@ -1,9 +1,10 @@
 import time
-from collections import deque
+from typing import List, TYPE_CHECKING, Union
 
-from bxcommon.connections.connection_state import ConnectionState
-from bxcommon.utils import logger, convert
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils import convert
 from bxcommon.utils.expiring_dict import ExpiringDict
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants, btc_constants
@@ -12,14 +13,20 @@ from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnec
 from bxgateway.messages.btc.block_transactions_btc_message import BlockTransactionsBtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
+from bxgateway.messages.btc.data_btc_message import GetBlocksBtcMessage
 from bxgateway.messages.btc.get_block_transactions_btc_message import GetBlockTransactionsBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType, InvBtcMessage
 from bxgateway.messages.btc.send_compact_btc_message import SendCompactBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
+from bxgateway.utils.btc.btc_object_hash import NULL_BTC_BLOCK_HASH
+from bxgateway.utils.errors.message_conversion_error import MessageConversionError
+
+if TYPE_CHECKING:
+    from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 
 class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
-    def __init__(self, connection):
+    def __init__(self, connection: "BtcNodeConnection"):
         super(BtcNodeConnectionProtocol, self).__init__(connection)
 
         connection.message_handlers.update({
@@ -36,8 +43,15 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         })
 
         self.request_witness_data = False
-        self._recovery_compact_blocks = ExpiringDict(self.connection.node.alarm_queue,
-                                                     btc_constants.BTC_COMPACT_BLOCK_RECOVERY_TIMEOUT_S)
+        self._recovery_compact_blocks = ExpiringDict(
+            self.node.alarm_queue,
+            btc_constants.BTC_COMPACT_BLOCK_RECOVERY_TIMEOUT_S
+        )
+        self.ping_interval_s: int = gateway_constants.BLOCKCHAIN_PING_INTERVAL_S
+        self.connection.node.alarm_queue.register_alarm(
+            self.block_cleanup_poll_interval_s,
+            self._request_blocks_confirmation
+        )
 
     def msg_version(self, msg: VersionBtcMessage) -> None:
         """
@@ -49,53 +63,48 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         self.request_witness_data = msg.services() & NODE_WITNESS_SERVICE_FLAG > 0
 
         if self.request_witness_data:
-            logger.info("Detected connection with BTC node supporting SegWit.")
+            self.connection.log_debug("Connection with Bitcoin node supports SegWit.")
 
-        self.connection.state |= ConnectionState.ESTABLISHED
+        self.connection.on_connection_established()
         reply = VerAckBtcMessage(self.magic)
         self.connection.enqueue_msg(reply)
 
         send_compact_msg = SendCompactBtcMessage(
-            self.magic, on_flag=self.connection.node.opts.compact_block, version=1
+            self.magic, on_flag=self.node.opts.compact_block, version=1
         )
 
-        logger.info("Sending SENDCMPCT message")
-        self.connection.node.alarm_queue.register_alarm(
+        self.node.alarm_queue.register_alarm(
             2, self.connection.enqueue_msg, send_compact_msg
         )
 
-        self.connection.node.alarm_queue.register_alarm(
-            gateway_constants.BLOCKCHAIN_PING_INTERVAL_S,
+        self.node.alarm_queue.register_alarm(
+            self.ping_interval_s,
             self.connection.send_ping
         )
 
         if self.connection.is_active():
-            for each_msg in self.connection.node.node_msg_queue:
-                self.connection.enqueue_msg_bytes(each_msg)
-
-            if self.connection.node.node_msg_queue:
-                self.connection.node.node_msg_queue = deque()
-
-            self.connection.node.node_conn = self.connection
-            logger.statistics(f"Connection to blockchain node has been successfully established - {self.connection}")
+            self.connection.node.on_blockchain_connection_ready(self.connection)
 
     def msg_inv(self, msg: InvBtcMessage) -> None:
         """
-        Handle an inventory message. Since this is the only node the gateway is connected to,
-        assume that everything is new and that we want it.
+        Handle an inventory message.
+
+        Requests all transactions and blocks that haven't been previously seen.
         :param msg: INV message
         """
         contains_block = False
-        inventory_vectors = iter(msg)
         inventory_requests = []
-        for inventory_type, item_hash in inventory_vectors:
-            if not InventoryType.is_block(inventory_type) or \
-                    item_hash not in self.connection.node.blocks_seen.contents:
+        block_hashes = []
+        for inventory_type, item_hash in msg:
+            if InventoryType.is_block(inventory_type):
+                block_hashes.append(item_hash)
+                if item_hash not in self.node.blocks_seen.contents:
+                    contains_block = True
+                    inventory_requests.append((inventory_type, item_hash))
+            else:
                 inventory_requests.append((inventory_type, item_hash))
 
-            if InventoryType.is_block(inventory_type) and \
-                    item_hash not in self.connection.node.blocks_seen.contents:
-                contains_block = True
+        self.node.block_cleanup_service.mark_blocks_and_request_cleanup(block_hashes)
 
         if inventory_requests:
             get_data = GetDataBtcMessage(
@@ -104,6 +113,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 request_witness_data=self.request_witness_data
             )
             self.connection.enqueue_msg(get_data, prepend=contains_block)
+
+        self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
 
     def msg_get_data(self, msg: GetDataBtcMessage) -> None:
         """
@@ -118,14 +129,14 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                     BlockStatEventType.REMOTE_BLOCK_REQUESTED_BY_GATEWAY,
                     network_num=self.connection.network_num,
                     more_info="Protocol: {}, Network: {}".format(
-                        self.connection.node.opts.blockchain_protocol,
-                        self.connection.node.opts.blockchain_network
+                        self.node.opts.blockchain_protocol,
+                        self.node.opts.blockchain_network
                     )
                 )
             inv_msg = InvBtcMessage(
                 magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, object_hash)]
             )
-            self.connection.node.send_msg_to_node(inv_msg)
+            self.node.send_msg_to_node(inv_msg)
         return self.msg_proxy_request(msg)
 
     def msg_reject(self, msg):
@@ -140,7 +151,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             inv_msg = InvBtcMessage(
                 magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, msg.obj_hash())]
             )
-            self.connection.node.send_msg_to_node(inv_msg)
+            self.node.send_msg_to_node(inv_msg)
 
     def msg_compact_block(self, msg: CompactBlockBtcMessage) -> None:
         """
@@ -158,25 +169,29 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             more_info="{} short ids".format(short_ids_count)
         )
 
-        if block_hash in self.connection.node.blocks_seen.contents:
+        if block_hash in self.node.blocks_seen.contents:
+            self.node.on_block_seen_by_blockchain_node(block_hash)
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.COMPACT_BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                 network_num=self.connection.network_num,
                 peer=self.connection.peer_desc
             )
-            logger.debug("Have seen block {0} before. Ignoring.".format(block_hash))
+            self.connection.log_trace("Ignoring duplicate block: {}", block_hash)
             return
 
-        max_time_offset = self.connection.node.opts.blockchain_block_interval * self.connection.node.opts.blockchain_ignore_block_interval_count
+        max_time_offset = self.node.opts.blockchain_block_interval * self.node.opts.blockchain_ignore_block_interval_count
         if time.time() - msg.timestamp() >= max_time_offset:
-            logger.debug(
-                "Received block {} more than {} seconds after it was created ({}). "
-                "Ignoring.".format(block_hash, max_time_offset, msg.timestamp()))
+            self.connection.log_trace(
+                "Received block {} more than {} seconds after it was created ({}). Ignoring.",
+                block_hash, max_time_offset, msg.timestamp()
+            )
             return
 
-        if short_ids_count < self.connection.node.opts.compact_block_min_tx_count:
-            logger.info(
+        self.node.track_block_from_node_handling_started(block_hash)
+
+        if short_ids_count < self.node.opts.compact_block_min_tx_count:
+            self.connection.log_debug(
                 "Compact block {} contains {} short transactions, less than limit {}. Requesting full block.",
                 convert.bytes_to_hex(msg.block_hash().binary),
                 short_ids_count,
@@ -186,21 +201,39 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 magic=self.magic,
                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
             )
-            self.connection.node.send_msg_to_node(get_data_msg)
+            self.node.send_msg_to_node(get_data_msg)
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.COMPACT_BLOCK_REQUEST_FULL,
                                                       network_num=self.connection.network_num)
             return
 
-        self.connection.node.on_block_seen_by_blockchain_node(block_hash)
-        # pyre-ignore
-        parse_result = self.connection.node.block_processing_service.process_compact_block(msg, self.connection)
+        self.node.block_cleanup_service.on_new_block_received(msg.block_hash(), msg.prev_block_hash())
+        self.node.on_block_seen_by_blockchain_node(block_hash)
+
+        try:
+            parse_result = self.node.block_processing_service.process_compact_block(msg, self.connection)
+        except MessageConversionError as e:
+            block_stats.add_block_event_by_block_hash(
+                e.msg_hash,
+                BlockStatEventType.BLOCK_CONVERSION_FAILED,
+                network_num=self.connection.network_num,
+                conversion_type=e.conversion_type.value
+            )
+            self.connection.log_warning("Failed to process compact block: {}. Request full block. Error: {}",
+                                        e.msg_hash, e)
+            get_data_msg = GetDataBtcMessage(
+                magic=self.magic,
+                inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
+            )
+            self.node.send_msg_to_node(get_data_msg)
+            return
+
         if not parse_result.success:
             self._recovery_compact_blocks.add(block_hash, parse_result)
 
             get_block_txs_msg = GetBlockTransactionsBtcMessage(magic=self.magic, block_hash=block_hash,
                                                                indices=parse_result.missing_indices)
-            self.connection.node.send_msg_to_node(get_block_txs_msg)
+            self.node.send_msg_to_node(get_block_txs_msg)
 
     def msg_block_transactions(self, msg: BlockTransactionsBtcMessage) -> None:
         """
@@ -212,6 +245,17 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
 
         if msg.block_hash() in self._recovery_compact_blocks.contents:
             recovery_result = self._recovery_compact_blocks.contents[msg.block_hash()]
-            self.connection.node.block_processing_service.process_compact_block_recovery(  # pyre-ignore
+            self.node.block_processing_service.process_compact_block_recovery(
                 msg, recovery_result, self.connection
             )
+
+    def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
+        return GetBlocksBtcMessage(
+            version=self.version,
+            magic=self.magic,
+            hashes=hashes,
+            hash_stop=NULL_BTC_BLOCK_HASH
+        )
+
+    def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
+        self.connection.node.get_tx_service().set_transaction_contents(tx_hash, tx_content)

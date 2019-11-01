@@ -1,0 +1,22 @@
+{
+  "log_config": {
+    "__comment": "use DEBUG, INFO, WARN, ERROR for log levels. or use {\"bxgateway\":\"INFO\"} in log_level_overrides }",
+    "log_level": null,
+    "log_flush_immediately": null,
+    "log_level_overrides": {
+    }
+  },
+  "stats_config": {
+    "enable_block_stats": null,
+    "enable_tx_stats": null,
+    "tx_stats_percentage": null,
+    "number_of_oldest_txs_in_cache_to_log": null,
+    "calculate_actual_obj_size": null
+  },
+  "cron_config": {
+    "throughput_stats_interval": null,
+    "info_stats_interval": null,
+    "memory_stats_interval": null,
+    "config_update_interval": null
+  }
+}

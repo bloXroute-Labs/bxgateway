@@ -1,11 +1,13 @@
 import struct
 
+from bxutils.logging.log_level import LogLevel
+
 from bxcommon.utils import crypto, convert
 from bxcommon.utils.log_level import LogLevel
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, pack_int_to_btc_varint
+from bxgateway.messages.btc import btc_messages_util
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
@@ -25,7 +27,7 @@ class TxIn(object):
             off = 0
             pack_outpoint(prev_outpoint_hash, prev_out_index, buf, off)
             off += 36
-            off += pack_int_to_btc_varint(len(sig_script), buf, off)
+            off += btc_messages_util.pack_int_to_btc_varint(len(sig_script), buf, off)
             buf[off:off + len(sig_script)] = sig_script
             off += len(sig_script)
             struct.pack_into("<I", buf, off, sequence)
@@ -58,7 +60,7 @@ class TxOut(object):
             off = 0
             struct.pack_into("<Q", buf, off, value)
             off += 8
-            off += pack_int_to_btc_varint(pk_script_len, buf, off)
+            off += btc_messages_util.pack_int_to_btc_varint(pk_script_len, buf, off)
             buf[off:off + pk_script_len]= pk_script
             self.size = off + pk_script_len
             self.off = 0
@@ -87,7 +89,7 @@ class TxBtcMessage(BtcMessage):
     """
     MESSAGE_TYPE = BtcMessageType.TRANSACTIONS
 
-    def __init__(self, magic=None, version=None, tx_in=None, tx_out=None, lock_time=None, buf=None):
+    def __init__(self, magic=None, version=None, tx_in=None, tx_out=None, lock_time=None, is_segwit=None, buf=None):
         if buf is None:
             tot_size = sum([len(x.rawbytes()) for x in tx_in]) + sum([len(x.rawbytes()) for x in tx_out])
             buf = bytearray(BTC_HDR_COMMON_OFF + 2 * 9 + 8 + tot_size)
@@ -96,7 +98,7 @@ class TxBtcMessage(BtcMessage):
             off = BTC_HDR_COMMON_OFF
             struct.pack_into("<I", buf, off, version)
             off += 4
-            off += pack_int_to_btc_varint(len(tx_in), buf, off)
+            off += btc_messages_util.pack_int_to_btc_varint(len(tx_in), buf, off)
 
             for inp in tx_in:
                 rawbytes = inp.rawbytes()
@@ -104,7 +106,7 @@ class TxBtcMessage(BtcMessage):
                 buf[off:off + size] = rawbytes
                 off += size
 
-            off += pack_int_to_btc_varint(len(tx_out), buf, off)
+            off += btc_messages_util.pack_int_to_btc_varint(len(tx_out), buf, off)
 
             for out in tx_out:
                 rawbytes = out.rawbytes()
@@ -127,8 +129,10 @@ class TxBtcMessage(BtcMessage):
         self._tx_out = None
         self._lock_time = None
         self._tx_hash = None
+        self._tx_id = None
         self._tx_out_count = None
         self._tx_in_count = None
+        self._is_segwit_tx = is_segwit
 
     def version(self):
         if self._version is None:
@@ -139,7 +143,7 @@ class TxBtcMessage(BtcMessage):
     def tx_in(self):
         if self._tx_in is None:
             off = BTC_HDR_COMMON_OFF + 4
-            self._tx_in_count, size = btc_varint_to_int(self.buf, off)
+            self._tx_in_count, size = btc_messages_util.btc_varint_to_int(self.buf, off)
             off += size
             self._tx_in = []
 
@@ -148,13 +152,13 @@ class TxBtcMessage(BtcMessage):
 
             for _ in range(self._tx_in_count):
                 end += 36
-                script_len, size = btc_varint_to_int(self.buf, end)
+                script_len, size = btc_messages_util.btc_varint_to_int(self.buf, end)
                 end += size + script_len + 4
                 self._tx_in.append(self.rawbytes()[start:end])
                 start = end
 
             off = end
-            self._tx_out_count, size = btc_varint_to_int(self.buf, off)
+            self._tx_out_count, size = btc_messages_util.btc_varint_to_int(self.buf, off)
             self._tx_out = []
             off += size
 
@@ -162,7 +166,7 @@ class TxBtcMessage(BtcMessage):
             end = off
             for _ in range(self._tx_out_count):
                 end += 8
-                script_len, size = btc_varint_to_int(self.buf, end)
+                script_len, size = btc_messages_util.btc_varint_to_int(self.buf, end)
                 end += size + script_len
                 self._tx_out.append(self.rawbytes()[start:end])
 
@@ -182,9 +186,22 @@ class TxBtcMessage(BtcMessage):
             self.tx_in()
         return self._lock_time
 
-    def tx_hash(self):
+    def is_segwit_tx(self) -> bool:
+        """
+        Determines if a transaction is a segwit transaction by reading the marker and flag bytes
+        :return: boolean indicating segwit
+        """
+        if self._is_segwit_tx is None:
+            self._is_segwit_tx = btc_messages_util.is_segwit(self.payload())
+        return self._is_segwit_tx
+
+    def tx_hash(self) -> BtcObjectHash:
+        """
+        Actually gets the txid, which is the same as the hash for non segwit transactions
+        :return: BtcObjectHash
+        """
         if self._tx_hash is None:
-            self._tx_hash = BtcObjectHash(buf=crypto.bitcoin_hash(self.payload()), length=BTC_SHA_HASH_LEN)
+            self._tx_hash = btc_messages_util.get_txid(self.payload())
         return self._tx_hash
 
     def tx(self):

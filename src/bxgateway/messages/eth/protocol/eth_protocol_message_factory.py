@@ -1,7 +1,10 @@
 import time
+from typing import Type
 
 from bxcommon.exceptions import ParseError
-from bxcommon.messages.abstract_message_factory import AbstractMessageFactory
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.messages.abstract_message_factory import AbstractMessageFactory, MessagePreview
+from bxcommon.utils.buffers.input_buffer import InputBuffer
 from bxgateway import eth_constants
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
@@ -48,7 +51,6 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
     }
 
     def __init__(self, rlpx_cipher):
-
         if not isinstance(rlpx_cipher, RLPxCipher):
             raise TypeError("Argument rlpx_cipher is expected to be of type RLPxCipher but was {}"
                             .format(type(rlpx_cipher)))
@@ -56,11 +58,11 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
         super(EthProtocolMessageFactory, self).__init__()
 
         self.message_type_mapping = self._MESSAGE_TYPE_MAPPING
-        self.base_message_type = EthProtocolMessage
-
         self._framed_input_buffer = FramedInputBuffer(rlpx_cipher)
-
         self._expected_msg_type = None
+
+    def get_base_message_type(self) -> Type[AbstractMessage]:
+        return EthProtocolMessage
 
     def set_expected_msg_type(self, msg_type):
         if not msg_type in [EthProtocolMessageType.AUTH, EthProtocolMessageType.AUTH_ACK]:
@@ -71,28 +73,25 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
     def reset_expected_msg_type(self):
         self._expected_msg_type = None
 
-    def get_message_header_preview_from_input_buffer(self, input_buffer):
+    def get_message_header_preview_from_input_buffer(self, input_buffer: InputBuffer) -> MessagePreview:
         """
         Peeks at a message, determining if its full.
         Returns (is_full_message, command, payload_length)
         """
         if self._expected_msg_type == EthProtocolMessageType.AUTH:
-
-            return True, EthProtocolMessageType.AUTH, input_buffer.length
+            return MessagePreview(True, EthProtocolMessageType.AUTH, input_buffer.length)
         elif self._expected_msg_type == EthProtocolMessageType.AUTH_ACK and \
-            input_buffer.length >= eth_constants.ENC_AUTH_ACK_MSG_LEN:
-
-            return True, EthProtocolMessageType.AUTH_ACK, eth_constants.ENC_AUTH_ACK_MSG_LEN
+                input_buffer.length >= eth_constants.ENC_AUTH_ACK_MSG_LEN:
+            return MessagePreview(True, EthProtocolMessageType.AUTH_ACK, eth_constants.ENC_AUTH_ACK_MSG_LEN)
         elif self._expected_msg_type is None:
-
             decryption_start_time = time.time()
             is_full_msg, command = self._framed_input_buffer.peek_message(input_buffer)
             eth_gateway_stats_service.log_decrypted_message(time.time() - decryption_start_time)
 
             if is_full_msg:
-                return True, command, 0
+                return MessagePreview(True, command, 0)
 
-        return False, None, None
+        return MessagePreview(False, None, None)
 
     def create_message_from_buffer(self, buf):
         """

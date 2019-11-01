@@ -1,6 +1,7 @@
-from bxcommon.exceptions import ParseError
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.exceptions import ParseError
 from bxcommon.utils import convert
+
 from bxgateway.utils.eth import rlp_utils
 
 

@@ -1,13 +1,15 @@
 import socket
 import time
 
-from bxcommon.connections.abstract_connection import AbstractConnection
-from bxcommon.utils import logger
+from bxutils import logging
+
 from bxgateway import eth_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.messages.eth.discovery.eth_discovery_message_factory import eth_discovery_message_factory
 from bxgateway.messages.eth.discovery.eth_discovery_message_type import EthDiscoveryMessageType
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
+
+logger = logging.get_logger(__name__)
 
 
 class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection):
@@ -42,14 +44,13 @@ class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection):
         self.hello_messages = [EthDiscoveryMessageType.PING, EthDiscoveryMessageType.PONG]
 
     def msg_ping(self, msg):
-        logger.debug("Discovery ping message received. Ignoring.")
+        pass
 
     def msg_pong(self, msg):
-        logger.debug("Discovery pong received.")
         self.node.set_remote_public_key(self, msg.get_public_key())
         self._pong_received = True
 
     def _pong_timeout(self):
         if not self._pong_received:
-            logger.warn("Pong message was not received within allocated timeout connection. Closing connection.")
-            self.mark_for_close(force_destroy_now=True)
+            self.log_warning("Pong message was not received within allocated timeout connection. Closing.")
+            self.mark_for_close()

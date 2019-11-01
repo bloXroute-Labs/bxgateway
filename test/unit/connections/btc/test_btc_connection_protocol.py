@@ -2,10 +2,11 @@ import time
 
 from mock import MagicMock
 
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import crypto
+
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnectionProtocol
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -18,7 +19,10 @@ class BtcConnectionProtocolTest(AbstractTestCase):
     HASH = BtcObjectHash(binary=crypto.double_sha256(b"123"))
 
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_btc_args=True))
+        opts = helpers.get_gateway_opts(8000, include_default_btc_args=True)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        self.node = MockGatewayNode(opts)
         self.node.block_processing_service = MagicMock()
 
         self.connection = MagicMock()

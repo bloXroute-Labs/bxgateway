@@ -1,5 +1,6 @@
-from bxcommon.constants import IP_ADDR_SIZE_IN_BYTES, UL_SHORT_SIZE_IN_BYTES
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.constants import IP_ADDR_SIZE_IN_BYTES, UL_SHORT_SIZE_IN_BYTES
+
 from bxgateway.messages.gateway.gateway_message_utils import pack_ip_port, unpack_ip_port
 
 

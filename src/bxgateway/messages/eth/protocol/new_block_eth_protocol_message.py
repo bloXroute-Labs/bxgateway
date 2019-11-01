@@ -1,12 +1,16 @@
 import rlp
+from typing import List
+
+from bxutils.logging.log_level import LogLevel
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
-from bxcommon.utils.log_level import LogLevel
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.serializers.block import Block
+from bxgateway.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
 from bxgateway.utils.eth import rlp_utils, crypto_utils
 
@@ -27,9 +31,6 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
         self._block_hash = None
         self._timestamp = None
         self._chain_difficulty = None
-
-    def __repr__(self):
-        return f"NewBlockEthProtocolMessage<{self.block_hash()}"
 
     def extra_stats_data(self):
         return "Full block"
@@ -76,9 +77,12 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
         return cls(new_block_bytes)
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
-    def get_block(self):
+    def __repr__(self):
+        return f"NewBlockEthProtocolMessage<{self.block_hash()}"
+
+    def get_block(self) -> Block:
         return self.get_field_value("block")
 
     def chain_difficulty(self):
@@ -112,7 +116,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
 
         return self._block_hash
 
-    def get_previous_block(self):
+    def prev_block_hash(self) -> Sha256Hash:
         _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
         block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
@@ -156,5 +160,10 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
 
             timestamp, _timestamp_length = rlp_utils.decode_int(block_hdr_bytes, offset)
             self._timestamp = timestamp
-
+        assert self._timestamp is not None
         return self._timestamp
+
+    def txns(self) -> List[Transaction]:
+        txns = self.get_block().transactions
+        assert txns is not None
+        return txns

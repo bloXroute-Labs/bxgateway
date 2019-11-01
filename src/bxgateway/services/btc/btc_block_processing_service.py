@@ -1,15 +1,24 @@
-import time
+import typing
 from datetime import datetime
 
-from bxcommon.utils import crypto, logger
+from bxutils import logging
+
+from bxcommon.utils import convert
+from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.messages.btc.abstract_btc_message_converter import CompactBlockCompressionResult
+from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.block_transactions_btc_message import BlockTransactionsBtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
-from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType
+from bxgateway.services.block_processing_service import BlockProcessingService
+from bxgateway.utils.errors.message_conversion_error import MessageConversionError
+
+logger = logging.get_logger(__name__)
 
 
 class BtcBlockProcessingService(BlockProcessingService):
@@ -24,7 +33,7 @@ class BtcBlockProcessingService(BlockProcessingService):
         :param connection: receiving connection (AbstractBlockchainConnection)
         """
         block_hash = block_message.block_hash()
-        parse_result = connection.message_converter.compact_block_to_bx_block(  # pyre-ignore
+        parse_result = self._node.message_converter.compact_block_to_bx_block(  # pyre-ignore
             block_message,
             self._node.get_tx_service()
         )
@@ -40,11 +49,15 @@ class BtcBlockProcessingService(BlockProcessingService):
                 success=parse_result.success,
                 txs_count=parse_result.block_info.txn_count,
                 prev_block_hash=parse_result.block_info.prev_block_hash,
-                more_info="{:.2f}ms".format(
-                    block_info.duration_ms
-                )
+                original_size=block_info.original_size,
+                more_info="Compression: {}->{} bytes, {}, {}; Tx count: {}".format(
+                    block_info.original_size,
+                    block_info.compressed_size,
+                    stats_format.percentage(block_info.compression_rate),
+                    stats_format.duration(block_info.duration_ms),
+                    block_info.txn_count)
             )
-
+            self._node.block_cleanup_service.on_new_block_received(block_hash, block_message.prev_block_hash())
             self._process_and_broadcast_compressed_block(
                 parse_result.bx_block,
                 connection,
@@ -70,9 +83,8 @@ class BtcBlockProcessingService(BlockProcessingService):
                     duration * 1000
                 )
             )
-            logger.info(
-                "Compact block was parsed with {} unknown short ids. "
-                "Requesting unknown transactions.",
+            logger.warning(
+                "Compact block was parsed with {} unknown short ids. Requesting unknown transactions.",
                 missing_indices_count
             )
         return parse_result
@@ -92,9 +104,26 @@ class BtcBlockProcessingService(BlockProcessingService):
         for txn in msg.transactions():
             failure_result.recovered_transactions.append(txn)
 
-        recovery_result = connection.message_converter.recovered_compact_block_to_bx_block(  # pyre-ignore
-            failure_result
-        )
+        try:
+            recovery_result = self._node.message_converter.recovered_compact_block_to_bx_block(  # pyre-ignore
+                failure_result
+            )
+        except MessageConversionError as e:
+            block_stats.add_block_event_by_block_hash(
+                e.msg_hash,
+                BlockStatEventType.BLOCK_CONVERSION_FAILED,
+                network_num=connection.network_num,
+                conversion_type=e.conversion_type.value
+            )
+            logger.warning("Failed to process compact block '{}' after recovery. Requesting full block. Error: {}",
+                           e.msg_hash, e)
+            get_data_msg = GetDataBtcMessage(
+                magic=msg.magic(),
+                inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
+            )
+            self._node.send_msg_to_node(get_data_msg)
+
+            return
         block_info = recovery_result.block_info
 
         if recovery_result.success:
@@ -114,7 +143,8 @@ class BtcBlockProcessingService(BlockProcessingService):
                     len(msg.transactions())
                 )
             )
-
+            prev_block = Sha256Hash(convert.hex_to_bytes(block_info.prev_block_hash))
+            self._node.block_cleanup_service.on_new_block_received(block_hash, prev_block)
             self._process_and_broadcast_compressed_block(
                 recovery_result.bx_block,
                 connection,
@@ -139,13 +169,16 @@ class BtcBlockProcessingService(BlockProcessingService):
                     len(msg.transactions())
                 )
             )
-            logger.info(
-                "Unable to recover compact block '{}' "
-                "after receiving BLOCK TRANSACTIONS message. Requesting full block.",
-                msg.block_hash()
+            logger.warning(
+                "Failed to recover compact block '{}' after receiving BLOCK_TRANSACTIONS message. "
+                "Requesting full block.", msg.block_hash()
             )
             get_data_msg = GetDataBtcMessage(
                     magic=msg.magic(),
                     inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
             )
-            connection.node.send_msg_to_node(get_data_msg)
+            self._node.send_msg_to_node(get_data_msg)
+
+    def _on_block_decompressed(self, block_msg):
+        msg = typing.cast(BlockBtcMessage, block_msg)
+        self._node.block_cleanup_service.on_new_block_received(msg.block_hash(), msg.prev_block_hash())

@@ -1,16 +1,15 @@
-import socket
 import time
 
 from mock import MagicMock
 
 from bxcommon.constants import LOCALHOST
-from bxcommon.network.socket_connection import SocketConnection
-from bxcommon.services.transaction_service import TransactionService
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
+from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.utils import convert, crypto
-from bxgateway.btc_constants import BTC_SHA_HASH_LEN
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
+from bxcommon.utils import convert
+from bxgateway.messages.btc import btc_messages_util
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_node_connection_protocol import BtcNodeConnectionProtocol
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -31,8 +30,7 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
         ))
         self.node.block_processing_service = MagicMock()
 
-        soc = socket.socket()
-        self.connection = BtcNodeConnection(SocketConnection(soc, self.node), (LOCALHOST, 123), self.node)
+        self.connection = BtcNodeConnection(MockSocketConnection(node=self.node), (LOCALHOST, 123), self.node)
         self.connection.node = self.node
         self.connection.peer_ip = LOCALHOST
         self.connection.peer_port = 8001
@@ -49,7 +47,7 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
 
         short_id = 1
         for tx in full_block_msg.txns():
-            tx_hash = BtcObjectHash(crypto.bitcoin_hash(tx), length=BTC_SHA_HASH_LEN)
+            tx_hash = btc_messages_util.get_txid(tx)
             transaction_service.set_transaction_contents(tx_hash, tx)
             transaction_service.assign_short_id(tx_hash, short_id)
             short_id += 1
@@ -64,4 +62,3 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
         self.sut.msg_compact_block(message)
         self.assertTrue(message.block_hash() in self.connection.node.blocks_seen.contents)
         self.node.block_processing_service.process_compact_block.assert_called_once()
-

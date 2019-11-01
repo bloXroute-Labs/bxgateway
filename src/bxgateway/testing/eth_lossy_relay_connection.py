@@ -1,5 +1,8 @@
-from bxcommon.utils import logger
+from bxutils import logging
+
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
+
+logger = logging.get_logger(__name__)
 
 
 class EthLossyRelayConnection(EthRelayConnection):

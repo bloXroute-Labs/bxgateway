@@ -3,15 +3,16 @@ import time
 
 from mock import patch, MagicMock
 
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import LOCALHOST
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway import gateway_constants
 from bxgateway.gateway_constants import NeutralityPolicy
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
@@ -24,7 +25,7 @@ def mock_connection(message_converter=None, connection_type=None):
     if message_converter is None:
         message_converter = MagicMock()
     connection = MagicMock()
-    connection.message_converter = message_converter
+    connection.node.message_converter = message_converter
     connection.CONNECTION_TYPE = connection_type
     connection.peer_desc = "127.0.0.1 8000"
     return connection

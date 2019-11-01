@@ -2,7 +2,8 @@ import random
 import struct
 import sys
 
-from bxcommon.utils.log_level import LogLevel
+from bxutils.logging.log_level import LogLevel
+
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage
 # FIXME dedup this against pongbtcmessage
@@ -40,6 +41,3 @@ class PingBtcMessage(BtcMessage):
                 self._nonce = struct.unpack_from("<Q", self.buf, BTC_HDR_COMMON_OFF)[0]
 
         return self._nonce
-
-    def log_level(self):
-        return LogLevel.DEBUG

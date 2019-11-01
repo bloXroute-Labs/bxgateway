@@ -1,11 +1,12 @@
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon import constants
 from bxcommon.constants import LOCALHOST
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_bx_messages import hello_message
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
+
 from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.testing.mocks.mock_btc_messages import btc_version_message
 
@@ -23,10 +24,12 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
 
     def gateway_1_opts(self):
         return helpers.get_gateway_opts(9000, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
+                                        sync_tx_service=False,
                                         include_default_btc_args=True)
 
     def gateway_2_opts(self):
         return helpers.get_gateway_opts(9001, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
+                                        sync_tx_service=False,
                                         include_default_btc_args=True)
 
     def reinitialize_gateways(self, opts1, opts2):

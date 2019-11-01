@@ -1,6 +1,7 @@
 import rlp
 
-from bxcommon.utils.log_level import LogLevel
+from bxutils.logging.log_level import LogLevel
+
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
@@ -35,5 +36,5 @@ class BlockBodiesEthProtocolMessage(EthProtocolMessage):
         return cls(msg_bytes)
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 

@@ -1,9 +1,11 @@
 import struct
+from typing import Optional
+
+from bxutils.logging.log_level import LogLevel
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import crypto
-from bxcommon.utils.log_level import LogLevel
-from bxcommon.utils.object_hash import Sha256Hash
+
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
@@ -38,13 +40,15 @@ class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
             self._magic = self._command = self._payload_len = self._checksum = None
             self._payload = None
 
-        self._version = self._prev_block = self._merkle_root = None
+        self._version = None
+        self._prev_block: Optional[BtcObjectHash] = None
+        self._merkle_root = None
         self._bits = self._nonce = self._txn_count = self._txns = self._hash_val = None
         self._header = self._tx_offset = None
         self._timestamp = 0
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG
 
     def version(self):
         if self._version is None:
@@ -65,9 +69,11 @@ class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
 
         return self._version
 
-    def prev_block(self):
+    def prev_block_hash(self) -> BtcObjectHash:
         if self._version is None:
             self.version()
+
+        assert self._prev_block is not None
         return self._prev_block
 
     def merkle_root(self):
@@ -79,6 +85,7 @@ class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
         """
         :return: seconds since epoch
         """
+        assert self._timestamp is not None
         if self._version is None:
             self.version()
         return self._timestamp
@@ -120,7 +127,7 @@ class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
 
         return self._txns
 
-    def block_hash(self) -> Sha256Hash:
+    def block_hash(self) -> BtcObjectHash:
         if self._hash_val is None:
             header = self._memoryview[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE]
             raw_hash = crypto.bitcoin_hash(header)

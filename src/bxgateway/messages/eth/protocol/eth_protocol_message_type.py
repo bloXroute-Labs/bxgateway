@@ -1,6 +1,6 @@
-class EthProtocolMessageType(object):
-    AUTH = "auth"
-    AUTH_ACK = "auth_ack"
+class EthProtocolMessageType:
+    AUTH = b"auth"
+    AUTH_ACK = b"auth_ack"
     HELLO = 0
     DISCONNECT = 1
     PING = 2

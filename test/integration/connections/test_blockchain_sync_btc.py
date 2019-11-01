@@ -1,7 +1,8 @@
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import crypto
+
 from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection

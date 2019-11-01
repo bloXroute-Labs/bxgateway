@@ -1,6 +1,9 @@
+from bxgateway.testing.abstract_rlpx_cipher_test import AbstractRLPxCipherTest
+
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
+
 from bxgateway import eth_constants
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
@@ -9,7 +12,6 @@ from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import B
 from bxgateway.messages.eth.protocol.eth_protocol_message_factory import EthProtocolMessageFactory
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
 from bxgateway.testing import spies
-from bxgateway.testing.abstract_rlpx_cipher_test import AbstractRLPxCipherTest
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.utils.eth import crypto_utils, frame_utils
 

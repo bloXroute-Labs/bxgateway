@@ -7,3 +7,12 @@ class EthProtocolMessage(AbstractEthMessage):
 
     def __repr__(self):
         return "EthProtocolMessage<type: {}>".format(self.__class__.__name__)
+
+    @classmethod
+    def unpack(cls, buf):
+        pass
+
+    @classmethod
+    def validate_payload(cls, buf, unpacked_args):
+        pass
+
