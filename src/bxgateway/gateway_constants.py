@@ -14,12 +14,6 @@ BLOCK_RECOVERY_RECOVERY_INTERVAL_S = [0.1, 0.5, 1, 2, 5]
 BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS = len(BLOCK_RECOVERY_RECOVERY_INTERVAL_S)
 BLOCK_RECOVERY_MAX_QUEUE_TIME = 15  # slightly more than sum(BLOCK_RECOVERY_RECOVERY_INTERVAL_S)
 
-BLOCK_RECOVERY_RECOVERY_INTERVAL_S = [0.1, 0.5, 1, 2, 5]
-# Block recovery retries are temporarily disabled. Should be configurable per blockchain (BX-945)
-# BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS = len(BLOCK_RECOVERY_RECOVERY_INTERVAL_S)
-BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS = 0
-
-
 
 # enum for setting Gateway neutrality assertion policy for releasing encryption keys
 class NeutralityPolicy(object):

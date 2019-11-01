@@ -1,8 +1,6 @@
 import time
 import typing
 
-import typing
-
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.utils import convert
 from bxgateway import eth_constants, gateway_constants

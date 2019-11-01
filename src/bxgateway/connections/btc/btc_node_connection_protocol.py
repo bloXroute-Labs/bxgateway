@@ -25,6 +25,9 @@ from bxgateway.utils.errors.message_conversion_error import MessageConversionErr
 if TYPE_CHECKING:
     from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 
+if TYPE_CHECKING:
+    from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
+
 class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
     def __init__(self, connection: "BtcNodeConnection"):
         super(BtcNodeConnectionProtocol, self).__init__(connection)

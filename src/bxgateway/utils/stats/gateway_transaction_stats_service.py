@@ -98,5 +98,4 @@ class _GatewayTransactionStatsService(StatisticsService):
         }
 
 
-
 gateway_transaction_stats_service = _GatewayTransactionStatsService()

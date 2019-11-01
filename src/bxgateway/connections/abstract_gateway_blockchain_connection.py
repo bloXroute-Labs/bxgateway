@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
-
 class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNode"]):
     CONNECTION_TYPE = ConnectionType.BLOCKCHAIN_NODE
 
