@@ -41,8 +41,6 @@ class EthGatewayNode(AbstractGatewayNode):
 
         if opts.node_public_key is not None:
             self._node_public_key = convert.hex_to_bytes(opts.node_public_key)
-        else:
-            raise SystemError("--node-public-key is required for EthGateway.")
 
         if opts.remote_blockchain_peer is not None:
             if opts.remote_public_key is None:
