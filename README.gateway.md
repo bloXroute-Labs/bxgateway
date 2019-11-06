@@ -53,10 +53,9 @@ If you are running an Ethereum gateway, you will also need to specify the public
 $ bloxroute_gateway [...] --node-public-key [hex-encoded-key]
 ```
 
-## Supported Protocols and Networks
-* Bitcoin: Mainnet, Testnet
-* BitcoinCash: Mainnet, Testnet
-* Ethereum: Mainnet, Ropsten, Rinkeby
+## Supported Protocols and Networks for bloXroute Mainnet
+* BitcoinCash: Mainnet
+* Ethereum: Mainnet
 
 You can also specify a `BLXR_ENV` environment variable to specify which BDN you want to connect to.
  * `BLXR_ENV=test`: Testnet
