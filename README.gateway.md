@@ -38,7 +38,7 @@ only as an [Source Distribution][2]. During installation, we require `distro` to
 and `requests` to fetch the right set of C++ extensions from an S3 bucket.
 
 ```bash
-pip install requests==2.19.1 distro
+pip install requests==2.22.0 distro
 pip install bloxroute-gateway
 ```
 
