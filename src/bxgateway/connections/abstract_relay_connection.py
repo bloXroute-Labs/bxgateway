@@ -32,10 +32,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     def __init__(self, sock, address, node, from_me=False):
         super(AbstractRelayConnection, self).__init__(sock, address, node, from_me=from_me)
 
-        # TODO: Temporarily disable buffering for gateway to relay connection.
-        #       Need to enable buffering only for transactions and disable for blocks
-        self.outputbuf = OutputBuffer()
-
         hello_msg = HelloMessage(protocol_version=self.protocol_version, network_num=self.network_num,
                                  node_id=self.node.opts.node_id)
         self.enqueue_msg(hello_msg)

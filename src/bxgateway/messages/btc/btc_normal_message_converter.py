@@ -1,4 +1,3 @@
-from datetime import datetime
 import struct
 import time
 import hashlib

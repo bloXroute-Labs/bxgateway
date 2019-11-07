@@ -26,7 +26,7 @@ COPY --chown=bxgateway:bxgateway bxcommon/requirements.txt /app/bxcommon
 
 # We add .build_deps dependencies (to build PyNaCl) and then remove them after pip install completed
 RUN apk add libffi \
- && apk add --no-cache --virtual .build_deps build-base libffi-dev linux-headers \
+ && apk add --no-cache --virtual .build_deps build-base libffi-dev \
  && pip install -r /app/bxgateway/requirements.txt \
  && pip install -r /app/bxcommon/requirements.txt \
  && apk del .build_deps

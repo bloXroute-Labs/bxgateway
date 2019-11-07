@@ -90,16 +90,13 @@ class BtcMessage(AbstractMessage):
 
     def checksum(self):
         if self._checksum is None:
-            self._checksum = self._memoryview[BTC_HEADER_MINUS_CHECKSUM:BTC_HDR_COMMON_OFF]
+            self._checksum = self.buf[BTC_HEADER_MINUS_CHECKSUM:BTC_HDR_COMMON_OFF]
         return self._checksum
 
     def payload(self):
         if self._payload is None:
-            self._payload = self._memoryview[BTC_HDR_COMMON_OFF:self.payload_len() + BTC_HDR_COMMON_OFF]
+            self._payload = self.buf[BTC_HDR_COMMON_OFF:self.payload_len() + BTC_HDR_COMMON_OFF]
         return self._payload
-
-    def log_level(self):
-        return LogLevel.INFO
 
     def __eq__(self, other):
         """

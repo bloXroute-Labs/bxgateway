@@ -18,7 +18,8 @@ from bxgateway.testing.null_gateway_node import NullGatewayNode
 # noinspection PyProtectedMember
 def reinit_gateway_connection_with_ordering(connection, ordering):
     connection.outputbuf.flush()
-    connection.outputbuf.advance_buffer(connection.outputbuf.length)
+    if connection.outputbuf.length:
+        connection.outputbuf.advance_buffer(connection.outputbuf.length)
     connection.ordering = ordering
     connection.enqueue_msg(GatewayHelloMessage(connection.protocol_version, connection.network_num,
                                                connection.node.opts.external_ip, connection.node.opts.external_port,

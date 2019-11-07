@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-BLOXROUTE_CLIENT_PORT=12345
-
-./build.sh
-docker run -t -v $DIR/../../bxgateway:/app/bxgateway -v $DIR/../../bxcommon:/app/bxcommon -p $BLOXROUTE_CLIENT_PORT:$BLOXROUTE_CLIENT_PORT bxgateway $*

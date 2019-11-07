@@ -6,7 +6,6 @@ from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcG
 
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
-from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
 from bxcommon.utils.buffers.output_buffer import OutputBuffer
@@ -198,10 +197,6 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         time.time = MagicMock(
             return_value=time.time() + self.node1.block_processing_service._compute_hold_timeout(block))
         self.node1.alarm_queue.fire_alarms()
-
-        ping_msg = self.node1.get_bytes_to_send(self.relay_fileno)
-        self.assertIn(PingMessage.MESSAGE_TYPE, ping_msg.tobytes())
-        self.node1.on_bytes_sent(self.relay_fileno, len(ping_msg))
 
         # send ciphertext from node1, receipt from node2, key from node1
         relayed_block = self.node1.get_bytes_to_send(self.relay_fileno)
