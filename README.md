@@ -14,8 +14,8 @@ For more information, you can read our [white paper].
 
 ## Quick start
 
-You can choose either to either install via [pip] or [Docker] (recommended). Refer to (TODO @Allan: LINK) 
-our technical documentation for full usage instructions.
+You can choose either to either install via [pip] or [Docker] (recommended). Refer to  
+[our technical documentation][install] for full usage instructions.
 
 ### pip
 
@@ -59,7 +59,7 @@ You are required to specify a blockchain protocol (e.g. `BitcoinCash`) and a blo
 `Testnet`). If you are using Ethereum, you will also need to specify the public key of your Ethereum node via 
 `--node-public-key [hex-encoded-key]`.
 
-For detail on the all possible command-line arguments, refer to (TODO @Allan: LINK).
+For detail on the all possible command-line arguments, refer to [our technical documentation][args].
 
 ## Development
 
@@ -114,9 +114,12 @@ git clone --recursive https://github.com/bloXroute-Labs/bxextensions.git
 
 Refer to [bxextensions] for information on building the C++ extensions.
 
+### Branches
+By default you will clone the `develop` branch. This branch refers to the most recent
+
 ## Documentation
 
-You can find our technical documentation and architecture [on our website](TODO @Allan: LINK).
+You can find our full technical documentation and architecture [on our website][documentation].
 
 ## Troubleshooting
 
@@ -128,3 +131,6 @@ Contact us at support@bloxroute.com for further questions.
 [docker]: https://www.docker.com
 [bxextensions]: https://github.com/bloXroute-Labs/bxextensions
 [virtual environment]: https://virtualenv.pypa.io/en/latest/
+[install]: https://bloxroute.com/documentation/deployment/
+[args]: https://bloxroute.com/documentation/deployment/#command-line-arguments
+[documentation]: https://bloxroute.com/documentation/

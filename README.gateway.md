@@ -59,6 +59,9 @@ $ bloxroute_gateway [...] --node-public-key [hex-encoded-key]
 
 You can also specify a `BLXR_ENV` environment variable to specify which BDN you want to connect to.
  * `BLXR_ENV=test`: Testnet
+ 
+# Documentation
+You can find our full technical documentation and architecture [on our website][documentation].
 
 # Troubleshooting
 
@@ -66,3 +69,4 @@ Contact us at support@bloxroute.com for further questions.
 
 [1]: https://virtualenv.pypa.io/en/latest/
 [2]: https://docs.python.org/3.7/distutils/sourcedist.html#manifest-template
+[documentation]: https://bloxroute.com/documentation/
