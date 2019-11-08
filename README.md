@@ -115,7 +115,9 @@ git clone --recursive https://github.com/bloXroute-Labs/bxextensions.git
 Refer to [bxextensions] for information on building the C++ extensions.
 
 ### Branches
-By default you will clone the `develop` branch. This branch refers to the most recent
+By default you will clone the `develop` branch. This branch refers to the most recent code that is usually running
+on the bloXroute Testnet. If you are looking for the production code that is definitely supported in our Mainnet,
+use the `master` branch.
 
 ## Documentation
 
