@@ -1,7 +1,27 @@
+[![](images/logo.png)](https://bloxroute.com)
+<p align="center">
+  <a href="https://github.com/bloXroute-Labs/bxgateway/blob/develop/LICENSE.md">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="bxgateway is released under the MIT license." />
+  </a>
+  <a href="https://github.com/bloXroute-Labs/bxgateway/blob/develop/CONTRIBUTING.md">
+    <img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs welcome!" />
+  </a>
+  <a href="https://badge.fury.io/py/bloxroute-gateway">
+    <img src="https://badge.fury.io/py/bloxroute-gateway.svg" alt="Pypi version" />
+  </a>
+    <a href="https://python.org">
+    <img alt="Python" src="https://img.shields.io/badge/Python-3.6%20%7C%203.7-blue">  
+  </a>
+  <a href="https://discord.gg/FAYTEMm">
+    <img alt="Discord" src="https://img.shields.io/discord/638409433860407300?logo=discord">  
+  </a>
+  <a href="https://twitter.com/intent/follow?screen_name=bloxroutelabs">
+    <img alt="Twitter Follow" src="https://img.shields.io/twitter/follow/bloxroutelabs?style=social">  
+  </a>
+</p>
+
 # bloXroute Gateway
-
-https://bloxroute.com
-
+The bloXroute Gateway is a blockchain client that attaches to blockchain nodes and acts as an entrypoint to bloXroute's BDN.
 ## What is bloXroute?
 
 bloXroute is a blockchain scalability solution that allows all cryptocurrencies and blockchains to scale to 
