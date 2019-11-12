@@ -9,7 +9,7 @@ operating system with Python 3 installed.
 Ubuntu:
 ```bash
 sudo apt-get update
-sudo apt install python3-dev
+sudo apt install python3-dev gcc
 ```
 
 CentOS:
