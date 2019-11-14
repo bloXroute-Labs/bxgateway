@@ -39,10 +39,10 @@ jobs:
              cd ~/ws
              { # try
                  echo "Trying to clone identical branch name '$branchName' from bxcommon."
-                 git clone -b $branchName --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+                 git clone -b $branchName --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon-private.git bxcommon
              } || { # catch
                  echo "Trying bxcommon develop branch, could not find identical branch name '$branchName'"
-                 git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon.git
+                 git clone -b develop --single-branch --depth=1 git@github.com:bloXroute-Labs/bxcommon-private.git bxcommon
              }
              cd bxcommon
              bxcommonBranch=$(git rev-parse --abbrev-ref HEAD)
@@ -52,10 +52,10 @@ jobs:
           command: |
             { # try
                 echo "Trying to clone identical branch name '$CIRCLE_BRANCH' from bxextensions."
-                git clone -b $CIRCLE_BRANCH --single-branch --depth=1 --recursive git@github.com:bloXroute-Labs/bxextensions.git
+                git clone -b $CIRCLE_BRANCH --single-branch --depth=1 --recursive git@github.com:bloXroute-Labs/bxextensions-private.git bxextensions
             } || { # catch
                 echo "Trying bxextensions develop branch, could not find identical branch name '$CIRCLE_BRANCH'."
-                git clone -b develop --single-branch --depth=1 --recursive git@github.com:bloXroute-Labs/bxextensions.git
+                git clone -b develop --single-branch --depth=1 --recursive git@github.com:bloXroute-Labs/bxextensions-private.git bxextensions
             }
       - run: # install and activate virtual environment with pip
           name: installing virtual env
