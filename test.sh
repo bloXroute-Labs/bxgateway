@@ -12,13 +12,13 @@ echo ""
 echo ""
 echo "**********UNIT TEST***********"
 cd test/unit
-PYTHONPATH=../../../bxcommon/src:../../src python -m unittest discover --verbose
+PYTHONPATH=../../../bxcommon/src:../../src:../../../bxextensions python -m unittest discover --verbose
 
 echo ""
 echo ""
 echo ""
 echo "**********INTEGRATION TEST***********"
 cd ../integration
-PYTHONPATH=../../../bxcommon/src:../../src python -m unittest discover --verbose
+PYTHONPATH=../../../bxcommon/src:../../src:../../../bxextensions python -m unittest discover --verbose
 
 deactivate
