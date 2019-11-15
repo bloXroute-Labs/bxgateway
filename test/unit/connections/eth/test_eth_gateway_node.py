@@ -1,3 +1,4 @@
+from bxcommon.network.socket_connection_state import SocketConnectionState
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -83,9 +84,8 @@ class EthGatewayNodeTest(AbstractTestCase):
         new_node_public_key = self._get_dummy_public_key()
         node.set_node_public_key(discovery_connection, new_node_public_key)
 
-        self.assertEqual(0, len(self.node.connection_pool))
-        self.assertEqual(1, len(self.node.disconnect_queue))
-        self.assertEqual((dummy_con_fileno, False), self.node.disconnect_queue.pop())
+        self.assertTrue(discovery_connection.socket_connection.state & SocketConnectionState.MARK_FOR_CLOSE)
+        self.assertTrue(discovery_connection.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
 
         updated_node_public_key = node.get_node_public_key()
         self.assertIsNotNone(updated_node_public_key)
@@ -129,6 +129,8 @@ class EthGatewayNodeTest(AbstractTestCase):
                                         test_mode=[], peer_gateways=[], peer_relays=self.servers,
                                         blockchain_address=(self.blockchain_ip, self.blockchain_port),
                                         include_default_eth_args=True, no_discovery=not initialize_handshake)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
         self.node = EthGatewayNode(opts)
         self.assertTrue(self.node)
 

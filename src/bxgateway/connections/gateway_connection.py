@@ -63,13 +63,13 @@ class GatewayConnection(InternalNodeConnection):
         if network_num != self.node.network_num:
             self.log_error("Network number mismatch. Current network num {}, remote network num {}. "
                            "Closing connection.", self.network_num, network_num)
-            self.mark_for_close()
+            self.mark_for_close(should_retry=False)
             return
 
         ip = msg.ip()
         if ip != self.peer_ip:
             self.log_error("Received hello message with mismatched IP address. Disconnecting.")
-            self.mark_for_close()
+            self.mark_for_close(should_retry=False)
             return
 
         port = msg.port()
@@ -96,7 +96,7 @@ class GatewayConnection(InternalNodeConnection):
 
             if connection.is_active():
                 self.log_debug("Duplicate established connection. Dropping.")
-                self.mark_for_close()
+                self.mark_for_close(should_retry=False)
                 return
 
             # ordering numbers were the same; take over the slot and try again
@@ -120,14 +120,14 @@ class GatewayConnection(InternalNodeConnection):
             if connection.ordering > ordering:
                 self.log_warning("Connection already exists, with higher priority. Dropping connection {} and "
                                  "keeping {}.", self.fileno, connection.fileno)
-                self.mark_for_close()
+                self.mark_for_close(should_retry=False)
                 connection.on_connection_established()
                 connection.enqueue_msg(connection.ack_message)
             else:
                 self.log_warning(
                     "Connection already exists, with lower priority. Dropping connection {} and keeping {}.",
                     connection.fileno, self.fileno)
-                connection.mark_for_close()
+                connection.mark_for_close(should_retry=False)
                 self.on_connection_established()
                 self.enqueue_msg(self.ack_message)
                 self.node.connection_pool.update_port(self.peer_port, port, self)
@@ -178,11 +178,8 @@ class GatewayConnection(InternalNodeConnection):
         self.peer_port = new_port
         self.peer_desc = "%s %d" % (self.peer_ip, self.peer_port)
 
-    def mark_for_close(self):
-        super(GatewayConnection, self).mark_for_close()
-
-    def close(self):
-        super().close()
+    def dispose(self):
+        super().dispose()
 
         if not self.from_me:
             if self.peer_id:

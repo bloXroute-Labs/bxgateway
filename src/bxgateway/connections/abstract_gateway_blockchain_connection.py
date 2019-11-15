@@ -104,3 +104,22 @@ class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNod
             )
         t_m_c_diff = round(time.time() - t0, 3)
         logger.debug("Recording {} message_converter MemoryStats took: {} seconds", class_name, t_m_c_diff)
+
+    def dispose(self):
+        super().dispose()
+
+        if self.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
+            if self.node.node_conn == self or self.node.node_conn is None:
+                self.node.on_blockchain_connection_destroyed(self)
+            else:
+                logger.warning("Detected attempt to close node connection when another is already established. "
+                               "Connection being destroyed - {}. Established connection - {}.",
+                               self.peer_desc, self.node.node_conn.peer_desc)
+        elif self.CONNECTION_TYPE == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
+            if self.node.remote_node_conn == self or self.node.remote_node_conn is None:
+                self.node.on_remote_blockchain_connection_destroyed(self)
+            else:
+                logger.warning("Detected attempt to close remote node connection when another is already established. "
+                               "Connection being destroyed - {}. Established connection - {}.",
+                               self.peer_desc, self.node.remote_node_conn.peer_desc)
+

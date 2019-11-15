@@ -451,30 +451,12 @@ class AbstractGatewayNode(AbstractNode):
             logger.trace("Adding message to remote node's message queue: {}", msg)
             self.remote_node_msg_queue.append(msg)
 
-    def should_retry_connection(self, ip: str, port: int, connection_type: ConnectionType) -> bool:
-        return (super(AbstractGatewayNode, self).should_retry_connection(ip, port, connection_type)
+    def continue_retrying_connection(self, ip: str, port: int, connection_type: ConnectionType) -> bool:
+        return (super(AbstractGatewayNode, self).continue_retrying_connection(ip, port, connection_type)
                 or OutboundPeerModel(ip, port) in self.opts.peer_gateways
                 or connection_type == ConnectionType.BLOCKCHAIN_NODE
                 or (connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE and
                     self.num_retries_by_ip[(ip, port)] < gateway_constants.REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES))
-
-    def _destroy_conn(self, conn, retry_connection: bool = False, force_destroy: bool = False):
-        if conn.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
-            if self.node_conn == conn or self.node_conn is None:
-                self.on_blockchain_connection_destroyed(conn)
-            else:
-                logger.warning("Detected attempt to close node connection when another is already established. "
-                               "Connection being destroyed - {}. Established connection - {}.",
-                               conn.peer_desc, self.node_conn.peer_desc)
-        elif conn.CONNECTION_TYPE == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
-            if self.remote_node_conn == conn or self.remote_node_conn is None:
-                self.on_remote_blockchain_connection_destroyed(conn)
-            else:
-                logger.warning("Detected attempt to close remote node connection when another is already established. "
-                               "Connection being destroyed - {}. Established connection - {}.",
-                               conn.peer_desc, self.remote_node_conn.peer_desc)
-
-        super(AbstractGatewayNode, self)._destroy_conn(conn, retry_connection, force_destroy)
 
     def on_connection_initialized(self, fileno):
         super(AbstractGatewayNode, self).on_connection_initialized(fileno)
@@ -624,7 +606,7 @@ class AbstractGatewayNode(AbstractNode):
                 transaction_connection = self.connection_pool.get_by_ipport(ip, port + 1)
                 logger.debug("Removing relay transaction connection matching block relay host: {}",
                              transaction_connection)
-                self.mark_connection_for_close(transaction_connection, False)
+                transaction_connection.mark_for_close(False)
             self._remove_relay_transaction_peer(ip, port + 1, False)
 
         self.outbound_peers = self._get_all_peers()
@@ -647,7 +629,7 @@ class AbstractGatewayNode(AbstractNode):
             block_connection = self.connection_pool.get_by_ipport(ip, port - 1)
             logger.debug("Removing relay block connection matching transaction relay host: {}",
                          block_connection)
-            self.mark_connection_for_close(block_connection, False)
+            block_connection.mark_for_close(False)
             self._remove_relay_peer(ip, port - 1)
 
     def _find_active_connection(self, outbound_peers):

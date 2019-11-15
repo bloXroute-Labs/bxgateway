@@ -137,9 +137,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self._node_public_key = node_public_key
 
         # close UDP connection
-        self.mark_connection_for_close(discovery_connection, False)
-
-        self.connection_pool.delete(discovery_connection)
+        discovery_connection.mark_for_close(False)
 
         # establish TCP connection
         self.enqueue_connection(self.opts.blockchain_ip, self.opts.blockchain_port)
@@ -155,9 +153,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self._remote_public_key = remote_public_key
 
         # close UDP connection
-        self.mark_connection_for_close(discovery_connection, False)
-
-        self.connection_pool.delete(discovery_connection)
+        discovery_connection.mark_for_close(False)
 
         # establish TCP connection
         self.enqueue_connection(self.remote_blockchain_ip, self.remote_blockchain_port)
