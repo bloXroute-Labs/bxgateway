@@ -200,7 +200,8 @@ def get_opts() -> argparse.Namespace:
     arg_parser.add_argument("--require-blockchain-connection",
                             help="Close gateway if connection with blockchain node can't be established "
                                  "when the flag is set to True",
-                            type=convert.str_to_bool)
+                            type=convert.str_to_bool,
+                            default=True)
 
     opts = cli.parse_arguments(arg_parser)
 
