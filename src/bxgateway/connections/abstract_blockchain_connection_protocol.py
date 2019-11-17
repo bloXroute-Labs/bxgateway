@@ -129,7 +129,7 @@ class AbstractBlockchainConnectionProtocol:
             msg = self._build_get_blocks_message_for_block_confirmation(hashes)
             self.connection.enqueue_msg(msg)
             self.connection.log_debug("Sending block confirmation request. Last confirmed block: {}, hashes: {}",
-                                      last_confirmed_block, hashes)
+                                      last_confirmed_block, hashes[:gateway_constants.LOGGING_LIMIT_ITEM_COUNT])
         return self.block_cleanup_poll_interval_s
 
     @abstractmethod

@@ -1,10 +1,11 @@
 from collections import deque
-from typing import List, Deque, Union
+from typing import List, Deque, Union, Dict
+from time import time
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.expiring_dict import ExpiringDict
-from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.object_hash import Sha256Hash, NULL_SHA256_HASH
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import eth_constants
@@ -59,6 +60,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             self.block_cleanup_poll_interval_s,
             self._request_blocks_confirmation
         )
+        self.requested_blocks_for_confirmation: ExpiringDict[Sha256Hash, float] = \
+            ExpiringDict(self.node.alarm_queue, eth_constants.BLOCK_CONFIRMATION_REQUEST_CACHE_INTERVAL_S)
 
     def msg_status(self, _msg):
         self.connection.on_connection_established()
@@ -240,10 +243,21 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         return self.block_cleanup_poll_interval_s
 
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
+        block_hash = NULL_SHA256_HASH
+        for block_hash in hashes:
+            last_attempt = self.requested_blocks_for_confirmation.contents.get(block_hash, 0)
+            if time() - last_attempt > \
+                    self.block_cleanup_poll_interval_s * eth_constants.BLOCK_CONFIRMATION_REQUEST_INTERVALS:
+                break
+        else:
+            block_hash = hashes[0]
+
+        self.requested_blocks_for_confirmation.add(block_hash, time())
         return GetBlockHeadersEthProtocolMessage(
                 None,
-                block_hash=bytes(hashes[0].binary),
+                block_hash=bytes(block_hash.binary),
                 amount=100,
                 skip=0,
                 reverse=0
             )
+
