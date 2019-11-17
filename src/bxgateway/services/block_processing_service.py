@@ -426,6 +426,13 @@ class BlockProcessingService:
                                                       start_date_time=block_info.start_datetime,
                                                       end_date_time=block_info.end_datetime,
                                                       network_num=connection.network_num,
+                                                      prev_block_hash=block_info.prev_block_hash,
+                                                      original_size=block_info.original_size,
+                                                      txs_count=block_info.txn_count,
+                                                      blockchain_network=self._node.opts.blockchain_protocol,
+                                                      blockchain_protocol=self._node.opts.blockchain_network,
+                                                      matching_block_hash=block_info.compressed_block_hash,
+                                                      matching_block_type=StatBlockType.COMPRESSED.value,
                                                       more_info="{} sids, {} hashes".format(
                                                           len(unknown_sids), len(unknown_hashes)))
 
