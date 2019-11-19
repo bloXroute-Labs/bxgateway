@@ -64,6 +64,8 @@ class EthGatewayNode(AbstractGatewayNode):
 
         self.message_converter = EthMessageConverter()
 
+        logger.info("Gateway enode url: {}", self.get_enode())
+
     def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
                                     from_me: bool) -> AbstractGatewayBlockchainConnection:
         if self._is_in_local_discovery():
@@ -227,6 +229,10 @@ class EthGatewayNode(AbstractGatewayNode):
     def init_eth_gateway_stat_logging(self):
         eth_gateway_stats_service.set_node(self)
         self.alarm_queue.register_alarm(eth_gateway_stats_service.interval, eth_gateway_stats_service.flush_info)
+
+    def get_enode(self):
+        return \
+            f"enode://{convert.bytes_to_hex(self.get_public_key())}@{self.opts.external_ip}:{self.opts.external_port}"
 
     def _is_in_local_discovery(self):
         return not self.opts.no_discovery and self._node_public_key is None

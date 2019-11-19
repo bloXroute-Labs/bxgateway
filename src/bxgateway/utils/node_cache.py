@@ -23,7 +23,7 @@ class CacheNetworkInfo:
 
 def update(opts: Namespace, potential_relay_peers: List[OutboundPeerModel]):
     try:
-        cookie_file_path = config.get_relative_file(opts.cookie_file_path)
+        cookie_file_path = config.get_data_file(opts.cookie_file_path)
         os.makedirs(os.path.dirname(cookie_file_path), exist_ok=True)
         with open(cookie_file_path, "r") as cookie_file:
             data = json.load(cookie_file)
@@ -48,7 +48,7 @@ def update(opts: Namespace, potential_relay_peers: List[OutboundPeerModel]):
     }
     data.update(cache_info)
     try:
-        with open(config.get_relative_file(opts.cookie_file_path), "w") as cookie_file:
+        with open(config.get_data_file(opts.cookie_file_path), "w") as cookie_file:
             json.dump(data, cookie_file, indent=4, cls=ClassJsonEncoder)
     except Exception as ex:
         logger.error(f"Failed when tried to write to cache file: {opts.cookie_file_path} with exception: {ex}")
@@ -60,7 +60,7 @@ def read(opts: Namespace) -> Optional[CacheNetworkInfo]:
         return cache_file_info
 
     try:
-        relative_path = config.get_relative_file(opts.cookie_file_path)
+        relative_path = config.get_data_file(opts.cookie_file_path)
         if os.path.exists(relative_path):
             with open(relative_path, "r") as cookie_file:
                 cache_file_info = model_loader.load_model(CacheNetworkInfo, json.load(cookie_file))

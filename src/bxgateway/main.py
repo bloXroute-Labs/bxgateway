@@ -13,7 +13,7 @@ import sys
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
-from bxgateway import btc_constants, gateway_constants
+from bxgateway import btc_constants, gateway_constants, eth_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils import node_cache
@@ -54,6 +54,20 @@ def get_sdn_hostname(sdn_url: str) -> str:
         new_sdn_url = sdn_url.split("://")[1]
 
     return new_sdn_url
+
+
+def get_default_eth_private_key():
+    gateway_key_file_name = config.get_data_file(eth_constants.GATEWAY_PRIVATE_KEY_FILE_NAME)
+
+    if os.path.exists(gateway_key_file_name):
+        with open(gateway_key_file_name, "r") as key_file:
+            private_key = key_file.read().strip()
+    else:
+        private_key = crypto_utils.generate_random_private_key_hex_str()
+        with open(gateway_key_file_name, "w") as key_file:
+            key_file.write(private_key)
+
+    return private_key
 
 
 def get_opts() -> argparse.Namespace:
@@ -118,7 +132,7 @@ def get_opts() -> argparse.Namespace:
     arg_parser.add_argument("--node-public-key", help="Public key of Ethereum node for encrypted communication",
                             type=str)
     arg_parser.add_argument("--private-key", help="Private key for encrypted communication with Ethereum node",
-                            type=str, default=crypto_utils.generate_random_private_key_hex_str())
+                            type=str)
     arg_parser.add_argument("--network-id", help="Ethereum network id", type=int)
     arg_parser.add_argument("--genesis-hash", help="Genesis block hash of Ethereum network", type=str)
     arg_parser.add_argument("--chain-difficulty", help="Difficulty of genesis block Ethereum network (hex)", type=str)
@@ -205,6 +219,8 @@ def get_opts() -> argparse.Namespace:
 
     opts = cli.parse_arguments(arg_parser)
 
+    config.set_data_directory(opts.data_dir)
+
     if not opts.blockchain_network:
         cache_file_info = node_cache.read(opts)
         if cache_file_info is not None:
@@ -221,6 +237,9 @@ def get_opts() -> argparse.Namespace:
         opts.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
             "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip))
 
+    if opts.private_key is None:
+        opts.private_key = get_default_eth_private_key()
+
     return opts
 
 
@@ -229,7 +248,7 @@ def main():
     logger_names.append("bxgateway")
     opts = get_opts()
     node_type = get_gateway_node_type(opts.blockchain_protocol, opts.blockchain_network)
-    node_runner.run_node(config.get_relative_file(PID_FILE_NAME), opts, node_type, logger_names=logger_names)
+    node_runner.run_node(config.get_data_file(PID_FILE_NAME), opts, node_type, logger_names=logger_names)
 
 
 if __name__ == "__main__":
