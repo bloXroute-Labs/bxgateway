@@ -218,6 +218,10 @@ class AbstractGatewayNode(AbstractNode):
 
         return self._tx_service
 
+    def on_fully_updated_tx_service(self):
+        super().on_fully_updated_tx_service()
+        sdn_http_service.submit_tx_synced_event(self.opts.node_id)
+
     def get_preferred_gateway_connection(self):
         """
         Gets gateway connection of highest priority. This is usually a bloxroute owned node, but can also be
