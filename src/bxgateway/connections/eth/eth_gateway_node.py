@@ -41,10 +41,13 @@ class EthGatewayNode(AbstractGatewayNode):
 
         if opts.node_public_key is not None:
             self._node_public_key = convert.hex_to_bytes(opts.node_public_key)
-
+        else:
+            raise RuntimeError(
+                "128 digit public key must be included with command-line specified blockchain peer.")
         if opts.remote_blockchain_peer is not None:
             if opts.remote_public_key is None:
-                raise ValueError("Public key must be included with command-line specified remote blockchain peer.")
+                raise RuntimeError(
+                    "128 digit public key must be included with command-line specified remote blockchain peer.")
             else:
                 self._remote_public_key = convert.hex_to_bytes(opts.remote_public_key)
 

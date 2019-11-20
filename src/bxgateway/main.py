@@ -18,6 +18,7 @@ from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils import node_cache
 from bxgateway.utils.eth import crypto_utils
+from bxgateway.gateway_opts import GatewayOpts
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -48,14 +49,6 @@ def parse_peer_string(peer_string):
     return peers
 
 
-def get_sdn_hostname(sdn_url: str) -> str:
-    new_sdn_url = sdn_url
-    if "://" in sdn_url:
-        new_sdn_url = sdn_url.split("://")[1]
-
-    return new_sdn_url
-
-
 def get_default_eth_private_key():
     gateway_key_file_name = config.get_data_file(eth_constants.GATEWAY_PRIVATE_KEY_FILE_NAME)
 
@@ -70,16 +63,19 @@ def get_default_eth_private_key():
     return private_key
 
 
-def get_opts() -> argparse.Namespace:
+def get_opts() -> GatewayOpts:
     config.set_working_directory(os.path.dirname(__file__))
 
     # Parse gateway specific command line parameters
-    arg_parser = cli.get_argument_parser()
-    arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
-    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g Bitcoin, Ethereum", type=str,
+    arg_parser = argparse.ArgumentParser(parents=[cli.get_argument_parser()],
+                                         description="Command line interface for the bloXroute Gateway.",
+                                         usage="bloxroute_gateway --blockchain-protocol [PROTOCOL] [additional "
+                                               "arguments]")
+    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g BitcoinCash, Ethereum", type=str,
                             required=True)
     arg_parser.add_argument("--blockchain-network", help="Blockchain network. e.g Mainnet, Testnet", type=str,
-                            required=True)
+                            required=False)
+    arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip",
                             type=ip_resolver.blocking_resolve_ip,
                             default="127.0.0.1")
@@ -217,26 +213,8 @@ def get_opts() -> argparse.Namespace:
                             type=convert.str_to_bool,
                             default=True)
 
-    opts = cli.parse_arguments(arg_parser)
-
+    opts = GatewayOpts(cli.parse_arguments(arg_parser))
     config.set_data_directory(opts.data_dir)
-
-    if not opts.blockchain_network:
-        cache_file_info = node_cache.read(opts)
-        if cache_file_info is not None:
-            opts.blockchain_network = cache_file_info.blockchain_network
-
-    opts.outbound_peers = opts.peer_gateways + opts.peer_relays
-
-    if opts.connect_to_remote_blockchain and opts.remote_blockchain_ip and opts.remote_blockchain_port:
-        opts.remote_blockchain_peer = OutboundPeerModel(opts.remote_blockchain_ip, opts.remote_blockchain_port)
-    else:
-        opts.remote_blockchain_peer = None
-
-    if not opts.cookie_file_path:
-        opts.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
-            "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip))
-
     if opts.private_key is None:
         opts.private_key = get_default_eth_private_key()
 
@@ -247,7 +225,7 @@ def main():
     logger_names = node_runner.LOGGER_NAMES.copy()
     logger_names.append("bxgateway")
     opts = get_opts()
-    node_type = get_gateway_node_type(opts.blockchain_protocol, opts.blockchain_network)
+    node_type = get_gateway_node_type(opts.blockchain_protocol)
     node_runner.run_node(config.get_data_file(PID_FILE_NAME), opts, node_type, logger_names=logger_names)
 
 

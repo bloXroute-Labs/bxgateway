@@ -1,6 +1,7 @@
 from bxcommon.network.socket_connection_state import SocketConnectionState
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
+from bxcommon.utils import convert
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.test_utils import helpers
@@ -12,10 +13,12 @@ from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.utils.eth import crypto_utils
+from unittest import skip
 
 
 class EthGatewayNodeTest(AbstractTestCase):
 
+    @skip("We now require that the public key is always specified, so this test no longer applies")
     def test_get_outbound_peer_addresses__initiate_handshake(self):
         self._test_get_outbound_peer_addresses(True, TransportLayerProtocol.UDP)
 
@@ -23,12 +26,13 @@ class EthGatewayNodeTest(AbstractTestCase):
         self._test_get_outbound_peer_addresses(False, TransportLayerProtocol.TCP)
 
     def test_get_gateway_connection_class__do_not_initiate_handshake(self):
-        node = self._set_up_test_node(False)
+        node = self._set_up_test_node(False, generate_pub_key=True)
         connection = node.build_blockchain_connection(MockSocketConnection(), (LOCALHOST, 8000), True)
         self.assertIsInstance(connection, EthNodeConnection)
 
+    @skip("We now require that the public key is always specified, so this test no longer applies")
     def test_get_gateway_connection_class__initiate_handshake_no_remote_pub_key(self):
-        node = self._set_up_test_node(True)
+        node = self._set_up_test_node(True, generate_pub_key=True)
         connection = node.build_blockchain_connection(MockSocketConnection(), (LOCALHOST, 8000), True)
         self.assertIsInstance(connection, EthNodeDiscoveryConnection)
 
@@ -36,7 +40,7 @@ class EthGatewayNodeTest(AbstractTestCase):
         dummy_con_fileno = 123
         dummy_con_ip = "0.0.0.0"
         dummy_con_port = 12345
-        node = self._set_up_test_node(True)
+        node = self._set_up_test_node(True, generate_pub_key=True)
         node_public_key = self._get_dummy_public_key()
         discovery_connection = EthNodeDiscoveryConnection(MockSocketConnection(dummy_con_fileno),
                                                           (dummy_con_ip, dummy_con_port),
@@ -50,27 +54,27 @@ class EthGatewayNodeTest(AbstractTestCase):
         self.assertIsInstance(connection, EthNodeConnection)
 
     def test_get_private_key(self):
-        node = self._set_up_test_node(False)
+        node = self._set_up_test_node(False, generate_pub_key=True)
         private_key = node.get_private_key()
         self.assertTrue(private_key)
         self.assertEqual(len(private_key), eth_constants.PRIVATE_KEY_LEN)
 
     def test_get_public_key(self):
-        node = self._set_up_test_node(False)
+        node = self._set_up_test_node(False, generate_pub_key=True)
         public_key = node.get_public_key()
         self.assertTrue(public_key)
         self.assertEqual(len(public_key), eth_constants.PUBLIC_KEY_LEN)
 
     def test_get_node_public_key__default(self):
-        node = self._set_up_test_node(False)
+        node = self._set_up_test_node(False, generate_pub_key=True)
         node_public_key = node.get_node_public_key()
-        self.assertIsNone(node_public_key)
+        self.assertIsNotNone(node_public_key)
 
     def test_set_node_public_key(self):
         dummy_con_fileno = 123
         dummy_con_ip = "0.0.0.0"
         dummy_con_port = 12345
-        node = self._set_up_test_node(False)
+        node = self._set_up_test_node(False, generate_pub_key=True)
         discovery_connection = EthNodeDiscoveryConnection(MockSocketConnection(dummy_con_fileno),
                                                           (dummy_con_ip, dummy_con_port),
                                                           node,
@@ -79,7 +83,7 @@ class EthGatewayNodeTest(AbstractTestCase):
         self.assertEqual(1, len(self.node.connection_pool))
 
         node_public_key = node.get_node_public_key()
-        self.assertIsNone(node_public_key)
+        self.assertIsNotNone(node_public_key)
 
         new_node_public_key = self._get_dummy_public_key()
         node.set_node_public_key(discovery_connection, new_node_public_key)
@@ -91,7 +95,7 @@ class EthGatewayNodeTest(AbstractTestCase):
         self.assertIsNotNone(updated_node_public_key)
 
     def _test_get_outbound_peer_addresses(self, initiate_handshake, expected_node_con_protocol):
-        node = self._set_up_test_node(initiate_handshake)
+        node = self._set_up_test_node(initiate_handshake, generate_pub_key=True)
         assert isinstance(node, EthGatewayNode)
 
         peer_addresses = node.get_outbound_peer_addresses()
@@ -110,7 +114,7 @@ class EthGatewayNodeTest(AbstractTestCase):
         self.assertEqual(self.blockchain_port, peer_addresses[len(self.servers)][1])
         self.assertEqual(expected_node_con_protocol, peer_addresses[len(self.servers)][2])
 
-    def _set_up_test_node(self, initialize_handshake):
+    def _set_up_test_node(self, initialize_handshake, generate_pub_key=False):
         # Dummy address
         self.server_ip = "127.0.0.1"
         self.server_port = 1234
@@ -124,11 +128,14 @@ class EthGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel("172.0.0.2", 3333),
             OutboundPeerModel("172.0.0.3", 4444)
         ]
-
+        if generate_pub_key:
+            pub_key = convert.bytes_to_hex(self._get_dummy_public_key())
+        else:
+            pub_key = None
         opts = helpers.get_gateway_opts(self.server_port, sid_expire_time=0, external_ip=self.server_ip,
                                         test_mode=[], peer_gateways=[], peer_relays=self.servers,
                                         blockchain_address=(self.blockchain_ip, self.blockchain_port),
-                                        include_default_eth_args=True, no_discovery=not initialize_handshake)
+                                        include_default_eth_args=True, pub_key=pub_key, no_discovery=not initialize_handshake)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         self.node = EthGatewayNode(opts)

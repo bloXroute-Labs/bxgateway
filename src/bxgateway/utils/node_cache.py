@@ -3,7 +3,6 @@ import os
 from dataclasses import dataclass
 from typing import List, Optional
 from argparse import Namespace
-
 from bxutils import logging
 
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
@@ -58,7 +57,8 @@ def read(opts: Namespace) -> Optional[CacheNetworkInfo]:
     cache_file_info = None
     if not opts.enable_node_cache:
         return cache_file_info
-
+    if not opts.cookie_file_path:
+        return cache_file_info
     try:
         relative_path = config.get_data_file(opts.cookie_file_path)
         if os.path.exists(relative_path):
