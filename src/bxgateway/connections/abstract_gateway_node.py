@@ -229,8 +229,7 @@ class AbstractGatewayNode(AbstractNode):
 
         This can return None.
         """
-        if self._preferred_gateway_connection is None or \
-                self._preferred_gateway_connection.state != ConnectionState.ESTABLISHED:
+        if self._preferred_gateway_connection is None or not self._preferred_gateway_connection.is_alive():
 
             connected_opts_peer = self._find_active_connection(self.opts.peer_gateways)
             if connected_opts_peer is not None:
@@ -662,7 +661,7 @@ class AbstractGatewayNode(AbstractNode):
                     relay_tx_connection = next(iter(relay_tx_connections))
                     relay_block_connection = next(iter(relay_block_connections))
 
-                    if relay_tx_connection.is_sendable() and relay_block_connection.is_sendable():
+                    if relay_tx_connection.is_active() and relay_block_connection.is_active():
                         relay_tx_connection.send_tx_service_sync_req(self.network_num)
                         relay_block_connection.send_tx_service_sync_req(self.network_num)
                         retry = False
@@ -670,7 +669,7 @@ class AbstractGatewayNode(AbstractNode):
                 relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)
                 if relay_connections:
                     relay_connection = next(iter(relay_connections))
-                    if relay_connection.is_sendable():
+                    if relay_connection.is_active():
                         relay_connection.send_tx_service_sync_req(self.network_num)
                         retry = False
 

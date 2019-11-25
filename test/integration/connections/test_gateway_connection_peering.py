@@ -166,9 +166,9 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             )
 
             # assert on results
-            self.assertTrue(main_initiated_connection.state & ConnectionState.MARK_FOR_CLOSE)
+            self.assertFalse(main_initiated_connection.is_alive())
             self.assertTrue(main_initiated_connection.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
-            self.assertTrue(main_initiated_connection_on_peer.state & ConnectionState.MARK_FOR_CLOSE)
+            self.assertFalse(main_initiated_connection_on_peer.is_alive())
             self.assertTrue(
                 main_initiated_connection_on_peer.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
             self.assertTrue(peer_initiated_connection.is_active())
@@ -209,9 +209,9 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             integration_helpers.receive_on_connection(main_initiated_connection)
 
             # assert on results
-            self.assertTrue(main_initiated_connection.state & ConnectionState.MARK_FOR_CLOSE)
+            self.assertFalse(main_initiated_connection.is_alive())
             self.assertTrue(main_initiated_connection.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
-            self.assertTrue(main_initiated_connection_on_peer.state & ConnectionState.MARK_FOR_CLOSE)
+            self.assertFalse(main_initiated_connection_on_peer.is_alive())
             self.assertTrue(
                 main_initiated_connection_on_peer.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
             self.assertTrue(peer_initiated_connection.is_active())
@@ -255,8 +255,8 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
             # assert on results
             self.assertTrue(main_initiated_connection.is_active())
             self.assertTrue(main_initiated_connection_on_peer.is_active())
-            self.assertTrue(peer_initiated_connection.state & ConnectionState.MARK_FOR_CLOSE)
-            self.assertTrue(peer_initiated_connection_on_peer.state & ConnectionState.MARK_FOR_CLOSE)
+            self.assertFalse(peer_initiated_connection.is_alive())
+            self.assertFalse(peer_initiated_connection_on_peer.is_alive())
             self.assertTrue(peer_initiated_connection.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
             self.assertTrue(
                 peer_initiated_connection_on_peer.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)

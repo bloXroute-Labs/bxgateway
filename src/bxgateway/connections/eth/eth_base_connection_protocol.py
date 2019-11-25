@@ -201,7 +201,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         return 0
 
     def _ping_timeout(self):
-        if self.connection.state & ConnectionState.MARK_FOR_CLOSE:
+        if not self.connection.is_alive():
             return 0
 
         time_since_last_ping_pong = time.time() - self._last_ping_pong_time

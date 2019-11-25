@@ -113,7 +113,7 @@ class AbstractBlockchainConnectionProtocol:
         return True
 
     def _request_blocks_confirmation(self):
-        if self.connection.state & ConnectionState.MARK_FOR_CLOSE:
+        if not self.connection.is_alive():
             return None
         node = self.connection.node
         last_confirmed_block = node.block_cleanup_service.last_confirmed_block

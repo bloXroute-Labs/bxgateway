@@ -9,7 +9,7 @@ logger = logging.get_logger(__name__)
 
 class EthBaseConnection(AbstractGatewayBlockchainConnection):
     def enqueue_msg(self, msg, prepend=False):
-        if self.state & ConnectionState.MARK_FOR_CLOSE:
+        if not self.is_alive():
             return
 
         self._log_message(msg.log_level(), "Enqueued message: {}", msg)
