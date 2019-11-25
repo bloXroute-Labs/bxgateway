@@ -49,7 +49,7 @@ Python 2.
 
 Install:
 ```
-pip install requests==2.19.1 distro
+pip install requests==2.22.0 distro
 pip install bloxroute-gateway
 ```
 
