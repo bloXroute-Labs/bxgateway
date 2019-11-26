@@ -1,12 +1,11 @@
 import time
 from abc import ABCMeta, abstractmethod
 from argparse import Namespace
-from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Dict
+from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable
 
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
-from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.node_type import NodeType
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -220,7 +219,8 @@ class AbstractGatewayNode(AbstractNode):
 
     def on_fully_updated_tx_service(self):
         super().on_fully_updated_tx_service()
-        sdn_http_service.submit_tx_synced_event(self.opts.node_id)
+        self.requester.send_threaded_request(sdn_http_service.submit_tx_synced_event,
+                                             self.opts.node_id)
 
     def get_preferred_gateway_connection(self):
         """
@@ -467,11 +467,18 @@ class AbstractGatewayNode(AbstractNode):
         conn = self.connection_pool.get_by_fileno(fileno)
 
         if conn and conn.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
-            sdn_http_service.submit_peer_connection_event(NodeEventType.BLOCKCHAIN_NODE_CONN_ESTABLISHED,
-                                                          self.opts.node_id, conn.peer_ip, conn.peer_port)
+            self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_event,
+                                                 NodeEventType.BLOCKCHAIN_NODE_CONN_ESTABLISHED,
+                                                 self.opts.node_id,
+                                                 conn.peer_ip,
+                                                 conn.peer_port)
+
         elif conn and conn.CONNECTION_TYPE == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
-            sdn_http_service.submit_peer_connection_event(NodeEventType.REMOTE_BLOCKCHAIN_CONN_ESTABLISHED,
-                                                          self.opts.node_id, conn.peer_ip, conn.peer_port)
+           self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_event,
+                                                NodeEventType.REMOTE_BLOCKCHAIN_CONN_ESTABLISHED,
+                                                self.opts.node_id,
+                                                conn.peer_ip,
+                                                conn.peer_port)
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection):
         for msg in self.node_msg_queue.pop_items():
@@ -481,8 +488,11 @@ class AbstractGatewayNode(AbstractNode):
         self.cancel_blockchain_liveliness_check()
 
     def on_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection):
-        sdn_http_service.submit_peer_connection_event(NodeEventType.BLOCKCHAIN_NODE_CONN_ERR, self.opts.node_id,
-                                                      connection.peer_ip, connection.peer_port)
+        self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_event,
+                                             NodeEventType.BLOCKCHAIN_NODE_CONN_ERR,
+                                             self.opts.node_id,
+                                             connection.peer_ip,
+                                             connection.peer_port)
         self.node_conn = None
         self.node_msg_queue.pop_items()
         self.schedule_blockchain_liveliness_check(self.opts.stay_alive_duration)
@@ -493,8 +503,11 @@ class AbstractGatewayNode(AbstractNode):
         self.remote_node_conn = connection
 
     def on_remote_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection):
-        sdn_http_service.submit_peer_connection_event(NodeEventType.REMOTE_BLOCKCHAIN_CONN_ERR, self.opts.node_id,
-                                                      connection.peer_ip, connection.peer_port)
+        self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_event,
+                                             NodeEventType.REMOTE_BLOCKCHAIN_CONN_ERR,
+                                             self.opts.node_id,
+                                             connection.peer_ip,
+                                             connection.peer_port)
         self.remote_node_conn = None
         self.remote_node_msg_queue.pop_items()
 
@@ -503,15 +516,24 @@ class AbstractGatewayNode(AbstractNode):
 
     def on_failed_connection_retry(self, ip: str, port: int, connection_type: ConnectionType) -> None:
         if connection_type == ConnectionType.GATEWAY:
-            sdn_http_service.submit_peer_connection_error_event(self.opts.node_id, ip, port)
+            self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
+                                                 self.opts.node_id,
+                                                 ip,
+                                                 port)
             self._remove_gateway_peer(ip, port)
         elif connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
             self.send_request_for_remote_blockchain_peer()
         elif connection_type & ConnectionType.RELAY_BLOCK:
-            sdn_http_service.submit_peer_connection_error_event(self.opts.node_id, ip, port)
+            self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
+                                                 self.opts.node_id,
+                                                 ip,
+                                                 port)
             self._remove_relay_peer(ip, port)
         elif self.opts.split_relays and connection_type & ConnectionType.RELAY_TRANSACTION:
-            sdn_http_service.submit_peer_connection_error_event(self.opts.node_id, ip, port)
+            self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
+                                                 self.opts.node_id,
+                                                 ip,
+                                                 port)
             self._remove_relay_transaction_peer(ip, port)
 
     def on_updated_remote_blockchain_peer(self, outbound_peer):
