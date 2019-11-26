@@ -23,6 +23,8 @@ from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.blockchain_sync_service import BlockchainSyncService
 from bxgateway.services.neutrality_service import NeutralityService
 
+from typing import Dict, Tuple
+from collections import defaultdict
 
 def create_node(ip=LOCALHOST, port=8000) -> AbstractGatewayNode:
     node = MagicMock(spec=AbstractGatewayNode)
@@ -39,6 +41,7 @@ def create_node(ip=LOCALHOST, port=8000) -> AbstractGatewayNode:
     node.opts.stats_calculate_actual_size = True
     block_stats.set_node(node)
     tx_stats.set_node(node)
+    node.num_retries_by_ip = defaultdict(int)
     return node
 
 
