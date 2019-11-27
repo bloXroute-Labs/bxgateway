@@ -30,7 +30,9 @@ class BlockHoldingServiceTest(AbstractTestCase):
         self.node.block_recovery_service = MagicMock(spec=BlockRecoveryService)
         self.node.block_queuing_service = MagicMock(spec=BlockQueuingService)
 
-        self.dummy_connection = MockConnection(MockSocketConnection(0), (LOCALHOST, 9000), self.node)
+        self.dummy_connection = MockConnection(
+            MockSocketConnection(0, self.node, ip_address=LOCALHOST, port=9000), self.node
+        )
 
     def test_place_hold(self):
         hash1 = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
@@ -69,7 +71,9 @@ class BlockHoldingServiceTest(AbstractTestCase):
     def test_queue_block_no_hold(self):
         block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         block_message = MockBlockMessage(block_hash)
-        connection = MockBlockchainConnection(MockSocketConnection(), (LOCALHOST, 8000), self.node)
+        connection = MockBlockchainConnection(
+            MockSocketConnection(node=self.node, ip_address=LOCALHOST, port=8000), self.node
+        )
 
         self.sut.queue_block_for_processing(block_message, connection)
         self._assert_block_propagated(block_hash)
@@ -81,7 +85,9 @@ class BlockHoldingServiceTest(AbstractTestCase):
     def test_queue_block_hold_exists_until_cancelled(self):
         block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         block_message = MockBlockMessage(block_hash)
-        connection = MockBlockchainConnection(MockSocketConnection(), (LOCALHOST, 8000), self.node)
+        connection = MockBlockchainConnection(
+            MockSocketConnection(node=self.node, ip_address=LOCALHOST, port=8000), self.node
+        )
 
         self.sut.place_hold(block_hash, self.dummy_connection)
         alarm_count = len(self.node.alarm_queue.alarms)
@@ -99,7 +105,9 @@ class BlockHoldingServiceTest(AbstractTestCase):
     def test_queue_block_holds_exists_until_timeout(self):
         block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         block_message = MockBlockMessage(block_hash)
-        connection = MockBlockchainConnection(MockSocketConnection(), (LOCALHOST, 8000), self.node)
+        connection = MockBlockchainConnection(
+            MockSocketConnection(node=self.node, ip_address=LOCALHOST, port=8000), self.node
+        )
 
         self.sut.place_hold(block_hash, self.dummy_connection)
         self.sut.queue_block_for_processing(block_message, connection)
@@ -113,7 +121,9 @@ class BlockHoldingServiceTest(AbstractTestCase):
     def test_cancel_hold_with_block_from_blockchain(self):
         block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
         block_message = MockBlockMessage(block_hash)
-        connection = MockBlockchainConnection(MockSocketConnection(), (LOCALHOST, 8000), self.node)
+        connection = MockBlockchainConnection(
+            MockSocketConnection(node=self.node, ip_address=LOCALHOST, port=8000), self.node
+        )
 
         self.sut.place_hold(block_hash, self.dummy_connection)
         self.sut.queue_block_for_processing(block_message, connection)
@@ -123,7 +133,9 @@ class BlockHoldingServiceTest(AbstractTestCase):
 
     def test_cancel_hold_no_block_from_blockchain(self):
         block_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
-        connection = MockBlockchainConnection(MockSocketConnection(), (LOCALHOST, 8000), self.node)
+        connection = MockBlockchainConnection(
+            MockSocketConnection(node=self.node, ip_address=LOCALHOST, port=8000), self.node
+        )
 
         self.sut.place_hold(block_hash, self.dummy_connection)
         self.sut.cancel_hold_timeout(block_hash, connection)

@@ -29,7 +29,9 @@ class AbstractRelayConnectionTest(AbstractTestCase):
                                                              include_default_btc_args=True,
                                                              include_default_eth_args=True))
 
-        self.connection = AbstractRelayConnection(MockSocketConnection(), ("127.0.0.1", 12345), self.node)
+        self.connection = AbstractRelayConnection(
+            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
+        )
         self.connection.state = ConnectionState.INITIALIZED
 
     @patch("bxgateway.services.block_processing_service.BlockProcessingService._handle_decrypted_block")

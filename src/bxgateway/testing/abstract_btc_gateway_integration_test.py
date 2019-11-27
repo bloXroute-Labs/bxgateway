@@ -45,21 +45,21 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
         self.relay_fileno = 2
         self.gateway_fileno = 3
 
-        self.blockchain_connection = MockSocketConnection(self.blockchain_fileno)
-        self.relay_connection = MockSocketConnection(self.relay_fileno)
-        self.gateway_connection = MockSocketConnection(self.gateway_fileno)
+        self.blockchain_connection = MockSocketConnection(
+            self.blockchain_fileno, self.node1, ip_address=LOCALHOST, port=7000
+        )
+        self.relay_connection = MockSocketConnection(self.relay_fileno, self.node1, ip_address=LOCALHOST, port=7001)
+        self.gateway_connection = MockSocketConnection(self.gateway_fileno, self.node1, ip_address=LOCALHOST, port=7002)
 
         # add node1 connections
-        self.node1.on_connection_added(self.blockchain_connection, LOCALHOST, 7000, True)
-        self.node1.on_connection_added(self.relay_connection, LOCALHOST, 7001, True)
-        self.node1.on_connection_initialized(self.relay_fileno)
-        self.node1.on_connection_added(self.gateway_connection, LOCALHOST, 7002, True)
+        self.node1.on_connection_added(self.blockchain_connection)
+        self.node1.on_connection_added(self.relay_connection)
+        self.node1.on_connection_added(self.gateway_connection)
 
         # add node 2 connections
-        self.node2.on_connection_added(self.blockchain_connection, LOCALHOST, 7000, True)
-        self.node2.on_connection_added(self.relay_connection, LOCALHOST, 7001, True)
-        self.node2.on_connection_initialized(self.relay_fileno)
-        self.node2.on_connection_added(self.gateway_connection, LOCALHOST, 7002, True)
+        self.node2.on_connection_added(self.blockchain_connection)
+        self.node2.on_connection_added(self.relay_connection)
+        self.node2.on_connection_added(self.gateway_connection)
 
         # initialize node1 connections
         helpers.receive_node_message(self.node1, self.blockchain_fileno, btc_version_message().rawbytes())

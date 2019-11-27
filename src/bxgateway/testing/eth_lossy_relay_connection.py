@@ -1,13 +1,18 @@
+from typing import TYPE_CHECKING
+from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxutils import logging
 
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
+
+if TYPE_CHECKING:
+    from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 
 logger = logging.get_logger(__name__)
 
 
 class EthLossyRelayConnection(EthRelayConnection):
-    def __init__(self, sock, address, node, from_me=False):
-        super(EthLossyRelayConnection, self).__init__(sock, address, node, from_me=from_me)
+    def __init__(self, sock: SocketConnectionProtocol, node: "EthGatewayNode"):
+        super(EthLossyRelayConnection, self).__init__(sock, node)
 
         logger.debug("Test mode: Client is started in test mode. Simulating dropped transactions.")
 

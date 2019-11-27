@@ -1,10 +1,12 @@
 import random
+from typing import TYPE_CHECKING
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
+from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.services import sdn_http_service
 from bxcommon.utils import crypto
 from bxcommon.utils.stats import stats_format
@@ -16,8 +18,11 @@ from bxgateway.messages.gateway.gateway_message_factory import gateway_message_f
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
 
+if TYPE_CHECKING:
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
-class GatewayConnection(InternalNodeConnection):
+
+class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     """
     Connection handler for Gateway-Gateway connections.
     """
@@ -27,8 +32,8 @@ class GatewayConnection(InternalNodeConnection):
     NULL_ORDERING = -1
     ACK_MESSAGE = AckMessage()
 
-    def __init__(self, sock, address, node, from_me=False):
-        super(GatewayConnection, self).__init__(sock, address, node, from_me)
+    def __init__(self, sock: SocketConnectionProtocol, node: "AbstractGatewayNode"):
+        super(GatewayConnection, self).__init__(sock, node)
 
         self.hello_messages = gateway_constants.GATEWAY_HELLO_MESSAGES
         self.header_size = constants.STARTING_SEQUENCE_BYTES_LEN + constants.BX_HDR_COMMON_OFF
@@ -45,7 +50,7 @@ class GatewayConnection(InternalNodeConnection):
         self.version_manager = gateway_version_manager
         self.protocol_version = self.version_manager.CURRENT_PROTOCOL_VERSION
 
-        if from_me:
+        if self.from_me:
             self._initialize_ordered_handshake()
         else:
             self.ordering = self.NULL_ORDERING
@@ -119,14 +124,14 @@ class GatewayConnection(InternalNodeConnection):
 
             if connection.ordering > ordering:
                 self.log_warning("Connection already exists, with higher priority. Dropping connection {} and "
-                                 "keeping {}.", self.fileno, connection.fileno)
+                                 "keeping {}.", self.file_no, connection.file_no)
                 self.mark_for_close(should_retry=False)
                 connection.on_connection_established()
                 connection.enqueue_msg(connection.ack_message)
             else:
                 self.log_warning(
                     "Connection already exists, with lower priority. Dropping connection {} and keeping {}.",
-                    connection.fileno, self.fileno)
+                    connection.file_no, self.file_no)
                 connection.mark_for_close(should_retry=False)
                 self.on_connection_established()
                 self.enqueue_msg(self.ack_message)

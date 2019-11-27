@@ -1,13 +1,19 @@
+from typing import TYPE_CHECKING
+
+from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxutils import logging
 
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
+
+if TYPE_CHECKING:
+    from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 
 logger = logging.get_logger(__name__)
 
 
 class BtcLossyRelayConnection(BtcRelayConnection):
-    def __init__(self, sock, address, node, from_me=False):
-        super(BtcLossyRelayConnection, self).__init__(sock, address, node, from_me=from_me)
+    def __init__(self, sock: SocketConnectionProtocol, node: "BtcGatewayNode"):
+        super(BtcLossyRelayConnection, self).__init__(sock, node)
 
         logger.debug("Test mode: Client is started in test mode. Simulating dropped transactions.")
 

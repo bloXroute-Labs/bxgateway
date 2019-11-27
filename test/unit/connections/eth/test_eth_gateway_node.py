@@ -27,13 +27,13 @@ class EthGatewayNodeTest(AbstractTestCase):
 
     def test_get_gateway_connection_class__do_not_initiate_handshake(self):
         node = self._set_up_test_node(False, generate_pub_key=True)
-        connection = node.build_blockchain_connection(MockSocketConnection(), (LOCALHOST, 8000), True)
+        connection = node.build_blockchain_connection(MockSocketConnection(ip_address=LOCALHOST, port=8000))
         self.assertIsInstance(connection, EthNodeConnection)
 
     @skip("We now require that the public key is always specified, so this test no longer applies")
     def test_get_gateway_connection_class__initiate_handshake_no_remote_pub_key(self):
         node = self._set_up_test_node(True, generate_pub_key=True)
-        connection = node.build_blockchain_connection(MockSocketConnection(), (LOCALHOST, 8000), True)
+        connection = node.build_blockchain_connection(MockSocketConnection(ip_address=LOCALHOST, port=8000))
         self.assertIsInstance(connection, EthNodeDiscoveryConnection)
 
     def test_get_gateway_connection_class__initiate_handshake_with_remote_pub_key(self):
@@ -42,15 +42,15 @@ class EthGatewayNodeTest(AbstractTestCase):
         dummy_con_port = 12345
         node = self._set_up_test_node(True, generate_pub_key=True)
         node_public_key = self._get_dummy_public_key()
-        discovery_connection = EthNodeDiscoveryConnection(MockSocketConnection(dummy_con_fileno),
-                                                          (dummy_con_ip, dummy_con_port),
-                                                          node,
-                                                          False)
+        discovery_connection = EthNodeDiscoveryConnection(
+            MockSocketConnection(dummy_con_fileno, node, ip_address=dummy_con_ip, port=dummy_con_port), node
+        )
         node.connection_pool.add(dummy_con_fileno, dummy_con_ip, dummy_con_port, discovery_connection)
         node.set_node_public_key(discovery_connection, node_public_key)
         # connection_cls = node.build_connection(, self.blockchain_ip, self.blockchain_port
-        connection = node.build_blockchain_connection(MockSocketConnection(),
-                                                      (self.blockchain_ip, self.blockchain_port), True)
+        connection = node.build_blockchain_connection(
+            MockSocketConnection(ip_address=self.blockchain_ip, port=self.blockchain_port)
+        )
         self.assertIsInstance(connection, EthNodeConnection)
 
     def test_get_private_key(self):
@@ -75,10 +75,9 @@ class EthGatewayNodeTest(AbstractTestCase):
         dummy_con_ip = "0.0.0.0"
         dummy_con_port = 12345
         node = self._set_up_test_node(False, generate_pub_key=True)
-        discovery_connection = EthNodeDiscoveryConnection(MockSocketConnection(dummy_con_fileno),
-                                                          (dummy_con_ip, dummy_con_port),
-                                                          node,
-                                                          False)
+        discovery_connection = EthNodeDiscoveryConnection(
+            MockSocketConnection(dummy_con_fileno, node, ip_address=dummy_con_ip, port=dummy_con_port), node
+        )
         node.connection_pool.add(dummy_con_fileno, dummy_con_ip, dummy_con_port, discovery_connection)
         self.assertEqual(1, len(self.node.connection_pool))
 

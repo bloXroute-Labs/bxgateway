@@ -123,7 +123,9 @@ class NeutralityServiceTest(AbstractTestCase):
         self.node.opts.encrypt_blocks = True
 
         block_message = helpers.generate_bytearray(50)
-        connection = MockConnection(MockSocketConnection(1), (LOCALHOST, 9000), self.node)
+        connection = MockConnection(
+            MockSocketConnection(1, self.node, ip_address=LOCALHOST, port=9000), self.node
+        )
         self.neutrality_service.propagate_block_to_network(block_message, connection)
 
         self.assertEqual(1, len(self.node.broadcast_messages))
@@ -146,7 +148,9 @@ class NeutralityServiceTest(AbstractTestCase):
                                helpers.generate_bytearray(crypto.SHA256_HASH_LEN),
                                0, 0, 0)
 
-        connection = MockConnection(MockSocketConnection(1), (LOCALHOST, 9000), self.node)
+        connection = MockConnection(
+            MockSocketConnection(1, self.node, ip_address=LOCALHOST, port=9000), self.node
+        )
         self.neutrality_service.propagate_block_to_network(block_message, connection, block_info)
 
         self.assertEqual(1, len(self.node.broadcast_messages))

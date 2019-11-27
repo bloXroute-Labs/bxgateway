@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -29,23 +29,24 @@ class BtcGatewayNode(AbstractGatewayNode):
             self.opts
         )
 
-    def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                    from_me: bool) -> AbstractGatewayBlockchainConnection:
-        return BtcNodeConnection(socket_connection, address, self, from_me)
+    def build_blockchain_connection(
+            self, socket_connection: SocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
+        return BtcNodeConnection(socket_connection, self)
 
-    def build_relay_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                               from_me: bool) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
         if TestModes.DROPPING_TXS in self.opts.test_mode:
             cls = BtcLossyRelayConnection
         else:
             cls = BtcRelayConnection
 
-        relay_connection = cls(socket_connection, address, self, from_me)
+        relay_connection = cls(socket_connection, self)
         return relay_connection
 
-    def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                           from_me: bool) -> AbstractGatewayBlockchainConnection:
-        return BtcRemoteConnection(socket_connection, address, self, from_me)
+    def build_remote_blockchain_connection(
+            self, socket_connection: SocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
+        return BtcRemoteConnection(socket_connection, self)
 
     def build_block_queuing_service(self) -> BlockQueuingService:
         return BtcBlockQueuingService(self)

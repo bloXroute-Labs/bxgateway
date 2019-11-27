@@ -1,11 +1,11 @@
-import socket
 import time
 import typing
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
+from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import stats_format, hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -17,36 +17,39 @@ if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
+GatewayNode = TypeVar("GatewayNode", bound="AbstractGatewayNode")
+
 logger = logging.get_logger(__name__)
 
 
-class AbstractGatewayBlockchainConnection(AbstractConnection["AbstractGatewayNode"]):
+class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
     CONNECTION_TYPE = ConnectionType.BLOCKCHAIN_NODE
 
-    def __init__(self, sock, address, node, from_me=False):
-        super(AbstractGatewayBlockchainConnection, self).__init__(sock, address, node, from_me)
+    def __init__(self, sock: SocketConnectionProtocol, node: GatewayNode):
+        super(AbstractGatewayBlockchainConnection, self).__init__(sock, node)
 
         if node.opts.tune_send_buffer_size:
             # Requires OS tuning (for Linux here; MacOS and windows require different commands):
             # echo 'net.core.wmem_max=16777216' >> /etc/sysctl.conf && sysctl -p
             # cat /proc/sys/net/core/wmem_max # to check
-            previous_buffer_size = sock.socket_instance.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
+            previous_buffer_size = sock.transport.get_write_buffer_size()
             try:
-                sock.socket_instance.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF,
-                                                gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE)
-                self.log_debug("Setting socket send buffer size for blockchain connection to {}",
-                               sock.socket_instance.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF))
+                sock.transport.set_write_buffer_limits(high=gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE)
+                self.log_debug(
+                    "Setting socket send buffer size for blockchain connection to {}",
+                    sock.transport.get_write_buffer_size()
+                )
             except Exception as e:
                 self.log_warning("Could not set socket send buffer size: {}", e)
 
             # Linux systems generally set the value to 2x what was passed in, so just make sure
             # the socket buffer is at least the size set
-            set_buffer_size = sock.socket_instance.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)
+            set_buffer_size = sock.transport.get_write_buffer_size()
             if set_buffer_size < gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE:
                 self.log_warning(
                     "Socket buffer size set was unsuccessful, and was instead set to {}. Reverting to: {}",
                     set_buffer_size, previous_buffer_size)
-                sock.socket_instance.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, previous_buffer_size)
+                sock.transport.set_write_buffer_limits(high=previous_buffer_size)
 
         self.connection_protocol = None
         self.is_server = False

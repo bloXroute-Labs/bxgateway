@@ -1,8 +1,8 @@
 from collections import deque
-from typing import Tuple, Optional, List
+from typing import Optional, List
 
 from bxcommon import constants
-from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
@@ -67,28 +67,27 @@ class EthGatewayNode(AbstractGatewayNode):
 
         self.message_converter = EthMessageConverter()
 
-        logger.info("Gateway enode url: {}", self.get_enode())
-
-    def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                    from_me: bool) -> AbstractGatewayBlockchainConnection:
+    def build_blockchain_connection(
+            self, socket_connection: SocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
         if self._is_in_local_discovery():
-            return EthNodeDiscoveryConnection(socket_connection, address, self, from_me)
+            return EthNodeDiscoveryConnection(socket_connection, self)
         else:
-            return EthNodeConnection(socket_connection, address, self, from_me)
+            return EthNodeConnection(socket_connection, self)
 
-    def build_relay_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                               from_me: bool) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
         if TestModes.DROPPING_TXS in self.opts.test_mode:
             cls = EthLossyRelayConnection
         else:
             cls = EthRelayConnection
 
-        relay_connection = cls(socket_connection, address, self, from_me)
+        relay_connection = cls(socket_connection, self)
         return relay_connection
 
-    def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                           from_me: bool) -> AbstractGatewayBlockchainConnection:
-        return EthRemoteConnection(socket_connection, address, self, from_me)
+    def build_remote_blockchain_connection(
+            self, socket_connection: SocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
+        return EthRemoteConnection(socket_connection, self)
 
     def build_block_queuing_service(self) -> BlockQueuingService:
         return EthBlockQueuingService(self)

@@ -8,7 +8,7 @@ from bxutils import logging
 from bxcommon.test_utils import helpers
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.constants import LOCALHOST
-from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -30,16 +30,17 @@ class NullGatewayNode(AbstractGatewayNode):
         helpers.set_extensions_parallelism()
         super().__init__(opts)
 
-    def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                    from_me: bool) -> AbstractGatewayBlockchainConnection:
+    def build_blockchain_connection(
+            self, socket_connection: SocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
         return NullConnection
 
-    def build_relay_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                               from_me: bool) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
         return NullConnection
 
-    def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                           from_me: bool) -> AbstractGatewayBlockchainConnection:
+    def build_remote_blockchain_connection(
+            self, socket_connection: SocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
         return NullConnection
 
     def send_request_for_relay_peers(self):

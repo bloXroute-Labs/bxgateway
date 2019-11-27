@@ -22,7 +22,7 @@ class EthNodeConnectionTest(AbstractTestCase):
             helpers.set_extensions_parallelism()
         self.node = EthGatewayNode(opts)
         self.connection_fileno = 1
-        self.connection = helpers.create_connection(EthNodeConnection, node=self.node, fileno=self.connection_fileno)
+        self.connection = helpers.create_connection(EthNodeConnection, node=self.node, file_no=self.connection_fileno)
 
         cipher1, cipher2 = AbstractRLPxCipherTest().setup_ciphers()
         self.connection.connection_protocol.rlpx_cipher = cipher1

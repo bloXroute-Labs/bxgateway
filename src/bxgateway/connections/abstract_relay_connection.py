@@ -12,6 +12,7 @@ from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.messages.validation.message_size_validation_settings import MessageSizeValidationSettings
+from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.utils import convert
 from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import hooks
@@ -29,8 +30,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     CONNECTION_TYPE = ConnectionType.RELAY_ALL
 
-    def __init__(self, sock, address, node, from_me=False):
-        super(AbstractRelayConnection, self).__init__(sock, address, node, from_me=from_me)
+    def __init__(self, sock: SocketConnectionProtocol, node: "AbstractGatewayNode"):
+        super(AbstractRelayConnection, self).__init__(sock, node)
 
         hello_msg = HelloMessage(protocol_version=self.protocol_version, network_num=self.network_num,
                                  node_id=self.node.opts.node_id)

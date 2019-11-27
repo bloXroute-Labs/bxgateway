@@ -1,4 +1,5 @@
 import time
+import typing
 from typing import List, TYPE_CHECKING, Union
 
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -84,7 +85,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         )
 
         if self.connection.is_active():
-            self.connection.node.on_blockchain_connection_ready(self.connection)
+            self.node.on_blockchain_connection_ready(self.connection)
 
     def msg_inv(self, msg: InvBtcMessage) -> None:
         """

@@ -1,6 +1,4 @@
 import time
-from typing import Tuple
-
 from mock import MagicMock, call
 
 from bxcommon.network.socket_connection_state import SocketConnectionState
@@ -8,10 +6,10 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
-from bxcommon.constants import LOCALHOST, MAX_CONNECT_RETRIES, SDN_CONTACT_RETRY_SECONDS
+from bxcommon.constants import LOCALHOST, MAX_CONNECT_RETRIES
 from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
-from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.services import sdn_http_service
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -29,17 +27,18 @@ from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
 
 
 class GatewayNode(AbstractGatewayNode):
-    def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                    from_me: bool) -> AbstractGatewayBlockchainConnection:
-        return BtcNodeConnection(socket_connection, address, self, from_me)
+    def build_blockchain_connection(
+            self, socket_connection: SocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
+        return BtcNodeConnection(socket_connection, self)
 
-    def build_relay_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                               from_me: bool) -> AbstractRelayConnection:
-        return BtcRelayConnection(socket_connection, address, self, from_me)
+    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
+        return BtcRelayConnection(socket_connection, self)
 
-    def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                           from_me: bool) -> AbstractGatewayBlockchainConnection:
-        return BtcRemoteConnection(socket_connection, address, self, from_me)
+    def build_remote_blockchain_connection(
+            self, socket_connection: SocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
+        return BtcRemoteConnection(socket_connection, self)
 
 
 def initialize_split_relay_node():
@@ -57,8 +56,8 @@ def initialize_split_relay_node():
         call(LOCALHOST, 8001),
         call(LOCALHOST, 8002),
     ], any_order=True)
-    node.on_connection_added(MockSocketConnection(1), LOCALHOST, 8001, True)
-    node.on_connection_added(MockSocketConnection(2), LOCALHOST, 8002, True)
+    node.on_connection_added(MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001))
+    node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
 
     node.alarm_queue = AlarmQueue()
     node.enqueue_connection.reset_mock()
@@ -104,11 +103,13 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = GatewayNode(opts)
         node.enqueue_connection = MagicMock()
         node.alarm_queue.register_alarm = MagicMock()
+        node.alarm_queue.register_approx_alarm = MagicMock()
 
-        mock_socket = MockSocketConnection(7)
-        node.on_connection_added(mock_socket, LOCALHOST, 8001, True)
+        mock_socket = MockSocketConnection(7, node, ip_address=LOCALHOST, port=8001)
+        node.on_connection_added(mock_socket)
         cli_peer_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
         node.num_retries_by_ip[(LOCALHOST, 8001)] = MAX_CONNECT_RETRIES
+        cli_peer_conn.state = ConnectionState.CONNECTING
         node._connection_timeout(cli_peer_conn)
         self.assertTrue(mock_socket.state & SocketConnectionState.MARK_FOR_CLOSE)
 
@@ -132,7 +133,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel(LOCALHOST, 8003, "12345")
         ])
 
-        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8002, True)
+        node.on_connection_added(MockSocketConnection(node=node, ip_address=LOCALHOST, port=8002))
         not_cli_peer_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
         not_cli_peer_conn.mark_for_close(False)
         node._destroy_conn(not_cli_peer_conn)
@@ -154,7 +155,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)
-        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, False)
+        node.on_connection_added(MockSocketConnection(node=node, ip_address=LOCALHOST, port=8001))
 
         opts_connection = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
         self.assertIsNone(node.get_preferred_gateway_connection())
@@ -171,8 +172,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel(LOCALHOST, 8002, is_internal_gateway=True)
         ]
 
-        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, False)
-        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8002, False)
+        node.on_connection_added(MockSocketConnection(node=node, ip_address=LOCALHOST, port=8001))
+        node.on_connection_added(MockSocketConnection(node=node, ip_address=LOCALHOST, port=8002))
 
         other_connection = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
         other_connection.state |= ConnectionState.ESTABLISHED
@@ -203,13 +204,13 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             call(LOCALHOST, 8002),
         ], any_order=True)
 
-        node.on_connection_added(MockSocketConnection(1), LOCALHOST, 8001, True)
+        node.on_connection_added(MockSocketConnection(1, ip_address=LOCALHOST, port=8001))
         self.assertEqual(1, len(node.connection_pool))
         self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)))
         self.assertEqual(0, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION)))
         self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
 
-        node.on_connection_added(MockSocketConnection(2), LOCALHOST, 8002, True)
+        node.on_connection_added(MockSocketConnection(2, ip_address=LOCALHOST, port=8002))
         self.assertEqual(2, len(node.connection_pool))
         self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)))
         self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION)))
@@ -220,7 +221,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         relay_block_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
         relay_block_conn.mark_for_close()
-        node.on_connection_closed(relay_block_conn.fileno)
 
         self.assertEqual(2, len(node.alarm_queue.alarms))
         self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[1].alarm.fn)
@@ -235,7 +235,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         relay_tx_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
         relay_tx_conn.mark_for_close()
-        node.on_connection_closed(relay_tx_conn.fileno)
 
         self.assertEqual(2, len(node.alarm_queue.alarms))
         self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[1].alarm.fn)
@@ -256,7 +255,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(True, node.continue_retrying_connection(LOCALHOST, 8002, relay_transaction_conn.CONNECTION_TYPE))
 
         relay_block_conn.mark_for_close()
-        node.on_connection_closed(relay_block_conn.fileno)
 
         sdn_http_service.submit_peer_connection_error_event.called_once_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
@@ -275,9 +273,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(False, node.continue_retrying_connection(LOCALHOST, 8002, relay_transaction_conn.CONNECTION_TYPE))
 
         relay_transaction_conn.mark_for_close()
-        node.on_connection_closed(relay_transaction_conn.fileno)
 
-        sdn_http_service.submit_peer_connection_error_event.assert_called_once_with(node.opts.node_id, LOCALHOST, 8002)
+        sdn_http_service.submit_peer_connection_error_event.assert_called_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
         self.assertTrue(relay_block_conn.socket_connection.state & SocketConnectionState.MARK_FOR_CLOSE)
@@ -296,7 +293,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(1, len(node.node_msg_queue._queue))
         self.assertEqual(queued_message, node.node_msg_queue._queue[0])
 
-        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, True)
+        node.on_connection_added(MockSocketConnection(ip_address=LOCALHOST, port=8001))
         next_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
         next_conn.outputbuf = OutputBuffer()  # clear buffer
 
@@ -307,7 +304,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = self._initialize_gateway(True, True)
         blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
         blockchain_conn.mark_for_close()
-        node._destroy_conn(blockchain_conn)
 
         self.assertIsNone(node.node_conn)
 
@@ -320,7 +316,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         time.time = MagicMock(return_value=time.time() + node.opts.blockchain_message_ttl + 0.1)
         node.alarm_queue.fire_alarms()
 
-        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, True)
+        node.on_connection_added(MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001))
         next_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
         next_conn.outputbuf = OutputBuffer()  # clear buffer
 
@@ -328,7 +324,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(0, next_conn.outputbuf.length)
 
         next_conn.mark_for_close()
-        node._destroy_conn(next_conn)
 
         self.assertIsNone(node.node_conn)
 
@@ -337,7 +332,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(1, len(node.node_msg_queue._queue))
         self.assertEqual(queued_message, node.node_msg_queue._queue[0])
 
-        node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, True)
+        node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8001))
         reestablished_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
         reestablished_conn.outputbuf = OutputBuffer()  # clear buffer
 
@@ -363,7 +358,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
         blockchain_conn.mark_for_close()
-        node._destroy_conn(blockchain_conn)
 
         self.assertIsNone(node.node_conn)
 
@@ -382,7 +376,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         relay_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
         # skip retries
         relay_conn.mark_for_close(False)
-        node._destroy_conn(relay_conn)
 
         time.time = MagicMock(return_value=time.time() + gateway_constants.INITIAL_LIVELINESS_CHECK_S)
         node.alarm_queue.fire_alarms()
@@ -403,20 +396,18 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = GatewayNode(opts)
 
         if initialize_blockchain_conn:
-            node.on_connection_added(MockSocketConnection(), LOCALHOST, 8001, True)
+            node.on_connection_added(MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001))
             self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
             blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
 
             node.on_blockchain_connection_ready(blockchain_conn)
-            node.on_connection_initialized(blockchain_conn.fileno)
             self.assertIsNone(node._blockchain_liveliness_alarm)
 
         if initialize_relay_conn:
-            node.on_connection_added(MockSocketConnection(), LOCALHOST, 8002, True)
+            node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
             self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
             relay_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
 
-            node.on_connection_initialized(relay_conn.fileno)
             node.on_relay_connection_ready()
             self.assertIsNone(node._relay_liveliness_alarm)
 

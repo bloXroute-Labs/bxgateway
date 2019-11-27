@@ -43,8 +43,12 @@ class BtcRelayConnectionTest(AbstractTestCase):
         if opts.use_extensions:
             helpers.set_extensions_parallelism(opts.thread_pool_parallelism_degree)
         self.gateway_node = BtcGatewayNode(opts)
-        self.sut = BtcRelayConnection(MockSocketConnection(), (LOCALHOST, 8001), self.gateway_node)
-        self.gateway_node.node_conn = MockConnection(MockSocketConnection(1), (LOCALHOST, 8002), self.gateway_node)
+        self.sut = BtcRelayConnection(MockSocketConnection(
+            node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
+        )
+        self.gateway_node.node_conn = MockConnection(MockSocketConnection(
+            1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
+        )
         self.gateway_node.message_converter = converter_factory.create_btc_message_converter(
             12345, self.gateway_node.opts
         )

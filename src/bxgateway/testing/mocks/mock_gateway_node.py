@@ -1,11 +1,9 @@
 # pyre-ignore-all-errors
-from typing import Tuple
-
 from bxcommon.test_utils import helpers
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.node_type import NodeType
-from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.services.transaction_service import TransactionService
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -64,16 +62,17 @@ class MockGatewayNode(AbstractGatewayNode):
     def get_tx_service(self, _network_num=None):
         return self._tx_service
 
-    def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                    from_me: bool) -> AbstractGatewayBlockchainConnection:
+    def build_blockchain_connection(
+            self, socket_connection: SocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
         pass
 
-    def build_relay_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                               from_me: bool) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
         pass
 
-    def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                           from_me: bool) -> AbstractGatewayBlockchainConnection:
+    def build_remote_blockchain_connection(
+            self, socket_connection: SocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
         pass
 
     def _get_cleanup_service(self) -> AbstractBtcBlockCleanupService:
