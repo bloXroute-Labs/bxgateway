@@ -2,7 +2,7 @@
 from bxcommon.test_utils import helpers
 
 from bxcommon.connections.connection_type import ConnectionType
-from bxcommon.connections.node_type import NodeType
+from bxcommon.models.node_type import NodeType
 from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.services.transaction_service import TransactionService
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection

@@ -7,7 +7,7 @@ from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_type import ConnectionType
-from bxcommon.connections.node_type import NodeType
+from bxcommon.models.node_type import NodeType
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.node_event_model import NodeEventType

@@ -2,6 +2,7 @@
   "binary": ".venv/bin/pyre.bin",
   "search_path": [
     "../bxcommon/src",
+    "../bxcommon-internal/src",
     "../bxextensions/",
     ".venv/lib/python3.7/site-packages"
   ],
