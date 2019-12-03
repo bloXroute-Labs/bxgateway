@@ -1,3 +1,4 @@
+import asyncio
 import time
 from abc import ABCMeta, abstractmethod
 from argparse import Namespace
@@ -26,6 +27,8 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway.rpc.gateway_rpc_server import GatewayRpcServer
+
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -154,6 +157,8 @@ class AbstractGatewayNode(AbstractNode):
                                                           gateway_constants.BLOCK_CONFIRMATION_EXPIRE_TIME_S)
 
         self.message_converter = None
+        self.account_id: Optional[str] = None
+        self._rpc_server = GatewayRpcServer(self)
 
     @abstractmethod
     def build_blockchain_connection(
@@ -311,6 +316,21 @@ class AbstractGatewayNode(AbstractNode):
 
         return duration, relay_description
 
+    async def init(self) -> None:
+        try:
+            await self._rpc_server.start()
+        except Exception as e:
+            logger.error("Failed to initialize BDN RPC server: {}.", e, exc_info=True)
+
+    def close(self):
+        loop = asyncio.get_event_loop()
+        try:
+            # TODO: convert to proper async
+            loop.run_until_complete(self._rpc_server.stop())
+        except Exception as e:
+            logger.error("Failed to close BDN RPC server: {}.", e, exc_info=True)
+        super(AbstractGatewayNode, self).close()
+
     def _register_potential_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]):
         logger.trace("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
         best_relay_peer = network_latency.get_best_relay_by_ping_latency(potential_relay_peers)
@@ -353,26 +373,6 @@ class AbstractGatewayNode(AbstractNode):
                     return constants.SDN_CONTACT_RETRY_SECONDS
             else:
                 return constants.SDN_CONTACT_RETRY_SECONDS
-
-    def _send_request_for_gateway_peers(self):
-        """
-        Requests gateway peers from SDN. Merges list with provided command line gateways.
-        """
-        peer_gateways = sdn_http_service.fetch_gateway_peers(self.opts.node_id)
-        if not peer_gateways and not self.peer_gateways and \
-            self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
-            # Try again later
-            logger.warning("Did not receive expected gateway peers from BDN. Retrying.")
-            self.send_request_for_gateway_peers_num_of_calls += 1
-            if self.send_request_for_gateway_peers_num_of_calls == \
-                gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
-                logger.warning("Giving up on querying for gateway peers from the BDN.")
-            return constants.SDN_CONTACT_RETRY_SECONDS
-        else:
-            logger.debug("Processing updated peer gateways: {}", peer_gateways)
-            self._add_gateway_peers(peer_gateways)
-            self.on_updated_peers(self._get_all_peers())
-            self.send_request_for_gateway_peers_num_of_calls = 0
 
     def send_request_for_remote_blockchain_peer(self):
         """
@@ -589,6 +589,26 @@ class AbstractGatewayNode(AbstractNode):
             self.should_force_exit = True
             logger.error("Gateway does not have an active connection to the relay network. "
                          "There may be issues with the BDN. Exiting.")
+
+    def _send_request_for_gateway_peers(self):
+        """
+        Requests gateway peers from SDN. Merges list with provided command line gateways.
+        """
+        peer_gateways = sdn_http_service.fetch_gateway_peers(self.opts.node_id)
+        if not peer_gateways and not self.peer_gateways and \
+            self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+            # Try again later
+            logger.warning("Did not receive expected gateway peers from BDN. Retrying.")
+            self.send_request_for_gateway_peers_num_of_calls += 1
+            if self.send_request_for_gateway_peers_num_of_calls == \
+                gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+                logger.warning("Giving up on querying for gateway peers from the BDN.")
+            return constants.SDN_CONTACT_RETRY_SECONDS
+        else:
+            logger.debug("Processing updated peer gateways: {}", peer_gateways)
+            self._add_gateway_peers(peer_gateways)
+            self.on_updated_peers(self._get_all_peers())
+            self.send_request_for_gateway_peers_num_of_calls = 0
 
     def _get_all_peers(self):
         return list(self.peer_gateways.union(self.peer_relays).union(self.peer_transaction_relays))

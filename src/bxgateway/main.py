@@ -13,12 +13,13 @@ import sys
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
+from bxcommon.utils.node_start_args import NodeStartArgs
 from bxgateway import btc_constants, gateway_constants, eth_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
-from bxgateway.utils import node_cache
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.gateway_opts import GatewayOpts
+from bxgateway.utils.gateway_start_args import GatewayStartArgs
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -212,6 +213,20 @@ def get_opts() -> GatewayOpts:
                                  "when the flag is set to True",
                             type=convert.str_to_bool,
                             default=True)
+    default_rpc_port = config.get_env_default(GatewayStartArgs.GATEWAY_RPC_PORT)
+    arg_parser.add_argument(
+        "--rpc-port",
+        help=f"The Gateway RPC server port (default: {default_rpc_port})",
+        type=int,
+        default=default_rpc_port
+    )
+    default_rpc_host = config.get_env_default(GatewayStartArgs.GATEWAY_RPC_HOST)
+    arg_parser.add_argument(
+        "--rpc-host",
+        help=f"The Gateway RPC server port (default: {default_rpc_host})",
+        type=str,
+        default=default_rpc_host
+    )
 
     opts = GatewayOpts(cli.parse_arguments(arg_parser))
     config.set_data_directory(opts.data_dir)

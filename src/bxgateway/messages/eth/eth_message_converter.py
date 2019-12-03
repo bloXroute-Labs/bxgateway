@@ -2,8 +2,9 @@ import datetime
 import struct
 import time
 from collections import deque
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Union
 
+from bxcommon.models.tx_quota_type_model import TxQuotaType
 from bxutils import logging
 from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -20,6 +21,17 @@ from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.eth import rlp_utils
 
 logger = logging.get_logger(__name__)
+
+
+def raw_tx_to_bx_tx(
+        txs_bytes: Union[bytearray, memoryview], tx_start_index: int, network_num: int, quota_type: Optional[TxQuotaType] = None
+) -> Tuple[TxMessage, int, int]:
+    _, tx_item_length, tx_item_start = rlp_utils.consume_length_prefix(txs_bytes, tx_start_index)
+    tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
+    tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
+    msg_hash = Sha256Hash(tx_hash_bytes)
+    bx_tx = TxMessage(message_hash=msg_hash, network_num=network_num, tx_val=tx_bytes, quota_type=quota_type)
+    return bx_tx, tx_item_length, tx_item_start
 
 
 class EthMessageConverter(AbstractMessageConverter):
@@ -48,12 +60,8 @@ class EthMessageConverter(AbstractMessageConverter):
         tx_start_index = 0
 
         while True:
-            _, tx_item_length, tx_item_start = rlp_utils.consume_length_prefix(txs_bytes, tx_start_index)
-            tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
-            tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
-            msg_hash = Sha256Hash(tx_hash_bytes)
-            bx_tx_msg = TxMessage(message_hash=msg_hash, network_num=network_num, tx_val=tx_bytes)
-            bx_tx_msgs.append((bx_tx_msg, msg_hash, tx_bytes))
+            bx_tx, tx_item_length, tx_item_start = raw_tx_to_bx_tx(txs_bytes, tx_start_index, network_num)
+            bx_tx_msgs.append((bx_tx, bx_tx.message_hash(), bx_tx.tx_val()))
 
             tx_start_index = tx_item_start + tx_item_length
 
@@ -61,6 +69,17 @@ class EthMessageConverter(AbstractMessageConverter):
                 break
 
         return bx_tx_msgs
+
+    def bdn_tx_to_bx_tx(
+            self,
+            raw_tx: Union[bytes, bytearray, memoryview],
+            network_num: int,
+            quota_type: Optional[TxQuotaType] = None
+    ) -> TxMessage:
+        if isinstance(raw_tx, bytes):
+            raw_tx = bytearray(raw_tx)
+        bx_tx, _, _ = raw_tx_to_bx_tx(raw_tx, 0, network_num, quota_type)
+        return bx_tx
 
     def bx_tx_to_tx(self, bx_tx_msg):
         """

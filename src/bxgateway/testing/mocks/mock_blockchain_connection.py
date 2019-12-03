@@ -1,9 +1,11 @@
 # pyre-ignore-all-errors
 import datetime
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Union
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.block_hash_message import BlockHashMessage
+from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.models.tx_quota_type_model import TxQuotaType
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto, convert
 from bxcommon.utils.object_hash import Sha256Hash
@@ -17,6 +19,7 @@ class MockBlockMessage(BlockHashMessage):
 
 
 class MockMessageConverter(AbstractMessageConverter):
+
     PREV_BLOCK = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
 
     def tx_to_bx_txs(self, tx_msg, network_num):
@@ -34,6 +37,14 @@ class MockMessageConverter(AbstractMessageConverter):
                                                                    List[Sha256Hash]]:
         block_message = MockBlockMessage(buf=bx_block_msg)
         return block_message, block_message.block_hash(), [], []
+
+    def bdn_tx_to_bx_tx(
+            self,
+            raw_tx: Union[bytes, bytearray, memoryview],
+            network_num: int,
+            quota_type: Optional[TxQuotaType] = None
+    ) -> TxMessage:
+        return TxMessage(Sha256Hash(crypto.double_sha256(raw_tx)), network_num, tx_val=raw_tx)
 
 
 class MockBlockchainConnection(AbstractGatewayBlockchainConnection):

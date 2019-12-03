@@ -43,6 +43,7 @@ COPY --chown=bxgateway:bxgateway bxextensions/release/alpine-3.8 /app/bxextensio
 RUN chmod u+s /bin/ping
 
 WORKDIR /app/bxgateway
+EXPOSE 28332 28332
 ENV PYTHONPATH=/app/bxcommon/src/:/app/bxcommon-internal/src/:/app/bxgateway/src/:/app/bxextensions/ \
     LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/app/bxextensions"
 ENTRYPOINT ["/sbin/tini", "--", "/bin/sh", "/usr/local/bin/docker-entrypoint.sh"]

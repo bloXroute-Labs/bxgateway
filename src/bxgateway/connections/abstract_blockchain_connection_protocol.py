@@ -2,7 +2,6 @@ import time
 from abc import ABCMeta, abstractmethod
 from typing import List, Union
 
-from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage

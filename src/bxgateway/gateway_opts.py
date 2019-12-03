@@ -11,6 +11,7 @@ from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
+
 @dataclass()
 class GatewayOpts(CommonOpts):
     blockchain_port: int
@@ -51,6 +52,8 @@ class GatewayOpts(CommonOpts):
     initial_liveliness_check: int
     config_update_interval: int
     require_blockchain_connection: bool
+    rpc_port: int
+    rpc_host: str
 
     def __init__(self, opts: Namespace):
 
@@ -108,6 +111,8 @@ class GatewayOpts(CommonOpts):
         self.initial_liveliness_check = opts.initial_liveliness_check
         self.config_update_interval = opts.config_update_interval
         self.require_blockchain_connection = opts.require_blockchain_connection
+        self.rpc_port = opts.rpc_port
+        self.rpc_host = opts.rpc_host
         # do rest of validation
         if self.blockchain_protocol == "ethereum":
             self.validate_eth_opts()
