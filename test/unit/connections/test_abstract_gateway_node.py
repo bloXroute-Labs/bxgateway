@@ -222,8 +222,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         relay_block_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
         relay_block_conn.mark_for_close()
 
-        self.assertEqual(2, len(node.alarm_queue.alarms))
-        self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[1].alarm.fn)
+        self.assertEqual(1, len(node.alarm_queue.alarms))
+        self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[0].alarm.fn)
         self.assertEqual(True, node.continue_retrying_connection(LOCALHOST, 8001, relay_block_conn.CONNECTION_TYPE))
 
         time.time = MagicMock(return_value=time.time() + 1)
@@ -236,8 +236,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         relay_tx_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
         relay_tx_conn.mark_for_close()
 
-        self.assertEqual(2, len(node.alarm_queue.alarms))
-        self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[1].alarm.fn)
+        self.assertEqual(1, len(node.alarm_queue.alarms))
+        self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[0].alarm.fn)
         self.assertEqual(True, node.continue_retrying_connection(LOCALHOST, 8002, relay_tx_conn.CONNECTION_TYPE))
 
         time.time = MagicMock(return_value=time.time() + 1)

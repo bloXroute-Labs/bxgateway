@@ -42,6 +42,7 @@ from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.utils import configuration_utils
 from bxgateway.utils import node_cache
 from bxgateway.utils.blockchain_message_queue import BlockchainMessageQueue
+from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
 
@@ -159,6 +160,9 @@ class AbstractGatewayNode(AbstractNode):
         self.message_converter = None
         self.account_id: Optional[str] = None
         self._rpc_server = GatewayRpcServer(self)
+
+        status_log.initialize(self.opts.use_extensions, self.opts.source_version, self.opts.external_ip,
+                              self.opts.continent, self.opts.country)
 
     @abstractmethod
     def build_blockchain_connection(
@@ -407,6 +411,10 @@ class AbstractGatewayNode(AbstractNode):
         """
         ip, port = socket_connection.endpoint
         from_me = socket_connection.direction == NetworkDirection.OUTBOUND
+        self.alarm_queue.register_approx_alarm(2 * constants.MIN_SLEEP_TIMEOUT, constants.MIN_SLEEP_TIMEOUT,
+                                               status_log.update_alarm_callback, self.connection_pool,
+                                               self.opts.use_extensions, self.opts.source_version,
+                                               self.opts.external_ip, self.opts.continent, self.opts.country)
         if self.is_local_blockchain_address(ip, port):
             return self.build_blockchain_connection(socket_connection)
         elif self.remote_blockchain_ip == ip and self.remote_blockchain_port == port:
@@ -510,6 +518,10 @@ class AbstractGatewayNode(AbstractNode):
         self.cancel_relay_liveliness_check()
 
     def on_failed_connection_retry(self, ip: str, port: int, connection_type: ConnectionType) -> None:
+        self.alarm_queue.register_approx_alarm(2 * constants.MIN_SLEEP_TIMEOUT, constants.MIN_SLEEP_TIMEOUT,
+                                               status_log.update_alarm_callback, self.connection_pool,
+                                               self.opts.use_extensions, self.opts.source_version,
+                                               self.opts.external_ip, self.opts.continent, self.opts.country)
         if connection_type == ConnectionType.GATEWAY:
             self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
                                                  self.opts.node_id,
