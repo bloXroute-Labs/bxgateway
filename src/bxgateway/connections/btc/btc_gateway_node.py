@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Optional
 
 from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
@@ -16,11 +16,12 @@ from bxgateway.testing.btc_lossy_relay_connection import BtcLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 
 import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
+from bxutils.services.node_ssl_service import NodeSSLService
 
 
 class BtcGatewayNode(AbstractGatewayNode):
-    def __init__(self, opts):
-        super(BtcGatewayNode, self).__init__(opts)
+    def __init__(self, opts, node_ssl_service: Optional[NodeSSLService] = None):
+        super(BtcGatewayNode, self).__init__(opts, node_ssl_service)
 
         self.block_processing_service = BtcBlockProcessingService(self)
 

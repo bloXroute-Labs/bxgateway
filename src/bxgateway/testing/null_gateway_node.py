@@ -1,7 +1,7 @@
 # pyre-ignore-all-errors
 import socket
 from argparse import Namespace
-from typing import Tuple
+from typing import Tuple, Optional
 
 from bxutils import logging
 
@@ -13,6 +13,7 @@ from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
+from bxutils.services.node_ssl_service import NodeSSLService
 
 logger = logging.get_logger(__name__)
 
@@ -26,9 +27,9 @@ class NullGatewayNode(AbstractGatewayNode):
     """
     Test Gateway Node that doesn't connect use its blockchain or relay connection.
     """
-    def __init__(self, opts: Namespace):
+    def __init__(self, opts: Namespace, node_ssl_service: Optional[NodeSSLService] = None):
         helpers.set_extensions_parallelism()
-        super().__init__(opts)
+        super().__init__(opts, node_ssl_service)
 
     def build_blockchain_connection(
             self, socket_connection: SocketConnectionProtocol

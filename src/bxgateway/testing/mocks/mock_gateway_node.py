@@ -1,4 +1,6 @@
 # pyre-ignore-all-errors
+from typing import Optional
+
 from bxcommon.test_utils import helpers
 
 from bxcommon.connections.connection_type import ConnectionType
@@ -13,6 +15,7 @@ from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBt
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
+from bxutils.services.node_ssl_service import NodeSSLService
 
 
 class _MockCleanupService(AbstractBtcBlockCleanupService):
@@ -30,12 +33,12 @@ class _MockCleanupService(AbstractBtcBlockCleanupService):
 
 
 class MockGatewayNode(AbstractGatewayNode):
-    NODE_TYPE = NodeType.GATEWAY
+    NODE_TYPE = NodeType.EXTERNAL_GATEWAY
 
-    def __init__(self, opts):
+    def __init__(self, opts, node_ssl_service: Optional[NodeSSLService] = None):
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
-        super(MockGatewayNode, self).__init__(opts)
+        super(MockGatewayNode, self).__init__(opts, node_ssl_service)
 
         self.broadcast_messages = []
         self.send_to_node_messages = []

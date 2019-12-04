@@ -45,6 +45,7 @@ from bxgateway.utils.blockchain_message_queue import BlockchainMessageQueue
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
+from bxutils.services.node_ssl_service import NodeSSLService
 
 logger = logging.get_logger(__name__)
 
@@ -57,7 +58,7 @@ class AbstractGatewayNode(AbstractNode):
 
     __metaclass__ = ABCMeta
 
-    NODE_TYPE = NodeType.GATEWAY
+    NODE_TYPE = NodeType.EXTERNAL_GATEWAY
     RELAY_CONNECTION_CLS: ClassVar[Type[AbstractRelayConnection]] = None
 
     node_conn: Optional[AbstractGatewayBlockchainConnection] = None
@@ -87,8 +88,8 @@ class AbstractGatewayNode(AbstractNode):
     _block_from_node_handling_times: ExpiringDict[Sha256Hash, int]
     _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[int, str]]
 
-    def __init__(self, opts: Namespace):
-        super(AbstractGatewayNode, self).__init__(opts)
+    def __init__(self, opts: Namespace, node_ssl_service: Optional[NodeSSLService] = None):
+        super(AbstractGatewayNode, self).__init__(opts, node_ssl_service)
         if opts.split_relays:
             opts.peer_transaction_relays = [
                 OutboundPeerModel(peer_relay.ip, peer_relay.port + 1)

@@ -15,7 +15,6 @@ from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 class AbstractBlockCleanupServiceTest(AbstractTestCase, metaclass=ABCMeta):
 
     def setUp(self) -> None:
-        super(AbstractBlockCleanupServiceTest, self).setUp()
         self.block_confirmations_count = 3
         opts = helpers.get_gateway_opts(
             8000,
