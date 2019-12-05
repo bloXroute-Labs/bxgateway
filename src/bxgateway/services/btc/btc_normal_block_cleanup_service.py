@@ -40,7 +40,7 @@ class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):
 
         for tx in block_msg.txns():
             tx_hash = BtcObjectHash(buf=crypto.double_sha256(tx), length=BTC_SHA_HASH_LEN)
-            short_ids = transaction_service.remove_transaction_by_tx_hash(tx_hash)
+            short_ids = transaction_service.remove_transaction_by_tx_hash(tx_hash, force=True)
             if short_ids is None:
                 unknown_tx_hashes_count += 1
                 block_unknown_tx_hashes.append(tx_hash)
