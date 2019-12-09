@@ -68,6 +68,8 @@ class EthGatewayNode(AbstractGatewayNode):
 
         self.message_converter = EthMessageConverter()
 
+        logger.info("Gateway enode url: {}", self.get_enode())
+
     def build_blockchain_connection(
             self, socket_connection: SocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
