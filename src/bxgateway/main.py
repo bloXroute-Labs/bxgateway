@@ -13,7 +13,6 @@ import sys
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
-from bxcommon.utils.node_start_args import NodeStartArgs
 from bxgateway import btc_constants, gateway_constants, eth_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes

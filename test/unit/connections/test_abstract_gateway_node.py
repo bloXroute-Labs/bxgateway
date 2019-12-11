@@ -1,8 +1,11 @@
 import time
-
-from bxcommon.models.node_type import NodeType
+from argparse import Namespace
+from typing import Optional
 from mock import MagicMock, call
 
+from bxcommon.connections.abstract_connection import AbstractConnection
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
+from bxcommon.models.node_type import NodeType
 from bxcommon.network.socket_connection_state import SocketConnectionState
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon import constants
@@ -26,9 +29,25 @@ from bxgateway.connections.abstract_relay_connection import AbstractRelayConnect
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+from bxgateway.services.block_queuing_service import BlockQueuingService
+
+from bxutils.services.node_ssl_service import NodeSSLService
 
 
 class GatewayNode(AbstractGatewayNode):
+
+    def __init__(self, opts: Namespace, node_ssl_service: Optional[NodeSSLService] = None):
+        if node_ssl_service is None:
+            node_ssl_service = MockNodeSSLService(self.NODE_TYPE, MagicMock())
+        super().__init__(opts, node_ssl_service)
+
+    def build_block_queuing_service(self) -> BlockQueuingService:
+        pass
+
+    def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
+        pass
+
     def build_blockchain_connection(
             self, socket_connection: SocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
@@ -41,6 +60,9 @@ class GatewayNode(AbstractGatewayNode):
             self, socket_connection: SocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         return BtcRemoteConnection(socket_connection, self)
+
+    def _authenticate_connection(self, connection: Optional[AbstractConnection]) -> None:
+        pass
 
 
 def initialize_split_relay_node():
@@ -118,8 +140,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.on_connection_closed(mock_socket.fileno())
         # timeout is fib(3) == 3
         node.alarm_queue.register_alarm.assert_has_calls([call(3, node._retry_init_client_socket,
-                                                               LOCALHOST, 8001, ConnectionType.GATEWAY)])
-        node._retry_init_client_socket(LOCALHOST, 8001, ConnectionType.GATEWAY)
+                                                               LOCALHOST, 8001, ConnectionType.EXTERNAL_GATEWAY)])
+        node._retry_init_client_socket(LOCALHOST, 8001, ConnectionType.EXTERNAL_GATEWAY)
         self.assertEqual(MAX_CONNECT_RETRIES + 1, node.num_retries_by_ip[(LOCALHOST, 8001)])
 
     def test_gateway_peer_get_more_peers_when_too_few_gateways(self):
@@ -140,7 +162,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         not_cli_peer_conn.mark_for_close(False)
         node._destroy_conn(not_cli_peer_conn)
 
-        time.time = MagicMock(return_value=time.time() + constants.SDN_CONTACT_RETRY_SECONDS)
+        time.time = MagicMock(return_value=time.time() + constants.SDN_CONTACT_RETRY_SECONDS + 1)
         sdn_http_service.fetch_gateway_peers.assert_not_called()
         node.alarm_queue.fire_alarms()
 

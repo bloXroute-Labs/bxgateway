@@ -3,6 +3,7 @@ from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.socket_connection_state import SocketConnectionState
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.utils import convert
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
@@ -16,6 +17,8 @@ from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.utils.eth import crypto_utils
 from unittest import skip
+
+from mock import MagicMock
 
 
 class EthGatewayNodeTest(AbstractTestCase):
@@ -137,7 +140,8 @@ class EthGatewayNodeTest(AbstractTestCase):
                                         include_default_eth_args=True, pub_key=pub_key, no_discovery=not initialize_handshake)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
-        self.node = EthGatewayNode(opts)
+        node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
+        self.node = EthGatewayNode(opts, node_ssl_service)
         self.assertTrue(self.node)
 
         return self.node

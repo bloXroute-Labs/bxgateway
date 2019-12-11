@@ -1,5 +1,6 @@
-from typing import Tuple, Optional
+from typing import Optional
 
+from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -20,7 +21,7 @@ from bxutils.services.node_ssl_service import NodeSSLService
 
 
 class BtcGatewayNode(AbstractGatewayNode):
-    def __init__(self, opts, node_ssl_service: Optional[NodeSSLService] = None):
+    def __init__(self, opts, node_ssl_service: NodeSSLService):
         super(BtcGatewayNode, self).__init__(opts, node_ssl_service)
 
         self.block_processing_service = BtcBlockProcessingService(self)

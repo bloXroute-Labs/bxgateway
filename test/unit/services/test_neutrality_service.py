@@ -35,7 +35,7 @@ class NeutralityServiceTest(AbstractTestCase):
     BYTE_BLOCK = helpers.generate_bytearray(29) + b'\x01'
     BLOCK_HASH = Sha256Hash(crypto.double_sha256(b"123"))
     KEY_HASH = crypto.double_sha256(b"234")
-    MOCK_CONNECTION = mock_connection(connection_type=ConnectionType.GATEWAY)
+    MOCK_CONNECTION = mock_connection(connection_type=ConnectionType.EXTERNAL_GATEWAY)
 
     def setUp(self):
         self.node = MockGatewayNode(helpers.get_gateway_opts(8000,
@@ -165,7 +165,7 @@ class NeutralityServiceTest(AbstractTestCase):
     def _add_num_gateway_connections(self, count):
         for i in range(count):
             self.node.connection_pool.add(i, LOCALHOST, 8000 + i,
-                                          mock_connection(connection_type=ConnectionType.GATEWAY))
+                                          mock_connection(connection_type=ConnectionType.EXTERNAL_GATEWAY))
 
     def _assert_broadcast_key(self):
         key_messages = list(filter(lambda broadcasted: broadcasted[0].msg_type() == BloxrouteMessageType.KEY,

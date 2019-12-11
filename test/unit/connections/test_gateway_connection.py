@@ -1,4 +1,5 @@
 from mock import MagicMock
+from collections import defaultdict
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.connections.connection_pool import ConnectionPool
@@ -23,8 +24,6 @@ from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.blockchain_sync_service import BlockchainSyncService
 from bxgateway.services.neutrality_service import NeutralityService
 
-from typing import Dict, Tuple
-from collections import defaultdict
 
 def create_node(ip=LOCALHOST, port=8000) -> AbstractGatewayNode:
     node = MagicMock(spec=AbstractGatewayNode)

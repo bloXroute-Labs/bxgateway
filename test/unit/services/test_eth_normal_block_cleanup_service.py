@@ -1,6 +1,4 @@
 import os
-import random
-import typing
 
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers

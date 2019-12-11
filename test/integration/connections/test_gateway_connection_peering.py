@@ -21,8 +21,7 @@ def run_test(main_event_loop: NodeEventLoop, peer_event_loop: NodeEventLoop, tes
         await main_event_loop.run()
 
     async def run_test_async():
-        await peer_event_loop.wait_started()
-        await main_event_loop.wait_started()
+        await asyncio.gather(peer_event_loop.wait_started(), main_event_loop.wait_started())
         test_function()
         main_event_loop.stop()
         peer_event_loop.stop()
@@ -47,7 +46,7 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
         self.main_gateway = NullGatewayNode(self.main_opts)
         self.main_event_loop = NodeEventLoop(self.main_gateway)
 
-        self.peer_opts = helpers.get_gateway_opts(self.peer_port, node_id="peer")
+        self.peer_opts = helpers.get_gateway_opts(self.peer_port, node_id="peer", non_ssl_port=9002)
         self.peer_gateway = NullGatewayNode(self.peer_opts)
         self.peer_event_loop = NodeEventLoop(self.peer_gateway)
 

@@ -1,5 +1,6 @@
 from typing import cast
 
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from mock import MagicMock
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -42,7 +43,8 @@ class BtcRelayConnectionTest(AbstractTestCase):
         opts = helpers.get_gateway_opts(8000, include_default_btc_args=True)
         if opts.use_extensions:
             helpers.set_extensions_parallelism(opts.thread_pool_parallelism_degree)
-        self.gateway_node = BtcGatewayNode(opts)
+        node_ssl_service = MockNodeSSLService(BtcGatewayNode.NODE_TYPE, MagicMock())
+        self.gateway_node = BtcGatewayNode(opts, node_ssl_service)
         self.sut = BtcRelayConnection(MockSocketConnection(
             node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
         )

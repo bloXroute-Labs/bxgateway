@@ -27,7 +27,7 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     Connection handler for Gateway-Gateway connections.
     """
 
-    CONNECTION_TYPE = ConnectionType.GATEWAY
+    CONNECTION_TYPE = ConnectionType.EXTERNAL_GATEWAY
 
     NULL_ORDERING = -1
     ACK_MESSAGE = AckMessage()
@@ -80,11 +80,11 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         port = msg.port()
         ordering = msg.ordering()
         peer_id = msg.node_id()
-
-        # naively set the the peer id to what reported
-        if peer_id is None:
-            self.log_warning("Received hello message without peer id.")
-        self.peer_id = peer_id
+        if not self._is_authenticated:
+            # naively set the the peer id to what reported
+            if peer_id is None:
+                self.log_warning("Received hello message without peer id.")
+            self.peer_id = peer_id
 
         if not self.from_me:
             self.log_trace("Connection established with peer: {}.", peer_id)

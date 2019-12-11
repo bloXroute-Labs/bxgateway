@@ -4,9 +4,9 @@ from abc import ABCMeta, abstractmethod
 from argparse import Namespace
 from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable
 
+from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
-from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.models.node_type import NodeType
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -90,7 +90,7 @@ class AbstractGatewayNode(AbstractNode):
     _block_from_node_handling_times: ExpiringDict[Sha256Hash, int]
     _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[int, str]]
 
-    def __init__(self, opts: Namespace, node_ssl_service: Optional[NodeSSLService] = None):
+    def __init__(self, opts: Namespace, node_ssl_service: NodeSSLService):
         super(AbstractGatewayNode, self).__init__(opts, node_ssl_service)
         if opts.split_relays:
             opts.peer_transaction_relays = [
@@ -541,7 +541,7 @@ class AbstractGatewayNode(AbstractNode):
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
                                                self.opts.external_ip, self.opts.continent, self.opts.country)
-        if connection_type == ConnectionType.GATEWAY:
+        if connection_type in ConnectionType.GATEWAY:
             self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
                                                  self.opts.node_id,
                                                  ip,

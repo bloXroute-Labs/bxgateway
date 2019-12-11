@@ -7,15 +7,19 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.models.node_type import NodeType
 from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
 from bxutils.services.node_ssl_service import NodeSSLService
+from mock import MagicMock
 
 
 class _MockCleanupService(AbstractBtcBlockCleanupService):
@@ -33,11 +37,14 @@ class _MockCleanupService(AbstractBtcBlockCleanupService):
 
 
 class MockGatewayNode(AbstractGatewayNode):
+
     NODE_TYPE = NodeType.EXTERNAL_GATEWAY
 
     def __init__(self, opts, node_ssl_service: Optional[NodeSSLService] = None):
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
+        if node_ssl_service is None:
+            node_ssl_service = MockNodeSSLService(self.NODE_TYPE, MagicMock())
         super(MockGatewayNode, self).__init__(opts, node_ssl_service)
 
         self.broadcast_messages = []
@@ -76,6 +83,12 @@ class MockGatewayNode(AbstractGatewayNode):
     def build_remote_blockchain_connection(
             self, socket_connection: SocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
+        pass
+
+    def build_block_queuing_service(self) -> BlockQueuingService:
+        pass
+
+    def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         pass
 
     def _get_cleanup_service(self) -> AbstractBtcBlockCleanupService:

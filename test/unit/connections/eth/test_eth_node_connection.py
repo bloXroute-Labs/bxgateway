@@ -1,5 +1,6 @@
 import time
 
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from mock import MagicMock
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -20,7 +21,8 @@ class EthNodeConnectionTest(AbstractTestCase):
                                  track_detailed_sent_messages=True)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
-        self.node = EthGatewayNode(opts)
+        node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
+        self.node = EthGatewayNode(opts, node_ssl_service)
         self.connection_fileno = 1
         self.connection = helpers.create_connection(EthNodeConnection, node=self.node, file_no=self.connection_fileno)
 

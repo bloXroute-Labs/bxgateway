@@ -5,10 +5,12 @@ from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_bx_messages import hello_message
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 
 from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.testing.mocks.mock_btc_messages import btc_version_message
+from mock import MagicMock
 
 
 class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
@@ -33,8 +35,9 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
                                         include_default_btc_args=True)
 
     def reinitialize_gateways(self, opts1, opts2):
-        self.node1 = BtcGatewayNode(opts1)
-        self.node2 = BtcGatewayNode(opts2)
+        node_ssl_service = MockNodeSSLService(BtcGatewayNode.NODE_TYPE, MagicMock())
+        self.node1 = BtcGatewayNode(opts1, node_ssl_service)
+        self.node2 = BtcGatewayNode(opts2, node_ssl_service)
 
         self.node1.peer_gateways = {OutboundPeerModel(LOCALHOST, 7002)}
         self.node1.peer_relays = {OutboundPeerModel(LOCALHOST, 7001)}

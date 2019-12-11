@@ -37,7 +37,7 @@ logger = logging.get_logger(__name__)
 
 
 class EthGatewayNode(AbstractGatewayNode):
-    def __init__(self, opts, node_ssl_service: Optional[NodeSSLService] = None):
+    def __init__(self, opts, node_ssl_service: NodeSSLService):
         super(EthGatewayNode, self).__init__(opts, node_ssl_service)
 
         self._node_public_key = None

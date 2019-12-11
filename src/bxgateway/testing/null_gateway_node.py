@@ -2,11 +2,11 @@
 import socket
 from argparse import Namespace
 from typing import Optional, List
+from mock import MagicMock
 
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.utils import convert
-from bxutils import logging
-
 from bxcommon.network.peer_info import ConnectionPeerInfo
 from bxcommon.test_utils import helpers
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -16,7 +16,11 @@ from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+from bxgateway.services.block_queuing_service import BlockQueuingService
+
 from bxutils.services.node_ssl_service import NodeSSLService
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -30,7 +34,10 @@ class NullGatewayNode(AbstractGatewayNode):
     """
     Test Gateway Node that doesn't connect use its blockchain or relay connection.
     """
+
     def __init__(self, opts: Namespace, node_ssl_service: Optional[NodeSSLService] = None):
+        if node_ssl_service is None:
+            node_ssl_service = MockNodeSSLService(self.NODE_TYPE, MagicMock())
         helpers.set_extensions_parallelism()
         super().__init__(opts, node_ssl_service)
 
@@ -50,6 +57,12 @@ class NullGatewayNode(AbstractGatewayNode):
     def send_request_for_relay_peers(self):
         return 0
 
+    def build_block_queuing_service(self) -> BlockQueuingService:
+        pass
+
+    def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
+        pass
+
     def _send_request_for_gateway_peers(self):
         return 0
 
@@ -58,6 +71,9 @@ class NullGatewayNode(AbstractGatewayNode):
             IpEndpoint(peer.ip, peer.port),
             convert.peer_node_to_connection_type(self.NODE_TYPE, peer.node_type)) for peer in self.outbound_peers
         ]
+
+    def _authenticate_connection(self, connection: Optional[AbstractConnection]) -> None:
+        pass
 
 
 class NullBlockchainNode:
