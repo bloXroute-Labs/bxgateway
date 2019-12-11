@@ -1,10 +1,13 @@
 # pyre-ignore-all-errors
 import socket
 from argparse import Namespace
-from typing import Tuple, Optional
+from typing import Optional, List
 
+from bxcommon.network.ip_endpoint import IpEndpoint
+from bxcommon.utils import convert
 from bxutils import logging
 
+from bxcommon.network.peer_info import ConnectionPeerInfo
 from bxcommon.test_utils import helpers
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.constants import LOCALHOST
@@ -50,8 +53,11 @@ class NullGatewayNode(AbstractGatewayNode):
     def _send_request_for_gateway_peers(self):
         return 0
 
-    def get_outbound_peer_addresses(self):
-        return [(peer.ip, peer.port) for peer in self.outbound_peers]
+    def get_outbound_peer_info(self) -> List[ConnectionPeerInfo]:
+        return [ConnectionPeerInfo(
+            IpEndpoint(peer.ip, peer.port),
+            convert.peer_node_to_connection_type(self.NODE_TYPE, peer.node_type)) for peer in self.outbound_peers
+        ]
 
 
 class NullBlockchainNode:

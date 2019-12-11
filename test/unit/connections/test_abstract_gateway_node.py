@@ -1,4 +1,6 @@
 import time
+
+from bxcommon.models.node_type import NodeType
 from mock import MagicMock, call
 
 from bxcommon.network.socket_connection_state import SocketConnectionState
@@ -42,7 +44,7 @@ class GatewayNode(AbstractGatewayNode):
 
 
 def initialize_split_relay_node():
-    relay_connections = [OutboundPeerModel(LOCALHOST, 8001)]
+    relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
     sdn_http_service.fetch_potential_relay_peers_by_network = MagicMock(return_value=relay_connections)
     network_latency.get_best_relay_by_ping_latency = MagicMock(return_value=relay_connections[0])
     opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
@@ -53,8 +55,8 @@ def initialize_split_relay_node():
 
     node.send_request_for_relay_peers()
     node.enqueue_connection.assert_has_calls([
-        call(LOCALHOST, 8001),
-        call(LOCALHOST, 8002),
+        call(LOCALHOST, 8001, ConnectionType.RELAY_BLOCK),
+        call(LOCALHOST, 8002, ConnectionType.RELAY_TRANSACTION),
     ], any_order=True)
     node.on_connection_added(MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001))
     node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
@@ -69,29 +71,29 @@ class AbstractGatewayNodeTest(AbstractTestCase):
     def test_gateway_peer_sdn_update(self):
         # handle duplicates, keeps old, self ip, and maintain peers from CLI
         peer_gateways = [
-            OutboundPeerModel(LOCALHOST, 8001),
-            OutboundPeerModel(LOCALHOST, 8002)
+            OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY),
+            OutboundPeerModel(LOCALHOST, 8002, node_type=NodeType.EXTERNAL_GATEWAY)
         ]
         opts = helpers.get_gateway_opts(8000, peer_gateways=peer_gateways)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)
-        node.peer_gateways.add(OutboundPeerModel(LOCALHOST, 8004))
+        node.peer_gateways.add(OutboundPeerModel(LOCALHOST, 8004, node_type=NodeType.EXTERNAL_GATEWAY))
 
         sdn_http_service.fetch_gateway_peers = MagicMock(return_value=[
-            OutboundPeerModel(LOCALHOST, 8000),
-            OutboundPeerModel(LOCALHOST, 8001),
-            OutboundPeerModel(LOCALHOST, 8003)
+            OutboundPeerModel(LOCALHOST, 8000, node_type=NodeType.EXTERNAL_GATEWAY),
+            OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY),
+            OutboundPeerModel(LOCALHOST, 8003, node_type=NodeType.EXTERNAL_GATEWAY)
         ])
 
         node._send_request_for_gateway_peers()
         self.assertEqual(4, len(node.outbound_peers))
         self.assertEqual(4, len(node.peer_gateways))
-        self.assertNotIn(OutboundPeerModel(LOCALHOST, 8000), node.peer_gateways)
-        self.assertIn(OutboundPeerModel(LOCALHOST, 8001), node.peer_gateways)
-        self.assertIn(OutboundPeerModel(LOCALHOST, 8002), node.peer_gateways)
-        self.assertIn(OutboundPeerModel(LOCALHOST, 8003), node.peer_gateways)
-        self.assertIn(OutboundPeerModel(LOCALHOST, 8004), node.peer_gateways)
+        self.assertNotIn(OutboundPeerModel(LOCALHOST, 8000, node_type=NodeType.EXTERNAL_GATEWAY), node.peer_gateways)
+        self.assertIn(OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY), node.peer_gateways)
+        self.assertIn(OutboundPeerModel(LOCALHOST, 8002, node_type=NodeType.EXTERNAL_GATEWAY), node.peer_gateways)
+        self.assertIn(OutboundPeerModel(LOCALHOST, 8003, node_type=NodeType.EXTERNAL_GATEWAY), node.peer_gateways)
+        self.assertIn(OutboundPeerModel(LOCALHOST, 8004, node_type=NodeType.EXTERNAL_GATEWAY), node.peer_gateways)
 
     def test_gateway_peer_never_destroy_cli_peer(self):
         peer_gateways = [
@@ -122,15 +124,15 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
     def test_gateway_peer_get_more_peers_when_too_few_gateways(self):
         peer_gateways = [
-            OutboundPeerModel(LOCALHOST, 8001),
+            OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY),
         ]
         opts = helpers.get_gateway_opts(8000, peer_gateways=peer_gateways, min_peer_gateways=2)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)
-        node.peer_gateways.add(OutboundPeerModel(LOCALHOST, 8002))
+        node.peer_gateways.add(OutboundPeerModel(LOCALHOST, 8002, node_type=NodeType.EXTERNAL_GATEWAY))
         sdn_http_service.fetch_gateway_peers = MagicMock(return_value=[
-            OutboundPeerModel(LOCALHOST, 8003, "12345")
+            OutboundPeerModel(LOCALHOST, 8003, "12345", node_type=NodeType.EXTERNAL_GATEWAY)
         ])
 
         node.on_connection_added(MockSocketConnection(node=node, ip_address=LOCALHOST, port=8002))
@@ -144,8 +146,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         sdn_http_service.fetch_gateway_peers.assert_has_calls([call(node.opts.node_id)])
         self.assertEqual(2, len(node.outbound_peers))
-        self.assertIn(OutboundPeerModel(LOCALHOST, 8001), node.outbound_peers)
-        self.assertIn(OutboundPeerModel(LOCALHOST, 8003, "12345"), node.outbound_peers)
+        self.assertIn(OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY), node.outbound_peers)
+        self.assertIn(
+            OutboundPeerModel(LOCALHOST, 8003, "12345", node_type=NodeType.EXTERNAL_GATEWAY), node.outbound_peers
+        )
 
     def test_get_preferred_gateway_connection_opts(self):
         opts_peer_gateways = [
@@ -185,7 +189,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(other_connection, node.get_preferred_gateway_connection())
 
     def test_split_relay_connection(self):
-        relay_connections = [OutboundPeerModel(LOCALHOST, 8001)]
+        relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
         sdn_http_service.fetch_potential_relay_peers_by_network = MagicMock(return_value=relay_connections)
         network_latency.get_best_relay_by_ping_latency = MagicMock(return_value=relay_connections[0])
         opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
@@ -200,8 +204,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(8002, next(iter(node.peer_transaction_relays)).port)
 
         node.enqueue_connection.assert_has_calls([
-            call(LOCALHOST, 8001),
-            call(LOCALHOST, 8002),
+            call(LOCALHOST, 8001, ConnectionType.RELAY_BLOCK),
+            call(LOCALHOST, 8002, ConnectionType.RELAY_TRANSACTION),
         ], any_order=True)
 
         node.on_connection_added(MockSocketConnection(1, ip_address=LOCALHOST, port=8001))
@@ -228,7 +232,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         time.time = MagicMock(return_value=time.time() + 1)
         node.alarm_queue.fire_alarms()
-        node.enqueue_connection.assert_called_once_with(LOCALHOST, 8001)
+        node.enqueue_connection.assert_called_once_with(LOCALHOST, 8001, relay_block_conn.CONNECTION_TYPE)
 
     def test_split_relay_reconnect_disconnect_transaction(self):
         node = initialize_split_relay_node()
@@ -242,7 +246,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         time.time = MagicMock(return_value=time.time() + 1)
         node.alarm_queue.fire_alarms()
-        node.enqueue_connection.assert_called_once_with(LOCALHOST, 8002)
+        node.enqueue_connection.assert_called_once_with(LOCALHOST, 8002, relay_tx_conn.CONNECTION_TYPE)
 
     def test_split_relay_no_reconnect_disconnect_block(self):
         sdn_http_service.submit_peer_connection_error_event = MagicMock()

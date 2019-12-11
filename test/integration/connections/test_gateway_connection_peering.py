@@ -1,6 +1,7 @@
 import asyncio
 from typing import Callable
 
+from bxcommon.models.node_type import NodeType
 from mock import MagicMock
 
 from bxcommon.connections.connection_state import ConnectionState
@@ -40,7 +41,8 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
         sdn_http_service.fetch_gateway_peers = MagicMock(return_value=[])
 
         self.main_opts = helpers.get_gateway_opts(
-            self.main_port, node_id="main", peer_gateways=[OutboundPeerModel(LOCALHOST, self.peer_port)]
+            self.main_port, node_id="main",
+            peer_gateways=[OutboundPeerModel(LOCALHOST, self.peer_port, node_type=NodeType.EXTERNAL_GATEWAY)]
         )
         self.main_gateway = NullGatewayNode(self.main_opts)
         self.main_event_loop = NodeEventLoop(self.main_gateway)

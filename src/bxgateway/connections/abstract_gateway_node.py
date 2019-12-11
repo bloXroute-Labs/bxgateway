@@ -13,13 +13,15 @@ from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
+from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.network_direction import NetworkDirection
+from bxcommon.network.peer_info import ConnectionPeerInfo
 from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.services import sdn_http_service
 from bxcommon.services.broadcast_service import BroadcastService
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
-from bxcommon.utils import network_latency, memory_utils
+from bxcommon.utils import network_latency, memory_utils, convert
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
@@ -92,7 +94,7 @@ class AbstractGatewayNode(AbstractNode):
         super(AbstractGatewayNode, self).__init__(opts, node_ssl_service)
         if opts.split_relays:
             opts.peer_transaction_relays = [
-                OutboundPeerModel(peer_relay.ip, peer_relay.port + 1)
+                OutboundPeerModel(peer_relay.ip, peer_relay.port + 1, node_type=NodeType.RELAY_TRANSACTION)
                 for peer_relay in opts.peer_relays
             ]
             opts.outbound_peers += opts.peer_transaction_relays
@@ -122,7 +124,9 @@ class AbstractGatewayNode(AbstractNode):
             if opts.remote_blockchain_peer is not None:
                 self.remote_blockchain_ip = opts.remote_blockchain_ip
                 self.remote_blockchain_port = opts.remote_blockchain_port
-                self.enqueue_connection(opts.remote_blockchain_ip, opts.remote_blockchain_port)
+                self.enqueue_connection(
+                    opts.remote_blockchain_ip, opts.remote_blockchain_port, ConnectionType.REMOTE_BLOCKCHAIN_NODE
+                )
             else:
                 # offset SDN calls so all the peers aren't queued up at the same time
                 self.alarm_queue.register_alarm(
@@ -347,9 +351,14 @@ class AbstractGatewayNode(AbstractNode):
             self.peer_relays.add(best_relay_peer)
             # Split relay mode always starts a transaction relay at one port number higher than the block relay
             if self.opts.split_relays:
-                self.peer_transaction_relays.add(OutboundPeerModel(best_relay_peer.ip, best_relay_peer.port + 1,
-                                                                   "{}-tx".format(best_relay_peer.node_id), False,
-                                                                   best_relay_peer.attributes))
+                self.peer_transaction_relays.add(OutboundPeerModel(
+                    best_relay_peer.ip,
+                    best_relay_peer.port + 1,
+                    "{}-tx".format(best_relay_peer.node_id),
+                    False,
+                    best_relay_peer.attributes,
+                    node_type=NodeType.RELAY_TRANSACTION
+                ))
         self.on_updated_peers(self._get_all_peers())
 
     def send_request_for_relay_peers(self):
@@ -392,11 +401,20 @@ class AbstractGatewayNode(AbstractNode):
             logger.debug("Processing remote blockchain peer: {}", remote_blockchain_peer)
             return self.on_updated_remote_blockchain_peer(remote_blockchain_peer)
 
-    def get_outbound_peer_addresses(self):
-        peers = [(peer.ip, peer.port) for peer in self.outbound_peers]
-        peers.append((self.opts.blockchain_ip, self.opts.blockchain_port))
+    def get_outbound_peer_info(self) -> List[ConnectionPeerInfo]:
+        peers = [ConnectionPeerInfo(
+            IpEndpoint(peer.ip, peer.port),
+            convert.peer_node_to_connection_type(self.NODE_TYPE, peer.node_type))
+            for peer in self.outbound_peers
+        ]
+        peers.append(ConnectionPeerInfo(
+            IpEndpoint(self.opts.blockchain_ip, self.opts.blockchain_port), ConnectionType.BLOCKCHAIN_NODE
+        ))
         if self.remote_blockchain_ip is not None and self.remote_blockchain_port is not None:
-            peers.append((self.remote_blockchain_ip, self.remote_blockchain_port))
+            peers.append(ConnectionPeerInfo(
+                IpEndpoint(self.remote_blockchain_ip, self.remote_blockchain_port),
+                ConnectionType.REMOTE_BLOCKCHAIN_NODE)
+            )
         return peers
 
     def build_connection(self, socket_connection: SocketConnectionProtocol) -> Optional[AbstractConnection]:
@@ -547,7 +565,7 @@ class AbstractGatewayNode(AbstractNode):
     def on_updated_remote_blockchain_peer(self, outbound_peer):
         self.remote_blockchain_ip = outbound_peer.ip
         self.remote_blockchain_port = outbound_peer.port
-        self.enqueue_connection(outbound_peer.ip, outbound_peer.port)
+        self.enqueue_connection(outbound_peer.ip, outbound_peer.port, ConnectionType.REMOTE_BLOCKCHAIN_NODE)
 
     def on_block_seen_by_blockchain_node(self, block_hash: Sha256Hash):
         self.blocks_seen.add(block_hash)

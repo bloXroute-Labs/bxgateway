@@ -1,3 +1,5 @@
+from bxcommon.models.node_type import NodeType
+from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.socket_connection_state import SocketConnectionState
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
@@ -97,21 +99,19 @@ class EthGatewayNodeTest(AbstractTestCase):
         node = self._set_up_test_node(initiate_handshake, generate_pub_key=True)
         assert isinstance(node, EthGatewayNode)
 
-        peer_addresses = node.get_outbound_peer_addresses()
-        self.assertTrue(peer_addresses)
+        peer_connections = node.get_outbound_peer_info()
+        self.assertTrue(peer_connections)
 
-        self.assertEqual(len(self.servers) + 1, len(peer_addresses))
+        self.assertEqual(len(self.servers) + 1, len(peer_connections))
 
         server_index = 0
         for server in self.servers:
-            self.assertEqual(server.ip, peer_addresses[server_index][0])
-            self.assertEqual(server.port, peer_addresses[server_index][1])
+            self.assertEqual(IpEndpoint(server.ip, server.port), peer_connections[server_index].endpoint)
 
             server_index += 1
-
-        self.assertEqual(self.blockchain_ip, peer_addresses[len(self.servers)][0])
-        self.assertEqual(self.blockchain_port, peer_addresses[len(self.servers)][1])
-        self.assertEqual(expected_node_con_protocol, peer_addresses[len(self.servers)][2])
+        blockchain_connection = peer_connections[len(self.servers)]
+        self.assertEqual(IpEndpoint(self.blockchain_ip, self.blockchain_port), blockchain_connection.endpoint)
+        self.assertEqual(expected_node_con_protocol, blockchain_connection.transport_protocol)
 
     def _set_up_test_node(self, initialize_handshake, generate_pub_key=False):
         # Dummy address
@@ -123,9 +123,9 @@ class EthGatewayNodeTest(AbstractTestCase):
 
         # Setting up dummy server addresses
         self.servers = [
-            OutboundPeerModel("172.0.0.1", 2222),
-            OutboundPeerModel("172.0.0.2", 3333),
-            OutboundPeerModel("172.0.0.3", 4444)
+            OutboundPeerModel("172.0.0.1", 2222, node_type=NodeType.GATEWAY),
+            OutboundPeerModel("172.0.0.2", 3333, node_type=NodeType.GATEWAY),
+            OutboundPeerModel("172.0.0.3", 4444, node_type=NodeType.GATEWAY)
         ]
         if generate_pub_key:
             pub_key = convert.bytes_to_hex(self._get_dummy_public_key())

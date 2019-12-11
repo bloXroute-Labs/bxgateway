@@ -2,6 +2,9 @@ from collections import deque
 from typing import Optional, List
 
 from bxcommon import constants
+from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.network.ip_endpoint import IpEndpoint
+from bxcommon.network.peer_info import ConnectionPeerInfo
 from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.utils import convert
@@ -111,19 +114,29 @@ class EthGatewayNode(AbstractGatewayNode):
             self._remote_public_key = convert.hex_to_bytes(peer.attributes["node_public_key"])
             return constants.CANCEL_ALARMS
 
-    def get_outbound_peer_addresses(self):
+    def get_outbound_peer_info(self) -> List[ConnectionPeerInfo]:
         peers = []
 
         for peer in self.opts.outbound_peers:
-            peers.append((peer.ip, peer.port))
+            peers.append(ConnectionPeerInfo(
+                IpEndpoint(peer.ip, peer.port), convert.peer_node_to_connection_type(self.NODE_TYPE, peer.node_type)
+            ))
 
         local_protocol = TransportLayerProtocol.UDP if self._is_in_local_discovery() else TransportLayerProtocol.TCP
-        peers.append((self.opts.blockchain_ip, self.opts.blockchain_port, local_protocol))
+        peers.append(ConnectionPeerInfo(
+            IpEndpoint(self.opts.blockchain_ip, self.opts.blockchain_port),
+            ConnectionType.BLOCKCHAIN_NODE,
+            local_protocol
+        ))
 
         if self.remote_blockchain_ip is not None and self.remote_blockchain_port is not None:
             remote_protocol = TransportLayerProtocol.UDP if self._is_in_remote_discovery() else \
                 TransportLayerProtocol.TCP
-            peers.append((self.remote_blockchain_ip, self.remote_blockchain_port, remote_protocol))
+            peers.append(ConnectionPeerInfo(
+                IpEndpoint(self.remote_blockchain_ip, self.remote_blockchain_port),
+                ConnectionType.REMOTE_BLOCKCHAIN_NODE,
+                remote_protocol
+            ))
 
         return peers
 
@@ -147,7 +160,7 @@ class EthGatewayNode(AbstractGatewayNode):
         discovery_connection.mark_for_close(False)
 
         # establish TCP connection
-        self.enqueue_connection(self.opts.blockchain_ip, self.opts.blockchain_port)
+        self.enqueue_connection(self.opts.blockchain_ip, self.opts.blockchain_port, ConnectionType.BLOCKCHAIN_NODE)
 
     def set_remote_public_key(self, discovery_connection, remote_public_key):
         if not isinstance(discovery_connection, EthNodeDiscoveryConnection):
@@ -163,7 +176,9 @@ class EthGatewayNode(AbstractGatewayNode):
         discovery_connection.mark_for_close(False)
 
         # establish TCP connection
-        self.enqueue_connection(self.remote_blockchain_ip, self.remote_blockchain_port)
+        self.enqueue_connection(
+            self.remote_blockchain_ip, self.remote_blockchain_port, ConnectionType.REMOTE_BLOCKCHAIN_NODE
+        )
 
     def get_node_public_key(self):
         return self._node_public_key
