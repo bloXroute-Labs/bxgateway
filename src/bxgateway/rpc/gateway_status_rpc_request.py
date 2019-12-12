@@ -43,11 +43,13 @@ class GatewayStatusRpcRequest(AbstractRpcRequest):
         loop = asyncio.get_event_loop()
         opts = self._node.opts
         diagnostics = await loop.run_in_executor(
-            None,
-            status_log.update,
-            self._node.connection_pool,
+            self._node.requester.thread_pool,
+            status_log.get_diagnostics,
             opts.use_extensions,
-            opts.source_version
+            opts.source_version,
+            opts.external_ip,
+            opts.continent,
+            opts.country
         )
         if self._details_level == GatewayStatusDetailsLevel.SUMMARY:
             data = diagnostics.summary

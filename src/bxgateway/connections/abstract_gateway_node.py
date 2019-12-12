@@ -329,7 +329,7 @@ class AbstractGatewayNode(AbstractNode):
         try:
             await self._rpc_server.start()
         except Exception as e:
-            logger.error("Failed to initialize BDN RPC server: {}.", e, exc_info=True)
+            logger.error("Failed to initialize Gateway RPC server: {}.", e, exc_info=True)
 
     def close(self):
         loop = asyncio.get_event_loop()
@@ -337,7 +337,7 @@ class AbstractGatewayNode(AbstractNode):
             # TODO: convert to proper async
             loop.run_until_complete(self._rpc_server.stop())
         except Exception as e:
-            logger.error("Failed to close BDN RPC server: {}.", e, exc_info=True)
+            logger.error("Failed to close Gateway RPC server: {}.", e, exc_info=True)
         super(AbstractGatewayNode, self).close()
 
     def _register_potential_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]):

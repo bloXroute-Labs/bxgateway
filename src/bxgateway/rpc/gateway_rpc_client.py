@@ -7,17 +7,18 @@ import os
 from asyncio import StreamReader, StreamReaderProtocol, StreamWriter, CancelledError
 from asyncio.streams import FlowControlMixin
 from argparse import ArgumentParser, Namespace
+from json import JSONDecodeError
 from typing import Optional, Union, Dict, List, Any
 
 from aiohttp import ClientSession, ClientResponse, ClientConnectorError
-
-from bxcommon.utils import config
 
 from bxgateway.rpc.blxr_transaction_rpc_request import BlxrTransactionRpcRequest
 from bxgateway.rpc.gateway_status_rpc_request import GatewayStatusRpcRequest
 from bxgateway.rpc.rpc_request_handler import RPCRequestHandler
 from bxgateway.rpc.rpc_request_type import RpcRequestType
-from bxgateway.utils.gateway_start_args import GatewayStartArgs
+
+DEFAULT_RPC_PORT = 28332
+DEFAULT_RPC_HOST = "127.0.0.1"
 
 
 class GatewayRpcClient:
@@ -70,8 +71,12 @@ async def handle_command(opts: Namespace, client: GatewayRpcClient, stdout_write
     if opts.debug:
         stdout_writer.write(f"executing with opts: {opts}\n".encode("utf-8"))
     response: ClientResponse = await client.make_request(opts.method, opts.request_id, opts.request_params)
-    response_json = await response.json(content_type=RPCRequestHandler.PLAIN)
-    stdout_writer.write(json.dumps(response_json, indent=4, sort_keys=True).encode("utf-8"))
+    try:
+        response_json = await response.json(content_type=RPCRequestHandler.PLAIN)
+        response_text = json.dumps(response_json, indent=4, sort_keys=True)
+    except JSONDecodeError:
+        response_text = await response.text()
+    stdout_writer.write(response_text.encode("utf-8"))
     stdout_writer.write(b"\n")
     await stdout_writer.drain()
     await asyncio.sleep(0)
@@ -112,7 +117,7 @@ async def run_cli(
 def add_run_arguments(arg_parser: ArgumentParser) -> None:
     arg_parser.add_argument(
         "method",
-        help="The BDN RPC method (valid values: {}).".format(
+        help="The Gateway RPC method (valid values: {}).".format(
             [method.lower() for method in RpcRequestType.__members__.keys()]
         ),
         type=lambda t: RpcRequestType[t.upper()],
@@ -120,50 +125,48 @@ def add_run_arguments(arg_parser: ArgumentParser) -> None:
     )
     arg_parser.add_argument(
         "--request-id",
-        help="The BDN RPC request unique identifier (default: {}).".format(None),
+        help="The Gateway RPC request unique identifier (default: {}).".format(None),
         type=str,
         default=None
     )
     arg_parser.add_argument(
         "--request-params",
-        help="The BDN RPC request params (default: {}).".format(None),
+        help="The Gateway RPC request params (default: {}).".format(None),
         type=json.loads,
         default=None
     )
 
 
 def add_base_arguments(arg_parser: ArgumentParser) -> None:
-    default_rpc_host = config.get_env_default(GatewayStartArgs.GATEWAY_RPC_HOST)
     arg_parser.add_argument(
         "--rpc-host",
-        help="The BDN RPC host (default: {}).".format(default_rpc_host),
+        help="The Gateway RPC host (default: {}).".format(DEFAULT_RPC_HOST),
         type=str,
-        default=default_rpc_host
+        default=DEFAULT_RPC_HOST
     )
-    default_rpc_port = config.get_env_default(GatewayStartArgs.GATEWAY_RPC_PORT)
     arg_parser.add_argument(
         "--rpc-port",
-        help="The BDN RPC port (default: {}).".format(default_rpc_port),
+        help="The Gateway RPC port (default: {}).".format(DEFAULT_RPC_PORT),
         type=int,
-        default=default_rpc_port
+        default=DEFAULT_RPC_PORT
     )
     arg_parser.add_argument(
         "--interactive-shell",
-        help="Run the BDN RPC client in CLI mode (default: False)",
+        help="Run the Gateway RPC client in CLI mode (default: False)",
         action="store_true",
         default=False
     )
     arg_parser.add_argument(
         "--debug",
-        help="Run the BDN RPC client in debug mode (default: False)",
+        help="Run the Gateway RPC client in debug mode (default: False)",
         action="store_true",
         default=False
     )
 
 
 async def main():
-    arg_parser = ArgumentParser(prog="BDN RPC client")
-    cli_parser = ArgumentParser(prog="BDN RPC client")
+    arg_parser = ArgumentParser(prog="Gateway RPC client")
+    cli_parser = ArgumentParser(prog="Gateway RPC client")
     add_base_arguments(arg_parser)
     add_base_arguments(cli_parser)
     add_run_arguments(cli_parser)

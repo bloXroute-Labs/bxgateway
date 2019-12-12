@@ -49,8 +49,13 @@ def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, cou
     return diagnostics
 
 
-def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str) \
-        -> Diagnostics:
+def get_diagnostics(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str) -> Diagnostics:
+    return _load_status_from_file(use_ext, src_ver, ip_address, continent, country)
+
+
+def update(
+        conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str
+) -> Diagnostics:
     path = config.get_data_file(STATUS_FILE_NAME)
     if not os.path.exists(path):
         initialize(use_ext, src_ver, ip_address, continent, country)
