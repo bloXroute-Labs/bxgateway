@@ -167,7 +167,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.alarm_queue.fire_alarms()
 
         sdn_http_service.fetch_gateway_peers.assert_has_calls([call(node.opts.node_id)])
-        self.assertEqual(2, len(node.outbound_peers))
+        self.assertEqual(2, len([node for node in node.outbound_peers if node.node_type in NodeType.GATEWAY_TYPE]))
         self.assertIn(OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY), node.outbound_peers)
         self.assertIn(
             OutboundPeerModel(LOCALHOST, 8003, "12345", node_type=NodeType.EXTERNAL_GATEWAY), node.outbound_peers
