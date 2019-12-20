@@ -25,7 +25,7 @@ class NeutralityPolicy(object):
 
 
 # duration to wait for block receipts until timeout
-NEUTRALITY_BROADCAST_BLOCK_TIMEOUT_S = 30 * 60
+NEUTRALITY_BROADCAST_BLOCK_TIMEOUT_S = 3
 
 NEUTRALITY_POLICY = NeutralityPolicy.RECEIPT_PERCENT
 NEUTRALITY_EXPECTED_RECEIPT_COUNT = 1

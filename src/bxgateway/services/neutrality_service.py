@@ -74,15 +74,16 @@ class NeutralityService(object):
                 del self._receipt_tracker[cipher_hash]
                 del self._alarms[cipher_hash]
 
-    def propagate_block_to_network(self, bx_block, connection, block_info=None):
+    def propagate_block_to_network(self, bx_block, connection, block_info=None, from_peer=False):
         """
         Propagates encrypted block to bloXroute network and starts listening for block receipts.
         :param bx_block: compressed block
         :param connection: connection initiating propagation
         :param block_info: original block hash, only provided if this is the original block
+        :param from_peer: true if this message comes from another gateway. That means it is supposed to be encrypted
         :return: broadcast message
         """
-        if self._node.opts.encrypt_blocks:
+        if self._node.opts.encrypt_blocks or from_peer:
             broadcast_msg = self._propagate_encrypted_block_to_network(bx_block, connection, block_info)
         else:
             broadcast_msg = self._propagate_unencrypted_block_to_network(bx_block, connection, block_info)

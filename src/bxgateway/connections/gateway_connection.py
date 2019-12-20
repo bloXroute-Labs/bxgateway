@@ -161,7 +161,7 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                                                   BlockStatEventType.BX_BLOCK_PROPAGATION_REQUESTED_BY_PEER,
                                                   network_num=self.network_num,
                                                   more_info=stats_format.connection(self))
-        self.node.neutrality_service.propagate_block_to_network(bx_block, self)
+        self.node.neutrality_service.propagate_block_to_network(bx_block, self, from_peer=True)
 
     def msg_block_holding(self, msg):
         block_hash = msg.block_hash()
