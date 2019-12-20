@@ -13,7 +13,7 @@ import sys
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
-from bxgateway import btc_constants, gateway_constants, eth_constants
+from bxgateway import btc_constants, gateway_constants, eth_constants, ont_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
@@ -138,6 +138,19 @@ def get_opts() -> GatewayOpts:
                             help="Public key of remote bloXroute owned Ethereum node for encrypted communication "
                                  "during chainstate sync ",
                             type=str)
+
+    # Ontology specific
+    # TODO: Remove test only arguments
+    arg_parser.add_argument("--sync-port", help="Ontology sync port, the --nodeport value from ontology cli", type=int)
+    arg_parser.add_argument("--http-info-port", help="(TEST ONLY)Ontology http server port to view node information",
+                            type=int, default=config.get_env_default(GatewayStartArgs.HTTP_INFO_PORT))
+    arg_parser.add_argument("--consensus-port", help="Ontology consensus port", type=int,
+                            default=config.get_env_default(GatewayStartArgs.CONSENSUS_PORT))
+    arg_parser.add_argument("--relay", help="(TEST ONLY)Ontology relay state", type=convert.str_to_bool,
+                            default=config.get_env_default(GatewayStartArgs.RELAY_STATE))
+    arg_parser.add_argument("--is-consensus", help="(TEST ONLY)Ontology consensus node", type=convert.str_to_bool,
+                            default=config.get_env_default(GatewayStartArgs.IS_CONSENSUS))
+
     arg_parser.add_argument(
         "--compact-block",
         help="Specify either the gateway supports compact block message or not",

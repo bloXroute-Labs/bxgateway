@@ -54,6 +54,12 @@ class GatewayOpts(CommonOpts):
     require_blockchain_connection: bool
     rpc_port: int
     rpc_host: str
+    # Ontology specific
+    sync_port: int
+    http_info_port: int
+    consensus_port: int
+    relay: bool
+    is_consensus: bool
 
     def __init__(self, opts: Namespace):
 
@@ -113,6 +119,13 @@ class GatewayOpts(CommonOpts):
         self.require_blockchain_connection = opts.require_blockchain_connection
         self.rpc_port = opts.rpc_port
         self.rpc_host = opts.rpc_host
+        # Ontology specific
+        self.sync_port = opts.sync_port if opts.sync_port else opts.blockchain_port
+        self.http_info_port = opts.http_info_port
+        self.consensus_port = opts.consensus_port
+        self.relay = opts.relay
+        self.is_consensus = opts.is_consensus
+
         # do rest of validation
         if self.blockchain_protocol == "ethereum":
             self.validate_eth_opts()

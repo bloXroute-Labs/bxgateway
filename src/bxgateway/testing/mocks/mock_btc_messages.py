@@ -5,10 +5,9 @@ from bxcommon.utils import crypto, convert
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
+from bxgateway.messages.btc.tx_btc_message import TxBtcMessage, TxIn, TxOut
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
-from bxgateway.messages.btc.tx_btc_message import TxBtcMessage, TxIn, TxOut
 
 
 class RealBtcBlocks:
@@ -23,7 +22,7 @@ def btc_block(timestamp=None, real_block=None):
         return BlockBtcMessage(buf=bytearray(convert.hex_to_bytes(real_block)))
     if timestamp is None:
         timestamp = int(time.time())
-        
+
     magic = 12345
     version = 23456
     prev_block_hash = bytearray(crypto.double_sha256(b"123"))
@@ -42,8 +41,8 @@ def btc_version_message():
     return VersionBtcMessage(12345, 12345, LISTEN_ON_IP_ADDRESS, 1000, LISTEN_ON_IP_ADDRESS,
                              1000, 1, 2, b"bloxroute")
 
-def generate_btc_tx() -> TxBtcMessage:
 
+def generate_btc_tx() -> TxBtcMessage:
     inps = [TxIn(prev_outpoint_hash=bytearray("0" * 32, "utf-8"), prev_out_index=10, sig_script=bytearray(1000),
                  sequence=32)]
 

@@ -19,7 +19,6 @@ from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.utils.block_info import BlockInfo
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class CompactBlockCompressionResult:
@@ -49,7 +48,7 @@ class CompactBlockRecoveryData(NamedTuple):
 
 def get_block_info(
         bx_block: memoryview,
-        block_hash: BtcObjectHash,
+        block_hash: Sha256Hash,
         short_ids: List[int],
         decompress_start_datetime: datetime,
         decompress_start_timestamp: float,
