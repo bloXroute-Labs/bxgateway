@@ -41,12 +41,13 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
 
         self.main_opts = helpers.get_gateway_opts(
             self.main_port, node_id="main",
-            peer_gateways=[OutboundPeerModel(LOCALHOST, self.peer_port, node_type=NodeType.EXTERNAL_GATEWAY)]
+            peer_gateways=[OutboundPeerModel(LOCALHOST, self.peer_port, node_type=NodeType.EXTERNAL_GATEWAY)],
+            non_ssl_port=helpers.get_free_port()
         )
         self.main_gateway = NullGatewayNode(self.main_opts)
         self.main_event_loop = NodeEventLoop(self.main_gateway)
 
-        self.peer_opts = helpers.get_gateway_opts(self.peer_port, node_id="peer", non_ssl_port=9002)
+        self.peer_opts = helpers.get_gateway_opts(self.peer_port, node_id="peer", non_ssl_port=helpers.get_free_port())
         self.peer_gateway = NullGatewayNode(self.peer_opts)
         self.peer_event_loop = NodeEventLoop(self.peer_gateway)
 

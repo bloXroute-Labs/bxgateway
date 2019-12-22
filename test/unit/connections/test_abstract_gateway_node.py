@@ -4,6 +4,7 @@ from typing import Optional
 from mock import MagicMock, call
 
 from bxcommon.connections.abstract_connection import AbstractConnection
+from bxcommon.test_utils.helpers import async_test
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.models.node_type import NodeType
 from bxcommon.network.socket_connection_state import SocketConnectionState
@@ -144,7 +145,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node._retry_init_client_socket(LOCALHOST, 8001, ConnectionType.EXTERNAL_GATEWAY)
         self.assertEqual(MAX_CONNECT_RETRIES + 1, node.num_retries_by_ip[(LOCALHOST, 8001)])
 
-    def test_gateway_peer_get_more_peers_when_too_few_gateways(self):
+    @async_test
+    async def test_gateway_peer_get_more_peers_when_too_few_gateways(self):
         peer_gateways = [
             OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY),
         ]
@@ -160,7 +162,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.on_connection_added(MockSocketConnection(node=node, ip_address=LOCALHOST, port=8002))
         not_cli_peer_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
         not_cli_peer_conn.mark_for_close(False)
-        node._destroy_conn(not_cli_peer_conn)
 
         time.time = MagicMock(return_value=time.time() + constants.SDN_CONTACT_RETRY_SECONDS + 1)
         sdn_http_service.fetch_gateway_peers.assert_not_called()
@@ -288,7 +289,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertTrue(relay_transaction_conn.socket_connection.state & SocketConnectionState.MARK_FOR_CLOSE)
         self.assertTrue(relay_transaction_conn.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
 
-    def test_split_relay_no_reconnect_disconnect_transaction(self):
+    @async_test
+    async def test_split_relay_no_reconnect_disconnect_transaction(self):
         sdn_http_service.submit_peer_connection_error_event = MagicMock()
         node = initialize_split_relay_node()
         node.num_retries_by_ip[(LOCALHOST, 8002)] = constants.MAX_CONNECT_RETRIES
@@ -306,11 +308,11 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertTrue(relay_block_conn.socket_connection.state & SocketConnectionState.MARK_FOR_CLOSE)
         self.assertTrue(relay_block_conn.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
 
-    def test_queuing_messages_no_blockchain_connection(self):
+    @async_test
+    async def test_queuing_messages_no_blockchain_connection(self):
         node = self._initialize_gateway(True, True)
         blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
         blockchain_conn.mark_for_close()
-        node._destroy_conn(blockchain_conn)
 
         self.assertIsNone(node.node_conn)
 

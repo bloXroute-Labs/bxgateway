@@ -331,14 +331,12 @@ class AbstractGatewayNode(AbstractNode):
         except Exception as e:
             logger.error("Failed to initialize Gateway RPC server: {}.", e, exc_info=True)
 
-    def close(self):
-        loop = asyncio.get_event_loop()
+    async def close(self):
         try:
-            # TODO: convert to proper async
-            loop.run_until_complete(self._rpc_server.stop())
+            await self._rpc_server.stop()
         except Exception as e:
             logger.error("Failed to close Gateway RPC server: {}.", e, exc_info=True)
-        super(AbstractGatewayNode, self).close()
+        await super(AbstractGatewayNode, self).close()
 
     def _register_potential_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]):
         logger.trace("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
