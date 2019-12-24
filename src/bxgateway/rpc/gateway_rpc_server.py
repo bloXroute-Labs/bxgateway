@@ -83,7 +83,7 @@ class GatewayRpcServer:
     async def handle_get_request(self, request: Request) -> Response:
         return web.json_response({
             "required_request_type": "POST",
-            "required_headers":[{RPCRequestHandler.CONTENT_TYPE: RPCRequestHandler.PLAIN}],
+            "required_headers": [{RPCRequestHandler.CONTENT_TYPE: RPCRequestHandler.PLAIN}],
             "payload_structures": await self._handler.help()
         })
 

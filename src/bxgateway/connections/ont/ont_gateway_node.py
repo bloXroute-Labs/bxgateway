@@ -17,7 +17,7 @@ import bxgateway.messages.ont.ont_message_converter_factory as converter_factory
 
 
 class OntGatewayNode(AbstractGatewayNode):
-    def __init__(self, opts, node_ssl_service: Optional[NodeSSLService] = None):
+    def __init__(self, opts, node_ssl_service: NodeSSLService):
         super(OntGatewayNode, self).__init__(opts, node_ssl_service)
 
         self.message_converter = converter_factory.create_ont_message_converter(self.opts.blockchain_net_magic)

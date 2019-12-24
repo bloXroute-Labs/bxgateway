@@ -48,6 +48,8 @@ from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
+from bxutils.ssl.extensions import extensions_factory
+from bxutils.ssl.ssl_certificate_type import SSLCertificateType
 
 logger = logging.get_logger(__name__)
 
@@ -163,7 +165,9 @@ class AbstractGatewayNode(AbstractNode):
                                                           gateway_constants.BLOCK_CONFIRMATION_EXPIRE_TIME_S)
 
         self.message_converter = None
-        self.account_id: Optional[str] = None
+        self.account_id: Optional[str] = extensions_factory.get_account_id(
+            node_ssl_service.get_certificate(SSLCertificateType.PRIVATE)
+        )
         self._rpc_server = GatewayRpcServer(self)
 
         status_log.initialize(self.opts.use_extensions, self.opts.source_version, self.opts.external_ip,
