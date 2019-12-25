@@ -22,8 +22,8 @@ class MockMessageConverter(AbstractMessageConverter):
 
     PREV_BLOCK = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
 
-    def tx_to_bx_txs(self, tx_msg, network_num):
-        return [(tx_msg, tx_msg.tx_hash(), tx_msg.tx_val())]
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[TxQuotaType] = None):
+        return [(tx_msg, tx_msg.tx_hash(), tx_msg.tx_val(), quota_type)]
 
     def bx_tx_to_tx(self, bx_tx_msg):
         return bx_tx_msg

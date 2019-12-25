@@ -19,6 +19,7 @@ from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.utils.gateway_start_args import GatewayStartArgs
+from bxcommon.models.tx_quota_type_model import TxQuotaType
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -238,6 +239,13 @@ def get_opts() -> GatewayOpts:
         help=f"The Gateway RPC server port (default: {default_rpc_host})",
         type=str,
         default=default_rpc_host
+    )
+    arg_parser.add_argument(
+        "--default-tx-quota-type",
+        help=f"quota type to use when distributing transactions to the Bdn network",
+        type=TxQuotaType.from_string,
+        choices=list(TxQuotaType),
+        default=gateway_constants.DEFAULT_TX_QUOTA_TYPE
     )
 
     opts = GatewayOpts(cli.parse_arguments(arg_parser))

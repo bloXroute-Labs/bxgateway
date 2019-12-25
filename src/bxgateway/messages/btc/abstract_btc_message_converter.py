@@ -140,11 +140,11 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
 
         return btc_tx_msg
 
-    def tx_to_bx_txs(self, btc_tx_msg, network_num):
+    def tx_to_bx_txs(self, btc_tx_msg, network_num, quota_type: Optional[TxQuotaType] = None):
         if not isinstance(btc_tx_msg, TxBtcMessage):
             raise TypeError("tx_msg is expected to be of type TxBTCMessage")
 
-        tx_msg = TxMessage(btc_tx_msg.tx_hash(), network_num, tx_val=btc_tx_msg.tx())
+        tx_msg = TxMessage(btc_tx_msg.tx_hash(), network_num, tx_val=btc_tx_msg.tx(), quota_type=quota_type)
 
         return [(tx_msg, btc_tx_msg.tx_hash(), btc_tx_msg.tx())]
 

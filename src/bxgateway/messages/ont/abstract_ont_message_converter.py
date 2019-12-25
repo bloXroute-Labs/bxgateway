@@ -86,8 +86,8 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
 
         return ont_tx_msg
 
-    def tx_to_bx_txs(self, ont_tx_msg: TxOntMessage, network_num: int):
-        tx_msg = TxMessage(ont_tx_msg.tx_hash(), network_num, tx_val=ont_tx_msg.tx())
+    def tx_to_bx_txs(self, ont_tx_msg: TxOntMessage, network_num: int, quota_type: Optional[TxQuotaType] = None):
+        tx_msg = TxMessage(ont_tx_msg.tx_hash(), network_num, tx_val=ont_tx_msg.tx(), quota_type=quota_type)
 
         return [(tx_msg, ont_tx_msg.tx_hash(), ont_tx_msg.tx())]
 

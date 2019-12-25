@@ -3,6 +3,7 @@ import time
 from typing import Tuple, Optional, List, cast
 
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.models.tx_quota_type_model import TxQuotaType
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
@@ -11,7 +12,7 @@ from bxgateway.utils.block_info import BlockInfo
 
 
 class BtcNoCompressionMessageConverter(AbstractMessageConverter):
-    def tx_to_bx_txs(self, tx_msg, network_num):
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[TxQuotaType] = None):
         raise NotImplementedError()
 
     def bx_tx_to_tx(self, bx_tx_msg):

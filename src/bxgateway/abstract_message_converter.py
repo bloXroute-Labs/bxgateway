@@ -18,12 +18,13 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def tx_to_bx_txs(self, tx_msg, network_num):
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[TxQuotaType] = None):
         """
         Converts blockchain transactions message to internal transaction message
 
         :param tx_msg: blockchain transactions message
         :param network_num: blockchain network number
+        :param quota_type: the quota type to assign to the BDN transaction.
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 

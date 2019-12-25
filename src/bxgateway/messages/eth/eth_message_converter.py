@@ -36,7 +36,7 @@ def raw_tx_to_bx_tx(
 
 class EthMessageConverter(AbstractMessageConverter):
 
-    def tx_to_bx_txs(self, tx_msg, network_num):
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[TxQuotaType] = None):
         """
         Converts Ethereum transactions message to array of internal transaction messages
 
@@ -44,6 +44,7 @@ class EthMessageConverter(AbstractMessageConverter):
 
         :param tx_msg: Ethereum transaction message
         :param network_num: blockchain network number
+        :param quota_type: the quota type to assign to the BDN transaction.
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 
@@ -60,7 +61,7 @@ class EthMessageConverter(AbstractMessageConverter):
         tx_start_index = 0
 
         while True:
-            bx_tx, tx_item_length, tx_item_start = raw_tx_to_bx_tx(txs_bytes, tx_start_index, network_num)
+            bx_tx, tx_item_length, tx_item_start = raw_tx_to_bx_tx(txs_bytes, tx_start_index, network_num, quota_type)
             bx_tx_msgs.append((bx_tx, bx_tx.message_hash(), bx_tx.tx_val()))
 
             tx_start_index = tx_item_start + tx_item_length

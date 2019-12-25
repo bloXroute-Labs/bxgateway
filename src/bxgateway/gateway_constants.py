@@ -1,5 +1,6 @@
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
+from bxcommon.models.tx_quota_type_model import TxQuotaType
 
 GATEWAY_HELLO_MESSAGES = [GatewayMessageType.HELLO, BloxrouteMessageType.ACK]
 
@@ -75,3 +76,4 @@ REMOTE_BLOCKCHAIN_SDN_CONTACT_RETRY_SECONDS = 30
 BLOCK_CONFIRMATION_EXPIRE_TIME_S = 60 * 60
 
 LOGGING_LIMIT_ITEM_COUNT = 10
+DEFAULT_TX_QUOTA_TYPE = TxQuotaType.FREE_DAILY_QUOTA
