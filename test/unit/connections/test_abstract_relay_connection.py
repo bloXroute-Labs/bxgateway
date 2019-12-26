@@ -12,6 +12,7 @@ from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.messages.bloxroute.notification_message import NotificationMessage, NotificationCode
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -20,6 +21,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
+from bxutils.logging.log_level import LogLevel
 
 
 class AbstractRelayConnectionTest(AbstractTestCase):
@@ -125,3 +127,12 @@ class AbstractRelayConnectionTest(AbstractTestCase):
         self.assertTrue(len(ping_msg_bytes) > 0)
         msg_type, payload_len = AbstractBloxrouteMessage.unpack(ping_msg_bytes[:AbstractBloxrouteMessage.HEADER_LENGTH])
         self.assertEqual(BloxrouteMessageType.PING, msg_type)
+
+    @patch("bxgateway.connections.abstract_relay_connection.AbstractRelayConnection.log")
+    def test_msg_notification(self, log):
+        notification_msg = NotificationMessage(NotificationCode.QUOTA_DEPLETED_TX_BLOCKED,
+                                               helpers.generate_object_hash().binary.hex()
+                                               )
+        log.assert_not_called()
+        self.connection.msg_notify(notification_msg)
+        log.assert_called_once()

@@ -12,6 +12,7 @@ from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.messages.validation.message_size_validation_settings import MessageSizeValidationSettings
+from bxcommon.messages.bloxroute.notification_message import NotificationCode, NotificationMessage
 from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.utils import convert
 from bxcommon.utils import memory_utils
@@ -54,6 +55,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             BloxrouteMessageType.TX_SERVICE_SYNC_COMPLETE: self.msg_tx_service_sync_complete,
             BloxrouteMessageType.BLOCK_CONFIRMATION: self.msg_cleanup,
             BloxrouteMessageType.TRANSACTION_CLEANUP: self.msg_cleanup,
+            BloxrouteMessageType.NOTIFICATION: self.msg_notify,
         }
 
         msg_size_validation_settings = MessageSizeValidationSettings(self.node.network.max_block_size_bytes,
@@ -230,3 +232,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_cleanup(self, msg: AbstractCleanupMessage):
         self.node.block_cleanup_service.process_cleanup_message(msg, self.node)
+
+    def msg_notify(self, msg: NotificationMessage):
+        self.log(msg.level(), "Notification from Relay {}", msg.formatted_message())
