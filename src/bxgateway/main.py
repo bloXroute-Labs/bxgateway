@@ -240,12 +240,13 @@ def get_opts() -> GatewayOpts:
         type=str,
         default=default_rpc_host
     )
+    default_tx_quota_type = config.get_env_default(GatewayStartArgs.DEFAULT_TX_QUOTA_TYPE)
     arg_parser.add_argument(
         "--default-tx-quota-type",
-        help=f"quota type to use when distributing transactions to the Bdn network",
+        help=f"quota type to use when distributing transactions to the Bdn network (default: {default_tx_quota_type})",
         type=TxQuotaType.from_string,
         choices=list(TxQuotaType),
-        default=gateway_constants.DEFAULT_TX_QUOTA_TYPE
+        default=default_tx_quota_type
     )
 
     opts = GatewayOpts(cli.parse_arguments(arg_parser))
