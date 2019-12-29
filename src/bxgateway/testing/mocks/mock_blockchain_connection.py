@@ -46,6 +46,9 @@ class MockMessageConverter(AbstractMessageConverter):
     ) -> TxMessage:
         return TxMessage(Sha256Hash(crypto.double_sha256(raw_tx)), network_num, tx_val=raw_tx)
 
+    def encode_raw_msg(self, raw_msg: str) -> bytes:
+        return convert.hex_to_bytes(raw_msg)
+
 
 class MockBlockchainConnection(AbstractGatewayBlockchainConnection):
     def __init__(self, sock, node):

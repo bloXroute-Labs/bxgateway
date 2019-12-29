@@ -84,5 +84,15 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         """
         pass
 
+    @abstractmethod
+    def encode_raw_msg(self, raw_msg: str) -> bytes:
+        """
+        Encode a raw message string into bytes
+        :param raw_msg: the raw message to encode
+        :return: binary encoded message
+        :raise ValueError: if the encoding fails
+        """
+        pass
+
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
         return super(AbstractMessageConverter, self).special_memory_size(ids)

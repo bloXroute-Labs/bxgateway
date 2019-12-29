@@ -26,6 +26,8 @@ logger = logging.get_logger(__name__)
 def raw_tx_to_bx_tx(
         txs_bytes: Union[bytearray, memoryview], tx_start_index: int, network_num: int, quota_type: Optional[TxQuotaType] = None
 ) -> Tuple[TxMessage, int, int]:
+    if isinstance(txs_bytes, bytearray):
+        txs_bytes = memoryview(txs_bytes)
     _, tx_item_length, tx_item_start = rlp_utils.consume_length_prefix(txs_bytes, tx_start_index)
     tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
     tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
@@ -360,3 +362,9 @@ class EthMessageConverter(AbstractMessageConverter):
             return None, BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
                                    (time.time() - decompress_start_timestamp) * 1000, None, None, None, None, None,
                                    None), unknown_tx_sids, unknown_tx_hashes
+
+    def encode_raw_msg(self, raw_msg: str) -> bytes:
+        try:
+            return raw_msg.encode("utf-8")
+        except UnicodeEncodeError as e:
+            raise ValueError(f"Failed to encode raw message: {raw_msg}!") from e

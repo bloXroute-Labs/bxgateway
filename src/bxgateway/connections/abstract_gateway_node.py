@@ -29,6 +29,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.rpc.gateway_rpc_server import GatewayRpcServer
 
 from bxgateway import gateway_constants
@@ -165,7 +166,7 @@ class AbstractGatewayNode(AbstractNode):
         self.block_cleanup_processed_blocks = ExpiringSet(self.alarm_queue,
                                                           gateway_constants.BLOCK_CONFIRMATION_EXPIRE_TIME_S)
 
-        self.message_converter = None
+        self.message_converter: Optional[AbstractMessageConverter] = None
         self.account_id: Optional[str] = extensions_factory.get_account_id(
             node_ssl_service.get_certificate(SSLCertificateType.PRIVATE)
         )
