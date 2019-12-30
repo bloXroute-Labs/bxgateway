@@ -26,7 +26,7 @@ class AbstractRpcRequest(metaclass=ABCMeta):
     ):
         self.method = method
         self.request_id = request_id
-        if params is not None:
+        if params is not None and isinstance(params, dict):
             params = {k.lower(): v for k, v in params.items()}
         self.params = params
         self._node = node

@@ -1,4 +1,3 @@
-import json
 from typing import Dict, Any
 from aiohttp.web_response import Response
 from aiohttp.web_exceptions import HTTPBadRequest, HTTPAccepted
@@ -75,7 +74,7 @@ class BlxrTransactionRpcRequest(AbstractRpcRequest):
             "account_id": account_id
         }
         return self._format_response(
-            json.dumps(tx_json),
+            tx_json,
             HTTPAccepted
         )
 

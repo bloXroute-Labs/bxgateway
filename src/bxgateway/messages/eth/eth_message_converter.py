@@ -366,5 +366,5 @@ class EthMessageConverter(AbstractMessageConverter):
     def encode_raw_msg(self, raw_msg: str) -> bytes:
         try:
             return raw_msg.encode("utf-8")
-        except UnicodeEncodeError as e:
+        except (UnicodeEncodeError, AttributeError) as e:
             raise ValueError(f"Failed to encode raw message: {raw_msg}!") from e
