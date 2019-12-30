@@ -17,7 +17,7 @@ class InventoryOntType(Enum):
 class InvOntMessage(OntMessage):
     MESSAGE_TYPE = OntMessageType.INVENTORY
 
-    def __init__(self, magic: Optional[int] = None, inv_type: Optional[Union[int, bytes]] = None,
+    def __init__(self, magic: Optional[int] = None, inv_type: Optional[Union[InventoryOntType, bytes]] = None,
                  blocks: Optional[List[OntObjectHash]] = None, buf: Optional[bytearray] = None):
         if buf is None:
             buf = bytearray(ont_constants.ONT_HDR_COMMON_OFF + ont_constants.ONT_CHAR_LEN + ont_constants.ONT_INT_LEN +
@@ -26,8 +26,8 @@ class InvOntMessage(OntMessage):
             self.blocks_len = len(blocks)
 
             off = ont_constants.ONT_HDR_COMMON_OFF
-            if isinstance(inv_type, int):
-                struct.pack_into("<B", buf, off, inv_type)
+            if isinstance(inv_type, InventoryOntType):
+                struct.pack_into("<B", buf, off, inv_type.value)
             else:
                 buf[off: off + ont_constants.ONT_CHAR_LEN] = inv_type
             off += ont_constants.ONT_CHAR_LEN

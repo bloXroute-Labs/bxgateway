@@ -34,7 +34,6 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             OntMessageType.PONG: self.msg_pong,
             OntMessageType.GET_ADDRESS: self.msg_getaddr
         }
-        connection.ping_message = PingOntMessage(self.magic)
 
         version_msg = VersionOntMessage(self.magic, self.version, self.node.opts.sync_port,
                                         self.node.opts.http_info_port, self.node.opts.consensus_port,
@@ -50,8 +49,9 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         # TODO: block_cleanup_service
         super().msg_block(msg)
         inv_msg = InvOntMessage(magic=self.node.opts.blockchain_net_magic,
-                                inv_type=InventoryOntType.MSG_BLOCK.value, blocks=[block_hash])
+                                inv_type=InventoryOntType.MSG_BLOCK, blocks=[block_hash])
         self.node.send_msg_to_node(inv_msg)
+        self.node.update_current_block_height(msg.height())
 
     def msg_ping(self, msg: PingOntMessage):
         reply = PongOntMessage(self.magic, msg.height())

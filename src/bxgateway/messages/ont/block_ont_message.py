@@ -79,9 +79,10 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
         self._version = None
         self._prev_block: Optional[OntObjectHash] = None
         self._txns_root = self._block_root = self._height = self._consensus_data = self._consensus_payload = None
-        self._next_bookkeeper = self._txns = self._merkle_root = None
-        self._consensus_payload_length = self._header = self._header_offset = self._hash_val = None
-        self._bookkeepers_length = self._sig_data_length = self._txn_count = self._tx_offset = self._txn_header = None
+        self._next_bookkeeper = self._txns = self._merkle_root = self._consensus_payload_length = None
+        self._header = self._header_offset = self._header_with_program = self._header_with_program_offset = None
+        self._hash_val = self._bookkeepers_length = self._sig_data_length = None
+        self._txn_count = self._tx_offset = self._txn_header = None
         self._timestamp = 0
         self._parsed = False
 
@@ -121,6 +122,8 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
             for _ in range(self._sig_data_length):
                 sig_length, size = ont_varint_to_int(self.buf, off)
                 off += size + sig_length
+
+            self._header_with_program_offset = off
 
             self._txn_count, = struct.unpack_from("<L", self.buf, off)
             off += ont_constants.ONT_INT_LEN
@@ -200,3 +203,18 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
             raw_hash = crypto.double_sha256(header)
             self._hash_val = OntObjectHash(buf=raw_hash, length=ont_constants.ONT_HASH_LEN)
         return self._hash_val  # pyre-ignore
+
+    def header(self) -> memoryview:
+        if self._header_with_program_offset is None:
+            self.parse_message()
+            self._header_with_program = self._memoryview[ont_constants.ONT_HDR_COMMON_OFF:
+                                                         self._header_with_program_offset]
+        assert self._header_with_program is not None
+        return self._header_with_program
+
+    def height(self) -> int:
+        if self._height is None:
+            self.parse_message()
+
+        assert self._height is not None
+        return self._height

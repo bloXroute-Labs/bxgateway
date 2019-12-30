@@ -37,8 +37,8 @@ from bxgateway.connections.abstract_gateway_blockchain_connection import Abstrac
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
 from bxgateway.services.block_processing_service import BlockProcessingService
-from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.gateway_broadcast_service import GatewayBroadcastService
 from bxgateway.services.neutrality_service import NeutralityService
@@ -86,7 +86,7 @@ class AbstractGatewayNode(AbstractNode):
     blocks_seen: ExpiringSet
     in_progress_blocks: BlockEncryptedCache
     block_recovery_service: BlockRecoveryService
-    block_queuing_service: BlockQueuingService
+    block_queuing_service: AbstractBlockQueuingService
     block_processing_service: BlockProcessingService
     block_cleanup_service: AbstractBlockCleanupService
     _tx_service: TransactionService
@@ -197,7 +197,7 @@ class AbstractGatewayNode(AbstractNode):
         pass
 
     @abstractmethod
-    def build_block_queuing_service(self) -> BlockQueuingService:
+    def build_block_queuing_service(self) -> AbstractBlockQueuingService:
         pass
 
     @abstractmethod

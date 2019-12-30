@@ -1,7 +1,6 @@
 import struct
 from typing import Optional
 
-from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import ont_constants
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.utils.ont.ont_object_hash import OntObjectHash
@@ -9,7 +8,7 @@ from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 class DataOntMessage(OntMessage):
     def __init__(self, magic: Optional[int] = None, length: Optional[int] = None,
-                 hash_start: Optional[Sha256Hash] = None, hash_stop: Optional[Sha256Hash] = None,
+                 hash_start: Optional[OntObjectHash] = None, hash_stop: Optional[OntObjectHash] = None,
                  command: Optional[bytes] = None, buf: Optional[bytearray] = None):
         if buf is None:
             buf = bytearray(ont_constants.ONT_HDR_COMMON_OFF + ont_constants.ONT_DATA_MSG_LEN)
@@ -35,9 +34,12 @@ class DataOntMessage(OntMessage):
         self._hash_start = self._hash_stop = None
 
     def hash_start(self) -> OntObjectHash:
-        return OntObjectHash(buf=self.buf, offset=ont_constants.ONT_HDR_COMMON_OFF + self.payload_len() -
-                             2 * ont_constants.ONT_HASH_LEN, length=ont_constants.ONT_HASH_LEN)
+        return OntObjectHash(buf=self.buf,
+                             offset=ont_constants.ONT_HDR_COMMON_OFF + self.payload_len() -
+                                    2 * ont_constants.ONT_HASH_LEN,
+                             length=ont_constants.ONT_HASH_LEN)
 
     def hash_stop(self) -> OntObjectHash:
-        return OntObjectHash(buf=self.buf, offset=ont_constants.ONT_HDR_COMMON_OFF + self.payload_len() -
-                             ont_constants.ONT_HASH_LEN, length=ont_constants.ONT_HASH_LEN)
+        return OntObjectHash(buf=self.buf,
+                             offset=ont_constants.ONT_HDR_COMMON_OFF + self.payload_len() - ont_constants.ONT_HASH_LEN,
+                             length=ont_constants.ONT_HASH_LEN)

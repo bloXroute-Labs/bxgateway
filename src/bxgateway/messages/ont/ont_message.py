@@ -2,7 +2,6 @@ import struct
 from typing import Optional
 
 from bxutils import logging
-from bxutils.logging.log_level import LogLevel
 
 from bxcommon.constants import MSG_NULL_BYTE
 from bxcommon.exceptions import ChecksumError, PayloadLenError

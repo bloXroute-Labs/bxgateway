@@ -2,7 +2,6 @@ import time
 
 from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
 from bxcommon.exceptions import PayloadLenError, ChecksumError
-from bxcommon.test_utils import helpers
 from bxcommon.test_utils.helpers import create_input_buffer_with_bytes
 from bxcommon.utils import crypto, convert
 from bxgateway.ont_constants import ONT_HEADER_MINUS_CHECKSUM, ONT_HDR_COMMON_OFF
@@ -14,7 +13,7 @@ from bxgateway.messages.ont.get_blocks_ont_message import GetBlocksOntMessage
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
 from bxgateway.messages.ont.get_headers_ont_message import GetHeadersOntMessage
 from bxgateway.messages.ont.headers_ont_message import HeadersOntMessage
-from bxgateway.messages.ont.inventory_ont_message import InvOntMessage
+from bxgateway.messages.ont.inventory_ont_message import InvOntMessage, InventoryOntType
 from bxgateway.messages.ont.notfound_ont_message import NotFoundOntMessage
 from bxgateway.messages.ont.ont_message_factory import ont_message_factory
 from bxgateway.messages.ont.ping_ont_message import PingOntMessage
@@ -49,7 +48,8 @@ class OntMessageFactoryTest(MessageFactoryTestCase):
         self.get_message_preview_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, self.HASH, 10, 2, bytes(10),
                                                                   bytes(33), bytes(10), 1234, self.HASH),
                                               ConsensusOntMessage.MESSAGE_TYPE, 141)
-        self.get_message_preview_successfully(InvOntMessage(self.MAGIC, 1, [self.HASH, self.HASH]),
+
+        self.get_message_preview_successfully(InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]),
                                               InvOntMessage.MESSAGE_TYPE, 69)
         self.get_message_preview_successfully(GetDataOntMessage(self.MAGIC, 1, self.HASH),
                                               GetDataOntMessage.MESSAGE_TYPE, 33)
@@ -94,7 +94,7 @@ class OntMessageFactoryTest(MessageFactoryTestCase):
         self.create_message_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, self.HASH, 10, 2, bytes(10),
                                                              bytes(33), bytes(10), 1234, self.HASH),
                                          ConsensusOntMessage)
-        self.create_message_successfully(InvOntMessage(self.MAGIC, 1, [self.HASH, self.HASH]), InvOntMessage)
+        self.create_message_successfully(InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]), InvOntMessage)
         self.create_message_successfully(GetDataOntMessage(self.MAGIC, 1, self.HASH), GetDataOntMessage)
         self.create_message_successfully(GetHeadersOntMessage(self.MAGIC, 1, self.HASH, self.HASH),
                                          GetHeadersOntMessage)
