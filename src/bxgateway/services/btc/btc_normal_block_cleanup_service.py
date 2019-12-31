@@ -14,7 +14,7 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash, BTC_SHA_HASH_LEN
 
 from bxcommon.services import normal_cleanup_service_helpers
 
-logger = logging.get_logger(LogRecordType.BlockCleanup)
+logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
 
 class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):

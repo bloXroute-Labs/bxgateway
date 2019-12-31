@@ -9,7 +9,7 @@ from bxgateway.utils.btc.btc_object_hash import Sha256Hash
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
 
-logger = logging.get_logger(LogRecordType.BlockCleanup)
+logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
 
 class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):

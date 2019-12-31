@@ -26,7 +26,7 @@ import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (
 if TYPE_CHECKING:
     from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 
-logger = logging.get_logger(LogRecordType.BlockCleanup)
+logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
 
 def create_block_confirmation_cleanup_task() -> tpe.BlockConfirmationCleanupTask:  # pyre-ignore

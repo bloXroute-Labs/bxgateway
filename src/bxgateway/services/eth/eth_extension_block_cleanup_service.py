@@ -8,7 +8,7 @@ from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlo
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
 
-logger = logging.get_logger(LogRecordType.BlockCleanup)
+logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
 
 def create_cleanup_task() -> tpe.BlockConfirmationCleanupTask:  # pyre-ignore

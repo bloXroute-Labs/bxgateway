@@ -11,7 +11,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 
-logger = logging.get_logger(LogRecordType.BlockCleanup)
+logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
 
 class AbstractEthBlockCleanupService(AbstractBlockCleanupService):

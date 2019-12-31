@@ -40,7 +40,7 @@ class _GatewayTransactionStatsService(StatisticsService):
                  look_back=gateway_constants.GATEWAY_TRANSACTION_STATS_LOOKBACK):
         super(_GatewayTransactionStatsService, self).__init__("GatewayTransactionStats", interval, look_back,
                                                               reset=True,
-                                                              logger=logging.get_logger(LogRecordType.TransactionStats))
+                                                              logger=logging.get_logger(LogRecordType.TransactionStats, __name__))
 
     def log_transaction_from_blockchain(self, transaction_hash):
         self.interval_data.new_transactions_received_from_blockchain += 1
