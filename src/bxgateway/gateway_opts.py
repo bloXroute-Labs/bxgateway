@@ -5,7 +5,7 @@ from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.models.tx_quota_type_model import TxQuotaType
 from argparse import Namespace
-from bxgateway.utils import node_cache
+from bxcommon.utils import node_cache
 from bxgateway import gateway_constants
 from bxgateway import eth_constants
 from bxutils import logging

@@ -21,7 +21,7 @@ from bxcommon.services import sdn_http_service
 from bxcommon.services.broadcast_service import BroadcastService
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
-from bxcommon.utils import network_latency, memory_utils, convert
+from bxcommon.utils import network_latency, memory_utils, convert, node_cache
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
@@ -43,7 +43,6 @@ from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.gateway_broadcast_service import GatewayBroadcastService
 from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.utils import configuration_utils
-from bxgateway.utils import node_cache
 from bxgateway.utils.blockchain_message_queue import BlockchainMessageQueue
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
