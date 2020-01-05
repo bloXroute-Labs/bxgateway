@@ -4,6 +4,9 @@ from aiohttp.web import Request, Response
 from aiohttp.web_exceptions import HTTPBadRequest
 from bxgateway.rpc.blxr_transaction_rpc_request import BlxrTransactionRpcRequest
 from bxgateway.rpc.gateway_status_rpc_request import GatewayStatusRpcRequest
+from bxgateway.rpc.gateway_stop_rpc_request import GatewayStopRpcRequest
+from bxgateway.rpc.gateway_memory_rpc_request import GatewayMemoryRpcRequest
+from bxgateway.rpc.gateway_peers_rpc_request import GatewayPeersRpcRequest
 
 from bxutils import logging
 
@@ -30,7 +33,10 @@ class RPCRequestHandler:
         self._node = node
         self._request_handlers: Dict[RpcRequestType, Type[AbstractRpcRequest]] = {
             RpcRequestType.BLXR_TX: BlxrTransactionRpcRequest,
-            RpcRequestType.GATEWAY_STATUS: GatewayStatusRpcRequest
+            RpcRequestType.GATEWAY_STATUS: GatewayStatusRpcRequest,
+            RpcRequestType.STOP: GatewayStopRpcRequest,
+            RpcRequestType.MEMORY: GatewayMemoryRpcRequest,
+            RpcRequestType.PEERS: GatewayPeersRpcRequest,
         }
         self.request_id = ""
 
@@ -69,7 +75,8 @@ class RPCRequestHandler:
             {
                 "method": method.lower(),
                 "id": "Optional - [unique request identifier string].",
-                "params": self._request_handlers[RpcRequestType[method]].help["params"]
+                "params": self._request_handlers[RpcRequestType[method]].help["params"],
+                "description": self._request_handlers[RpcRequestType[method]].help.get("description"),
             }
             for method in RpcRequestType.__members__.keys()
         ]
