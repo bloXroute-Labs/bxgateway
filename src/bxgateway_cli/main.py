@@ -80,9 +80,9 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
     merged_opts = Namespace()
     merged_opts.__dict__ = opts.__dict__.copy()
     if merged_opts.request_params is None and unrecognized_params:
-        if merged_opts.method == RpcRequestType.BLXR_TX:
+        if merged_opts.command == RpcRequestType.BLXR_TX:
             merged_opts.request_params = {rpc_constants.TRANSACTION_PARAMS_KEY: unrecognized_params[0]}
-        elif merged_opts.method == RpcRequestType.GATEWAY_STATUS:
+        elif merged_opts.command == RpcRequestType.GATEWAY_STATUS:
             merged_opts.request_params = {rpc_constants.DETAILS_LEVEL_PARAMS_KEY: unrecognized_params[0]}
     return merged_opts
 
