@@ -73,9 +73,9 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         ip = msg.ip()
         if ip != self.peer_ip:
-            self.log_error("Received hello message with mismatched IP address. Disconnecting.")
-            self.mark_for_close(should_retry=False)
-            return
+            self.log_warning(
+                "Received hello message with mismatched IP address. Continuing. Expected ip: {} Socket ip: {}",
+                ip, self.peer_ip)
 
         port = msg.port()
         ordering = msg.ordering()

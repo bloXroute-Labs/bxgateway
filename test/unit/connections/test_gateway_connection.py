@@ -81,7 +81,7 @@ class GatewayConnectionTest(AbstractTestCase):
         self.assertEqual(ConnectionState.ESTABLISHED, main_inbound_connection.state)
         self.assertEqual(ConnectionState.ESTABLISHED, peer_outbound_connection.state)
 
-    def test_msg_hello_reject_mismatched_ip(self):
+    def test_msg_hello_not_rejecting_on_mismatched_ip(self):
         fileno = 1
         inbound_connection = create_connection(40000, self.node, from_me=False)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
@@ -89,7 +89,7 @@ class GatewayConnectionTest(AbstractTestCase):
         inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
                                                          DEFAULT_NETWORK_NUM, "192.168.1.1", 8001, 1))
 
-        self.assertFalse(inbound_connection.is_alive())
+        self.assertTrue(inbound_connection.is_alive())
 
     def test_msg_hello_replace_other_connection(self):
         inbound_fileno = 1
