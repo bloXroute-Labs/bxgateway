@@ -4,7 +4,6 @@ import json
 import sys
 import shlex
 import os
-from io import
 from enum import Enum
 from asyncio import StreamReader, StreamReaderProtocol, StreamWriter, CancelledError
 from asyncio.streams import FlowControlMixin
@@ -137,7 +136,7 @@ async def run_cli(
                 break
             shell_args = shlex.split(line)
             if "-h" in shell_args or "--help" in shell_args or "help" in shell_args:
-                arg_parser.print_help(file=ArgParserFile(stdout_writer))
+                arg_parser.print_help(file=ArgParserFile(stdout_writer))  # pyre-ignore
             try:
                 opts, params = arg_parser.parse_known_args(shlex.split(line))
             except KeyError as unrecognized_command:
