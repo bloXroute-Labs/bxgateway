@@ -2,20 +2,21 @@ import asyncio
 from typing import TYPE_CHECKING, Union, List, Dict, Any
 from aiohttp.web_response import Response
 from aiohttp.web_exceptions import HTTPOk
-from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
 
 from bxutils.encoding.json_encoder import EnhancedJSONEncoder
 
-from bxgateway.rpc.abstract_rpc_request import AbstractRpcRequest
+from bxgateway.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxgateway.rpc.rpc_request_type import RpcRequestType
 from bxgateway.utils.logging.status import status_log
+from bxgateway.rpc import rpc_constants
+from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
 class GatewayStatusRpcRequest(AbstractRpcRequest):
-    DETAILS_LEVEL: str = "details_level"
+    DETAILS_LEVEL = rpc_constants.DETAILS_LEVEL_PARAMS_KEY
     help = {
         "params": "Optional - {}: {}.".format(
             DETAILS_LEVEL, list(GatewayStatusDetailsLevel.__members__.keys())

@@ -8,11 +8,12 @@ from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 
-from bxgateway.rpc.abstract_rpc_request import AbstractRpcRequest
+from bxgateway.rpc import rpc_constants
+from bxgateway.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 
 
 class BlxrTransactionRpcRequest(AbstractRpcRequest):
-    TRANSACTION: str = "transaction"
+    TRANSACTION = rpc_constants.TRANSACTION_PARAMS_KEY
     QUOTA_TYPE: str = "quota_type"
     help = {
         "params": f"[Required - {TRANSACTION}: [transaction payload in hex string format],"

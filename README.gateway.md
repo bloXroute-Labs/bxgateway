@@ -1,3 +1,5 @@
+# App description
+
 bloxroute-gateway connects you to the BDN, a blockchain distribution network, to greatly speed up block propagation
 times and scale your blockchain today.
 
@@ -45,12 +47,12 @@ pip install bloxroute-gateway
 # Running
 
 ```bash
-$ bloxroute_gateway --blockchain-protocol [blockchain-protocol] --blockchain-network [blockchain-network]
+$ bloxroute-gateway --blockchain-protocol [blockchain-protocol] --blockchain-network [blockchain-network]
 ```
 
 If you are running an Ethereum gateway, you will also need to specify the public key of your Ethereum node:
 ```bash
-$ bloxroute_gateway [...] --node-public-key [hex-encoded-key]
+$ bloxroute-gateway [...] --node-public-key [hex-encoded-key]
 ```
 
 ## Supported Protocols and Networks for bloXroute Mainnet

@@ -2,15 +2,17 @@ from typing import Union, Any, Dict, List, TYPE_CHECKING, Type
 from json.decoder import JSONDecodeError
 from aiohttp.web import Request, Response
 from aiohttp.web_exceptions import HTTPBadRequest
-from bxgateway.rpc.blxr_transaction_rpc_request import BlxrTransactionRpcRequest
-from bxgateway.rpc.gateway_status_rpc_request import GatewayStatusRpcRequest
-from bxgateway.rpc.gateway_stop_rpc_request import GatewayStopRpcRequest
-from bxgateway.rpc.gateway_memory_rpc_request import GatewayMemoryRpcRequest
-from bxgateway.rpc.gateway_peers_rpc_request import GatewayPeersRpcRequest
+
+from bxgateway.rpc import rpc_constants
+from bxgateway.rpc.requests.blxr_transaction_rpc_request import BlxrTransactionRpcRequest
+from bxgateway.rpc.requests.gateway_status_rpc_request import GatewayStatusRpcRequest
+from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcRequest
+from bxgateway.rpc.requests.gateway_memory_rpc_request import GatewayMemoryRpcRequest
+from bxgateway.rpc.requests.gateway_peers_rpc_request import GatewayPeersRpcRequest
 
 from bxutils import logging
 
-from bxgateway.rpc.abstract_rpc_request import AbstractRpcRequest
+from bxgateway.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxgateway.rpc.rpc_request_type import RpcRequestType
 
 if TYPE_CHECKING:
@@ -21,8 +23,8 @@ logger = logging.get_logger(__name__)
 
 class RPCRequestHandler:
 
-    CONTENT_TYPE: str = "Content-Type"
-    PLAIN: str = "text/plain"
+    CONTENT_TYPE: str = rpc_constants.CONTENT_TYPE_HEADER_KEY
+    PLAIN: str = rpc_constants.PLAIN_HEADER_TYPE
     REQUEST_ID: str = "id"
     REQUEST_METHOD: str = "method"
     REQUEST_PARAMS: str = "params"

@@ -1,6 +1,6 @@
-from bxcommon.models.serializable_flag import SerializableFlag
+from bxcommon.models.serializeable_enum import SerializeableEnum
 
 
-class GatewayStatusDetailsLevel(SerializableFlag):
+class GatewayStatusDetailsLevel(SerializeableEnum):
     SUMMARY = 1
     DETAILED = 2

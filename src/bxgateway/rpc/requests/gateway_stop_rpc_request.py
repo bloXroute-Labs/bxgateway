@@ -1,4 +1,3 @@
-import asyncio
 from typing import TYPE_CHECKING, Union, List, Dict, Any
 from aiohttp.web_response import Response
 from aiohttp.web_exceptions import HTTPOk
@@ -6,7 +5,7 @@ from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
 
 from bxutils.encoding.json_encoder import EnhancedJSONEncoder
 
-from bxgateway.rpc.abstract_rpc_request import AbstractRpcRequest
+from bxgateway.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxgateway.rpc.rpc_request_type import RpcRequestType
 
 if TYPE_CHECKING:
