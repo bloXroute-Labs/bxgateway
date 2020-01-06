@@ -3,7 +3,7 @@ from typing import Tuple, Optional, List, Set, Union
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.models.tx_quota_type_model import TxQuotaType
+from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
 
@@ -18,7 +18,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[TxQuotaType] = None):
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None):
         """
         Converts blockchain transactions message to internal transaction message
 
@@ -73,7 +73,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
             self,
             raw_tx: Union[bytes, bytearray, memoryview],
             network_num: int,
-            quota_type: Optional[TxQuotaType] = None
+            quota_type: Optional[QuotaType] = None
     ) -> TxMessage:
         """
         Convert a raw transaction which arrived from an RPC request into bx transaction.

@@ -5,7 +5,7 @@ import time
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.models.tx_quota_type_model import TxQuotaType
+from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.utils import crypto, convert
 from bxcommon.utils.object_hash import Sha256Hash
 
@@ -86,7 +86,7 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
 
         return ont_tx_msg
 
-    def tx_to_bx_txs(self, ont_tx_msg: TxOntMessage, network_num: int, quota_type: Optional[TxQuotaType] = None):
+    def tx_to_bx_txs(self, ont_tx_msg: TxOntMessage, network_num: int, quota_type: Optional[QuotaType] = None):
         tx_msg = TxMessage(ont_tx_msg.tx_hash(), network_num, tx_val=ont_tx_msg.tx(), quota_type=quota_type)
 
         return [(tx_msg, ont_tx_msg.tx_hash(), ont_tx_msg.tx())]
@@ -95,7 +95,7 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
             self,
             raw_tx: Union[bytes, bytearray, memoryview],
             network_num: int,
-            quota_type: Optional[TxQuotaType] = None
+            quota_type: Optional[QuotaType] = None
     ) -> TxMessage:
         if isinstance(raw_tx, bytes):
             raw_tx = bytearray(raw_tx)

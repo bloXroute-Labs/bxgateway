@@ -1,6 +1,5 @@
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
-from bxcommon.models.tx_quota_type_model import TxQuotaType
 
 GATEWAY_HELLO_MESSAGES = [GatewayMessageType.HELLO, BloxrouteMessageType.ACK]
 

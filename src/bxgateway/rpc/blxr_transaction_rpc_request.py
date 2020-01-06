@@ -4,7 +4,7 @@ from aiohttp.web_exceptions import HTTPBadRequest, HTTPAccepted
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.exceptions import ParseError
-from bxcommon.models.tx_quota_type_model import TxQuotaType
+from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 
@@ -16,8 +16,8 @@ class BlxrTransactionRpcRequest(AbstractRpcRequest):
     QUOTA_TYPE: str = "quota_type"
     help = {
         "params": f"[Required - {TRANSACTION}: [transaction payload in hex string format],"
-        f"Optional - {QUOTA_TYPE}: [{TxQuotaType.PAID_DAILY_QUOTA.name.lower()} for binding with a paid account"
-        f"(default) or {TxQuotaType.FREE_DAILY_QUOTA.name.lower()}]]"
+        f"Optional - {QUOTA_TYPE}: [{QuotaType.PAID_DAILY_QUOTA.name.lower()} for binding with a paid account"
+        f"(default) or {QuotaType.FREE_DAILY_QUOTA.name.lower()}]]"
     }
 
     async def process_request(self) -> Response:
@@ -78,15 +78,15 @@ class BlxrTransactionRpcRequest(AbstractRpcRequest):
             HTTPAccepted
         )
 
-    def _get_quota_type(self, params: Dict[str, Any]) -> TxQuotaType:
+    def _get_quota_type(self, params: Dict[str, Any]) -> QuotaType:
         account_id = self._node.account_id
-        quota_type_str = params.get(self.QUOTA_TYPE, TxQuotaType.PAID_DAILY_QUOTA.name).upper()
-        if quota_type_str in TxQuotaType:
-            quota_type = TxQuotaType[quota_type_str]
+        quota_type_str = params.get(self.QUOTA_TYPE, QuotaType.PAID_DAILY_QUOTA.name).upper()
+        if quota_type_str in QuotaType:
+            quota_type = QuotaType[quota_type_str]
         elif account_id is None:
-            quota_type = TxQuotaType.FREE_DAILY_QUOTA
+            quota_type = QuotaType.FREE_DAILY_QUOTA
         else:
-            quota_type = TxQuotaType.PAID_DAILY_QUOTA
-        if account_id is None and quota_type == TxQuotaType.PAID_DAILY_QUOTA:
+            quota_type = QuotaType.PAID_DAILY_QUOTA
+        if account_id is None and quota_type == QuotaType.PAID_DAILY_QUOTA:
             raise HTTPBadRequest(text="Cannot mark transaction as paid without an account!")
         return quota_type

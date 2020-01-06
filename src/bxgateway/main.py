@@ -19,7 +19,7 @@ from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.utils.gateway_start_args import GatewayStartArgs
-from bxcommon.models.tx_quota_type_model import TxQuotaType
+from bxcommon.models.quota_type_model import QuotaType
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -244,8 +244,8 @@ def get_opts() -> GatewayOpts:
     arg_parser.add_argument(
         "--default-tx-quota-type",
         help=f"quota type to use when distributing transactions to the Bdn network (default: {default_tx_quota_type})",
-        type=TxQuotaType.from_string,
-        choices=list(TxQuotaType),
+        type=QuotaType.from_string,
+        choices=list(QuotaType),
         default=default_tx_quota_type
     )
 

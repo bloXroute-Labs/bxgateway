@@ -5,7 +5,7 @@ from typing import Tuple, Optional, List, Union
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.block_hash_message import BlockHashMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.models.tx_quota_type_model import TxQuotaType
+from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto, convert
 from bxcommon.utils.object_hash import Sha256Hash
@@ -22,7 +22,7 @@ class MockMessageConverter(AbstractMessageConverter):
 
     PREV_BLOCK = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
 
-    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[TxQuotaType] = None):
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None):
         return [(tx_msg, tx_msg.tx_hash(), tx_msg.tx_val(), quota_type)]
 
     def bx_tx_to_tx(self, bx_tx_msg):
@@ -42,7 +42,7 @@ class MockMessageConverter(AbstractMessageConverter):
             self,
             raw_tx: Union[bytes, bytearray, memoryview],
             network_num: int,
-            quota_type: Optional[TxQuotaType] = None
+            quota_type: Optional[QuotaType] = None
     ) -> TxMessage:
         return TxMessage(Sha256Hash(crypto.double_sha256(raw_tx)), network_num, tx_val=raw_tx)
 

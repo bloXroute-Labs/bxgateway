@@ -3,7 +3,7 @@ from bxcommon.utils.cli import CommonOpts
 from typing import Union, List
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
-from bxcommon.models.tx_quota_type_model import TxQuotaType
+from bxcommon.models.quota_type_model import QuotaType
 from argparse import Namespace
 from bxcommon.utils import node_cache
 from bxgateway import gateway_constants
@@ -55,7 +55,7 @@ class GatewayOpts(CommonOpts):
     require_blockchain_connection: bool
     rpc_port: int
     rpc_host: str
-    default_tx_quota_type: TxQuotaType
+    default_tx_quota_type: QuotaType
     # Ontology specific
     sync_port: int
     http_info_port: int

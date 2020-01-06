@@ -50,7 +50,7 @@ from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
 from bxutils.ssl.extensions import extensions_factory
 from bxutils.ssl.ssl_certificate_type import SSLCertificateType
-from bxcommon.models.tx_quota_type_model import TxQuotaType
+from bxcommon.models.quota_type_model import QuotaType
 
 logger = logging.get_logger(__name__)
 
@@ -169,11 +169,11 @@ class AbstractGatewayNode(AbstractNode):
         self.account_id: Optional[str] = extensions_factory.get_account_id(
             node_ssl_service.get_certificate(SSLCertificateType.PRIVATE)
         )
-        self.default_tx_quota_type: TxQuotaType = opts.default_tx_quota_type
-        if self.default_tx_quota_type == TxQuotaType.PAID_DAILY_QUOTA and self.account_id is None:
+        self.default_tx_quota_type: QuotaType = opts.default_tx_quota_type
+        if self.default_tx_quota_type == QuotaType.PAID_DAILY_QUOTA and self.account_id is None:
             logger.error(
                 "Valid Account Id is required in order to propagate Transactions as Paid, revert quota type to Free")
-            self.default_tx_quota_type = TxQuotaType.FREE_DAILY_QUOTA
+            self.default_tx_quota_type = QuotaType.FREE_DAILY_QUOTA
         self._rpc_server = GatewayRpcServer(self)
 
         status_log.initialize(self.opts.use_extensions, self.opts.source_version, self.opts.external_ip,

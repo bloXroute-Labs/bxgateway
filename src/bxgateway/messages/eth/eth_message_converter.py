@@ -4,7 +4,7 @@ import time
 from collections import deque
 from typing import Tuple, Optional, List, Union
 
-from bxcommon.models.tx_quota_type_model import TxQuotaType
+from bxcommon.models.quota_type_model import QuotaType
 from bxutils import logging
 from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -24,7 +24,7 @@ logger = logging.get_logger(__name__)
 
 
 def raw_tx_to_bx_tx(
-        txs_bytes: Union[bytearray, memoryview], tx_start_index: int, network_num: int, quota_type: Optional[TxQuotaType] = None
+        txs_bytes: Union[bytearray, memoryview], tx_start_index: int, network_num: int, quota_type: Optional[QuotaType] = None
 ) -> Tuple[TxMessage, int, int]:
     if isinstance(txs_bytes, bytearray):
         txs_bytes = memoryview(txs_bytes)
@@ -38,7 +38,7 @@ def raw_tx_to_bx_tx(
 
 class EthMessageConverter(AbstractMessageConverter):
 
-    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[TxQuotaType] = None):
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None):
         """
         Converts Ethereum transactions message to array of internal transaction messages
 
@@ -77,7 +77,7 @@ class EthMessageConverter(AbstractMessageConverter):
             self,
             raw_tx: Union[bytes, bytearray, memoryview],
             network_num: int,
-            quota_type: Optional[TxQuotaType] = None
+            quota_type: Optional[QuotaType] = None
     ) -> TxMessage:
         if isinstance(raw_tx, bytes):
             raw_tx = bytearray(raw_tx)

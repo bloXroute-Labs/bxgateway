@@ -3,7 +3,7 @@ from abc import abstractmethod
 from datetime import datetime
 import time
 
-from bxcommon.models.tx_quota_type_model import TxQuotaType
+from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
@@ -140,7 +140,7 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
 
         return btc_tx_msg
 
-    def tx_to_bx_txs(self, btc_tx_msg, network_num, quota_type: Optional[TxQuotaType] = None):
+    def tx_to_bx_txs(self, btc_tx_msg, network_num, quota_type: Optional[QuotaType] = None):
         if not isinstance(btc_tx_msg, TxBtcMessage):
             raise TypeError("tx_msg is expected to be of type TxBTCMessage")
 
@@ -152,7 +152,7 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
             self,
             raw_tx: Union[bytes, bytearray, memoryview],
             network_num: int,
-            quota_type: Optional[TxQuotaType] = None
+            quota_type: Optional[QuotaType] = None
     ) -> TxMessage:
         if isinstance(raw_tx, bytes):
             raw_tx = bytearray(raw_tx)
