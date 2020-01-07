@@ -179,6 +179,9 @@ class AbstractGatewayNode(AbstractNode):
         status_log.initialize(self.opts.use_extensions, self.opts.source_version, self.opts.external_ip,
                               self.opts.continent, self.opts.country)
 
+        self.alarm_queue.register_alarm(gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
+                                        self.send_request_for_relay_peers)
+
     @abstractmethod
     def build_blockchain_connection(
             self, socket_connection: SocketConnectionProtocol
@@ -354,8 +357,16 @@ class AbstractGatewayNode(AbstractNode):
         if not best_relay_peer:
             best_relay_peer = potential_relay_peers[0]
         logger.trace("Best relay peer to node {} is: {}", self.opts.node_id, best_relay_peer)
-
         if best_relay_peer.ip != self.opts.external_ip or best_relay_peer.port != self.opts.external_port:
+            if best_relay_peer in self.peer_relays:
+                logger.debug("Current relay is optimal {}, skip", best_relay_peer)
+                return
+            elif self.peer_relays is not None:
+                logger.info("New best relay: {}, disconnecting from current relays {}",
+                            best_relay_peer, self.peer_relays)
+                self.peer_relays.clear()
+                self.peer_transaction_relays.clear()
+
             self.peer_relays.add(best_relay_peer)
             # Split relay mode always starts a transaction relay at one port number higher than the block relay
             if self.opts.split_relays:
@@ -395,6 +406,7 @@ class AbstractGatewayNode(AbstractNode):
                     return constants.SDN_CONTACT_RETRY_SECONDS
             else:
                 return constants.SDN_CONTACT_RETRY_SECONDS
+        return gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S
 
     def send_request_for_remote_blockchain_peer(self):
         """
@@ -679,7 +691,7 @@ class AbstractGatewayNode(AbstractNode):
         :param port: relay peer port
         """
         self.peer_relays = {peer_relay for peer_relay in self.peer_relays
-                            if peer_relay.ip != ip and peer_relay.port != port}
+                            if not (peer_relay.ip == ip and peer_relay.port == port)}
         if self.opts.split_relays:
             if self.connection_pool.has_connection(ip, port + 1):
                 transaction_connection = self.connection_pool.get_by_ipport(ip, port + 1)
@@ -703,7 +715,7 @@ class AbstractGatewayNode(AbstractNode):
         :param remove_block_relay: if to remove the corresponding block relay (to avoid infinite recursing)
         """
         self.peer_transaction_relays = {peer_relay for peer_relay in self.peer_transaction_relays
-                                        if peer_relay.ip != ip and peer_relay.port != port}
+                                        if not (peer_relay.ip == ip and peer_relay.port == port)}
         if remove_block_relay and self.connection_pool.has_connection(ip, port - 1):
             block_connection = self.connection_pool.get_by_ipport(ip, port - 1)
             logger.debug("Removing relay block connection matching transaction relay host: {}",

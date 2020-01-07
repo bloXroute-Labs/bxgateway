@@ -232,16 +232,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         ], any_order=True)
 
         node.on_connection_added(MockSocketConnection(1, ip_address=LOCALHOST, port=8001))
-        self.assertEqual(1, len(node.connection_pool))
-        self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)))
-        self.assertEqual(0, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION)))
-        self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
+        self._check_connection_pool(node, 1, 1, 0, 1)
 
         node.on_connection_added(MockSocketConnection(2, ip_address=LOCALHOST, port=8002))
-        self.assertEqual(2, len(node.connection_pool))
-        self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)))
-        self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION)))
-        self.assertEqual(2, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
+        self._check_connection_pool(node, 2, 1, 1, 2)
 
     def test_split_relay_reconnect_disconnect_block(self):
         node = initialize_split_relay_node()
@@ -414,6 +408,59 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.alarm_queue.fire_alarms()
         self.assertTrue(node.should_force_exit)
 
+    def test_relay_connection_update(self):
+        relay_connections = [
+            OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK),
+            OutboundPeerModel(LOCALHOST, 9001, node_type=NodeType.RELAY_BLOCK)
+        ]
+        sdn_http_service.fetch_potential_relay_peers_by_network = MagicMock(return_value=relay_connections)
+        network_latency.get_best_relay_by_ping_latency = MagicMock(return_value=relay_connections[0])
+        opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
+        if opts.use_extensions:
+            helpers.set_extensions_parallelism()
+        node = GatewayNode(opts)
+        node.enqueue_connection = MagicMock()
+
+        node.send_request_for_relay_peers()
+        self.assertEqual(1, len(node.peer_relays))
+        self.assertEqual(1, len(node.peer_transaction_relays))
+        self.assertEqual(8002, next(iter(node.peer_transaction_relays)).port)
+
+        node.enqueue_connection.assert_has_calls([
+            call(LOCALHOST, 8001, ConnectionType.RELAY_BLOCK),
+            call(LOCALHOST, 8002, ConnectionType.RELAY_TRANSACTION),
+        ], any_order=True)
+
+        node.on_connection_added(MockSocketConnection(1, ip_address=LOCALHOST, port=8001, node=node))
+        self._check_connection_pool(node, 1, 1, 0, 1)
+        node.on_connection_added(MockSocketConnection(2, ip_address=LOCALHOST, port=8002, node=node))
+        self._check_connection_pool(node, 2, 1, 1, 2)
+
+        network_latency.get_best_relay_by_ping_latency = MagicMock(return_value=relay_connections[1])
+
+        node.send_request_for_relay_peers()
+        self.assertEqual(1, len(node.peer_relays))
+        self.assertEqual(1, len(node.peer_transaction_relays))
+        self.assertEqual(9001, next(iter(node.peer_relays)).port)
+        self.assertEqual(9002, next(iter(node.peer_transaction_relays)).port)
+
+        node.enqueue_connection.assert_has_calls([
+            call(LOCALHOST, 9001, ConnectionType.RELAY_BLOCK),
+            call(LOCALHOST, 9002, ConnectionType.RELAY_TRANSACTION),
+        ], any_order=True)
+        node.on_connection_added(MockSocketConnection(3, ip_address=LOCALHOST, port=9001))
+        node.on_connection_added(MockSocketConnection(4, ip_address=LOCALHOST, port=9002))
+        for conn in node.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK):
+            self.assertEqual(9001, conn.peer_port)
+        for conn in node.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION):
+            self.assertEqual(9002, conn.peer_port)
+
+    def _check_connection_pool(self, node, all, relay_block, relay_tx, relay_all):
+        self.assertEqual(all, len(node.connection_pool))
+        self.assertEqual(relay_block, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)))
+        self.assertEqual(relay_tx, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION)))
+        self.assertEqual(relay_all, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
+
     def _initialize_gateway(self, initialize_blockchain_conn: bool, initialize_relay_conn: bool) -> GatewayNode:
         opts = helpers.get_gateway_opts(8000,
                                         blockchain_address=(LOCALHOST, 8001),
@@ -440,3 +487,5 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             self.assertIsNone(node._relay_liveliness_alarm)
 
         return node
+
+
