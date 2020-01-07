@@ -240,6 +240,20 @@ def get_opts() -> GatewayOpts:
         type=str,
         default=default_rpc_host
     )
+    default_rpc_user = config.get_env_default(GatewayStartArgs.GATEWAY_RPC_USER)
+    arg_parser.add_argument(
+        "--rpc-user",
+        help=f"The Gateway RPC server user (default: {default_rpc_user})",
+        type=str,
+        default=default_rpc_user
+    )
+    default_rpc_password = config.get_env_default(GatewayStartArgs.GATEWAY_RPC_PASSWORD)
+    arg_parser.add_argument(
+        "--rpc-password",
+        help=f"The Gateway RPC server user (default: {default_rpc_password})",
+        type=str,
+        default=default_rpc_password
+    )
     default_tx_quota_type = config.get_env_default(GatewayStartArgs.DEFAULT_TX_QUOTA_TYPE)
     arg_parser.add_argument(
         "--default-tx-quota-type",

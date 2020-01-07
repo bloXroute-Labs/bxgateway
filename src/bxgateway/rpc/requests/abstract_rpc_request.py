@@ -36,7 +36,7 @@ class AbstractRpcRequest(metaclass=ABCMeta):
         pass
 
     def _format_response(
-            self, result: Union[str, Dict[str, Any]], response_type: Type[HTTPSuccessful] = HTTPOk
+            self, result: Union[str, Dict[str, Any], List[Any]], response_type: Type[HTTPSuccessful] = HTTPOk
     ) -> Response:
         request_id = self.request_id
         response_json = {

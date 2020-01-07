@@ -1,9 +1,13 @@
 import asyncio
 import json
-from typing import TYPE_CHECKING, Callable, Awaitable
+import base64
+from typing import TYPE_CHECKING, Callable, Awaitable, Optional
 from aiohttp import web
 from aiohttp.web import Application, Request, Response, AppRunner, TCPSite
 from aiohttp.web_exceptions import HTTPClientError
+from aiohttp.web_exceptions import HTTPUnauthorized
+
+from bxgateway.rpc import rpc_constants
 from bxgateway.rpc.request_formatter import RequestFormatter
 from bxgateway.rpc.response_formatter import ResponseFormatter
 
@@ -41,6 +45,11 @@ class GatewayRpcServer:
         self._stop_requested = False
         self._stop_waiter = asyncio.get_event_loop().create_future()
         self._started = False
+        self._encoded_auth: Optional[str] = None
+        rpc_user = self._node.opts.rpc_user
+        if rpc_user:
+            rpc_password = self._node.opts.rpc_password
+            self._encoded_auth = base64.b64encode(f"{rpc_user}:{rpc_password}".encode("utf-8")).decode("utf-8")
 
     async def run(self) -> None:
         try:
@@ -65,27 +74,22 @@ class GatewayRpcServer:
 
     async def handle_request(self, request: Request) -> Response:
         try:
+            self._authenticate_request(request)
             return await self._handler.handle_request(request)
         except HTTPClientError as e:
-            err_msg = e.text
-            code = e.status_code
-            request_id = self._handler.request_id
-            response_json = {
-                "result": None,
-                "error": err_msg,
-                "code": code,
-                "message": err_msg,
-                "id": request_id
-            }
-            e.text = json.dumps(response_json)
-            return e
+            return self._format_client_error(e)
 
     async def handle_get_request(self, request: Request) -> Response:
-        return web.json_response({
-            "required_request_type": "POST",
-            "required_headers": [{RPCRequestHandler.CONTENT_TYPE: RPCRequestHandler.PLAIN}],
-            "payload_structures": await self._handler.help()
-        })
+        try:
+            self._authenticate_request(request)
+        except HTTPUnauthorized as e:
+            return self._format_client_error(e)
+        else:
+            return web.json_response({
+                "required_request_type": "POST",
+                "required_headers": [{RPCRequestHandler.CONTENT_TYPE: RPCRequestHandler.PLAIN}],
+                "payload_structures": await self._handler.help()
+            })
 
     async def _start(self) -> None:
         self._started = True
@@ -94,12 +98,26 @@ class GatewayRpcServer:
         self._site = TCPSite(self._runner, opts.rpc_host, opts.rpc_port)
         await self._site.start()
 
-    def _get_error_response(self, err_msg: str, code: int) -> str:
+    def _format_client_error(self, client_error: HTTPClientError) -> HTTPClientError:
+        err_msg = client_error.text
+        code = client_error.status_code
+        request_id = self._handler.request_id
         response_json = {
             "result": None,
             "error": err_msg,
             "code": code,
             "message": err_msg,
-            "id": self._handler.request_id
+            "id": request_id
         }
-        return json.dumps(response_json)
+        client_error.text = json.dumps(response_json)
+        return client_error
+
+    def _authenticate_request(self, request: Request) -> None:
+        is_authenticated = True
+        if self._encoded_auth is not None:
+            if rpc_constants.AUTHORIZATION_HEADER_KEY in request.headers:
+                is_authenticated = self._encoded_auth == request.headers[rpc_constants.AUTHORIZATION_HEADER_KEY]
+            else:
+                is_authenticated = False
+        if not is_authenticated:
+            raise HTTPUnauthorized(text="Request credentials are invalid!")

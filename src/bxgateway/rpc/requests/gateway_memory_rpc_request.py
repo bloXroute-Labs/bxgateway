@@ -1,17 +1,16 @@
-from typing import TYPE_CHECKING, Union, List, Dict, Any
+from typing import Dict, Any
 from aiohttp.web_response import Response
 from aiohttp.web_exceptions import HTTPOk
 
+from bxcommon.utils import memory_utils
+from bxcommon.utils.stats import stats_format
 
-from bxutils.encoding.json_encoder import EnhancedJSONEncoder
-
-from bxcommon.utils.stats.memory_statistics_service import memory_statistics
 from bxgateway.rpc.requests.abstract_rpc_request import AbstractRpcRequest
-from bxgateway.rpc.rpc_request_type import RpcRequestType
 
 
-if TYPE_CHECKING:
-    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+TOTAL_MEM_USAGE = "total_mem_usage"
+TOTAL_CACHED_TX = "total_cached_transactions"
+TOTAL_CACHED_TX_SIZE = "total_cached_transactions_size"
 
 
 class GatewayMemoryRpcRequest(AbstractRpcRequest):
@@ -21,21 +20,14 @@ class GatewayMemoryRpcRequest(AbstractRpcRequest):
         "description": "return gateway node memory information"
     }
 
-    def __init__(
-            self,
-            method: RpcRequestType,
-            node: "AbstractGatewayNode",
-            request_id: str = "",
-            params: Union[Dict[str, Any], List[Any], None] = None
-    ):
-        super().__init__(method, node, request_id, params)
-        self._json_encoder = EnhancedJSONEncoder()
-
     async def process_request(self) -> Response:
-        self._node.connection_pool.log_connection_pool_mem_stats()
-        self._node._tx_service.log_tx_service_mem_stats()
+        return self._format_response(self._get_mem_stats(), HTTPOk)
 
-        data = memory_statistics.get_info()
-
-        result = self._json_encoder.as_dict(data)
-        return self._format_response(result, HTTPOk)
+    def _get_mem_stats(self) -> Dict[str, Any]:
+        tx_service = self._node.get_tx_service()
+        cache_state = tx_service.get_cache_state_json()
+        return {
+            TOTAL_MEM_USAGE: stats_format.byte_count(memory_utils.get_app_memory_usage()),
+            TOTAL_CACHED_TX: cache_state["tx_hash_to_contents_len"],
+            TOTAL_CACHED_TX_SIZE: stats_format.byte_count(cache_state["total_tx_contents_size"])
+        }

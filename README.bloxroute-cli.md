@@ -1,6 +1,6 @@
 # App description
 
-bloxroute-gateway-cli is a utility for communicating with the [bloxroute-gateway].
+bloxroute-cli is a utility for communicating with the [bloxroute-gateway].
 
 # Installation
 
@@ -11,13 +11,13 @@ version is not 3. You maybe need to substitute `pip3` for `pip` and/or add Pytho
 pip install virtualenv
 virtualenv venv -p python3
 source venv/bin/activate
-pip install bloxroute-gateway-cli
+pip install bloxroute-cli
 ```
 
 # Running
 
 ```bash
-$ bloxroute-gateway-cli -h
+$ bloxroute-cli -h
 ```
  
 # Documentation

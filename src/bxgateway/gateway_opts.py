@@ -55,6 +55,8 @@ class GatewayOpts(CommonOpts):
     require_blockchain_connection: bool
     rpc_port: int
     rpc_host: str
+    rpc_user: str
+    rpc_password: str
     default_tx_quota_type: QuotaType
     # Ontology specific
     sync_port: int
@@ -121,6 +123,8 @@ class GatewayOpts(CommonOpts):
         self.require_blockchain_connection = opts.require_blockchain_connection
         self.rpc_port = opts.rpc_port
         self.rpc_host = opts.rpc_host
+        self.rpc_user = opts.rpc_user
+        self.rpc_password = opts.rpc_password
         self.default_tx_quota_type = opts.default_tx_quota_type
         # Ontology specific
         self.sync_port = opts.sync_port if opts.sync_port else opts.blockchain_port

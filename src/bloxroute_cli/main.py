@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import uuid
 import json
 import sys
@@ -7,17 +8,27 @@ import os
 from enum import Enum
 from asyncio import StreamReader, StreamReaderProtocol, StreamWriter, CancelledError
 from asyncio.streams import FlowControlMixin
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from json import JSONDecodeError
 from typing import Optional, Union, Dict, List, Any
-
-from aiohttp import ClientSession, ClientResponse, ClientConnectorError
+from aiohttp import ClientSession, ClientResponse, ClientConnectorError, ContentTypeError
 
 from bxgateway.rpc import rpc_constants
 from bxgateway.rpc.rpc_request_type import RpcRequestType
 
 DEFAULT_RPC_PORT = 28332
 DEFAULT_RPC_HOST = "127.0.0.1"
+DEFAULT_RPC_USER = ""
+DEFAULT_RPC_PASSWORD = ""
+
+COMMANDS_HELP = [
+    "{:<18} exit the CLI.".format("exit"),
+    "{:<18} print detailed help.".format("help"),
+    "{:<18} send a transactions to the bloXroute BDN.".format("blxr_tx"),
+    "{:<18} get the status of the bloXroute Gateway.".format("gateway_status"),
+    "{:<18} get the memory stats of the bloXroute Gateway.".format("memory"),
+    "{:<18} get the bloXroute Gateway connected peers info.".format("peers")
+]
 
 
 class CLICommand(Enum):
@@ -40,9 +51,10 @@ class ArgParserFile:
 
 class GatewayRpcClient:
 
-    def __init__(self, rpc_host: str, rpc_port: int):
+    def __init__(self, rpc_host: str, rpc_port: int, rpc_user: str, rpc_password: str):
         self._session = ClientSession()
         self._rpc_url = f"http://{rpc_host}:{rpc_port}/"
+        self._encoded_auth = base64.b64encode(f"{rpc_user}:{rpc_password}".encode("utf-8")).decode("utf-8")
 
     async def __aenter__(self):
         return self
@@ -66,11 +78,20 @@ class GatewayRpcClient:
         return await self._session.post(
             self._rpc_url,
             data=json.dumps(json_data),
-            headers={rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE}
+            headers={
+                rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE,
+                rpc_constants.AUTHORIZATION_HEADER_KEY: self._encoded_auth
+            }
         )
 
     async def get_server_help(self) -> ClientResponse:
-        return await self._session.get(self._rpc_url)
+        return await self._session.get(
+            self._rpc_url,
+            headers={
+                rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE,
+                rpc_constants.AUTHORIZATION_HEADER_KEY: self._encoded_auth
+            }
+        )
 
     async def close(self) -> None:
         await self._session.close()
@@ -91,7 +112,7 @@ async def format_response(response: ClientResponse, content_type=rpc_constants.J
     try:
         response_json = await response.json(content_type=content_type)
         return json.dumps(response_json, indent=4, sort_keys=True)
-    except JSONDecodeError:
+    except (JSONDecodeError, ContentTypeError):
         return await response.text()
 
 
@@ -120,11 +141,13 @@ async def handle_command(opts: Namespace, client: GatewayRpcClient, stdout_write
 async def run_cli(
         rpc_host: str,
         rpc_port: int,
+        rpc_user: str,
+        rpc_password: str,
         arg_parser: ArgumentParser,
         stdin_reader: StreamReader,
         stdout_writer: StreamWriter
 ) -> None:
-    async with GatewayRpcClient(rpc_host, rpc_port) as client:
+    async with GatewayRpcClient(rpc_host, rpc_port, rpc_user, rpc_password) as client:
         while True:
             stdout_writer.write(b">> ")
             await stdout_writer.drain()
@@ -135,10 +158,12 @@ async def run_cli(
             if "exit" in line.lower():
                 break
             shell_args = shlex.split(line)
+            if len(shell_args) == 0:
+                shell_args.append("--interactive-shell")
             if "-h" in shell_args or "--help" in shell_args or "help" in shell_args:
                 arg_parser.print_help(file=ArgParserFile(stdout_writer))  # pyre-ignore
             try:
-                opts, params = arg_parser.parse_known_args(shlex.split(line))
+                opts, params = arg_parser.parse_known_args(shell_args)
             except KeyError as unrecognized_command:
                 stdout_writer.write(f"unrecognized command {unrecognized_command} entered, ignoring!\n".encode("utf-8"))
                 await stdout_writer.drain()
@@ -156,13 +181,23 @@ def get_command(command: str) -> Union[CLICommand, RpcRequestType]:
         return RpcRequestType[command]
 
 
+def get_command_help() -> str:
+    commands = [command.lower() for command in CLICommand.__members__.keys()] + \
+        [command.lower() for command in RpcRequestType.__members__.keys()]
+    return f"The Gateway CLI command (valid values: {commands})."
+
+
+def get_description() -> str:
+    desc = "Commands:\n"
+    for command_help in COMMANDS_HELP:
+        desc = f"{desc}\n{command_help}"
+    return desc
+
+
 def add_run_arguments(arg_parser: ArgumentParser) -> None:
     arg_parser.add_argument(
         "command",
-        help="The Gateway CLI command (valid values: {}).".format(
-            [command.lower() for command in CLICommand.__members__.keys()] +
-            [method.lower() for method in RpcRequestType.__members__.keys()]
-        ),
+        help=get_command_help(),
         type=get_command
     )
     arg_parser.add_argument(
@@ -193,6 +228,18 @@ def add_base_arguments(arg_parser: ArgumentParser) -> None:
         default=DEFAULT_RPC_PORT
     )
     arg_parser.add_argument(
+        "--rpc-user",
+        help=f"The Gateway RPC server user (default: {DEFAULT_RPC_USER})",
+        type=str,
+        default=DEFAULT_RPC_USER
+    )
+    arg_parser.add_argument(
+        "--rpc-password",
+        help=f"The Gateway RPC server user (default: {DEFAULT_RPC_PASSWORD})",
+        type=str,
+        default=DEFAULT_RPC_PASSWORD
+    )
+    arg_parser.add_argument(
         "--interactive-shell",
         help="Run the Gateway RPC client in interactive Shell mode (default: False)",
         action="store_true",
@@ -207,8 +254,8 @@ def add_base_arguments(arg_parser: ArgumentParser) -> None:
 
 
 async def main():
-    arg_parser = ArgumentParser(prog="Gateway CLI")
-    cli_parser = ArgumentParser(prog="Gateway CLI")
+    arg_parser = ArgumentParser(prog="bloXroute CLI", epilog=get_description(), formatter_class=RawDescriptionHelpFormatter)
+    cli_parser = ArgumentParser(prog="bloXroute CLI", epilog=get_description(), formatter_class=RawDescriptionHelpFormatter)
     add_base_arguments(arg_parser)
     add_base_arguments(cli_parser)
     add_run_arguments(cli_parser)
@@ -229,12 +276,15 @@ async def main():
     )
     stdout_writer = StreamWriter(transport, protocol, None, cli_loop)
     try:
-        if opts.interactive_shell:
-            await run_cli(opts.rpc_host, opts.rpc_port, cli_parser, stdin_reader, stdout_writer)
+
+        if opts.interactive_shell or len(params) == 0:
+            await run_cli(
+                opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password, cli_parser, stdin_reader, stdout_writer
+            )
         else:
             opts, params = cli_parser.parse_known_args()
             opts = merge_params(opts, params)
-            async with GatewayRpcClient(opts.rpc_host, opts.rpc_port) as client:
+            async with GatewayRpcClient(opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password) as client:
                 await handle_command(opts, client, stdout_writer)
     except (ClientConnectorError, TimeoutError, CancelledError) as e:
         stdout_writer.write(f"Connection to RPC server is broken: {e}, exiting!\n".encode("utf-8"))
