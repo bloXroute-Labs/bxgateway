@@ -178,7 +178,10 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 network_num=self.connection.network_num,
                 peer=self.connection.peer_desc
             )
-            self.connection.log_trace("Ignoring duplicate block: {}", block_hash)
+            self.connection.log_info(
+                "Discarding duplicate block {} from local blockchain node.",
+                block_hash
+            )
             return
 
         max_time_offset = self.node.opts.blockchain_block_interval * self.node.opts.blockchain_ignore_block_interval_count
@@ -210,6 +213,11 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
 
         self.node.block_cleanup_service.on_new_block_received(msg.block_hash(), msg.prev_block_hash())
         self.node.on_block_seen_by_blockchain_node(block_hash)
+
+        self.connection.log_info(
+            "Processing compact block {} from local Bitcoin node.",
+            block_hash
+        )
 
         try:
             parse_result = self.node.block_processing_service.process_compact_block(msg, self.connection)

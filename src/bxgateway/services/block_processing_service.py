@@ -94,7 +94,13 @@ class BlockProcessingService:
         :param block_message: block message to process
         :param connection: receiving connection (AbstractBlockchainConnection)
         """
+
         block_hash = block_message.block_hash()
+        connection.log_info(
+            "Processing block {} from local blockchain node.",
+            block_hash
+        )
+
         if block_hash in self._holds.contents:
             hold: BlockHold = self._holds.contents[block_hash]
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_HELD_BLOCK,
@@ -381,6 +387,10 @@ class BlockProcessingService:
                                                       more_info=stats_format.duration(block_info.duration_ms))
             self._node.track_block_from_bdn_handling_ended(block_hash)
             transaction_service.track_seen_short_ids(block_hash, all_sids)
+            connection.log_info(
+                "Discarding duplicate block {} from the BDN.",
+                block_hash
+            )
             return
 
         if not recovered:

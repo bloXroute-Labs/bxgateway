@@ -220,12 +220,21 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         if not unknown_tx_sids and not unknown_tx_hashes:
             btc_block_msg, offset = build_btc_block(block_pieces, offset)
             logger.debug(
-                "Successfully parsed bx_block broadcast message. {0} transactions in bx_block".format(total_tx_count)
+                "Successfully parsed block broadcast message. {} transactions "
+                "in block {}",
+                total_tx_count,
+                header_info.block_hash
             )
         else:
             btc_block_msg = None
-            logger.warning("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in bx_block: {2}"
-                        .format(len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count))
+            logger.debug(
+                "Block recovery needed for {}. Missing {} sids, {} tx hashes. "
+                "Total txs in block: {}",
+                header_info.block_hash,
+                len(unknown_tx_sids),
+                len(unknown_tx_hashes),
+                total_tx_count
+            )
         block_info = get_block_info(
             bx_block_msg,
             header_info.block_hash,

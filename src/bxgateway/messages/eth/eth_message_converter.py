@@ -320,8 +320,8 @@ class EthMessageConverter(AbstractMessageConverter):
                 off = next_off
 
             block_msg = InternalEthBlockInfo(block_msg_bytes)
-            logger.debug("Successfully parsed block broadcast message. {0} transactions in block"
-                         .format(tx_count))
+            logger.debug("Successfully parsed block broadcast message. {} "
+                         "transactions in block {}", tx_count, block_hash)
 
             bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block_msg))
             compressed_size = len(bx_block_msg)
@@ -334,8 +334,14 @@ class EthMessageConverter(AbstractMessageConverter):
 
             return block_msg, block_info, unknown_tx_sids, unknown_tx_hashes
         else:
-            logger.warning("Block recovery needed. Missing {0} sids, {1} tx hashes. Total txs in block: {2}"
-                        .format(len(unknown_tx_sids), len(unknown_tx_hashes), tx_count))
+            logger.debug(
+                "Block recovery needed for {}. Missing {} sids, {} tx hashes. "
+                "Total txs in block: {}",
+                block_hash,
+                len(unknown_tx_sids),
+                len(unknown_tx_hashes),
+                tx_count
+            )
 
             return None, BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
                                    (time.time() - decompress_start_timestamp) * 1000, None, None, None, None, None,
