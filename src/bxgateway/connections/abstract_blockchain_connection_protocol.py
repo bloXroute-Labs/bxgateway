@@ -81,7 +81,10 @@ class AbstractBlockchainConnectionProtocol:
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                                       network_num=self.connection.network_num)
-            self.connection.log_trace("Have seen block {0} before. Ignoring.", block_hash)
+            self.connection.log_info(
+                "Discarding duplicate block {} from local blockchain node.",
+                block_hash
+            )
             return
 
         if not self.is_valid_block_timestamp(msg):

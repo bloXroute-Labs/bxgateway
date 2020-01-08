@@ -95,11 +95,20 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                                           network_num=self.connection.network_num)
+                self.connection.log_info(
+                    "Ignoring duplicate block {} from local blockchain node.",
+                    block_hash
+                )
                 continue
 
             self.node.track_block_from_node_handling_started(block_hash)
             block_hash_number_pairs.append((block_hash, block_number))
             self.node.on_block_seen_by_blockchain_node(block_hash)
+
+            self.connection.log_info(
+                "Fetching block {} from local Ethereum node.",
+                block_hash
+            )
 
         if not block_hash_number_pairs:
             return
