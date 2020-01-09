@@ -138,6 +138,22 @@ async def handle_command(opts: Namespace, client: GatewayRpcClient, stdout_write
     await asyncio.sleep(0)
 
 
+async def parse_and_handle_command(
+        arg_parser: ArgumentParser,
+        stdout_writer: StreamWriter,
+        client: GatewayRpcClient,
+        shell_args: Optional[List[str]] = None
+) -> None:
+    try:
+        opts, params = arg_parser.parse_known_args(shell_args)
+    except KeyError as unrecognized_command:
+        stdout_writer.write(f"unrecognized command {unrecognized_command} entered, ignoring!\n".encode("utf-8"))
+        await stdout_writer.drain()
+    else:
+        opts = merge_params(opts, params)
+        await handle_command(opts, client, stdout_writer)
+
+
 async def run_cli(
         rpc_host: str,
         rpc_port: int,
@@ -162,15 +178,7 @@ async def run_cli(
                 shell_args.append("--interactive-shell")
             if "-h" in shell_args or "--help" in shell_args or "help" in shell_args:
                 arg_parser.print_help(file=ArgParserFile(stdout_writer))  # pyre-ignore
-            try:
-                opts, params = arg_parser.parse_known_args(shell_args)
-            except KeyError as unrecognized_command:
-                stdout_writer.write(f"unrecognized command {unrecognized_command} entered, ignoring!\n".encode("utf-8"))
-                await stdout_writer.drain()
-                continue
-
-            opts = merge_params(opts, params)
-            await handle_command(opts, client, stdout_writer)
+            await parse_and_handle_command(arg_parser, stdout_writer, client, shell_args)
 
 
 def get_command(command: str) -> Union[CLICommand, RpcRequestType]:
@@ -282,10 +290,8 @@ async def main():
                 opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password, cli_parser, stdin_reader, stdout_writer
             )
         else:
-            opts, params = cli_parser.parse_known_args()
-            opts = merge_params(opts, params)
             async with GatewayRpcClient(opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password) as client:
-                await handle_command(opts, client, stdout_writer)
+                await parse_and_handle_command(cli_parser, stdout_writer, client)
     except (ClientConnectorError, TimeoutError, CancelledError) as e:
         stdout_writer.write(f"Connection to RPC server is broken: {e}, exiting!\n".encode("utf-8"))
         await stdout_writer.drain()
