@@ -352,6 +352,9 @@ class AbstractGatewayNode(AbstractNode):
         await super(AbstractGatewayNode, self).close()
 
     def _register_potential_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]):
+        # place current relay connection at the start of potential relays to prioritize current connection
+        potential_relay_peers = list(self.peer_relays) + \
+                                [peer for peer in potential_relay_peers if peer not in self.peer_relays]
         logger.trace("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
         best_relay_peer = network_latency.get_best_relay_by_ping_latency(potential_relay_peers)
         if not best_relay_peer:
