@@ -322,7 +322,11 @@ class EthMessagesTests(AbstractTestCase):
         block_header_bytes = memoryview(rlp.encode(BlockHeader.serialize(block_header)))
 
         block_headers_msg = BlockHeadersEthProtocolMessage.from_header_bytes(block_header_bytes)
+        raw_headers = block_headers_msg.get_block_headers()
+        headers_list = list(raw_headers)
 
+        self.assertEqual(len(headers_list), 1)
+        self.assertTrue(headers_list)
         self.assertEqual(1, len(block_headers_msg.get_block_headers()))
         self.assertEqual(1, len(block_headers_msg.get_block_headers_bytes()))
         self.assertEqual(block_header, block_headers_msg.get_block_headers()[0])

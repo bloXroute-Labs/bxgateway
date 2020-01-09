@@ -23,8 +23,12 @@ class EthBlockProcessingService(BlockProcessingService):
 
             if block_header_bytes is not None:
                 block_headers_msg = BlockHeadersEthProtocolMessage.from_header_bytes(block_header_bytes)
-                self._node.send_msg_to_node(block_headers_msg)
-                return True
+                raw_headers = block_headers_msg.get_block_headers()
+                headers_list = list(raw_headers)
+
+                if headers_list:
+                    self._node.send_msg_to_node(block_headers_msg)
+                    return True
 
         return False
 
