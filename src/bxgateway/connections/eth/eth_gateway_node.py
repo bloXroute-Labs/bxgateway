@@ -1,5 +1,5 @@
 from collections import deque
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Deque
 
 from bxcommon import constants
 from bxcommon.network.socket_connection import SocketConnection
@@ -18,6 +18,7 @@ from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
+from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
@@ -56,6 +57,8 @@ class EthGatewayNode(AbstractGatewayNode):
 
         # queue of the block hashes requested from remote blockchain node during sync
         self._requested_remote_blocks_queue = deque()
+
+        self.requested_remote_headers_queue: Deque[Tuple[GetBlockHeadersEthProtocolMessage, int]] = deque()
 
         # number of remote block requests to skip in case if requests and responses got out of sync
         self._skip_remote_block_requests_stats_count = 0

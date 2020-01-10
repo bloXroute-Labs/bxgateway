@@ -132,6 +132,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         else:
             processed = self.node.block_processing_service.try_process_get_block_headers_request(msg)
             if not processed:
+                self.node.requested_remote_headers_queue.append((msg, 0))
                 self.msg_proxy_request(msg)
 
     def msg_get_block_bodies(self, msg: GetBlockBodiesEthProtocolMessage):
