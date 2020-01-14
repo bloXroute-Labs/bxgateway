@@ -34,7 +34,7 @@ NEUTRALITY_EXPECTED_RECEIPT_PERCENT = 50
 # Max duration to wait before releasing a block, even if blockchain node has not indicated receipt of
 # previous block in chain. This value can be set to 0 if a blockchain node implementation is capable of
 # immediately taking block messages without validating previous block.
-MAX_INTERVAL_BETWEEN_BLOCKS_S = 0.1
+MAX_INTERVAL_BETWEEN_BLOCKS_S = 0.3
 NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S = 5
 
 GATEWAY_TRANSACTION_STATS_INTERVAL_S = 1 * 60
