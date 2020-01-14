@@ -33,13 +33,13 @@ def parse_bx_block_header(bx_block: memoryview, block_pieces: Deque[Union[bytear
         block_offsets.short_id_offset
     )
 
-    reconstructed_block_message = BlockOntMessage(buf=bytearray(bx_block[block_offsets.block_begin_offset:]))
+    reconstructed_block_message = BlockOntMessage(buf=bytearray(bx_block[block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN:]))
     block_hash = reconstructed_block_message.block_hash()
     txn_count = reconstructed_block_message.txn_count()
-    offset = reconstructed_block_message.txn_offset() + block_offsets.block_begin_offset
+    offset = reconstructed_block_message.txn_offset() + block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN
 
     # Add header piece
-    block_pieces.append(bx_block[block_offsets.block_begin_offset:offset])
+    block_pieces.append(bx_block[block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN:offset])
     return BlockHeaderInfo(block_offsets, short_ids, short_ids_len, block_hash, offset, txn_count)
 
 
@@ -74,11 +74,14 @@ def parse_bx_block_transactions(block_hash: Sha256Hash, bx_block: memoryview, of
         block_pieces.append(tx)
         output_offset += len(tx)
 
+    merkle_root = bx_block[block_offsets.block_begin_offset:block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN]
+    block_pieces.append(merkle_root)
+
     return unknown_tx_sids, unknown_tx_hashes, output_offset
 
 
 def build_ont_block(block_pieces: Deque[Union[bytearray, memoryview]], size: int) -> Tuple[BlockOntMessage, int]:
-    ont_block = bytearray(size)
+    ont_block = bytearray(size - ont_constants.ONT_HASH_LEN)
     offset = 0
     for piece in block_pieces:
         next_offset = offset + len(piece)
@@ -116,6 +119,11 @@ class OntNormalMessageConverter(AbstractOntMessageConverter):
         serialized_short_ids = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
         buf.append(serialized_short_ids)
         size += constants.UL_ULL_SIZE_IN_BYTES
+
+        merkle_root = block_msg.merkle_root()
+        buf.appendleft(merkle_root)
+        size += ont_constants.ONT_HASH_LEN
+
         offset_buf = struct.pack("<Q", size)
         buf.appendleft(offset_buf)
         size += len(serialized_short_ids)

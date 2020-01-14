@@ -83,6 +83,7 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
         self._header = self._header_offset = self._header_with_program = self._header_with_program_offset = None
         self._hash_val = self._bookkeepers_length = self._sig_data_length = None
         self._txn_count = self._tx_offset = self._txn_header = None
+        self._merkle_root_memoryview = None
         self._timestamp = 0
         self._parsed = False
 
@@ -124,6 +125,8 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
                 off += size + sig_length
 
             self._header_with_program_offset = off
+            self._header_with_program = self._memoryview[ont_constants.ONT_HDR_COMMON_OFF:
+                                                         self._header_with_program_offset]
 
             self._txn_count, = struct.unpack_from("<L", self.buf, off)
             off += ont_constants.ONT_INT_LEN
@@ -185,6 +188,8 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
                     off += size + verify_length
                 self._txns.append(self._memoryview[start:start + off])
                 start += off
+            self._merkle_root = OntObjectHash(self.buf[start:], 0, ont_constants.ONT_HASH_LEN)
+            self._merkle_root_memoryview = self.buf[start:start+ont_constants.ONT_HASH_LEN]
         assert isinstance(self._txns, list)
         return self._txns
 
@@ -202,19 +207,23 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
             header = self._memoryview[ont_constants.ONT_HDR_COMMON_OFF:self._header_offset]
             raw_hash = crypto.double_sha256(header)
             self._hash_val = OntObjectHash(buf=raw_hash, length=ont_constants.ONT_HASH_LEN)
-        return self._hash_val  # pyre-ignore
+        assert isinstance(self._hash_val, OntObjectHash)
+        return self._hash_val
 
     def header(self) -> memoryview:
-        if self._header_with_program_offset is None:
+        if self._header_with_program is None:
             self.parse_message()
-            self._header_with_program = self._memoryview[ont_constants.ONT_HDR_COMMON_OFF:
-                                                         self._header_with_program_offset]
         assert self._header_with_program is not None
         return self._header_with_program
 
     def height(self) -> int:
         if self._height is None:
             self.parse_message()
-
         assert self._height is not None
         return self._height
+
+    def merkle_root(self) -> memoryview:
+        if self._merkle_root_memoryview is None:
+            self.txns()
+        assert self._merkle_root_memoryview is not None
+        return self._merkle_root_memoryview

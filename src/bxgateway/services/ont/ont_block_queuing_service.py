@@ -32,7 +32,7 @@ class OntBlockQueuingService(AbstractBlockQueuingService[BlockOntMessage]):
         self._clean_block_queue()
 
         if block_hash in self._blocks and not waiting_for_recovery:
-            self.node.update_current_block_height(block_msg.height())
+            self.node.update_current_block_height(block_msg.height(), block_hash)
             inv_msg = InvOntMessage(magic=block_msg.magic(), inv_type=InventoryOntType.MSG_BLOCK,
                                     blocks=[block_hash])
             self.node.send_msg_to_node(inv_msg)
@@ -71,7 +71,7 @@ class OntBlockQueuingService(AbstractBlockQueuingService[BlockOntMessage]):
             return
 
         self._blocks[block_hash] = (False, block_msg)
-        self.node.update_current_block_height(block_msg.height())
+        self.node.update_current_block_height(block_msg.height(), block_hash)
         inv_msg = InvOntMessage(magic=block_msg.magic(), inv_type=InventoryOntType.MSG_BLOCK,
                                 blocks=[block_hash])
         self.node.send_msg_to_node(inv_msg)

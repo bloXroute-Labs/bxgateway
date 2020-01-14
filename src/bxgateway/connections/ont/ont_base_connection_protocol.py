@@ -51,7 +51,7 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         inv_msg = InvOntMessage(magic=self.node.opts.blockchain_net_magic,
                                 inv_type=InventoryOntType.MSG_BLOCK, blocks=[block_hash])
         self.node.send_msg_to_node(inv_msg)
-        self.node.update_current_block_height(msg.height())
+        self.node.update_current_block_height(msg.height(), block_hash)
 
     def msg_ping(self, msg: PingOntMessage):
         reply = PongOntMessage(self.magic, msg.height())

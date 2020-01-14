@@ -1,20 +1,24 @@
 from typing import List, TYPE_CHECKING, Union
 
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon import constants
 from bxgateway import ont_constants
 from bxgateway.connections.ont.ont_base_connection_protocol import OntBaseConnectionProtocol
+from bxgateway.messages.ont.get_blocks_ont_message import GetBlocksOntMessage
 from bxgateway.messages.ont.get_headers_ont_message import GetHeadersOntMessage
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
+from bxgateway.messages.ont.headers_ont_message import HeadersOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InvOntMessage, InventoryOntType
 from bxgateway.messages.ont.ont_message_type import OntMessageType
 from bxgateway.messages.ont.ping_ont_message import PingOntMessage
+from bxgateway.messages.ont.pong_ont_message import PongOntMessage
 from bxgateway.messages.ont.ver_ack_ont_message import VerAckOntMessage
 from bxgateway.messages.ont.version_ont_message import VersionOntMessage
-from bxgateway.utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH
+from bxgateway.utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
 
 if TYPE_CHECKING:
     from bxgateway.connections.ont.ont_node_connection import OntNodeConnection
@@ -31,7 +35,8 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
             OntMessageType.TRANSACTIONS: self.msg_tx,
             OntMessageType.GET_BLOCKS: self.msg_proxy_request,
             OntMessageType.GET_HEADERS: self.msg_get_headers,
-            OntMessageType.GET_DATA: self.msg_get_data
+            OntMessageType.GET_DATA: self.msg_get_data,
+            OntMessageType.HEADERS: self.msg_headers
             # TODO: add consensus message handler
         })
 
@@ -100,6 +105,18 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
         if not send_successful:
             self.msg_proxy_request(msg)
 
+    def msg_pong(self, msg: PongOntMessage):
+        if msg.height() > self.node.current_block_height:
+            reply = GetHeadersOntMessage(self.magic, 1, NULL_ONT_BLOCK_HASH, self.node.current_block_hash)
+            self.connection.enqueue_msg(reply)
+
+    def msg_headers(self, msg: HeadersOntMessage):
+        header = msg.headers()[-1]
+        raw_hash = crypto.double_sha256(header)
+        reply = GetDataOntMessage(self.magic, InventoryOntType.MSG_BLOCK.value,
+                                  OntObjectHash(buf=raw_hash, length=ont_constants.ONT_HASH_LEN))
+        self.connection.enqueue_msg(reply)
+
     def send_ping(self):
         ping_msg = PingOntMessage(magic=self.magic, height=self.node.current_block_height)
         if self.connection.is_alive():
@@ -109,7 +126,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
 
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
         # TODO: this is temporary, still need to check all the hashes from the input
-        return GetHeadersOntMessage(magic=self.magic, length=2, hash_start=hashes[0], hash_stop=NULL_ONT_BLOCK_HASH)
+        return GetBlocksOntMessage(self.magic, 1, NULL_ONT_BLOCK_HASH, hashes[0])
 
     def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
         # TODO: need to check transaction contents

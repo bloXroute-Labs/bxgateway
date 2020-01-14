@@ -28,7 +28,7 @@ class PingOntMessage(OntMessage):
             self._height = height
 
     def height(self) -> int:
-        if self._height is None:
+        if self._height == 0:
             if len(self.buf) == ont_constants.ONT_HDR_COMMON_OFF:
                 self._height = -1
             else:

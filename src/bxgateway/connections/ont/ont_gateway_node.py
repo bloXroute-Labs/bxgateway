@@ -11,6 +11,7 @@ from bxgateway.services.abstract_block_cleanup_service import AbstractBlockClean
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
 from bxgateway.services.ont.ont_block_queuing_service import OntBlockQueuingService
 from bxgateway.services.ont.ont_normal_block_cleanup_service import OntNormalBlockCleanupService
+from bxgateway.utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
 from bxutils.services.node_ssl_service import NodeSSLService
 
 import bxgateway.messages.ont.ont_message_converter_factory as converter_factory
@@ -22,10 +23,12 @@ class OntGatewayNode(AbstractGatewayNode):
 
         self.message_converter = converter_factory.create_ont_message_converter(self.opts.blockchain_net_magic)
         self.current_block_height = 0
+        self.current_block_hash = NULL_ONT_BLOCK_HASH
 
-    def update_current_block_height(self, new_block_height: int):
-        if new_block_height > self.current_block_height:
+    def update_current_block_height(self, new_block_height: int, new_block_hash: OntObjectHash):
+        if new_block_height >= self.current_block_height:
             self.current_block_height = new_block_height
+            self.current_block_hash = new_block_hash
 
     def build_blockchain_connection(self, socket_connection: SocketConnectionProtocol) -> \
             AbstractGatewayBlockchainConnection:
