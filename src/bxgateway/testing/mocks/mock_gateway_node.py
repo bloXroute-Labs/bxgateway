@@ -58,6 +58,7 @@ class MockGatewayNode(AbstractGatewayNode):
             self._tx_service = ExtensionTransactionService(self, self.network_num)
         else:
             self._tx_service = TransactionService(self, self.network_num)
+        self.opts.has_fully_updated_tx_service = True
 
     def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, connection_types=None):
         if connection_types is None:

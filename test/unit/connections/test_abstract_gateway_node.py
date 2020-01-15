@@ -296,7 +296,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         relay_transaction_conn.mark_for_close()
 
-        sdn_http_service.submit_peer_connection_error_event.assert_called_with(node.opts.node_id, LOCALHOST, 8001)
+        if node.opts.has_fully_updated_tx_service:
+            sdn_http_service.submit_peer_connection_error_event.assert_called_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
         self.assertTrue(relay_block_conn.socket_connection.state & SocketConnectionState.MARK_FOR_CLOSE)

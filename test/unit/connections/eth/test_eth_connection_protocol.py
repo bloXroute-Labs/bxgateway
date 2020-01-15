@@ -42,18 +42,25 @@ class EthConnectionProtocolTest(AbstractTestCase):
         self.sut = EthBaseConnectionProtocol(self.connection, True, dummy_private_key, dummy_public_key)
 
     def test_msg_block_success(self):
-        message = NewBlockEthProtocolMessage(None, _block_with_timestamp(time.time() + 1 -
-                                                                         self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval),
-                                             10)
+        message = NewBlockEthProtocolMessage(
+            None,
+            _block_with_timestamp(
+                time.time() + 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
+            ),
+            10
+        )
         message.serialize()
         self.sut.msg_block(message)
         self.node.block_processing_service.queue_block_for_processing.assert_called_once()
 
     def test_msg_block_too_old(self):
-        message = NewBlockEthProtocolMessage(None,
-                                             _block_with_timestamp(time.time() - 1 -
-                                                                   self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval),
-                                             10)
+        message = NewBlockEthProtocolMessage(
+            None,
+            _block_with_timestamp(
+                time.time() - 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
+            ),
+            10
+        )
         message.serialize()
         self.sut.msg_block(message)
         self.node.block_processing_service.queue_block_for_processing.assert_not_called()
