@@ -31,7 +31,7 @@ from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.block_queuing_service import BlockQueuingService
+from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 
 from bxutils.services.node_ssl_service import NodeSSLService
 
@@ -43,7 +43,7 @@ class GatewayNode(AbstractGatewayNode):
             node_ssl_service = MockNodeSSLService(self.NODE_TYPE, MagicMock())
         super().__init__(opts, node_ssl_service)
 
-    def build_block_queuing_service(self) -> BlockQueuingService:
+    def build_block_queuing_service(self) -> PushBlockQueuingService:
         pass
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:

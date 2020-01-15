@@ -22,7 +22,7 @@ from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.block_queuing_service import BlockQueuingService
+from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlockCleanupService
@@ -95,7 +95,7 @@ class EthGatewayNode(AbstractGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         return EthRemoteConnection(socket_connection, self)
 
-    def build_block_queuing_service(self) -> BlockQueuingService:
+    def build_block_queuing_service(self) -> PushBlockQueuingService:
         return EthBlockQueuingService(self)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:

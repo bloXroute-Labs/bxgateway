@@ -90,8 +90,8 @@ class AbstractGatewayNode(AbstractNode):
     block_cleanup_service: AbstractBlockCleanupService
     _tx_service: TransactionService
 
-    _block_from_node_handling_times: ExpiringDict[Sha256Hash, int]
-    _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[int, str]]
+    _block_from_node_handling_times: ExpiringDict[Sha256Hash, float]
+    _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[float, str]]
 
     def __init__(self, opts: Namespace, node_ssl_service: NodeSSLService):
         super(AbstractGatewayNode, self).__init__(opts, node_ssl_service)
@@ -151,10 +151,14 @@ class AbstractGatewayNode(AbstractNode):
         self.init_transaction_stat_logging()
         self.init_node_config_update()
 
-        self._block_from_node_handling_times = ExpiringDict(self.alarm_queue,
-                                                            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S)
-        self._block_from_bdn_handling_times = ExpiringDict(self.alarm_queue,
-                                                           gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S)
+        self._block_from_node_handling_times = ExpiringDict(
+            self.alarm_queue,
+            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S
+        )
+        self._block_from_bdn_handling_times = ExpiringDict(
+            self.alarm_queue,
+            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S
+        )
 
         self.schedule_blockchain_liveliness_check(self.opts.initial_liveliness_check)
         self.schedule_relay_liveliness_check(self.opts.initial_liveliness_check)

@@ -146,7 +146,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.sut.msg_key(unknown_key_message)
 
         self.assertEqual(1, len(self.gateway_node.block_queuing_service))
-        self.assertEqual(True, self.gateway_node.block_queuing_service._blocks[block_hash][0])
+        self.assertEqual(True, self.gateway_node.block_queuing_service._blocks_waiting_for_recovery[block_hash])
         self.assertEqual(1, len(self.gateway_node.block_recovery_service._block_hash_to_bx_block_hashes))
         self.assertNotIn(block_hash, self.gateway_node.blocks_seen.contents)
 

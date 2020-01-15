@@ -1,7 +1,19 @@
-from collections import deque
-from typing import Generic, Deque, Tuple, Dict, TypeVar, Optional, TYPE_CHECKING, List
+import time
 from abc import ABCMeta, abstractmethod
+from collections import deque
+from typing import (
+    Generic,
+    Deque,
+    Dict,
+    TypeVar,
+    Optional,
+    TYPE_CHECKING,
+    List,
+    NamedTuple,
+)
+
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
@@ -15,10 +27,18 @@ if TYPE_CHECKING:
 
 logger = logging.get_logger(__name__)
 
-TMessage = TypeVar("TMessage", bound=AbstractMessage)
+TBlockMessage = TypeVar("TBlockMessage", bound=AbstractMessage)
+THeaderMessage = TypeVar("THeaderMessage", bound=AbstractMessage)
 
 
-class AbstractBlockQueuingService(Generic[TMessage], metaclass=ABCMeta):
+class BlockQueueEntry(NamedTuple):
+    block_hash: Sha256Hash
+    timestamp: float
+
+
+class AbstractBlockQueuingService(
+    Generic[TBlockMessage, THeaderMessage], metaclass=ABCMeta
+):
     """
     Service managing storage of blocks that are available for sending to blockchain node
     """
@@ -26,14 +46,22 @@ class AbstractBlockQueuingService(Generic[TMessage], metaclass=ABCMeta):
     def __init__(self, node: "AbstractGatewayNode"):
         self.node = node
 
-        # queue of tuple (block hash, timestamp) for blocks that need to be sent to blockchain node
-        self._block_queue: Deque[Tuple[Sha256Hash, float]] = deque()
+        # queue of tuple (block hash, timestamp) for blocks that need to be
+        # sent to blockchain node
+        self._block_queue: Deque[BlockQueueEntry] = deque()
+        self._blocks_waiting_for_recovery: Dict[Sha256Hash, bool] = {}
+        self._blocks: ExpiringDict[
+            Sha256Hash, Optional[TBlockMessage]
+        ] = ExpiringDict(
+            node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S
+        )
 
-        # dictionary with block hash as key and value of tuple ('waiting for recovery' flag, block message)
-        self._blocks: Dict[Sha256Hash, Tuple[bool, TMessage]] = {}
-
-        self._blocks_seen_by_blockchain_node: ExpiringSet[Sha256Hash] = \
-            ExpiringSet(node.alarm_queue, gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S)
+        self._blocks_seen_by_blockchain_node: ExpiringSet[
+            Sha256Hash
+        ] = ExpiringSet(
+            node.alarm_queue,
+            gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S,
+        )
 
     def __len__(self):
         """
@@ -52,25 +80,15 @@ class AbstractBlockQueuingService(Generic[TMessage], metaclass=ABCMeta):
         return block_hash in self._blocks
 
     @abstractmethod
-    def push(self, block_hash: Sha256Hash, block_msg: Optional[TMessage] = None, waiting_for_recovery: bool = False):
-        """
-        Pushes block to the queue
-        :param block_hash: Block hash
-        :param block_msg: Block message instance (can be None if waiting for recovery flag is set to True
-        :param waiting_for_recovery: flag indicating if gateway is waiting for recovery of the block
-        """
+    def build_block_header_message(
+        self, block_hash: Sha256Hash, block_message: TBlockMessage
+    ) -> THeaderMessage:
         pass
 
     @abstractmethod
-    def remove(self, block_hash: Sha256Hash):
-        """
-        Removes block from the queue if exists
-        :param block_hash: block hash
-        """
-        pass
-
-    @abstractmethod
-    def update_recovered_block(self, block_hash: Sha256Hash, block_msg: TMessage):
+    def update_recovered_block(
+        self, block_hash: Sha256Hash, block_msg: TBlockMessage
+    ):
         """
         Updates status of the block in the queue as recovered and ready to send to blockchain node
 
@@ -80,38 +98,137 @@ class AbstractBlockQueuingService(Generic[TMessage], metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def mark_blocks_seen_by_blockchain_node(self, block_hashes: List[Sha256Hash]):
+    def mark_blocks_seen_by_blockchain_node(
+        self, block_hashes: List[Sha256Hash]
+    ):
         pass
 
     @abstractmethod
     def mark_block_seen_by_blockchain_node(self, block_hash: Sha256Hash):
         pass
 
-    def can_add_block_to_queuing_service(self, block_hash: Sha256Hash, block_msg: Optional[TMessage] = None,
-                                         waiting_for_recovery: bool = False) -> bool:
+    def push(
+            self,
+            block_hash: Sha256Hash,
+            block_msg: Optional[TBlockMessage] = None,
+            waiting_for_recovery: bool = False,
+    ):
+        """
+        Pushes block to the queue
+        :param block_hash: Block hash
+        :param block_msg: Block message instance (can be None if waiting for recovery flag is set to True
+        :param waiting_for_recovery: flag indicating if gateway is waiting for recovery of the block
+        """
+        if self.can_add_block_to_queuing_service(
+                block_hash, block_msg, waiting_for_recovery
+        ):
+            self._block_queue.append(BlockQueueEntry(block_hash, time.time()))
+            self._blocks[block_hash] = block_msg
+            self._blocks_waiting_for_recovery[block_hash] = waiting_for_recovery
+
+    def can_add_block_to_queuing_service(
+        self,
+        block_hash: Sha256Hash,
+        block_msg: Optional[TBlockMessage] = None,
+        waiting_for_recovery: bool = False,
+    ) -> bool:
         if block_msg is None and not waiting_for_recovery:
-            raise ValueError("Block message is required if not waiting for recovery of the block.")
+            raise ValueError(
+                "Block message is required if not waiting "
+                "for recovery of the block."
+            )
 
         if block_hash in self._blocks:
-            raise ValueError("Block with hash {} already exists in the queue.".format(block_hash))
+            raise ValueError(
+                "Block with hash {} already exists in the queue.".format(
+                    block_hash
+                )
+            )
 
         if block_hash in self._blocks_seen_by_blockchain_node:
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_IGNORE_SEEN_BY_BLOCKCHAIN_NODE,
-                                                      self.node.network_num)
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_IGNORE_SEEN_BY_BLOCKCHAIN_NODE,
+                self.node.network_num,
+            )
             return False
         return True
 
-    def _send_block_to_node(self, block_hash: Sha256Hash, block_msg: TMessage):
+    def send_block_to_node(
+        self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None
+    ):
+        if block_msg is None:
+            block_msg = self._blocks[block_hash]
+
         logger.info("Forwarding block {} to blockchain node.", block_hash)
 
         self.node.send_msg_to_node(block_msg)
-        handling_time, relay_desc = self.node.track_block_from_bdn_handling_ended(block_hash)
-        # if tracking detailed send info, log this event only after all bytes written to sockets
+        (
+            handling_time,
+            relay_desc,
+        ) = self.node.track_block_from_bdn_handling_ended(block_hash)
+        # if tracking detailed send info, log this event only after all
+        # bytes written to sockets
         if not self.node.opts.track_detailed_sent_messages:
             block_stats.add_block_event_by_block_hash(
-                block_hash, BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE, network_num=self.node.network_num,
-                more_info="{} bytes; Handled in {}; R - {}; {}".format(len(block_msg.rawbytes()),
-                                                                       stats_format.duration(handling_time),
-                                                                       relay_desc, block_msg.extra_stats_data())
+                block_hash,
+                BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
+                network_num=self.node.network_num,
+                more_info="{} bytes; Handled in {}; R - {}; {}".format(
+                    len(block_msg.rawbytes()),
+                    stats_format.duration(handling_time),
+                    relay_desc,
+                    block_msg.extra_stats_data(),
+                ),
             )
+
+    def try_send_header_to_node(self, block_hash: Sha256Hash) -> bool:
+        if block_hash not in self._blocks:
+            return False
+
+        block_message = self._blocks[block_hash]
+        if block_message is None:
+            return False
+
+        header_msg = self.build_block_header_message(block_hash, block_message)
+        self.node.send_msg_to_node(header_msg)
+        block_stats.add_block_event_by_block_hash(
+            block_hash,
+            BlockStatEventType.BLOCK_HEADER_SENT_TO_BLOCKCHAIN_NODE,
+            network_num=self.node.network_num,
+        )
+        return True
+
+    def remove_from_queue(self, block_hash: Sha256Hash) -> int:
+        """
+        Removes block from processing queue, preserving actual block info.
+
+        :return: index of block in queue when removed (-1 if doesn't exist)
+        """
+        if block_hash not in self._blocks:
+            return -1
+
+        logger.trace("Removing block {} from queue.")
+
+        for index in range(len(self._block_queue)):
+            if self._block_queue[index][0] == block_hash:
+                del self._block_queue[index]
+                del self._blocks_waiting_for_recovery[block_hash]
+
+                return index
+
+        return -1
+
+    def remove(self, block_hash: Sha256Hash) -> int:
+        """
+        Removes block from the queue if exists
+
+        :return: index of block in queue when removed (-1 if doesn't exist)
+        """
+
+        logger.trace("Purging block {} from queuing service.")
+
+        index = self.remove_from_queue(block_hash)
+        if block_hash in self._blocks:
+            del self._blocks[block_hash]
+        return index

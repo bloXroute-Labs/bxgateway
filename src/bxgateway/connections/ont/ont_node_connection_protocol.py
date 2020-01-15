@@ -101,7 +101,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
         self.node.block_queuing_service.send_block_to_node(item_hash)
 
     def msg_get_headers(self, msg: GetHeadersOntMessage):
-        send_successful = self.node.block_queuing_service.send_header_to_node(msg.hash_stop())
+        send_successful = self.node.block_queuing_service.try_send_header_to_node(msg.hash_stop())
         if not send_successful:
             self.msg_proxy_request(msg)
 

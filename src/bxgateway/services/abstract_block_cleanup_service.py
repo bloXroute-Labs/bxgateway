@@ -71,6 +71,7 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
                             cross_match_idx = tracked_idx
                         logger.trace("Block cleanup flow requested block: {}", block_hash)
                         self.block_cleanup_request(block_hash)
+                        self.node.block_queuing_service.remove(block_hash)
                         del tracked_blocks[block_hash]
                     else:
                         logger.trace("Block cleanup flow confirmed block is not tracked: {}", block_hash)

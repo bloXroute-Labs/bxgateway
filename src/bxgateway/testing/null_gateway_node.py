@@ -17,7 +17,7 @@ from bxgateway.connections.abstract_gateway_blockchain_connection import Abstrac
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.block_queuing_service import BlockQueuingService
+from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 
 from bxutils.services.node_ssl_service import NodeSSLService
 from bxutils import logging
@@ -57,7 +57,7 @@ class NullGatewayNode(AbstractGatewayNode):
     def send_request_for_relay_peers(self):
         return 0
 
-    def build_block_queuing_service(self) -> BlockQueuingService:
+    def build_block_queuing_service(self) -> PushBlockQueuingService:
         pass
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:

@@ -12,7 +12,7 @@ from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway.services.block_processing_service import BlockProcessingService
-from bxgateway.services.block_queuing_service import BlockQueuingService
+from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.testing.mocks.mock_blockchain_connection import MockBlockchainConnection, MockBlockMessage
@@ -28,7 +28,7 @@ class BlockHoldingServiceTest(AbstractTestCase):
         self.node.block_processing_service = self.sut
         self.node.neutrality_service = MagicMock(spec=NeutralityService)
         self.node.block_recovery_service = MagicMock(spec=BlockRecoveryService)
-        self.node.block_queuing_service = MagicMock(spec=BlockQueuingService)
+        self.node.block_queuing_service = MagicMock(spec=PushBlockQueuingService)
 
         self.dummy_connection = MockConnection(
             MockSocketConnection(0, self.node, ip_address=LOCALHOST, port=9000), self.node

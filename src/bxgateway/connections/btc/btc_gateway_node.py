@@ -9,7 +9,7 @@ from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.block_queuing_service import BlockQueuingService
+from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.services.btc.btc_block_processing_service import BtcBlockProcessingService
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 from bxgateway.services.btc.btc_normal_block_cleanup_service import BtcNormalBlockCleanupService
@@ -50,7 +50,7 @@ class BtcGatewayNode(AbstractGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         return BtcRemoteConnection(socket_connection, self)
 
-    def build_block_queuing_service(self) -> BlockQueuingService:
+    def build_block_queuing_service(self) -> PushBlockQueuingService:
         return BtcBlockQueuingService(self)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
