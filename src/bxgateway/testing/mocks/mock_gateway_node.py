@@ -1,6 +1,6 @@
 # pyre-ignore-all-errors
-from typing import Optional
-
+from typing import Optional, Deque
+from _collections import deque
 from bxcommon.test_utils import helpers
 
 from bxcommon.connections.connection_type import ConnectionType
@@ -16,6 +16,7 @@ from bxgateway.services.abstract_block_cleanup_service import AbstractBlockClean
 from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
 from bxutils.services.node_ssl_service import NodeSSLService
@@ -59,6 +60,7 @@ class MockGatewayNode(AbstractGatewayNode):
         else:
             self._tx_service = TransactionService(self, self.network_num)
         self.opts.has_fully_updated_tx_service = True
+        self.requested_remote_headers_queue: Deque[RemoteHeaderRequest] = deque()
 
     def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, connection_types=None):
         if connection_types is None:
