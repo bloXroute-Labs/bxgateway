@@ -1,7 +1,9 @@
 # App description
 
-bloxroute-gateway connects you to the BDN, a blockchain distribution network, to greatly speed up block propagation
+* bloxroute-gateway connects you to the BDN, a blockchain distribution network, to greatly speed up block propagation
 times and scale your blockchain today.
+
+* [bloxroute-cli] is also included.
 
 # Prereqs
 
@@ -72,3 +74,4 @@ Contact us at support@bloxroute.com for further questions.
 [1]: https://virtualenv.pypa.io/en/latest/
 [2]: https://docs.python.org/3.7/distutils/sourcedist.html#manifest-template
 [documentation]: https://bloxroute.com/documentation/
+[bloxroute-cli]: https://pypi.org/project/bloxroute-cli/

@@ -27,6 +27,7 @@ COMMANDS_HELP = [
     "{:<18} send a transactions to the bloXroute BDN.".format("blxr_tx"),
     "{:<18} get the status of the bloXroute Gateway.".format("gateway_status"),
     "{:<18} get the memory stats of the bloXroute Gateway.".format("memory"),
+    "{:<18} shutdown the Gateway server.".format("stop"),
     "{:<18} get the bloXroute Gateway connected peers info.".format("peers")
 ]
 
@@ -147,7 +148,9 @@ async def parse_and_handle_command(
     try:
         opts, params = arg_parser.parse_known_args(shell_args)
     except KeyError as unrecognized_command:
-        stdout_writer.write(f"unrecognized command {unrecognized_command} entered, ignoring!\n".encode("utf-8"))
+        stdout_writer.write(
+            f"unrecognized command {str(unrecognized_command).lower()} entered, ignoring!\n".encode("utf-8")
+        )
         await stdout_writer.drain()
     else:
         opts = merge_params(opts, params)
@@ -192,7 +195,7 @@ def get_command(command: str) -> Union[CLICommand, RpcRequestType]:
 def get_command_help() -> str:
     commands = [command.lower() for command in CLICommand.__members__.keys()] + \
         [command.lower() for command in RpcRequestType.__members__.keys()]
-    return f"The Gateway CLI command (valid values: {commands})."
+    return f"The CLI command (valid values: {commands})."
 
 
 def get_description() -> str:
@@ -243,7 +246,7 @@ def add_base_arguments(arg_parser: ArgumentParser) -> None:
     )
     arg_parser.add_argument(
         "--rpc-password",
-        help=f"The Gateway RPC server user (default: {DEFAULT_RPC_PASSWORD})",
+        help=f"The Gateway RPC server password (default: {DEFAULT_RPC_PASSWORD})",
         type=str,
         default=DEFAULT_RPC_PASSWORD
     )
@@ -255,15 +258,19 @@ def add_base_arguments(arg_parser: ArgumentParser) -> None:
     )
     arg_parser.add_argument(
         "--debug",
-        help="Run the Gateway RPC client in debug mode (default: False)",
+        help="Run the CLI in debug mode (default: False)",
         action="store_true",
         default=False
     )
 
 
 async def main():
-    arg_parser = ArgumentParser(prog="bloXroute CLI", epilog=get_description(), formatter_class=RawDescriptionHelpFormatter)
-    cli_parser = ArgumentParser(prog="bloXroute CLI", epilog=get_description(), formatter_class=RawDescriptionHelpFormatter)
+    arg_parser = ArgumentParser(
+        prog="bloXroute CLI", epilog=get_description(), formatter_class=RawDescriptionHelpFormatter
+    )
+    cli_parser = ArgumentParser(
+        prog="bloXroute CLI", epilog=get_description(), formatter_class=RawDescriptionHelpFormatter
+    )
     add_base_arguments(arg_parser)
     add_base_arguments(cli_parser)
     add_run_arguments(cli_parser)
@@ -290,6 +297,8 @@ async def main():
                 opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password, cli_parser, stdin_reader, stdout_writer
             )
         else:
+            if "help" in sys.argv:
+                cli_parser.print_help(file=ArgParserFile(stdout_writer))
             async with GatewayRpcClient(opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password) as client:
                 await parse_and_handle_command(cli_parser, stdout_writer, client)
     except (ClientConnectorError, TimeoutError, CancelledError) as e:
