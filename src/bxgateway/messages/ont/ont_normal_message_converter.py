@@ -2,17 +2,18 @@ import struct
 from collections import deque
 from datetime import datetime
 import time
-from typing import Tuple, Optional, List, Deque, Union
+from typing import Tuple, List, Deque, Union
 
 from bxcommon import constants
-from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.compact_block_short_ids_serializer import BlockOffsets
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
+
 from bxutils import logging
 
+from bxgateway.abstract_message_converter import BlockDecompressionResult
 from bxgateway import ont_constants
 from bxgateway.messages.ont import ont_messages_util
 from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMessageConverter, get_block_info
@@ -33,7 +34,7 @@ def parse_bx_block_header(bx_block: memoryview, block_pieces: Deque[Union[bytear
         block_offsets.short_id_offset
     )
 
-    reconstructed_block_message = BlockOntMessage(buf=bytearray(bx_block[block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN:]))
+    reconstructed_block_message = BlockOntMessage(buf=bx_block[block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN:])
     block_hash = reconstructed_block_message.block_hash()
     txn_count = reconstructed_block_message.txn_count()
     offset = reconstructed_block_message.txn_offset() + block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN
@@ -154,8 +155,7 @@ class OntNormalMessageConverter(AbstractOntMessageConverter):
         )
         return memoryview(block), block_info
 
-    def bx_block_to_block(self, bx_block_msg: memoryview, tx_service: TransactionService) -> \
-            Tuple[Optional[AbstractMessage], BlockInfo, List[int], List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg: memoryview, tx_service: TransactionService) -> BlockDecompressionResult:
         """
         Uncompresses a bx_block from a broadcast bx_block message and converts to a raw Ontology bx_block.
 
@@ -198,4 +198,4 @@ class OntNormalMessageConverter(AbstractOntMessageConverter):
             total_tx_count,
             ont_block_msg
         )
-        return ont_block_msg, block_info, unknown_tx_sids, unknown_tx_hashes
+        return BlockDecompressionResult(ont_block_msg, block_info, unknown_tx_sids, unknown_tx_hashes)

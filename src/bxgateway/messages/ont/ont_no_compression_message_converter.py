@@ -1,17 +1,16 @@
 from datetime import datetime
 import time
 
-from typing import Tuple, Optional, List, cast
+from typing import Tuple
 
-from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert
-from bxcommon.utils.object_hash import Sha256Hash
 from bxutils import logging
 
 from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMessageConverter
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.utils.block_info import BlockInfo
+from bxgateway.abstract_message_converter import BlockDecompressionResult
 
 
 logger = logging.get_logger(__name__)
@@ -39,8 +38,7 @@ class OntNoCompressionMessageConverter(AbstractOntMessageConverter):
         )
         return block_msg.rawbytes(), block_info
 
-    def bx_block_to_block(self, bx_block_msg: memoryview, tx_service: TransactionService) \
-            -> Tuple[Optional[AbstractMessage], BlockInfo, List[int], List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg: memoryview, tx_service: TransactionService) -> BlockDecompressionResult:
         start_datetime = datetime.utcnow()
         start_time = time.time()
 
@@ -59,4 +57,4 @@ class OntNoCompressionMessageConverter(AbstractOntMessageConverter):
             len(block_msg.rawbytes()),
             0
         )
-        return block_msg, block_info, [], []
+        return BlockDecompressionResult(block_msg, block_info, [], [])

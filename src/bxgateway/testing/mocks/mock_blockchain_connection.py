@@ -9,7 +9,7 @@ from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto, convert
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway.abstract_message_converter import AbstractMessageConverter
+from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.block_info import BlockInfo
 
@@ -33,10 +33,9 @@ class MockMessageConverter(AbstractMessageConverter):
                BlockInfo(convert.bytes_to_hex(self.PREV_BLOCK.binary), [], datetime.datetime.utcnow(),
                          datetime.datetime.utcnow(), 0, 0, None, None, 0, 0, 0)
 
-    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
-                                                                   List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         block_message = MockBlockMessage(buf=bx_block_msg)
-        return block_message, block_message.block_hash(), [], []
+        return BlockDecompressionResult(block_message, block_message.block_hash(), [], [])
 
     def bdn_tx_to_bx_tx(
             self,

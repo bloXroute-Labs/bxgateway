@@ -10,13 +10,12 @@ from bxcommon.utils import crypto, convert
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import ont_constants
-from bxgateway.abstract_message_converter import AbstractMessageConverter
+from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.messages.ont import ont_messages_util
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.tx_ont_message import TxOntMessage
 from bxgateway.utils.block_info import BlockInfo
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 def get_block_info(
@@ -68,9 +67,7 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
         pass
 
     @abstractmethod
-    def bx_block_to_block(
-            self, bx_block_msg, tx_service
-    ) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int], List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         """
         Uncompresses a bx_block from a broadcast bx_block message and converts to a raw ONT bx_block.
 

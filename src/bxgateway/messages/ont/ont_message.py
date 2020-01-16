@@ -96,3 +96,8 @@ class OntMessage(AbstractMessage):
             self._payload = self.buf[ont_constants.ONT_HDR_COMMON_OFF:self.payload_len() +
                                      ont_constants.ONT_HDR_COMMON_OFF]
         return self._payload
+
+    def checksum(self):
+        if self._checksum is None:
+            self._checksum = self.buf[ont_constants.ONT_HEADER_MINUS_CHECKSUM:ont_constants.ONT_HDR_COMMON_OFF]
+        return self._checksum

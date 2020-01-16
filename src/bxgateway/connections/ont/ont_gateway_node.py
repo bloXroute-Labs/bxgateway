@@ -1,5 +1,3 @@
-from typing import Optional
-
 from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -21,7 +19,8 @@ class OntGatewayNode(AbstractGatewayNode):
     def __init__(self, opts, node_ssl_service: NodeSSLService):
         super(OntGatewayNode, self).__init__(opts, node_ssl_service)
 
-        self.message_converter = converter_factory.create_ont_message_converter(self.opts.blockchain_net_magic)
+        self.message_converter = converter_factory.create_ont_message_converter(self.opts.blockchain_net_magic,
+                                                                                self.opts)
         self.current_block_height = 0
         self.current_block_hash = NULL_ONT_BLOCK_HASH
 

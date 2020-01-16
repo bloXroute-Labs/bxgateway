@@ -13,7 +13,7 @@ from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway.abstract_message_converter import AbstractMessageConverter
+from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.block_info import BlockInfo
@@ -228,8 +228,7 @@ class EthMessageConverter(AbstractMessageConverter):
                                content_size, 100 - float(content_size) / original_size * 100)
         return memoryview(block), block_info
 
-    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
-                                                                   List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         """
         Converts internal broadcast message to Ethereum new block message
 
@@ -354,7 +353,7 @@ class EthMessageConverter(AbstractMessageConverter):
                                    len(block_msg.rawbytes()), compressed_size,
                                    100 - float(compressed_size) / content_size * 100)
 
-            return block_msg, block_info, unknown_tx_sids, unknown_tx_hashes
+            return BlockDecompressionResult(block_msg, block_info, unknown_tx_sids, unknown_tx_hashes)
         else:
             logger.debug(
                 "Block recovery needed for {}. Missing {} sids, {} tx hashes. "
@@ -365,9 +364,23 @@ class EthMessageConverter(AbstractMessageConverter):
                 tx_count
             )
 
-            return None, BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
-                                   (time.time() - decompress_start_timestamp) * 1000, None, None, None, None, None,
-                                   None), unknown_tx_sids, unknown_tx_hashes
+            return BlockDecompressionResult(
+                None,
+                BlockInfo(
+                    block_hash,
+                    short_ids,
+                    decompress_start_datetime, datetime.datetime.utcnow(),
+                    (time.time() - decompress_start_timestamp) * 1000,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None
+                ),
+                unknown_tx_sids,
+                unknown_tx_hashes
+            )
 
     def encode_raw_msg(self, raw_msg: str) -> bytes:
         try:

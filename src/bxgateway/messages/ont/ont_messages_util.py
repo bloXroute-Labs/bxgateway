@@ -71,6 +71,8 @@ def get_txid(buffer: Union[memoryview, bytearray]) -> Tuple[OntObjectHash, int]:
 
 
 def get_next_tx_size(buffer: Union[memoryview, bytearray], offset: int) -> int:
+    if not isinstance(buffer, memoryview):
+        buffer = memoryview(buffer)
     _, txid_len = get_txid(buffer[offset:])
     off = txid_len + offset
     sig_length, size = ont_varint_to_int(buffer, off)

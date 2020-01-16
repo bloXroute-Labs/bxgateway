@@ -13,7 +13,7 @@ from bxcommon.utils.proxy.vector_proxy import VectorProxy
 from bxgateway.messages.btc import btc_messages_util
 
 from bxgateway import btc_constants
-from bxgateway.abstract_message_converter import AbstractMessageConverter
+from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
@@ -100,9 +100,7 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
         pass
 
     @abstractmethod
-    def bx_block_to_block(
-            self, bx_block_msg, tx_service
-    ) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int], List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         """
         Uncompresses a bx_block from a broadcast bx_block message and converts to a raw BTC bx_block.
 

@@ -1,7 +1,7 @@
 import time
 from collections import deque
 from datetime import datetime
-from typing import Tuple, List, Optional, Dict, NamedTuple, Set
+from typing import Tuple, Optional, Dict, NamedTuple, Set
 
 from bxutils import logging
 
@@ -11,7 +11,6 @@ from bxcommon.utils.proxy import task_pool_proxy
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 from bxcommon.utils.proxy.vector_proxy import VectorProxy
-from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.memory_utils import SpecialTuple
 from bxcommon.utils import memory_utils
 
@@ -24,6 +23,7 @@ from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.btc.btc_object_hash import Sha256Hash, BtcObjectHash
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.utils.errors import message_conversion_error
+from bxgateway.abstract_message_converter import BlockDecompressionResult
 
 import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
 
@@ -90,9 +90,7 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         self.compression_tasks.return_task(tsk)
         return block, block_info
 
-    def bx_block_to_block(
-            self, bx_block_msg, tx_service
-    ) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int], List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         decompress_start_datetime = datetime.utcnow()
         decompress_start_timestamp = time.time()
         tsk = self.decompression_tasks.borrow_task()
@@ -138,7 +136,7 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
             btc_block_msg
         )
         self.decompression_tasks.return_task(tsk)
-        return btc_block_msg, block_info, unknown_tx_sids, unknown_tx_hashes
+        return BlockDecompressionResult(btc_block_msg, block_info, unknown_tx_sids, unknown_tx_hashes)
 
     def compact_block_to_bx_block(  # pyre-ignore
             self,

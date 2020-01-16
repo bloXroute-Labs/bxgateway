@@ -11,7 +11,6 @@ from bxutils import logging
 
 from bxcommon import constants
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
-from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import crypto, convert
 from bxcommon.messages.bloxroute.compact_block_short_ids_serializer import BlockOffsets
 from bxcommon.services.transaction_service import TransactionService
@@ -28,6 +27,8 @@ from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.utils.block_header_info import BlockHeaderInfo
 from bxgateway.messages.btc import btc_messages_util
+from bxgateway.abstract_message_converter import BlockDecompressionResult
+
 
 logger = logging.get_logger(__name__)
 
@@ -188,9 +189,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         )
         return memoryview(block), block_info
 
-    def bx_block_to_block(
-            self, bx_block_msg, tx_service
-    ) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int], List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         """
         Uncompresses a bx_block from a broadcast bx_block message and converts to a raw BTC bx_block.
 
@@ -244,7 +243,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             total_tx_count,
             btc_block_msg
         )
-        return btc_block_msg, block_info, unknown_tx_sids, unknown_tx_hashes
+        return BlockDecompressionResult(btc_block_msg, block_info, unknown_tx_sids, unknown_tx_hashes)
 
     def compact_block_to_bx_block(
             self,

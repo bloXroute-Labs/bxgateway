@@ -1,5 +1,5 @@
 import struct
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import crypto
@@ -20,7 +20,7 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
                  height: Optional[int] = None, consensus_data: Optional[int] = None,
                  consensus_payload: Optional[bytes] = None, next_bookkeeper: Optional[bytes] = None,
                  bookkeepers: Optional[list] = None, sig_data: Optional[list] = None, txns: Optional[list] = None,
-                 merkle_root: Optional[OntObjectHash] = None, buf: Optional[bytearray] = None):
+                 merkle_root: Optional[OntObjectHash] = None, buf: Optional[Union[bytearray, memoryview]] = None):
         if buf is None:
             total_tx_size = sum(len(tx) for tx in txns)
             buf = bytearray(ont_constants.ONT_HDR_COMMON_OFF + len(consensus_payload) +
@@ -178,18 +178,18 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
             start = self._tx_offset
             self._txns = []
             for _ in range(self.txn_count()):
-                _, off = get_txid(self.buf[start:])
-                sig_length, size = ont_varint_to_int(self.buf[start:], off)
+                _, off = get_txid(self._memoryview[start:])
+                sig_length, size = ont_varint_to_int(self._memoryview[start:], off)
                 off += size
                 for _ in range(sig_length):
-                    invoke_length, size = ont_varint_to_int(self.buf[start:], off)
+                    invoke_length, size = ont_varint_to_int(self._memoryview[start:], off)
                     off += size + invoke_length
-                    verify_length, size = ont_varint_to_int(self.buf[start:], off)
+                    verify_length, size = ont_varint_to_int(self._memoryview[start:], off)
                     off += size + verify_length
                 self._txns.append(self._memoryview[start:start + off])
                 start += off
-            self._merkle_root = OntObjectHash(self.buf[start:], 0, ont_constants.ONT_HASH_LEN)
-            self._merkle_root_memoryview = self.buf[start:start+ont_constants.ONT_HASH_LEN]
+            self._merkle_root = OntObjectHash(self._memoryview[start:], 0, ont_constants.ONT_HASH_LEN)
+            self._merkle_root_memoryview = self._memoryview[start:start+ont_constants.ONT_HASH_LEN]
         assert isinstance(self._txns, list)
         return self._txns
 

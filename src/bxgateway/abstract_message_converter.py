@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Tuple, Optional, List, Set, Union
+from typing import Tuple, Optional, List, Set, Union, NamedTuple
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
@@ -8,6 +8,13 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
 
 from bxgateway.utils.block_info import BlockInfo
+
+
+class BlockDecompressionResult(NamedTuple):
+    block_msg: Optional[AbstractMessage]
+    block_info: BlockInfo
+    unknown_short_ids: List[int]
+    unknown_tx_hashes: List[Sha256Hash]
 
 
 class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
@@ -54,8 +61,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
-                                                                   List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         """
         Converts internal broadcast message to blockchain new block message
 
@@ -63,7 +69,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
 
         :param bx_block_msg: internal broadcast message bytes
         :param tx_service: Transactions service
-        :return: tuple (new block message, block info, unknown transaction short ids, unknown transaction hashes)
+        :return: block decompression result
         """
 
         pass
