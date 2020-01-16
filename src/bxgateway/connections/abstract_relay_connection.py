@@ -16,7 +16,7 @@ from bxcommon.messages.bloxroute.notification_message import NotificationCode, N
 from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.utils import convert
 from bxcommon.utils import memory_utils
-from bxcommon.utils.stats import hooks
+from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
@@ -113,7 +113,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             return
 
         tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER,
-                                      network_num, short_id, peer=self.peer_desc,
+                                      network_num, short_id, peer=stats_format.connection(self),
                                       is_compact_transaction=(tx_val == TxMessage.EMPTY_TX_VAL))
         gateway_transaction_stats_service.log_transaction_from_relay(tx_hash,
                                                                      short_id is not None,
@@ -134,7 +134,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             if tx_val != TxMessage.EMPTY_TX_VAL:
                 tx_stats.add_tx_by_hash_event(tx_hash,
                                               TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
-                                              network_num, short_id, peer=self.peer_desc)
+                                              network_num, short_id, peer=stats_format.connection(self))
                 gateway_transaction_stats_service.log_redundant_transaction_content()
 
             if attempt_recovery:

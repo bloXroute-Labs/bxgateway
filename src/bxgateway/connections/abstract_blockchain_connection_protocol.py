@@ -6,6 +6,7 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
@@ -42,12 +43,12 @@ class AbstractBlockchainConnectionProtocol:
                 tx_stats.add_tx_by_hash_event(tx_hash,
                                               TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                               self.connection.network_num,
-                                              peer=self.connection.peer_desc)
+                                              peer=stats_format.connection(self.connection))
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
                 continue
 
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE,
-                                          self.connection.network_num, peer=self.connection.peer_desc)
+                                          self.connection.network_num, peer=stats_format.connection(self.connection))
             gateway_transaction_stats_service.log_transaction_from_blockchain(tx_hash)
 
             # All connections outside of this one is a bloXroute server
