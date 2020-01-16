@@ -13,7 +13,7 @@ from bxgateway.connections.abstract_relay_connection import AbstractRelayConnect
 from bxgateway.connections.ont.ont_gateway_node import OntGatewayNode
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.block_queuing_service import BlockQueuingService
+from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
 from bxgateway.services.ont.abstract_ont_block_cleanup_service import AbstractOntBlockCleanupService
 from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.services.ont.ont_block_queuing_service import OntBlockQueuingService
@@ -58,6 +58,7 @@ class MockOntGatewayNode(OntGatewayNode):
             self._tx_service = ExtensionTransactionService(self, self.network_num)
         else:
             self._tx_service = TransactionService(self, self.network_num)
+        self.opts.has_fully_updated_tx_service = True
 
     def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, connection_types=None):
         if connection_types is None:
@@ -85,7 +86,7 @@ class MockOntGatewayNode(OntGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
-    def build_block_queuing_service(self) -> BlockQueuingService:
+    def build_block_queuing_service(self) -> AbstractBlockQueuingService:
         pass
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
