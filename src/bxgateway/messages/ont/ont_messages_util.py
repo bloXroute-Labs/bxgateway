@@ -2,10 +2,9 @@ import socket
 from typing import Union, Optional, Tuple
 
 from bxcommon.utils import crypto
-
 from bxgateway import ont_constants
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, pack_int_to_btc_varint
+from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 def ipport_to_ontbytearray(ip_port: int) -> Optional[bytearray]:

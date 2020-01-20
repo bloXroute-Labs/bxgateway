@@ -1,16 +1,16 @@
 from typing import List, TYPE_CHECKING, Union
 
+from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-from bxcommon import constants
 from bxgateway import ont_constants
 from bxgateway.connections.ont.ont_base_connection_protocol import OntBaseConnectionProtocol
 from bxgateway.messages.ont.get_blocks_ont_message import GetBlocksOntMessage
-from bxgateway.messages.ont.get_headers_ont_message import GetHeadersOntMessage
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
+from bxgateway.messages.ont.get_headers_ont_message import GetHeadersOntMessage
 from bxgateway.messages.ont.headers_ont_message import HeadersOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InvOntMessage, InventoryOntType
 from bxgateway.messages.ont.ont_message_type import OntMessageType

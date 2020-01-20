@@ -1,9 +1,8 @@
-from typing import Optional, List, Tuple, Union
+import time
 from abc import abstractmethod
 from datetime import datetime
-import time
+from typing import Optional, List, Tuple, Union
 
-from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.utils import crypto, convert

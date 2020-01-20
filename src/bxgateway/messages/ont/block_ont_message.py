@@ -189,7 +189,7 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
                 self._txns.append(self._memoryview[start:start + off])
                 start += off
             self._merkle_root = OntObjectHash(self._memoryview[start:], 0, ont_constants.ONT_HASH_LEN)
-            self._merkle_root_memoryview = self._memoryview[start:start+ont_constants.ONT_HASH_LEN]
+            self._merkle_root_memoryview = self._memoryview[start:start + ont_constants.ONT_HASH_LEN]
         assert isinstance(self._txns, list)
         return self._txns
 

@@ -1,7 +1,7 @@
 import struct
+import time
 from collections import deque
 from datetime import datetime
-import time
 from typing import Tuple, List, Deque, Union
 
 from bxcommon import constants
@@ -10,18 +10,15 @@ from bxcommon.messages.bloxroute.compact_block_short_ids_serializer import Block
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
-
-from bxutils import logging
-
-from bxgateway.abstract_message_converter import BlockDecompressionResult
 from bxgateway import ont_constants
+from bxgateway.abstract_message_converter import BlockDecompressionResult
 from bxgateway.messages.ont import ont_messages_util
 from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMessageConverter, get_block_info
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
-from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.block_header_info import BlockHeaderInfo
+from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.errors import message_conversion_error
-
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -34,7 +31,8 @@ def parse_bx_block_header(bx_block: memoryview, block_pieces: Deque[Union[bytear
         block_offsets.short_id_offset
     )
 
-    reconstructed_block_message = BlockOntMessage(buf=bx_block[block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN:])
+    reconstructed_block_message = BlockOntMessage(
+        buf=bx_block[block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN:])
     block_hash = reconstructed_block_message.block_hash()
     txn_count = reconstructed_block_message.txn_count()
     offset = reconstructed_block_message.txn_offset() + block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN
@@ -58,7 +56,6 @@ def parse_bx_block_transactions(block_hash: Sha256Hash, bx_block: memoryview, of
             try:
                 sid = short_ids[short_tx_index]
             except IndexError:
-                # TODO: implement ont errors, use btc decompression error for now
                 raise message_conversion_error.btc_block_decompression_error(
                     block_hash,
                     f"Message is improperly formatted, short id index ({short_tx_index}) "
@@ -75,7 +72,8 @@ def parse_bx_block_transactions(block_hash: Sha256Hash, bx_block: memoryview, of
         block_pieces.append(tx)
         output_offset += len(tx)
 
-    merkle_root = bx_block[block_offsets.block_begin_offset:block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN]
+    merkle_root = bx_block[block_offsets.block_begin_offset:
+                           block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN]
     block_pieces.append(merkle_root)
 
     return unknown_tx_sids, unknown_tx_hashes, output_offset
@@ -92,7 +90,7 @@ def build_ont_block(block_pieces: Deque[Union[bytearray, memoryview]], size: int
 
 
 class OntNormalMessageConverter(AbstractOntMessageConverter):
-    def block_to_bx_block(self, block_msg: BlockOntMessage, tx_service: TransactionService) ->\
+    def block_to_bx_block(self, block_msg: BlockOntMessage, tx_service: TransactionService) -> \
             Tuple[memoryview, BlockInfo]:
         """
         Compresses a Ontology block's transactions and packs it into a bloXroute block.

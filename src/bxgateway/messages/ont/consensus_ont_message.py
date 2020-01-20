@@ -5,7 +5,7 @@ from typing import Optional
 from bxgateway import ont_constants
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.ont_message_type import OntMessageType
-from bxgateway.messages.ont.ont_messages_util import ont_varint_to_int, pack_int_to_ont_varint
+from bxgateway.messages.ont.ont_messages_util import pack_int_to_ont_varint
 from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 

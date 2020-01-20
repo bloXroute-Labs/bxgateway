@@ -3,8 +3,6 @@ from collections import deque
 from datetime import datetime
 from typing import Tuple, Optional, Set
 
-from bxutils import logging
-
 from bxcommon.utils import convert
 from bxcommon.utils.proxy import task_pool_proxy
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
@@ -21,6 +19,8 @@ from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.errors import message_conversion_error
 from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.abstract_message_converter import BlockDecompressionResult
+
+from bxutils import logging
 
 
 import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
@@ -50,8 +50,7 @@ class OntExtensionMessageConverter(AbstractOntMessageConverter):
             task_pool_proxy.run_task(tsk)
         except tpe.AggregatedException as e:
             self.compression_tasks.return_task(tsk)
-            # TODO: implement ont errors, use btc decompression error for now
-            raise message_conversion_error.btc_block_decompression_error(block_msg.block_hash(), e)
+            raise message_conversion_error.btc_block_compression_error(block_msg.block_hash(), e)
         bx_block = tsk.bx_block()
         block = memoryview(bx_block)
         compressed_size = len(block)
@@ -86,7 +85,6 @@ class OntExtensionMessageConverter(AbstractOntMessageConverter):
         except tpe.AggregatedException as e:
             self.decompression_tasks.return_task(tsk)
             header_info = ont_normal_message_converter.parse_bx_block_header(bx_block_msg, deque())
-            # TODO: implement ont errors, use btc decompression error for now
             raise message_conversion_error.btc_block_decompression_error(header_info.block_hash, e)
         total_tx_count = tsk.tx_count()
         unknown_tx_hashes = [Sha256Hash(bytearray(unknown_tx_hash.binary()))

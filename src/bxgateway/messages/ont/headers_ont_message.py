@@ -1,5 +1,6 @@
 import struct
 from typing import Optional, List
+
 from bxgateway import ont_constants
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.ont_message_type import OntMessageType
@@ -8,7 +9,7 @@ from bxgateway.messages.ont.ont_messages_util import ont_varint_to_int
 
 class HeadersOntMessage(OntMessage):
     MESSAGE_TYPE = OntMessageType.HEADERS
-    
+
     def __init__(self, magic: Optional[int] = None, headers: Optional[list] = None, buf: Optional[bytearray] = None):
         if buf is None:
             headers_length = len(headers)

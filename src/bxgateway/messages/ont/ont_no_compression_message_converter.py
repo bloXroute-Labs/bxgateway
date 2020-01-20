@@ -1,17 +1,14 @@
-from datetime import datetime
 import time
-
+from datetime import datetime
 from typing import Tuple
 
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert
-from bxutils import logging
-
+from bxgateway.abstract_message_converter import BlockDecompressionResult
 from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMessageConverter
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.utils.block_info import BlockInfo
-from bxgateway.abstract_message_converter import BlockDecompressionResult
-
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 

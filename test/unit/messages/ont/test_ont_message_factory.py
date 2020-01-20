@@ -1,10 +1,9 @@
 import time
 
-from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
 from bxcommon.exceptions import PayloadLenError, ChecksumError
 from bxcommon.test_utils.helpers import create_input_buffer_with_bytes
-from bxcommon.utils import crypto, convert
-from bxgateway.ont_constants import ONT_HEADER_MINUS_CHECKSUM, ONT_HDR_COMMON_OFF
+from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
+from bxcommon.utils import crypto
 from bxgateway.messages.ont.addr_ont_message import AddrOntMessage
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
@@ -21,14 +20,14 @@ from bxgateway.messages.ont.pong_ont_message import PongOntMessage
 from bxgateway.messages.ont.tx_ont_message import TxOntMessage
 from bxgateway.messages.ont.ver_ack_ont_message import VerAckOntMessage
 from bxgateway.messages.ont.version_ont_message import VersionOntMessage
+from bxgateway.ont_constants import ONT_HEADER_MINUS_CHECKSUM, ONT_HDR_COMMON_OFF
 from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 class OntMessageFactoryTest(MessageFactoryTestCase):
     MAGIC = 12345
     VERSION = 111
-    # use bitcoin sha256 hash for now
-    HASH = OntObjectHash(binary=crypto.bitcoin_hash(b"123"))
+    HASH = OntObjectHash(binary=crypto.double_sha256(b"123"))
 
     VERSION_ONT_MESSAGE = VersionOntMessage(MAGIC, VERSION, 20330, 20330, 20330, bytes(32), 123, 0, True, True,
                                             "v1.0.0".encode("utf-8"))
@@ -49,8 +48,9 @@ class OntMessageFactoryTest(MessageFactoryTestCase):
                                                                   bytes(33), bytes(10), 1234, self.HASH),
                                               ConsensusOntMessage.MESSAGE_TYPE, 141)
 
-        self.get_message_preview_successfully(InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]),
-                                              InvOntMessage.MESSAGE_TYPE, 69)
+        self.get_message_preview_successfully(
+            InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]),
+            InvOntMessage.MESSAGE_TYPE, 69)
         self.get_message_preview_successfully(GetDataOntMessage(self.MAGIC, 1, self.HASH),
                                               GetDataOntMessage.MESSAGE_TYPE, 33)
         self.get_message_preview_successfully(GetHeadersOntMessage(self.MAGIC, 1, self.HASH, self.HASH),
@@ -94,7 +94,8 @@ class OntMessageFactoryTest(MessageFactoryTestCase):
         self.create_message_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, self.HASH, 10, 2, bytes(10),
                                                              bytes(33), bytes(10), 1234, self.HASH),
                                          ConsensusOntMessage)
-        self.create_message_successfully(InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]), InvOntMessage)
+        self.create_message_successfully(InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]),
+                                         InvOntMessage)
         self.create_message_successfully(GetDataOntMessage(self.MAGIC, 1, self.HASH), GetDataOntMessage)
         self.create_message_successfully(GetHeadersOntMessage(self.MAGIC, 1, self.HASH, self.HASH),
                                          GetHeadersOntMessage)

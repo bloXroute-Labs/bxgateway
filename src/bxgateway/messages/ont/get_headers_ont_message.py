@@ -3,7 +3,6 @@ from typing import Optional
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.ont.data_ont_message import DataOntMessage
 from bxgateway.messages.ont.ont_message_type import OntMessageType
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 class GetHeadersOntMessage(DataOntMessage):

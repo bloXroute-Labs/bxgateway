@@ -1,14 +1,14 @@
 from abc import abstractmethod
 
-from bxutils import logging
-
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.utils.object_hash import Sha256Hash
 
-from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InventoryOntType
-from bxcommon.utils.object_hash import Sha256Hash
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 

@@ -55,7 +55,6 @@ class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):
         tx_hash_to_contents_len_after_cleanup = transaction_service.get_tx_hash_to_contents_len()
         short_id_count_after_cleanup = transaction_service.get_short_id_count()
 
-        logger.debug("Cleaned up block {}. Unknown hashes: {}, short ids: {}, duration: {}.",unknown_tx_hashes_count, short_ids_count, duration)
         logger.debug(
             "Finished cleaning up block {}. Processed {} hashes, {} of which were unknown, and cleaned up {} "
             "short ids. Took {:.3f}s.",

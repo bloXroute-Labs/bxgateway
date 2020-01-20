@@ -1,13 +1,12 @@
 import struct
 from typing import Optional
 
-from bxutils import logging
-
 from bxcommon.constants import MSG_NULL_BYTE
 from bxcommon.exceptions import ChecksumError, PayloadLenError
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import crypto
 from bxgateway import ont_constants
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
