@@ -15,3 +15,4 @@ class Summary:
     ip_address: Optional[str] = None
     continent: Optional[str] = None
     country: Optional[str] = None
+    update_required: bool = False

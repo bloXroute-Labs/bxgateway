@@ -65,7 +65,7 @@ class StatusLogTest(AbstractTestCase):
         )
         self.conn4.CONNECTION_TYPE = ConnectionType.REMOTE_BLOCKCHAIN_NODE
 
-        initialize(False, self.source_version, self.ip_address, self.continent, self.country)
+        initialize(False, self.source_version, self.ip_address, self.continent, self.country, False)
 
         path = config.get_data_file(STATUS_FILE_NAME)
         self.addCleanup(os.remove, path)
@@ -81,6 +81,7 @@ class StatusLogTest(AbstractTestCase):
         self.assertEqual(summary_loaded.transaction_relay_connection_state, None)
         self.assertEqual(summary_loaded.blockchain_node_connection_state, None)
         self.assertEqual(summary_loaded.remote_blockchain_node_connection_state, None)
+        self.assertEqual(summary_loaded.update_required, False)
         self.assertEqual(analysis_loaded.gateway_version, self.source_version)
         self.assertEqual(block_relay_loaded.ip_address, None)
         self.assertEqual(block_relay_loaded.port, None)
@@ -110,18 +111,20 @@ class StatusLogTest(AbstractTestCase):
 
     def test_on_update_one_connection(self):
         self.conn_pool.add(self.fileno1, self.ip1, self.port1, self.conn1)
-        update(self.conn_pool, False, self.source_version, self.ip_address, self.continent, self.country)
+        update(self.conn_pool, False, self.source_version, self.ip_address, self.continent, self.country, True)
         summary_loaded, analysis_loaded, environment_loaded, network_loaded = self._load_status_file()
         block_relay_loaded = network_loaded.block_relay
         transaction_relay_loaded = network_loaded.transaction_relay
         blockchain_node_loaded = network_loaded.blockchain_node
         remote_blockchain_node_loaded = network_loaded.remote_blockchain_node
-        self.assertEqual(summary_loaded, network_loaded.get_summary(self.ip_address, self.continent, self.country))
+        self.assertEqual(summary_loaded,
+                         network_loaded.get_summary(self.ip_address, self.continent, self.country, True))
         self.assertEqual(summary_loaded.gateway_status, GatewayStatus.WITH_ERRORS)
         self.assertEqual(summary_loaded.block_relay_connection_state, ConnectionState.ESTABLISHED)
         self.assertEqual(summary_loaded.transaction_relay_connection_state, ConnectionState.DISCONNECTED)
         self.assertEqual(summary_loaded.blockchain_node_connection_state, ConnectionState.DISCONNECTED)
         self.assertEqual(summary_loaded.remote_blockchain_node_connection_state, ConnectionState.DISCONNECTED)
+        self.assertEqual(summary_loaded.update_required, True)
         self.assertEqual(block_relay_loaded.ip_address, self.ip1)
         self.assertEqual(block_relay_loaded.port, str(self.port1))
         self.assertEqual(block_relay_loaded.fileno, str(self.fileno1))
@@ -137,13 +140,13 @@ class StatusLogTest(AbstractTestCase):
 
     def test_on_update_all_connections(self):
         self._add_connections()
-        update(self.conn_pool, False, self.source_version, self.ip_address, self.continent, self.country)
+        update(self.conn_pool, False, self.source_version, self.ip_address, self.continent, self.country, False)
         summary_loaded, analysis_loaded, environment_loaded, network_loaded = self._load_status_file()
         block_relay_loaded = network_loaded.block_relay
         transaction_relay_loaded = network_loaded.transaction_relay
         blockchain_node_loaded = network_loaded.blockchain_node
         remote_blockchain_node_loaded = network_loaded.remote_blockchain_node
-        self.assertEqual(summary_loaded, network_loaded.get_summary(self.ip_address, self.continent, self.country))
+        self.assertEqual(summary_loaded, network_loaded.get_summary(self.ip_address, self.continent, self.country, False))
         self.assertEqual(summary_loaded.gateway_status, GatewayStatus.ONLINE)
         self.assertEqual(summary_loaded.block_relay_connection_state, ConnectionState.ESTABLISHED)
         self.assertEqual(summary_loaded.transaction_relay_connection_state, ConnectionState.ESTABLISHED)
@@ -163,7 +166,7 @@ class StatusLogTest(AbstractTestCase):
         self.assertEqual(remote_blockchain_node_loaded.fileno, str(self.fileno4))
 
     def test_on_check_extensions(self):
-        initialize(True, self.source_version, self.ip_address, self.continent, self.country)
+        initialize(True, self.source_version, self.ip_address, self.continent, self.country, False)
         _, analysis_loaded, _, _ = self._load_status_file()
         self.assertNotEqual(analysis_loaded.extensions_check, ExtensionModulesState.UNAVAILABLE)
         self.assertEqual(type(analysis_loaded.extensions_check), ExtensionModulesState)
@@ -174,11 +177,11 @@ class StatusLogTest(AbstractTestCase):
         new_port3 = new_desc3.split()[1]
         new_fileno3 = "10"
         self._add_connections()
-        update(self.conn_pool, True, self.source_version, self.ip_address, self.continent, self.country)
+        update(self.conn_pool, True, self.source_version, self.ip_address, self.continent, self.country, False)
         summary_loaded, _, _, network_loaded = self._load_status_file()
         network_loaded.update_connection(ConnectionType.BLOCKCHAIN_NODE, new_desc3, new_fileno3)
         blockchain_node_loaded = network_loaded.blockchain_node
-        self.assertEqual(summary_loaded, network_loaded.get_summary(self.ip_address, self.continent, self.country))
+        self.assertEqual(summary_loaded, network_loaded.get_summary(self.ip_address, self.continent, self.country, False))
         self.assertEqual(summary_loaded.gateway_status, GatewayStatus.ONLINE)
         self.assertEqual(summary_loaded.blockchain_node_connection_state, ConnectionState.ESTABLISHED)
         self.assertEqual(blockchain_node_loaded.ip_address, new_ip3)

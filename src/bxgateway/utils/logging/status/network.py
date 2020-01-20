@@ -17,7 +17,7 @@ class Network:
     blockchain_node: BlockchainConnection
     remote_blockchain_node: BlockchainConnection
 
-    def get_summary(self, ip_address: str, continent: str, country: str) -> Summary:
+    def get_summary(self, ip_address: str, continent: str, country: str, update_required: bool) -> Summary:
         block_relay_connection_state = self.block_relay.get_connection_state()
         transaction_relay_connection_state = self.transaction_relay.get_connection_state()
         blockchain_node_connection_state = self.blockchain_node.get_connection_state()
@@ -29,7 +29,7 @@ class Network:
             gateway_status = GatewayStatus.WITH_ERRORS
         return Summary(gateway_status, block_relay_connection_state, transaction_relay_connection_state,
                        blockchain_node_connection_state, remote_blockchain_node_connection_state,
-                       ip_address, continent, country)
+                       ip_address, continent, country, update_required)
 
     def update_connection(self, conn: ConnectionType, desc: Optional[str] = None, file_no: Optional[str] = None,
                           peer_id: Optional[str] = None) -> None:

@@ -50,7 +50,8 @@ class GatewayStatusRpcRequest(AbstractRpcRequest):
             opts.source_version,
             opts.external_ip,
             opts.continent,
-            opts.country
+            opts.country,
+            opts.should_update_source_version
         )
         if self._details_level == GatewayStatusDetailsLevel.SUMMARY:
             data = diagnostics.summary
