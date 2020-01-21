@@ -4,7 +4,7 @@ import platform
 import sys
 from datetime import datetime
 from json.decoder import JSONDecodeError
-from typing import List
+from typing import List, Optional
 
 from bxcommon.connections.connection_pool import ConnectionPool
 from bxcommon.connections.connection_type import ConnectionType
@@ -23,6 +23,7 @@ from bxgateway.utils.logging.status.relay_connection import RelayConnection
 from bxgateway.utils.logging.status.summary import Summary
 from bxutils import logging
 from bxutils.encoding.json_encoder import EnhancedJSONEncoder
+from bxgateway.utils.logging.status import summary as summary_status
 
 logger = logging.get_logger(__name__)
 
@@ -32,10 +33,11 @@ CONN_TYPES = {ConnectionType.RELAY_BLOCK, ConnectionType.RELAY_TRANSACTION, Conn
 
 
 def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
-               update_required: bool) -> Diagnostics:
+               update_required: bool, account_id: Optional[str]) -> Diagnostics:
     current_time = _get_current_time()
     summary = Summary(gateway_status=GatewayStatus.OFFLINE, ip_address=ip_address, continent=continent, country=country,
-                      update_required=update_required)
+                      update_required=update_required,
+                      account_info=summary_status.gateway_status_get_account_info(account_id))
     environment = Environment(_get_installation_type(), OS_VERSION, platform.python_version(), sys.executable)
     block_relay = RelayConnection(connection_time=current_time)
     transaction_relay = RelayConnection(connection_time=current_time)
@@ -51,16 +53,16 @@ def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, cou
 
 
 def get_diagnostics(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
-                    update_required: bool) -> Diagnostics:
-    return _load_status_from_file(use_ext, src_ver, ip_address, continent, country, update_required)
+                    update_required: bool, account_id: Optional[str]) -> Diagnostics:
+    return _load_status_from_file(use_ext, src_ver, ip_address, continent, country, update_required, account_id)
 
 
 def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
-           update_required: bool) -> Diagnostics:
+           update_required: bool, account_id: Optional[str]) -> Diagnostics:
     path = config.get_data_file(STATUS_FILE_NAME)
     if not os.path.exists(path):
-        initialize(use_ext, src_ver, ip_address, continent, country, update_required)
-    diagnostics = _load_status_from_file(use_ext, src_ver, ip_address, continent, country, update_required)
+        initialize(use_ext, src_ver, ip_address, continent, country, update_required, account_id)
+    diagnostics = _load_status_from_file(use_ext, src_ver, ip_address, continent, country, update_required, account_id)
     analysis = diagnostics.analysis
     network = analysis.network
 
@@ -74,7 +76,7 @@ def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: s
     for conn_type in CONN_TYPES - current_conn_types:
         network.update_connection(conn_type)
 
-    summary = network.get_summary(ip_address, continent, country, update_required)
+    summary = network.get_summary(ip_address, continent, country, update_required, account_id)
     diagnostics = Diagnostics(summary, analysis)
 
     _save_status_to_file(diagnostics)
@@ -82,8 +84,8 @@ def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: s
 
 
 def update_alarm_callback(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: str, continent: str,
-                          country: str, update_required: bool) -> None:
-    update(conn_pool, use_ext, src_ver, ip_address, continent, country, update_required)
+                          country: str, update_required: bool, account_id: Optional[str]) -> None:
+    update(conn_pool, use_ext, src_ver, ip_address, continent, country, update_required, account_id)
 
 
 def _check_extensions_validity(use_ext: bool, src_ver: str) -> ExtensionModulesState:
@@ -126,7 +128,7 @@ def _get_startup_param() -> str:
 
 
 def _load_status_from_file(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
-                           update_required: bool) -> Diagnostics:
+                           update_required: bool, account_id: Optional[str]) -> Diagnostics:
     path = config.get_data_file(STATUS_FILE_NAME)
     with open(path, "r", encoding="utf-8") as json_file:
         status_file = json_file.read()
@@ -137,7 +139,7 @@ def _load_status_from_file(use_ext: bool, src_ver: str, ip_address: str, contine
         logger.warning("The status file may have been modified. This message can be safely ignored when "
                        "running multiple nodes on the same machine. "
                        f"For more information, please check the status file: {path}")
-        diagnostics = initialize(use_ext, src_ver, ip_address, continent, country, update_required)
+        diagnostics = initialize(use_ext, src_ver, ip_address, continent, country, update_required, account_id)
     return diagnostics
 
 

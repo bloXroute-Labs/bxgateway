@@ -181,7 +181,8 @@ class AbstractGatewayNode(AbstractNode):
         self._rpc_server = GatewayRpcServer(self)
 
         status_log.initialize(self.opts.use_extensions, self.opts.source_version, self.opts.external_ip,
-                              self.opts.continent, self.opts.country, self.opts.should_update_source_version)
+                              self.opts.continent, self.opts.country, self.opts.should_update_source_version,
+                              self.account_id)
 
         self.alarm_queue.register_alarm(gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
                                         self.send_request_for_relay_peers)
@@ -461,7 +462,7 @@ class AbstractGatewayNode(AbstractNode):
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
                                                self.opts.external_ip, self.opts.continent, self.opts.country,
-                                               self.opts.should_update_source_version)
+                                               self.opts.should_update_source_version, self.account_id)
         if self.is_local_blockchain_address(ip, port):
             return self.build_blockchain_connection(socket_connection)
         elif self.remote_blockchain_ip == ip and self.remote_blockchain_port == port:
@@ -569,7 +570,7 @@ class AbstractGatewayNode(AbstractNode):
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
                                                self.opts.external_ip, self.opts.continent, self.opts.country,
-                                               self.opts.should_update_source_version)
+                                               self.opts.should_update_source_version, self.account_id)
         if connection_type in ConnectionType.GATEWAY:
             self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
                                                  self.opts.node_id,

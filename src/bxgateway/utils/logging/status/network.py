@@ -8,7 +8,7 @@ from bxgateway.utils.logging.status.connection_state import ConnectionState
 from bxgateway.utils.logging.status.gateway_status import GatewayStatus
 from bxgateway.utils.logging.status.relay_connection import RelayConnection
 from bxgateway.utils.logging.status.summary import Summary
-
+from bxgateway.utils.logging.status import summary
 
 @dataclass
 class Network:
@@ -17,7 +17,8 @@ class Network:
     blockchain_node: BlockchainConnection
     remote_blockchain_node: BlockchainConnection
 
-    def get_summary(self, ip_address: str, continent: str, country: str, update_required: bool) -> Summary:
+    def get_summary(self, ip_address: str, continent: str, country: str, update_required: bool,
+                    account_id: Optional[str]) -> Summary:
         block_relay_connection_state = self.block_relay.get_connection_state()
         transaction_relay_connection_state = self.transaction_relay.get_connection_state()
         blockchain_node_connection_state = self.blockchain_node.get_connection_state()
@@ -27,7 +28,8 @@ class Network:
             gateway_status = GatewayStatus.ONLINE
         else:
             gateway_status = GatewayStatus.WITH_ERRORS
-        return Summary(gateway_status, block_relay_connection_state, transaction_relay_connection_state,
+        return Summary(gateway_status, summary.gateway_status_get_account_info(account_id),
+                       block_relay_connection_state, transaction_relay_connection_state,
                        blockchain_node_connection_state, remote_blockchain_node_connection_state,
                        ip_address, continent, country, update_required)
 
