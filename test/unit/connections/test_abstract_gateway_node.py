@@ -391,7 +391,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         time.time = MagicMock(return_value=time.time() + node.opts.stay_alive_duration -
                                            gateway_constants.INITIAL_LIVELINESS_CHECK_S)
         node.alarm_queue.fire_alarms()
-        self.assertTrue(node.should_force_exit)
+        self.assertFalse(node.should_force_exit)
 
     def test_exit_after_losing_relay_connection(self):
         node = self._initialize_gateway(True, True)
@@ -407,7 +407,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         time.time = MagicMock(return_value=time.time() + node.opts.stay_alive_duration -
                                            gateway_constants.INITIAL_LIVELINESS_CHECK_S)
         node.alarm_queue.fire_alarms()
-        self.assertTrue(node.should_force_exit)
+        self.assertFalse(node.should_force_exit)
 
     def test_relay_connection_update(self):
         relay_connections = [

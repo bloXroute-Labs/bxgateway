@@ -539,7 +539,6 @@ class AbstractGatewayNode(AbstractNode):
                                              connection.peer_port)
         self.node_conn = None
         self.node_msg_queue.pop_items()
-        self.schedule_blockchain_liveliness_check(self.opts.stay_alive_duration)
 
     def on_remote_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection):
         for msg in self.remote_node_msg_queue.pop_items():
@@ -714,7 +713,6 @@ class AbstractGatewayNode(AbstractNode):
         if len(self.peer_relays) < gateway_constants.MIN_PEER_RELAYS:
             self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
                                             self.send_request_for_relay_peers)
-            self.schedule_relay_liveliness_check(gateway_constants.DEFAULT_STAY_ALIVE_DURATION_S)
 
     def _remove_relay_transaction_peer(self, ip: str, port: int, remove_block_relay: bool = True):
         """
