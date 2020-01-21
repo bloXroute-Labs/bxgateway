@@ -74,12 +74,18 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                                              self._stop_waiting_checkpoint_headers_request)
 
     def msg_block(self, msg: NewBlockEthProtocolMessage):
+        if not self.node.is_sync_tx_service_completed(msg.block_hash()):
+            return
+
         self.node.set_known_total_difficulty(msg.block_hash(), msg.chain_difficulty())
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(msg)
         super().msg_block(internal_new_block_msg)
 
     def msg_new_block_hashes(self, msg: NewBlockHashesEthProtocolMessage):
+        if not self.node.is_sync_tx_service_completed(msg.block_hash()):
+            return
+
         block_hash_number_pairs = []
         for block_hash, block_number in msg.get_block_hash_number_pairs():
             block_stats.add_block_event_by_block_hash(block_hash,
@@ -147,6 +153,9 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             self.msg_proxy_request(msg)
 
     def msg_block_headers(self, msg: BlockHeadersEthProtocolMessage):
+        if not self.node.is_sync_tx_service_completed():
+            return
+
         block_headers = msg.get_block_headers()
 
         if self._pending_new_blocks_parts.contents and len(block_headers) == 1:
@@ -168,6 +177,9 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
 
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage):
+        if not self.node.is_sync_tx_service_completed():
+            return
+
         if self._block_bodies_requests:
             requested_hashes = self._block_bodies_requests.popleft()
 

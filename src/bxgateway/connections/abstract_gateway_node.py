@@ -369,7 +369,7 @@ class AbstractGatewayNode(AbstractNode):
             if best_relay_peer in self.peer_relays:
                 logger.debug("Current relay is optimal {}, skip", best_relay_peer)
                 return
-            elif self.peer_relays is not None:
+            elif self.peer_relays:
                 logger.info("New best relay: {}, disconnecting from current relays {}",
                             best_relay_peer, self.peer_relays)
                 self.peer_relays.clear()
@@ -650,6 +650,14 @@ class AbstractGatewayNode(AbstractNode):
             logger.error("Gateway does not have an active connection to the relay network. "
                          "There may be issues with the BDN. Exiting.")
 
+    def is_sync_tx_service_completed(self, block_hash: Optional[Sha256Hash] = None) -> bool:
+        if not self.opts.has_fully_updated_tx_service:
+            logger.debug(
+                "Gateway skipped processing block  {} while tx syncing.", block_hash if block_hash is not None else "block message"
+            )
+            return False
+        return True
+
     def _send_request_for_gateway_peers(self):
         """
         Requests gateway peers from SDN. Merges list with provided command line gateways.
@@ -747,6 +755,8 @@ class AbstractGatewayNode(AbstractNode):
                                f"{self.opts.blockchain_networks}")
 
     def _sync_tx_services(self):
+        logger.info("Starting to sync tx service")
+        super(AbstractGatewayNode, self)._sync_tx_services()
         if self.opts.sync_tx_service:
             retry = True
             if self.opts.split_relays:

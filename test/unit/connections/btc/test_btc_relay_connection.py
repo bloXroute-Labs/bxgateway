@@ -45,6 +45,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
             helpers.set_extensions_parallelism(opts.thread_pool_parallelism_degree)
         node_ssl_service = MockNodeSSLService(BtcGatewayNode.NODE_TYPE, MagicMock())
         self.gateway_node = BtcGatewayNode(opts, node_ssl_service)
+        self.gateway_node.opts.has_fully_updated_tx_service = True
         self.sut = BtcRelayConnection(MockSocketConnection(
             node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
         )

@@ -160,6 +160,9 @@ class AbstractBlockQueuingService(
         if block_msg is None:
             block_msg = self._blocks[block_hash]
 
+        if not self.node.is_sync_tx_service_completed(block_hash):
+            return
+
         logger.info("Forwarding block {} to blockchain node.", block_hash)
 
         self.node.send_msg_to_node(block_msg)

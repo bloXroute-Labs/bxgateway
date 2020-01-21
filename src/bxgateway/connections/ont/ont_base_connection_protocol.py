@@ -46,6 +46,9 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
     def msg_block(self, msg: BlockOntMessage):
         block_hash = msg.block_hash()
 
+        if not self.node.is_sync_tx_service_completed(block_hash):
+            return
+
         # TODO: block_cleanup_service
         super().msg_block(msg)
         inv_msg = InvOntMessage(magic=self.node.opts.blockchain_net_magic,

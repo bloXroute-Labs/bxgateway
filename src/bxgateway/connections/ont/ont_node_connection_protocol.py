@@ -59,6 +59,9 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
             self.node.on_blockchain_connection_ready(self.connection)
 
     def msg_inv(self, msg: InvOntMessage) -> None:
+        if not self.node.is_sync_tx_service_completed():
+            return
+
         contains_block = False
         inventory_requests = []
         block_hashes = []
@@ -111,6 +114,9 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
             self.connection.enqueue_msg(reply)
 
     def msg_headers(self, msg: HeadersOntMessage):
+        if not self.node.is_sync_tx_service_completed():
+            return
+
         header = msg.headers()[-1]
         raw_hash = crypto.double_sha256(header)
         reply = GetDataOntMessage(self.magic, InventoryOntType.MSG_BLOCK.value,

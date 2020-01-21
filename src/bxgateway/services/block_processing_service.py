@@ -146,6 +146,11 @@ class BlockProcessingService:
         This is typically an encrypted block.
         """
 
+        # TODO handle the situation where txs that received from relays while syncing are in the blocks that were
+        #  ignored while syncing, so these txs won't be cleaned for 3 days
+        if not self._node.is_sync_tx_service_completed(msg.block_hash):
+            return
+
         block_stats.add_block_event(msg,
                                     BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                     network_num=connection.network_num,
@@ -205,6 +210,9 @@ class BlockProcessingService:
         key = msg.key()
         block_hash = msg.block_hash()
 
+        if not self._node.is_sync_tx_service_completed(block_hash):
+            return
+
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                                   network_num=connection.network_num,
@@ -246,7 +254,7 @@ class BlockProcessingService:
                                                       more_info=stats_format.connections(conns))
 
     def retry_broadcast_recovered_blocks(self, connection):
-        if self._node.block_recovery_service.recovered_blocks:
+        if self._node.block_recovery_service.recovered_blocks and self._node.opts.has_fully_updated_tx_service:
             for msg in self._node.block_recovery_service.recovered_blocks:
                 self._handle_decrypted_block(msg, connection, recovered=True)
 

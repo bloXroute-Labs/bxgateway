@@ -67,8 +67,7 @@ class AbstractBlockchainConnectionProtocol:
         block_hash = msg.block_hash()
         node = self.connection.node
         # if gateway is still syncing, skip this process
-        if not node.opts.has_fully_updated_tx_service:
-            logger.info("Gateway received block message {} while syncing, skipping..", msg)
+        if not node.is_sync_tx_service_completed(block_hash):
             return
 
         node.block_cleanup_service.on_new_block_received(block_hash, msg.prev_block_hash())

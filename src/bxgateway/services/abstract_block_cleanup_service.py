@@ -126,6 +126,8 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
     ):
         block_cleanup = msg.MESSAGE_TYPE == BloxrouteMessageType.BLOCK_CONFIRMATION
         message_hash = msg.message_hash()
+        if not self.node.is_sync_tx_service_completed(message_hash):
+            return
         transaction_service = node.get_tx_service()
         tracked_blocks = transaction_service.get_tracked_blocks()
         if message_hash in node.block_cleanup_processed_blocks:
