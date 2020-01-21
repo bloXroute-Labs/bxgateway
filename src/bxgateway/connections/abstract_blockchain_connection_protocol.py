@@ -56,7 +56,7 @@ class AbstractBlockchainConnectionProtocol:
                                                              connection_types=[ConnectionType.RELAY_TRANSACTION])
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
                                           self.connection.network_num,
-                                          peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),
+                                          peers=map(lambda conn: (stats_format.connection(conn)),
                                                     broadcast_peers))
             self._set_transaction_contents(tx_hash, tx_bytes)
 
