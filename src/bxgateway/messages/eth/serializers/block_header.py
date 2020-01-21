@@ -26,6 +26,8 @@ class BlockHeader(rlp.Serializable):
         ("mix_hash", rlp.sedes.binary),
         ("nonce", rlp.sedes.binary)
     ]
+    
+    number: int
 
     def __repr__(self):
         return f"EthBlockHeader<{self.hash()}>"

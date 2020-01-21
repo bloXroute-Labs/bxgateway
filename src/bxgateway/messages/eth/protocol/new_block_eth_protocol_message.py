@@ -1,5 +1,5 @@
 import rlp
-from typing import List
+from typing import List, Optional
 
 from bxutils.logging.log_level import LogLevel
 
@@ -21,7 +21,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
     fields = [("block", Block),
               ("chain_difficulty", rlp.sedes.big_endian_int)]
 
-    block = None
+    block: Block = None
 
     def __init__(self, msg_bytes, *args, **kwargs):
         super(NewBlockEthProtocolMessage, self).__init__(msg_bytes, *args, **kwargs)
@@ -31,6 +31,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
         self._block_hash = None
         self._timestamp = None
         self._chain_difficulty = None
+        self._number: Optional[int] = None
 
     def extra_stats_data(self):
         return "Full block"
@@ -80,7 +81,8 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
         return LogLevel.DEBUG
 
     def __repr__(self):
-        return f"NewBlockEthProtocolMessage<{self.block_hash()}"
+        return f"NewBlockEthProtocolMessage<block_hash: {self.block_hash()}, " \
+               f"number: {self.number()}>"
 
     def get_block(self) -> Block:
         return self.get_field_value("block")
@@ -162,6 +164,29 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             self._timestamp = timestamp
         assert self._timestamp is not None
         return self._timestamp
+
+    def number(self) -> int:
+        """
+        :return: block height
+        """
+        if self._number is None:
+            _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
+            block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
+
+            _, block_itm_len, block_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
+            block_itm_bytes = block_msg_bytes[block_msg_itm_start:block_msg_itm_start + block_itm_len]
+
+            _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
+            block_hdr_bytes = block_itm_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
+
+            offset = BlockHeader.FIXED_LENGTH_FIELD_OFFSET
+            _difficulty, difficulty_length = rlp_utils.decode_int(block_hdr_bytes, offset)
+            offset += difficulty_length
+            self._number, _ = rlp_utils.decode_int(block_hdr_bytes, offset)
+
+        assert self._number is not None
+        return self._number
+
 
     def txns(self) -> List[Transaction]:
         txns = self.get_block().transactions

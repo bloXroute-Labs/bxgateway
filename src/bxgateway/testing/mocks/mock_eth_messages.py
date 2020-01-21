@@ -1,9 +1,14 @@
+from typing import Optional
+
 from bxcommon.test_utils import helpers
 from bxgateway import eth_constants
+from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import \
+    NewBlockEthProtocolMessage
 from bxgateway.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
 from bxgateway.messages.eth.serializers.transaction import Transaction
-from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
+from bxgateway.messages.eth.serializers.transient_block_body import \
+    TransientBlockBody
 
 
 def get_dummy_transaction(nonce):
@@ -20,9 +25,11 @@ def get_dummy_transaction(nonce):
         7 * nonce)
 
 
-def get_dummy_block_header(nonce, timestamp=None):
+def get_dummy_block_header(nonce, timestamp=None, block_number=None):
     if timestamp is None:
         timestamp = 5 * nonce
+    if block_number is None:
+        block_number = 2 * nonce
 
     # create BlockHeader object with dummy values multiplied by nonce to be able generate txs with different value
     return BlockHeader(
@@ -34,7 +41,7 @@ def get_dummy_block_header(nonce, timestamp=None):
         helpers.generate_bytes(eth_constants.MERKLE_ROOT_LEN),
         100 * nonce,
         nonce,
-        2 * nonce,
+        block_number,
         3 * nonce,
         4 * nonce,
         timestamp,
@@ -73,3 +80,12 @@ def get_dummy_block(nonce, header=None):
             get_dummy_block_header(2)
         ]
     )
+
+
+def new_block_eth_protocol_message(
+        nonce: int,
+        block_number: Optional[int] = None
+) -> NewBlockEthProtocolMessage:
+    header = get_dummy_block_header(nonce, block_number=block_number)
+    block = get_dummy_block(nonce, header)
+    return NewBlockEthProtocolMessage(None, block, nonce * 5 + 10)

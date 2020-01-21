@@ -1,3 +1,5 @@
+from typing import List
+
 import rlp
 
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
@@ -12,6 +14,6 @@ class Block(rlp.Serializable):
         ("uncles", rlp.sedes.CountableList(BlockHeader))
     ]
 
-    header = None
-    transactions = None
-    uncles = None
+    header: BlockHeader = None
+    transactions: List[Transaction] = None
+    uncles: List[BlockHeader] = None

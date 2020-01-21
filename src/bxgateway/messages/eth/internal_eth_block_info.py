@@ -40,6 +40,7 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
         self._block_header: memoryview = None
         self._block_hash: Sha256Hash = None
         self._timestamp: int = None
+        self._block_number: Optional[int] = None
 
     def block_header(self) -> memoryview:
         if self._block_header is None:
@@ -118,18 +119,23 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
         return chain_difficulty > 0
 
     def has_block_number(self) -> bool:
-        _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
-        block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
+        return self.block_number() > 0
 
-        _, block_header_len, block_header_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
-        _, txs_len, txs_start = rlp_utils.consume_length_prefix(block_msg_bytes, block_header_start + block_header_len)
-        _, uncles_len, uncles_start = rlp_utils.consume_length_prefix(block_msg_bytes, txs_start + txs_len)
-        _, chain_difficulty_len, chain_difficulty_start = rlp_utils.consume_length_prefix(block_msg_bytes,
-                                                                                          uncles_start + uncles_len)
+    def block_number(self) -> int:
+        if self._block_number is None:
+            _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
+            block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
-        block_number, _ = rlp_utils.decode_int(block_msg_bytes, chain_difficulty_start + chain_difficulty_len)
+            _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
+            block_hdr_bytes = block_msg_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
 
-        return block_number > 0
+            offset = BlockHeader.FIXED_LENGTH_FIELD_OFFSET
+            _difficulty, difficulty_length = rlp_utils.decode_int(block_hdr_bytes, offset)
+            offset += difficulty_length
+            self._block_number, _ = rlp_utils.decode_int(block_hdr_bytes, offset)
+
+        assert self._block_number is not None
+        return self._block_number
 
     @classmethod
     def from_new_block_msg(cls, new_block_msg: NewBlockEthProtocolMessage) -> "InternalEthBlockInfo":
@@ -153,8 +159,7 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
         difficulty_bytes = block_msg_bytes[block_msg_itm_start + block_itm_len:]
         msg_size += len(difficulty_bytes)
 
-        # use 0 for block number
-        block_number_bytes = rlp_utils.encode_int(0)
+        block_number_bytes = rlp_utils.encode_int(new_block_msg.number())
         msg_size += len(block_number_bytes)
 
         msg_prefix = rlp_utils.get_length_prefix_list(
