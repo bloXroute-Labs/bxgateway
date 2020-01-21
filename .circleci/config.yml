@@ -79,6 +79,7 @@ jobs:
           command: |
             python -m virtualenv venv
             . venv/bin/activate
+            pip install pip==18.1
             pip install -r bxgateway/requirements.txt
             pip install -r bxgateway/requirements-dev.txt
             pip install -r bxcommon/requirements.txt
