@@ -95,7 +95,7 @@ class AbstractBlockchainConnectionProtocol:
             return
 
         node.track_block_from_node_handling_started(block_hash)
-        node.on_block_seen_by_blockchain_node(block_hash)
+        node.on_block_seen_by_blockchain_node(block_hash, msg)
         node.block_processing_service.queue_block_for_processing(msg, self.connection)
         return
 

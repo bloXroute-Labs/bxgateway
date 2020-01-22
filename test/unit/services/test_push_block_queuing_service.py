@@ -106,11 +106,13 @@ def create_block_message(
 
 
 class BlockQueuingServiceTest(AbstractTestCase):
+
     def setUp(self):
         self.node = MockGatewayNode(
             helpers.get_gateway_opts(
                 8000,
                 max_block_interval=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S,
+                blockchain_message_ttl=300
             )
         )
 
@@ -543,3 +545,27 @@ class BlockQueuingServiceTest(AbstractTestCase):
         success = self.block_queuing_service.try_send_header_to_node(block_hash)
         self.assertFalse(success)
         self.assertEqual(0, len(self.node.send_to_node_messages))
+
+    def test_sending_block_timed_out(self):
+        block_hash_1 = Sha256Hash(helpers.generate_hash())
+        block_msg_1 = create_block_message(block_hash_1)
+
+        block_hash_2 = Sha256Hash(helpers.generate_hash())
+        block_msg_2 = create_block_message(block_hash_2, block_hash_1)
+
+        # first block gets sent immediately
+        self.block_queuing_service.push(block_hash_1, block_msg_1)
+        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(block_msg_1, self.node.send_to_node_messages[0])
+        self.assertEqual(0, len(self.block_queuing_service))
+        self.assertIn(block_hash_1, self.block_queuing_service)
+
+        self.block_queuing_service.push(block_hash_2, block_msg_2)
+
+        time.time = MagicMock(return_value=time.time() + 350)
+
+        # too much time has elapsed, message is dropped
+        self.node.alarm_queue.fire_alarms()
+        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(block_msg_1, self.node.send_to_node_messages[0])
+        self.assertEqual(0, len(self.block_queuing_service))

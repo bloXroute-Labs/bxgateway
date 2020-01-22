@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, Set, List
+from typing import TYPE_CHECKING, Dict, Set, List, Optional
 
 from bxcommon import constants
 from bxcommon.utils.alarm_queue import AlarmId
@@ -43,7 +43,7 @@ class EthBlockQueuingService(
 ):
     block_checking_alarms: Dict[Sha256Hash, AlarmId]
     block_repeat_count: Dict[Sha256Hash, int]
-    _sent_new_block_headers: ExpiringDict[Sha256Hash, NewBlockParts]
+    _block_parts: ExpiringDict[Sha256Hash, NewBlockParts]
     _block_hashes_by_height: ExpiringDict[int, Set[Sha256Hash]]
     _height_by_block_hash: ExpiringDict[Sha256Hash, int]
 
@@ -51,7 +51,7 @@ class EthBlockQueuingService(
         super().__init__(node)
         self.block_checking_alarms = {}
         self.block_repeat_count = defaultdict(int)
-        self._sent_new_block_headers = ExpiringDict(
+        self._block_parts = ExpiringDict(
             node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S
         )
         self._block_hashes_by_height = ExpiringDict(
@@ -64,8 +64,8 @@ class EthBlockQueuingService(
     def build_block_header_message(
         self, block_hash: Sha256Hash, block_message: InternalEthBlockInfo
     ) -> BlockHeadersEthProtocolMessage:
-        if block_hash in self._sent_new_block_headers:
-            block_header_bytes = self._sent_new_block_headers[
+        if block_hash in self._block_parts:
+            block_header_bytes = self._block_parts[
                 block_hash
             ].block_header_bytes
         else:
@@ -79,25 +79,7 @@ class EthBlockQueuingService(
     def send_block_to_node(
         self, block_hash: Sha256Hash, block_msg: InternalEthBlockInfo
     ):
-
-        new_block_parts = block_msg.to_new_block_parts()
-        self._sent_new_block_headers.add(block_hash, new_block_parts)
-        block_number = block_msg.block_number()
-        if block_number > 0:
-            logger.trace(
-                "Adding headers for block {} at height: {}",
-                block_hash,
-                block_number,
-            )
-            if block_number in self._block_hashes_by_height:
-                self._block_hashes_by_height[block_number].add(block_hash)
-            else:
-                self._block_hashes_by_height.add(block_number, {block_hash})
-            self._height_by_block_hash[block_hash] = block_number
-        else:
-            logger.trace(
-                "No block height could be parsed for block: {}", block_hash
-            )
+        new_block_parts = self._block_parts[block_hash]
 
         if block_msg.has_total_difficulty():
             new_block_msg = block_msg.to_new_block_msg()
@@ -149,8 +131,32 @@ class EthBlockQueuingService(
                 block_hash,
             )
 
-    def mark_block_seen_by_blockchain_node(self, block_hash: Sha256Hash):
-        super().mark_block_seen_by_blockchain_node(block_hash)
+    def push(
+        self,
+        block_hash: Sha256Hash,
+        block_msg: Optional[InternalEthBlockInfo] = None,
+        waiting_for_recovery: bool = False,
+    ):
+        if not waiting_for_recovery:
+            assert block_msg is not None
+            self._store_block_parts(block_hash, block_msg)
+        super().push(block_hash, block_msg, waiting_for_recovery)
+
+    def update_recovered_block(
+        self, block_hash: Sha256Hash, block_msg: InternalEthBlockInfo
+    ):
+        super().update_recovered_block(block_hash, block_msg)
+        self._store_block_parts(block_hash, block_msg)
+
+    def mark_block_seen_by_blockchain_node(
+        self,
+        block_hash: Sha256Hash,
+        block_message: Optional[InternalEthBlockInfo] = None,
+    ):
+        if block_message is not None:
+            self._store_block_parts(block_hash, block_message)
+
+        super().mark_block_seen_by_blockchain_node(block_hash, block_message)
 
         if block_hash in self.block_checking_alarms:
             self.node.alarm_queue.unregister_alarm(
@@ -161,14 +167,14 @@ class EthBlockQueuingService(
 
     def remove(self, block_hash: Sha256Hash) -> int:
         index = super().remove(block_hash)
-        if block_hash in self._sent_new_block_headers:
-            del self._sent_new_block_headers[block_hash]
+        if block_hash in self._block_parts:
+            del self._block_parts[block_hash]
             height = self._height_by_block_hash.contents.pop(block_hash, None)
             logger.trace("Removing block {} at height {}", block_hash, height)
             if height:
-                self._block_hashes_by_height.contents.get(height, set()).discard(
-                    block_hash
-                )
+                self._block_hashes_by_height.contents.get(
+                    height, set()
+                ).discard(block_hash)
         return index
 
     def try_send_body_to_node(self, block_hash: Sha256Hash) -> bool:
@@ -179,10 +185,8 @@ class EthBlockQueuingService(
         if block_message is None:
             return False
 
-        if block_hash in self._sent_new_block_headers:
-            block_body_bytes = self._sent_new_block_headers[
-                block_hash
-            ].block_body_bytes
+        if block_hash in self._block_parts:
+            block_body_bytes = self._block_parts[block_hash].block_body_bytes
         else:
             block_body_bytes = (
                 block_message.to_new_block_parts().block_body_bytes
@@ -290,6 +294,28 @@ class EthBlockQueuingService(
         full_header_message = BlockHeadersEthProtocolMessage(None, headers)
         self.node.send_msg_to_node(full_header_message)
         return True
+
+    def _store_block_parts(
+        self, block_hash: Sha256Hash, block_message: InternalEthBlockInfo
+    ):
+        new_block_parts = block_message.to_new_block_parts()
+        self._block_parts[block_hash] = new_block_parts
+        block_number = block_message.block_number()
+        if block_number > 0:
+            logger.trace(
+                "Adding headers for block {} at height: {}",
+                block_hash,
+                block_number,
+            )
+            if block_number in self._block_hashes_by_height:
+                self._block_hashes_by_height[block_number].add(block_hash)
+            else:
+                self._block_hashes_by_height.add(block_number, {block_hash})
+            self._height_by_block_hash[block_hash] = block_number
+        else:
+            logger.trace(
+                "No block height could be parsed for block: {}", block_hash
+            )
 
     def _check_for_block_on_repeat(self, block_hash: Sha256Hash) -> float:
         get_confirmation_message = GetBlockHeadersEthProtocolMessage(

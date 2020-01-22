@@ -49,6 +49,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.connection = MagicMock(spec=AbstractGatewayBlockchainConnection)
         self.connection.node = self.node
         self.connection.is_active = MagicMock(return_value=True)
+        self.connection.network_num = 5
         self.node.set_known_total_difficulty = MagicMock()
         self.node.node_conn = self.connection
 
@@ -59,6 +60,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.node.block_processing_service = EthBlockProcessingService(
             self.node
         )
+        self.node.block_processing_service.queue_block_for_processing = MagicMock()
         self.node.block_queuing_service = EthBlockQueuingService(self.node)
 
         dummy_private_key = crypto_utils.make_private_key(
@@ -284,7 +286,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         for i in range(10, 20):
             self.assertEqual(
                 block_hashes[i],
-                headers_sent.get_block_headers()[i - 10].hash_object()
+                headers_sent.get_block_headers()[i - 10].hash_object(),
             )
 
     def test_msg_get_block_headers_fork(self):
@@ -340,3 +342,50 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
 
         self.sut.msg_proxy_request.assert_called_once()
         self.assertEqual(0, len(self.node.send_to_node_messages))
+
+    def test_msg_block_adds_headers_and_bodies(self):
+        self.node.opts.max_block_interval = 0
+        self.sut.is_valid_block_timestamp = MagicMock(return_value=True)
+
+        block_hashes = []
+        block_messages = []
+        for i in range(20):
+            block_message = InternalEthBlockInfo.from_new_block_msg(
+                mock_eth_messages.new_block_eth_protocol_message(i, i + 1000)
+            )
+            block_hash = block_message.block_hash()
+            block_hashes.append(block_hash)
+            block_messages.append(block_message)
+
+        for i in (j for j in range(20) if j != 17):
+            self.node.block_queuing_service.push(
+                block_hashes[i], block_messages[i]
+            )
+
+        self.node.send_to_node_messages.clear()
+
+        self.sut.msg_proxy_request = MagicMock()
+        message = GetBlockHeadersEthProtocolMessage(
+            None, block_hashes[-1].binary, 10, 0, 1
+        )
+        self.sut.msg_get_block_headers(message)
+
+        self.sut.msg_proxy_request.assert_called_once()
+        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.sut.msg_proxy_request.reset_mock()
+
+        self.sut.msg_block(block_messages[17].to_new_block_msg())
+        self.sut.msg_get_block_headers(message)
+
+        self.sut.msg_proxy_request.assert_not_called()
+        self.assertEqual(1, len(self.node.send_to_node_messages))
+
+        headers_sent = self.node.send_to_node_messages[0]
+        self.assertIsInstance(headers_sent, BlockHeadersEthProtocolMessage)
+        self.assertEqual(10, len(headers_sent.get_block_headers()))
+
+        for i in range(10, 20):
+            self.assertEqual(
+                block_hashes[i],
+                headers_sent.get_block_headers()[i - 10].hash_object(),
+            )

@@ -48,7 +48,9 @@ class AbstractBlockQueuingService(
 
         # queue of tuple (block hash, timestamp) for blocks that need to be
         # sent to blockchain node
-        self._block_queue: Deque[BlockQueueEntry] = deque()
+        self._block_queue: Deque[BlockQueueEntry] = deque(
+            maxlen=gateway_constants.BLOCK_QUEUE_LENGTH_LIMIT
+        )
         self._blocks_waiting_for_recovery: Dict[Sha256Hash, bool] = {}
         self._blocks: ExpiringDict[
             Sha256Hash, Optional[TBlockMessage]
@@ -103,15 +105,19 @@ class AbstractBlockQueuingService(
     ):
         pass
 
-    @abstractmethod
-    def mark_block_seen_by_blockchain_node(self, block_hash: Sha256Hash):
-        pass
+    def mark_block_seen_by_blockchain_node(
+        self,
+        block_hash: Sha256Hash,
+        block_message: Optional[TBlockMessage] = None,
+    ):
+        if block_message is not None:
+            self._blocks[block_hash] = block_message
 
     def push(
-            self,
-            block_hash: Sha256Hash,
-            block_msg: Optional[TBlockMessage] = None,
-            waiting_for_recovery: bool = False,
+        self,
+        block_hash: Sha256Hash,
+        block_msg: Optional[TBlockMessage] = None,
+        waiting_for_recovery: bool = False,
     ):
         """
         Pushes block to the queue
@@ -120,7 +126,7 @@ class AbstractBlockQueuingService(
         :param waiting_for_recovery: flag indicating if gateway is waiting for recovery of the block
         """
         if self.can_add_block_to_queuing_service(
-                block_hash, block_msg, waiting_for_recovery
+            block_hash, block_msg, waiting_for_recovery
         ):
             self._block_queue.append(BlockQueueEntry(block_hash, time.time()))
             self._blocks[block_hash] = block_msg

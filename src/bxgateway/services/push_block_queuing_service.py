@@ -8,7 +8,9 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import gateway_constants
 from bxgateway.services.abstract_block_queuing_service import (
     AbstractBlockQueuingService,
-    TBlockMessage, THeaderMessage)
+    TBlockMessage,
+    THeaderMessage,
+)
 from bxutils import logging
 
 if TYPE_CHECKING:
@@ -20,7 +22,7 @@ logger = logging.get_logger(__name__)
 class PushBlockQueuingService(
     Generic[TBlockMessage, THeaderMessage],
     AbstractBlockQueuingService[TBlockMessage, THeaderMessage],
-    metaclass=ABCMeta
+    metaclass=ABCMeta,
 ):
     """
     Service class with following responsibilities:
@@ -33,6 +35,10 @@ class PushBlockQueuingService(
     2. Make sure that no new blocks are sent to blockchain node while gateway
        is waiting for transactions corresponding to shorts ids in the previous
        block if it was not able to find them in local tx service cache
+
+    This implementation actively pushes new blocks to the blockchain node
+    (as opposed to a "pull-based" aapproach that sends announcements and lets
+    blockchain nodes request them).
     """
 
     def __init__(self, node: "AbstractGatewayNode"):
@@ -44,27 +50,28 @@ class PushBlockQueuingService(
 
     @abstractmethod
     def get_previous_block_hash_from_message(
-            self, block_message: TBlockMessage
+        self, block_message: TBlockMessage
     ) -> Sha256Hash:
         pass
 
     @abstractmethod
-    def on_block_sent(self, block_hash: Sha256Hash,
-                      block_message: TBlockMessage):
+    def on_block_sent(
+        self, block_hash: Sha256Hash, block_message: TBlockMessage
+    ):
         pass
 
     def push(
-            self,
-            block_hash: Sha256Hash,
-            block_msg: Optional[TBlockMessage] = None,
-            waiting_for_recovery: bool = False,
+        self,
+        block_hash: Sha256Hash,
+        block_msg: Optional[TBlockMessage] = None,
+        waiting_for_recovery: bool = False,
     ):
         super().push(block_hash, block_msg, waiting_for_recovery)
 
         if (
-                not waiting_for_recovery
-                and self._is_node_ready_to_accept_blocks()
-                and self._can_send_block_message(block_hash, block_msg)
+            not waiting_for_recovery
+            and self._is_node_ready_to_accept_blocks()
+            and self._can_send_block_message(block_hash, block_msg)
         ):
             self.send_block_to_node(block_hash, block_msg)
             self.remove_from_queue(block_hash)
@@ -81,8 +88,9 @@ class PushBlockQueuingService(
         if len(self._block_queue) == 1:
             self._schedule_alarm_for_next_item()
 
-    def update_recovered_block(self, block_hash: Sha256Hash,
-                               block_msg: TBlockMessage):
+    def update_recovered_block(
+        self, block_hash: Sha256Hash, block_msg: TBlockMessage
+    ):
         if block_hash in self._blocks:
             self._blocks_waiting_for_recovery[block_hash] = False
             self._blocks[block_hash] = block_msg
@@ -93,8 +101,9 @@ class PushBlockQueuingService(
                 self.node.alarm_queue.unregister_alarm(self._last_alarm_id)
                 self._schedule_alarm_for_next_item()
 
-    def mark_blocks_seen_by_blockchain_node(self,
-                                            block_hashes: List[Sha256Hash]):
+    def mark_blocks_seen_by_blockchain_node(
+        self, block_hashes: List[Sha256Hash]
+    ):
         """
         Marks blocks seen and retries the top block(s).
         """
@@ -102,15 +111,21 @@ class PushBlockQueuingService(
             self.mark_block_seen_by_blockchain_node(block_hash)
         self._retry_send()
 
-    def mark_block_seen_by_blockchain_node(self, block_hash: Sha256Hash):
+    def mark_block_seen_by_blockchain_node(
+        self,
+        block_hash: Sha256Hash,
+        block_message: Optional[TBlockMessage] = None,
+    ):
+        super().mark_block_seen_by_blockchain_node(block_hash, block_message)
         self._blocks_seen_by_blockchain_node.add(block_hash)
         self.remove_from_queue(block_hash)
 
     def send_block_to_node(
         self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None
     ):
-        super(PushBlockQueuingService, self).send_block_to_node(block_hash,
-                                                                block_msg)
+        super(PushBlockQueuingService, self).send_block_to_node(
+            block_hash, block_msg
+        )
         self._last_block_sent_time = time.time()
         self.on_block_sent(block_hash, block_msg)
 
@@ -124,7 +139,7 @@ class PushBlockQueuingService(
         return index
 
     def _can_send_block_message(
-            self, block_hash: Sha256Hash, block_message: TBlockMessage
+        self, block_hash: Sha256Hash, block_message: TBlockMessage
     ) -> bool:
         """
         Determines if a block can be sent.
@@ -136,9 +151,9 @@ class PushBlockQueuingService(
         Otherwise, wait for previous block hash to be seen to send the block.
         """
         if (
-                (not self._block_queue or self._block_queue[0][0] == block_hash)
-                and len(self._blocks_seen_by_blockchain_node) == 0
-                and self._last_block_sent_time == 0.0
+            (not self._block_queue or self._block_queue[0][0] == block_hash)
+            and len(self._blocks_seen_by_blockchain_node) == 0
+            and self._last_block_sent_time == 0.0
         ):
             return True
         else:
@@ -168,10 +183,11 @@ class PushBlockQueuingService(
 
         if waiting_recovery:
             timeout = gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME - (
-                    time.time() - timestamp
+                time.time() - timestamp
             )
-            self._run_or_schedule_alarm(timeout,
-                                        self._top_block_recovery_timeout)
+            self._run_or_schedule_alarm(
+                timeout, self._top_block_recovery_timeout
+            )
         else:
             block_message = self._blocks[block_hash]
             assert block_message is not None
@@ -179,18 +195,19 @@ class PushBlockQueuingService(
                 timeout = 0
             else:
                 timeout = self.node.opts.max_block_interval - (
-                        time.time() - self._last_block_sent_time
+                    time.time() - self._last_block_sent_time
                 )
             self._run_or_schedule_alarm(timeout, self._send_top_block_to_node)
 
     def _run_or_schedule_alarm(self, timeout, func):
         if timeout > 0:
-            self._last_alarm_id = self.node.alarm_queue.register_alarm(timeout,
-                                                                       func)
+            self._last_alarm_id = self.node.alarm_queue.register_alarm(
+                timeout, func
+            )
         elif not self._is_node_ready_to_accept_blocks():
             self.node.alarm_queue.register_alarm(
                 gateway_constants.NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S,
-                func
+                func,
             )
         else:
             func()
@@ -203,12 +220,13 @@ class PushBlockQueuingService(
             self._schedule_alarm_for_next_item()
             return 0
 
-        block_hash = self._block_queue[0][0]
+        block_hash, timestamp = self._block_queue[0]
         waiting_recovery = self._blocks_waiting_for_recovery[block_hash]
 
         if waiting_recovery:
             logger.debug(
-                "Unable to send block to node, requires recovery. " "Block hash {}.",
+                "Unable to send block to node, requires recovery. "
+                "Block hash {}.",
                 block_hash,
             )
             self._schedule_alarm_for_next_item()
@@ -218,8 +236,17 @@ class PushBlockQueuingService(
         index = self.remove_from_queue(block_hash)
         assert index == 0
 
-        self.send_block_to_node(block_hash, block_msg)
-        self._schedule_alarm_for_next_item()
+        elapsed_time = time.time() - timestamp
+        if elapsed_time < self.node.opts.blockchain_message_ttl:
+            self.send_block_to_node(block_hash, block_msg)
+            self._schedule_alarm_for_next_item()
+        else:
+            logger.debug(
+                "Skipping block {}, since {:.2f}s have passed "
+                "since receiving the block.",
+                block_hash,
+                elapsed_time,
+            )
 
         return 0
 
@@ -231,13 +258,17 @@ class PushBlockQueuingService(
 
         if not waiting_block_recovery:
             logger.debug(
-                "Unable to cancel recovery for block {}. " "Block is not in recovery.",
+                "Unable to cancel recovery for block {}. "
+                "Block is not in recovery.",
                 block_hash,
             )
             self._schedule_alarm_for_next_item()
             return constants.CANCEL_ALARMS
 
-        if current_time - timestamp < gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME:
+        if (
+            current_time - timestamp
+            < gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME
+        ):
             logger.debug(
                 "Unable to cancel recovery for block {}. "
                 "Block recovery did not timeout.",
@@ -254,4 +285,6 @@ class PushBlockQueuingService(
         return constants.CANCEL_ALARMS
 
     def _is_node_ready_to_accept_blocks(self) -> bool:
-        return self.node.node_conn is not None and self.node.node_conn.is_active()
+        return (
+            self.node.node_conn is not None and self.node.node_conn.is_active()
+        )

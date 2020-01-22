@@ -248,7 +248,9 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                                                               self.node.opts.blockchain_network,
                                                               new_block_msg.extra_stats_data()
                                                           ))
-
+                self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
+                    ready_block_hash, new_block_msg
+                )
                 self.node.block_processing_service.queue_block_for_processing(new_block_msg, self.connection)
 
     def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:

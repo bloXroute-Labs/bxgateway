@@ -40,7 +40,9 @@ class OntBlockQueuingService(
         self._clean_block_queue()
 
         if block_hash in self._blocks and not waiting_for_recovery:
-            self.node.update_current_block_height(block_msg.height(), block_hash)
+            self.node.update_current_block_height(
+                block_msg.height(), block_hash
+            )
             inv_msg = InvOntMessage(
                 magic=block_msg.magic(),
                 inv_type=InventoryOntType.MSG_BLOCK,
@@ -90,7 +92,11 @@ class OntBlockQueuingService(
         for block_hash in block_hashes:
             self.mark_block_seen_by_blockchain_node(block_hash)
 
-    def mark_block_seen_by_blockchain_node(self, block_hash: OntObjectHash):
+    def mark_block_seen_by_blockchain_node(
+        self,
+        block_hash: OntObjectHash,
+        block_message: Optional[BlockOntMessage] = None,
+    ):
         self._blocks_seen_by_blockchain_node.add(block_hash)
 
     def _clean_block_queue(self):
