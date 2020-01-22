@@ -99,7 +99,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         block_hashes = []
         for inventory_type, item_hash in msg:
             if InventoryType.is_block(inventory_type):
-                if not self.node.is_sync_tx_service_completed(item_hash):
+                if not self.node.should_process_block_hash(item_hash):
                     continue
                 block_hashes.append(item_hash)
                 if item_hash not in self.node.blocks_seen.contents:
@@ -164,7 +164,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         """
 
         block_hash = msg.block_hash()
-        if not self.node.is_sync_tx_service_completed(block_hash):
+        if not self.node.should_process_block_hash(block_hash):
             return
 
         short_ids_count = len(msg.short_ids())

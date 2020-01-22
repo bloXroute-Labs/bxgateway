@@ -148,7 +148,7 @@ class BlockProcessingService:
 
         # TODO handle the situation where txs that received from relays while syncing are in the blocks that were
         #  ignored while syncing, so these txs won't be cleaned for 3 days
-        if not self._node.is_sync_tx_service_completed(msg.block_hash):
+        if not self._node.should_process_block_hash(msg.block_hash):
             return
 
         block_stats.add_block_event(msg,
@@ -210,7 +210,7 @@ class BlockProcessingService:
         key = msg.key()
         block_hash = msg.block_hash()
 
-        if not self._node.is_sync_tx_service_completed(block_hash):
+        if not self._node.should_process_block_hash(block_hash):
             return
 
         block_stats.add_block_event_by_block_hash(block_hash,

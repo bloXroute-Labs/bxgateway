@@ -44,7 +44,7 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         Handle block message
         """
         block_hash = msg.block_hash()
-        if not self.node.is_sync_tx_service_completed(block_hash):
+        if not self.node.should_process_block_hash(block_hash):
             return
         if self.node.block_cleanup_service.is_marked_for_cleanup(block_hash):
             self.connection.log_trace("Marked block for cleanup: {}", block_hash)

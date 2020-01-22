@@ -650,10 +650,10 @@ class AbstractGatewayNode(AbstractNode):
             logger.error("Gateway does not have an active connection to the relay network. "
                          "There may be issues with the BDN. Exiting.")
 
-    def is_sync_tx_service_completed(self, block_hash: Optional[Sha256Hash] = None) -> bool:
+    def should_process_block_hash(self, block_hash: Optional[Sha256Hash] = None) -> bool:
         if not self.opts.has_fully_updated_tx_service:
             logger.debug(
-                "Gateway skipped processing block  {} while tx syncing.", block_hash if block_hash is not None else "block message"
+                 "Gateway skipped processing block {} while tx syncing.", block_hash if block_hash is not None else "block message"
             )
             return False
         return True
@@ -755,7 +755,7 @@ class AbstractGatewayNode(AbstractNode):
                                f"{self.opts.blockchain_networks}")
 
     def _sync_tx_services(self):
-        logger.info("Starting to sync tx service")
+        logger.info("Starting to sync transaction state with BDN.")
         super(AbstractGatewayNode, self)._sync_tx_services()
         if self.opts.sync_tx_service:
             retry = True

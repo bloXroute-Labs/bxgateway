@@ -59,7 +59,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
             self.node.on_blockchain_connection_ready(self.connection)
 
     def msg_inv(self, msg: InvOntMessage) -> None:
-        if not self.node.is_sync_tx_service_completed():
+        if not self.node.should_process_block_hash():
             return
 
         contains_block = False
@@ -114,7 +114,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
             self.connection.enqueue_msg(reply)
 
     def msg_headers(self, msg: HeadersOntMessage):
-        if not self.node.is_sync_tx_service_completed():
+        if not self.node.should_process_block_hash():
             return
 
         header = msg.headers()[-1]
