@@ -1,3 +1,6 @@
+from collections import defaultdict
+
+from bxcommon import constants
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
@@ -45,7 +48,10 @@ GATEWAY_TRANSACTION_STATS_LOOKBACK = 1
 ETH_GATEWAY_STATS_INTERVAL = 60
 ETH_GATEWAY_STATS_LOOKBACK = 1
 
-MIN_PEER_RELAYS = 1
+MIN_PEER_BLOCK_RELAYS_BY_COUNTRY = defaultdict(lambda: 1)
+MIN_PEER_BLOCK_RELAYS_BY_COUNTRY[constants.NODE_COUNTRY_CHINA] = 2
+
+MIN_PEER_TRANSACTION_RELAYS = 1
 
 BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE = 16 * 1024 * 1024
 

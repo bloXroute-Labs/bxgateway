@@ -1,18 +1,18 @@
-import asyncio
 import time
 from abc import ABCMeta, abstractmethod
 from argparse import Namespace
 from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable
 
-from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
+from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_type import ConnectionType
-from bxcommon.models.node_type import NodeType
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.node_event_model import NodeEventType
+from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
+from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.network_direction import NetworkDirection
 from bxcommon.network.peer_info import ConnectionPeerInfo
@@ -29,13 +29,12 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-from bxgateway.abstract_message_converter import AbstractMessageConverter
-from bxgateway.rpc.gateway_rpc_server import GatewayRpcServer
-
 from bxgateway import gateway_constants
+from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
+from bxgateway.rpc.gateway_rpc_server import GatewayRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
 from bxgateway.services.block_processing_service import BlockProcessingService
@@ -50,7 +49,6 @@ from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
 from bxutils.ssl.extensions import extensions_factory
 from bxutils.ssl.ssl_certificate_type import SSLCertificateType
-from bxcommon.models.quota_type_model import QuotaType
 
 logger = logging.get_logger(__name__)
 
@@ -361,31 +359,45 @@ class AbstractGatewayNode(AbstractNode):
         potential_relay_peers = list(self.peer_relays) + \
                                 [peer for peer in potential_relay_peers if peer not in self.peer_relays]
         logger.trace("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
-        best_relay_peer = network_latency.get_best_relay_by_ping_latency(potential_relay_peers)
-        if not best_relay_peer:
-            best_relay_peer = potential_relay_peers[0]
-        logger.trace("Best relay peer to node {} is: {}", self.opts.node_id, best_relay_peer)
-        if best_relay_peer.ip != self.opts.external_ip or best_relay_peer.port != self.opts.external_port:
-            if best_relay_peer in self.peer_relays:
-                logger.debug("Current relay is optimal {}, skip", best_relay_peer)
-                return
-            elif self.peer_relays:
-                logger.info("New best relay: {}, disconnecting from current relays {}",
-                            best_relay_peer, self.peer_relays)
-                self.peer_relays.clear()
-                self.peer_transaction_relays.clear()
 
-            self.peer_relays.add(best_relay_peer)
+        block_relays_count = gateway_constants.MIN_PEER_BLOCK_RELAYS_BY_COUNTRY[self.opts.country]
+
+        best_relay_peers = network_latency.get_best_relays_by_ping_latency_one_per_country(potential_relay_peers,
+                                                                                           block_relays_count)
+        if not best_relay_peers:
+            best_relay_peers = potential_relay_peers[:block_relays_count]
+        logger.trace("Best relay peers to node {} are: {}", self.opts.node_id, best_relay_peers)
+
+        for index, best_relay_peer in enumerate(best_relay_peers):
+            if best_relay_peer not in self.peer_relays:
+                logger.debug("Connecting to new relay {}.", best_relay_peer)
+                self.peer_relays.add(best_relay_peer)
+            else:
+                logger.debug("Current relay {} is optimal, skip.", best_relay_peer)
+
             # Split relay mode always starts a transaction relay at one port number higher than the block relay
-            if self.opts.split_relays:
-                self.peer_transaction_relays.add(OutboundPeerModel(
+            if self.opts.split_relays and index == 0:
+                best_relay_peer_tx = OutboundPeerModel(
                     best_relay_peer.ip,
                     best_relay_peer.port + 1,
                     "{}-tx".format(best_relay_peer.node_id),
                     False,
                     best_relay_peer.attributes,
                     node_type=NodeType.RELAY_TRANSACTION
-                ))
+                )
+
+                # Connect only to one transaction relay
+                if best_relay_peer_tx not in self.peer_transaction_relays:
+                    logger.debug("Connecting to new transaction relay {}.", best_relay_peer_tx)
+                    self.peer_transaction_relays.clear()
+                    self.peer_transaction_relays.add(best_relay_peer_tx)
+                else:
+                    logger.debug("Current transaction relay {} is optimal, skip.", best_relay_peer_tx)
+
+        for removed_peer in self.peer_relays - set(best_relay_peers):
+            logger.info("Disconnecting from current relay {}", removed_peer)
+            self.peer_relays.remove(removed_peer)
+
         self.on_updated_peers(self._get_all_peers())
 
     def send_request_for_relay_peers(self):
@@ -671,12 +683,12 @@ class AbstractGatewayNode(AbstractNode):
         """
         peer_gateways = sdn_http_service.fetch_gateway_peers(self.opts.node_id)
         if not peer_gateways and not self.peer_gateways and \
-            self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+                self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
             # Try again later
             logger.warning("Did not receive expected gateway peers from BDN. Retrying.")
             self.send_request_for_gateway_peers_num_of_calls += 1
             if self.send_request_for_gateway_peers_num_of_calls == \
-                gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+                    gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
                 logger.warning("Giving up on querying for gateway peers from the BDN.")
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
@@ -725,7 +737,9 @@ class AbstractGatewayNode(AbstractNode):
             self._remove_relay_transaction_peer(ip, port + 1, False)
 
         self.outbound_peers = self._get_all_peers()
-        if len(self.peer_relays) < gateway_constants.MIN_PEER_RELAYS:
+
+        if len(self.peer_relays) < gateway_constants.MIN_PEER_BLOCK_RELAYS_BY_COUNTRY[self.opts.country] or \
+                len(self.peer_transaction_relays) < gateway_constants.MIN_PEER_TRANSACTION_RELAYS:
             self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
                                             self.send_request_for_relay_peers)
 
