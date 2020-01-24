@@ -272,7 +272,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
 
         self.sut.msg_proxy_request = MagicMock()
         message = GetBlockHeadersEthProtocolMessage(
-            None, block_hashes[-1].binary, 10, 0, 1
+            None, block_hashes[-1].binary, 10, 0, 0
         )
         self.sut.msg_get_block_headers(message)
 
@@ -366,7 +366,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
 
         self.sut.msg_proxy_request = MagicMock()
         message = GetBlockHeadersEthProtocolMessage(
-            None, block_hashes[-1].binary, 10, 0, 1
+            None, block_hashes[-1].binary, 10, 0, 0
         )
         self.sut.msg_get_block_headers(message)
 

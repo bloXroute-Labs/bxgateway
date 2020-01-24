@@ -57,21 +57,21 @@ class EthBlockQueuingServiceTest(AbstractTestCase):
 
         self.assertEqual(10, len(hashes))
         for i, block_hash in enumerate(hashes):
-            self.assertEqual(self.block_hashes[-1 - i], hashes[i])
+            self.assertEqual(self.block_hashes[i + 10], hashes[i])
 
         hashes = self.block_queuing_service.get_block_hashes_starting_from_hash(
             self.block_hashes[-1], 2, 5, False
         )
         self.assertEqual(2, len(hashes))
-        self.assertEqual(self.block_hashes[-1], hashes[0])
-        self.assertEqual(self.block_hashes[-7], hashes[1])
+        self.assertEqual(self.block_hashes[-7], hashes[0])
+        self.assertEqual(self.block_hashes[-1], hashes[1])
 
         hashes = self.block_queuing_service.get_block_hashes_starting_from_hash(
             self.block_hashes[-1], 2, 5, True
         )
         self.assertEqual(2, len(hashes))
-        self.assertEqual(self.block_hashes[-1], hashes[1])
-        self.assertEqual(self.block_hashes[-7], hashes[0])
+        self.assertEqual(self.block_hashes[-7], hashes[1])
+        self.assertEqual(self.block_hashes[-1], hashes[0])
 
     def test_get_block_hashes_from_height(self):
         hashes = self.block_queuing_service.get_block_hashes_starting_from_height(

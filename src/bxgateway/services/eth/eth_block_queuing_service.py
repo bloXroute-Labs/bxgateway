@@ -269,7 +269,7 @@ class EthBlockQueuingService(
             )
             return []
 
-        if reverse:
+        if not reverse:
             block_hashes.reverse()
 
         return block_hashes
