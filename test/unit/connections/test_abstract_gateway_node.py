@@ -283,6 +283,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertTrue(relay_transaction_conn.socket_connection.state & SocketConnectionState.MARK_FOR_CLOSE)
         self.assertTrue(relay_transaction_conn.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
 
+    @async_test
     async def test_split_relay_no_reconnect_disconnect_transaction(self):
         sdn_http_service.submit_peer_connection_error_event = MagicMock()
         node = initialize_split_relay_node()
