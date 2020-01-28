@@ -39,11 +39,7 @@ def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, cou
                       update_required=update_required,
                       account_info=summary_status.gateway_status_get_account_info(account_id))
     environment = Environment(_get_installation_type(), OS_VERSION, platform.python_version(), sys.executable)
-    block_relay = RelayConnection(connection_time=current_time)
-    transaction_relay = RelayConnection(connection_time=current_time)
-    blockchain_node = BlockchainConnection(connection_time=current_time)
-    remote_blockchain_node = BlockchainConnection(connection_time=current_time)
-    network = Network(block_relay, transaction_relay, blockchain_node, remote_blockchain_node)
+    network = Network([], [], [], [])
     analysis = Analysis(current_time, _get_startup_param(), src_ver, _check_extensions_validity(use_ext, src_ver),
                         environment, network, _get_installed_python_modules())
     diagnostics = Diagnostics(summary, analysis)
@@ -66,15 +62,14 @@ def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: s
     analysis = diagnostics.analysis
     network = analysis.network
 
+    network.clear()
+
     current_conn_types = set()
     for conn_type in CONN_TYPES:
         for conn in conn_pool.get_by_connection_type(conn_type):
             if conn_type not in current_conn_types:
                 current_conn_types.add(conn_type)
-            network.update_connection(conn.CONNECTION_TYPE, conn.peer_desc, conn.file_no, conn.peer_id)
-
-    for conn_type in CONN_TYPES - current_conn_types:
-        network.update_connection(conn_type)
+            network.add_connection(conn.CONNECTION_TYPE, conn.peer_desc, conn.file_no, conn.peer_id)
 
     summary = network.get_summary(ip_address, continent, country, update_required, account_id)
     diagnostics = Diagnostics(summary, analysis)

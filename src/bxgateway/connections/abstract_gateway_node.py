@@ -355,6 +355,9 @@ class AbstractGatewayNode(AbstractNode):
         await super(AbstractGatewayNode, self).close()
 
     def _register_potential_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]):
+        logger.info("Received list of potential relays from BDN: {}.",
+                    ", ".join([node.ip for node in potential_relay_peers]))
+
         # place current relay connection at the start of potential relays to prioritize current connection
         potential_relay_peers = list(self.peer_relays) + \
                                 [peer for peer in potential_relay_peers if peer not in self.peer_relays]
@@ -672,7 +675,8 @@ class AbstractGatewayNode(AbstractNode):
     def should_process_block_hash(self, block_hash: Optional[Sha256Hash] = None) -> bool:
         if not self.opts.has_fully_updated_tx_service:
             logger.debug(
-                 "Gateway skipped processing block {} while tx syncing.", block_hash if block_hash is not None else "block message"
+                "Gateway skipped processing block {} while tx syncing.",
+                block_hash if block_hash is not None else "block message"
             )
             return False
         return True
@@ -801,6 +805,7 @@ class AbstractGatewayNode(AbstractNode):
                         retry = False
 
             if retry:
+                logger.info("Relay connection is not ready to sync transaction state with BDN. Scheduling retry.")
                 return constants.TX_SERVICE_SYNC_PROGRESS_S
         else:
             self.on_fully_updated_tx_service()
