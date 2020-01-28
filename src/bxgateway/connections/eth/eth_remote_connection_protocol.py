@@ -1,6 +1,5 @@
 from bxutils import logging
 
-from bxcommon.connections.connection_state import ConnectionState
 from bxgateway import eth_constants
 from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
@@ -51,8 +50,7 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
             if request.attempts <= eth_constants.MAX_HEADERS_RESEND_ATTEMPTS:
                 self.connection.node.alarm_queue.register_alarm(eth_constants.HEADERS_RETRY_INTERVAL_S,
                                                                 self.get_headers,
-                                                                request.get_msg,
-                                                                request.attempts)
+                                                                request)
             else:
                 logger.debug("Received max empty headers messages from remote blockchain node for {}. Forwarding "
                              "empty message anyway.", request.get_msg)
