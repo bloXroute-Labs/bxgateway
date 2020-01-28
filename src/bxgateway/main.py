@@ -79,7 +79,7 @@ def get_opts() -> GatewayOpts:
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip",
                             type=ip_resolver.blocking_resolve_ip,
-                            default="127.0.0.1")
+                            required=True)
     arg_parser.add_argument("--peer-gateways",
                             help="Optional gateway peer ip/ports that will always be connected to. "
                                  "Should be in the format ip1:port1,ip2:port2,...",
