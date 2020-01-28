@@ -272,7 +272,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
 
         self.sut.msg_proxy_request = MagicMock()
         message = GetBlockHeadersEthProtocolMessage(
-            None, block_hashes[-1].binary, 10, 0, 0
+            None, block_hashes[10].binary, 10, 0, 0
         )
         self.sut.msg_get_block_headers(message)
 
@@ -283,10 +283,10 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.assertIsInstance(headers_sent, BlockHeadersEthProtocolMessage)
         self.assertEqual(10, len(headers_sent.get_block_headers()))
 
-        for i in range(10, 20):
+        for i in range(10):
             self.assertEqual(
-                block_hashes[i],
-                headers_sent.get_block_headers()[i - 10].hash_object(),
+                block_hashes[i + 10],
+                headers_sent.get_block_headers()[i].hash_object(),
             )
 
     def test_msg_get_block_headers_fork(self):
@@ -366,7 +366,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
 
         self.sut.msg_proxy_request = MagicMock()
         message = GetBlockHeadersEthProtocolMessage(
-            None, block_hashes[-1].binary, 10, 0, 0
+            None, block_hashes[10].binary, 10, 0, 0
         )
         self.sut.msg_get_block_headers(message)
 
@@ -384,8 +384,8 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.assertIsInstance(headers_sent, BlockHeadersEthProtocolMessage)
         self.assertEqual(10, len(headers_sent.get_block_headers()))
 
-        for i in range(10, 20):
+        for i in range(10):
             self.assertEqual(
-                block_hashes[i],
-                headers_sent.get_block_headers()[i - 10].hash_object(),
+                block_hashes[i + 10],
+                headers_sent.get_block_headers()[i].hash_object(),
             )

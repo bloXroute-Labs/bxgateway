@@ -234,9 +234,17 @@ class EthBlockQueuingService(
 
         Ethereum might request headers for blocks in the future.
         This is not currently supported.
+
+        The resulting list starts at `block_height`, and is ascending if
+        reverse=False, and descending if reverse=True.
         """
         block_hashes: List[Sha256Hash] = []
         height = block_height
+
+        if reverse:
+            multiplier = -1
+        else:
+            multiplier = 1
 
         while (
             len(block_hashes) < max_count
@@ -258,7 +266,7 @@ class EthBlockQueuingService(
             block_hashes.append(
                 next(iter(self._block_hashes_by_height[height]))
             )
-            height -= 1 + skip
+            height += (1 + skip) * multiplier
 
         # Abort if not all requested block hashes can be found
         if max_count != len(block_hashes):
@@ -268,9 +276,6 @@ class EthBlockQueuingService(
                 len(block_hashes),
             )
             return []
-
-        if not reverse:
-            block_hashes.reverse()
 
         return block_hashes
 
