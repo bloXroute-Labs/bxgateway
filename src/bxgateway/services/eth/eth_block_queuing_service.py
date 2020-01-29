@@ -46,6 +46,7 @@ class EthBlockQueuingService(
     _block_parts: ExpiringDict[Sha256Hash, NewBlockParts]
     _block_hashes_by_height: ExpiringDict[int, Set[Sha256Hash]]
     _height_by_block_hash: ExpiringDict[Sha256Hash, int]
+    _highest_block_number: int = 0
 
     def __init__(self, node: "AbstractGatewayNode"):
         super().__init__(node)
@@ -303,6 +304,23 @@ class EthBlockQueuingService(
         self.node.send_msg_to_node(full_header_message)
         return True
 
+    def is_future_block(self, block_number: int) -> bool:
+        """
+        Determines if a block number is far enough in the future to
+        skip checking with the remote blockchain node.
+
+        During Ethereum's sync, it will request a block header in the future
+        to check if we are ahead of it.
+        """
+        allowed_block_height = (
+            self._highest_block_number
+            + eth_constants.ALLOWED_BLOCK_HEIGHT_DISCREPANCY
+        )
+        return (
+            block_number > allowed_block_height
+            and self._highest_block_number != 0
+        )
+
     def _store_block_parts(
         self, block_hash: Sha256Hash, block_message: InternalEthBlockInfo
     ):
@@ -320,6 +338,8 @@ class EthBlockQueuingService(
             else:
                 self._block_hashes_by_height.add(block_number, {block_hash})
             self._height_by_block_hash[block_hash] = block_number
+            if block_number > self._highest_block_number:
+                self._highest_block_number = block_number
         else:
             logger.trace(
                 "No block height could be parsed for block: {}", block_hash

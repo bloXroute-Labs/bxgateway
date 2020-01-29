@@ -4,6 +4,7 @@ from mock import MagicMock
 
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxgateway import eth_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import (
     AbstractGatewayBlockchainConnection,
 )
@@ -342,6 +343,49 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
 
         self.sut.msg_proxy_request.assert_called_once()
         self.assertEqual(0, len(self.node.send_to_node_messages))
+
+    def test_msg_get_block_headers_future_block(self):
+        self.node.opts.max_block_interval = 0
+
+        block_hashes = []
+        block_heights = []
+        for i in range(20):
+            block_message = InternalEthBlockInfo.from_new_block_msg(
+                mock_eth_messages.new_block_eth_protocol_message(i, i + 1000)
+            )
+            block_hash = block_message.block_hash()
+            block_heights.append(block_message.block_number())
+            block_hashes.append(block_hash)
+            self.node.block_queuing_service.push(block_hash, block_message)
+
+        self.node.send_to_node_messages.clear()
+        self.sut.msg_proxy_request = MagicMock()
+
+        # within allowed interval of
+        block_height_bytes = block_heights[-1] + 4
+        block_height_bytes = block_height_bytes.to_bytes(8, "big")
+
+        message = GetBlockHeadersEthProtocolMessage(
+            None, block_height_bytes, 1, 0, 0
+        )
+        self.sut.msg_get_block_headers(message)
+
+        self.sut.msg_proxy_request.assert_called_once()
+        self.assertEqual(0, len(self.node.send_to_node_messages))
+
+        self.sut.msg_proxy_request.reset_mock()
+
+        block_height_bytes = block_heights[-1] + eth_constants.ALLOWED_BLOCK_HEIGHT_DISCREPANCY + 1
+        block_height_bytes = block_height_bytes.to_bytes(8, "big")
+        message = GetBlockHeadersEthProtocolMessage(
+            None, block_height_bytes, 1, 0, 0
+        )
+        self.sut.msg_get_block_headers(message)
+        self.sut.msg_proxy_request.assert_not_called()
+        self.assertEqual(1, len(self.node.send_to_node_messages))
+        headers_sent = self.node.send_to_node_messages[0]
+        self.assertIsInstance(headers_sent, BlockHeadersEthProtocolMessage)
+        self.assertEqual(0, len(headers_sent.get_block_headers()))
 
     def test_msg_block_adds_headers_and_bodies(self):
         self.node.opts.max_block_interval = 0

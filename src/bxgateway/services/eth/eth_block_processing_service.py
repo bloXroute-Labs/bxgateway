@@ -22,6 +22,7 @@ class EthBlockProcessingService(BlockProcessingService):
     ) -> bool:
 
         block_hash = msg.get_block_hash()
+        is_future_block = False
         if block_hash is not None:
             logger.trace(
                 "Checking for headers by hash ({}) in local block cache...",
@@ -33,9 +34,7 @@ class EthBlockProcessingService(BlockProcessingService):
                 msg.get_skip(),
                 bool(msg.get_reverse()),
             )
-
         else:
-
             block_number = msg.get_block_number()
             if block_number:
                 logger.trace(
@@ -49,6 +48,7 @@ class EthBlockProcessingService(BlockProcessingService):
                     msg.get_skip(),
                     bool(msg.get_reverse()),
                 )
+                is_future_block = self._node.block_queuing_service.is_future_block(block_number)
             else:
                 logger.debug(
                     "Unexpectedly, request for headers did not contain "
@@ -56,7 +56,12 @@ class EthBlockProcessingService(BlockProcessingService):
                 )
                 return False
 
-        if not requested_block_hashes:
+        if is_future_block:
+            logger.debug(
+                "Completing sync  with Ethereum node. Future block "
+                "was requested, so returning empty headers."
+            )
+        elif not requested_block_hashes:
             logger.trace(
                 "Could not find requested block hashes. "
                 "Forwarding to remote blockchain connection."
