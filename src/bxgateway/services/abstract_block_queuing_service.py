@@ -111,7 +111,7 @@ class AbstractBlockQueuingService(
         block_message: Optional[TBlockMessage] = None,
     ):
         if block_message is not None:
-            self._blocks[block_hash] = block_message
+            self.store_block_data(block_hash, block_message)
 
     def push(
         self,
@@ -129,8 +129,11 @@ class AbstractBlockQueuingService(
             block_hash, block_msg, waiting_for_recovery
         ):
             self._block_queue.append(BlockQueueEntry(block_hash, time.time()))
-            self._blocks[block_hash] = block_msg
             self._blocks_waiting_for_recovery[block_hash] = waiting_for_recovery
+            if block_msg is None:
+                self._blocks[block_hash] = None
+            else:
+                self.store_block_data(block_hash, block_msg)
 
     def can_add_block_to_queuing_service(
         self,
@@ -159,6 +162,13 @@ class AbstractBlockQueuingService(
             )
             return False
         return True
+
+    def store_block_data(
+            self,
+            block_hash: Sha256Hash,
+            block_msg: TBlockMessage
+    ):
+        self._blocks[block_hash] = block_msg
 
     def send_block_to_node(
         self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None

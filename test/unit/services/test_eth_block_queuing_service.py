@@ -105,3 +105,30 @@ class EthBlockQueuingServiceTest(AbstractTestCase):
             self.block_hashes[10], 10, 0, False
         )
         self.assertEqual(0, len(hashes))
+
+    def test_update_recovered_block(self):
+        self.block_queuing_service = EthBlockQueuingService(self.node)
+        self.node.send_to_node_messages.clear()
+
+        block_message_1 = InternalEthBlockInfo.from_new_block_msg(
+            mock_eth_messages.new_block_eth_protocol_message(1, 1)
+        )
+        block_hash_1 = block_message_1.block_hash()
+        block_message_2 = InternalEthBlockInfo.from_new_block_msg(
+            mock_eth_messages.new_block_eth_protocol_message(2, 2)
+        )
+        block_hash_2 = block_message_2.block_hash()
+
+        self.block_queuing_service.push(block_hash_1, waiting_for_recovery=True)
+        self.block_queuing_service.push(block_hash_2, block_message_2)
+
+        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(2, len(self.block_queuing_service))
+
+        self.block_queuing_service.update_recovered_block(
+            block_hash_1,
+            block_message_1
+        )
+        self.assertEqual(2, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.block_queuing_service))
+

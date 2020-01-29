@@ -48,9 +48,11 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
             logger.debug("Received empty headers message from remote blockchain node. Not forwarding.")
             request.attempts += 1
             if request.attempts <= eth_constants.MAX_HEADERS_RESEND_ATTEMPTS:
-                self.connection.node.alarm_queue.register_alarm(eth_constants.HEADERS_RETRY_INTERVAL_S,
-                                                                self.get_headers,
-                                                                request)
+                self.connection.node.alarm_queue.register_alarm(
+                    eth_constants.HEADERS_RETRY_INTERVAL_S,
+                    self.get_headers,
+                    request
+                )
             else:
                 logger.debug("Received max empty headers messages from remote blockchain node for {}. Forwarding "
                              "empty message anyway.", request.get_msg)

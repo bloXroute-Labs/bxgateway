@@ -77,7 +77,7 @@ class OntBlockQueuingService(
             return
 
         self._blocks_waiting_for_recovery[block_hash] = False
-        self._blocks[block_hash] = block_msg
+        self.store_block_data(block_hash, block_msg)
         self.node.update_current_block_height(block_msg.height(), block_hash)
         inv_msg = InvOntMessage(
             magic=block_msg.magic(),

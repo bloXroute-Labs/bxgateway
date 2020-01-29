@@ -77,8 +77,9 @@ class EthBlockQueuingService(
         )
 
     def send_block_to_node(
-        self, block_hash: Sha256Hash, block_msg: InternalEthBlockInfo
+        self, block_hash: Sha256Hash, block_msg: Optional[InternalEthBlockInfo]
     ):
+        assert block_msg is not None
         new_block_parts = self._block_parts[block_hash]
 
         if block_msg.has_total_difficulty():
@@ -142,10 +143,12 @@ class EthBlockQueuingService(
             self._store_block_parts(block_hash, block_msg)
         super().push(block_hash, block_msg, waiting_for_recovery)
 
-    def update_recovered_block(
-        self, block_hash: Sha256Hash, block_msg: InternalEthBlockInfo
+    def store_block_data(
+            self,
+            block_hash: Sha256Hash,
+            block_msg: InternalEthBlockInfo
     ):
-        super().update_recovered_block(block_hash, block_msg)
+        super().store_block_data(block_hash, block_msg)
         self._store_block_parts(block_hash, block_msg)
 
     def mark_block_seen_by_blockchain_node(

@@ -20,8 +20,8 @@ logger = logging.get_logger(__name__)
 
 
 class PushBlockQueuingService(
-    Generic[TBlockMessage, THeaderMessage],
     AbstractBlockQueuingService[TBlockMessage, THeaderMessage],
+    Generic[TBlockMessage, THeaderMessage],
     metaclass=ABCMeta,
 ):
     """
@@ -37,7 +37,7 @@ class PushBlockQueuingService(
        block if it was not able to find them in local tx service cache
 
     This implementation actively pushes new blocks to the blockchain node
-    (as opposed to a "pull-based" aapproach that sends announcements and lets
+    (as opposed to a "pull-based" approach that sends announcements and lets
     blockchain nodes request them).
     """
 
@@ -93,7 +93,7 @@ class PushBlockQueuingService(
     ):
         if block_hash in self._blocks:
             self._blocks_waiting_for_recovery[block_hash] = False
-            self._blocks[block_hash] = block_msg
+            self.store_block_data(block_hash, block_msg)
 
             # if this is the first item in the queue then cancel alarm for
             # block recovery timeout and send block
