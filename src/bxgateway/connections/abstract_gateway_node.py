@@ -1,3 +1,4 @@
+import asyncio
 import time
 from abc import ABCMeta, abstractmethod
 from argparse import Namespace
@@ -345,13 +346,13 @@ class AbstractGatewayNode(AbstractNode):
 
     async def init(self) -> None:
         try:
-            await self._rpc_server.start()
+            await asyncio.wait_for(self._rpc_server.start(), gateway_constants.RPC_SERVER_INIT_TIMEOUT_S)
         except Exception as e:
             logger.error("Failed to initialize Gateway RPC server: {}.", e, exc_info=True)
 
     async def close(self):
         try:
-            await self._rpc_server.stop()
+            await asyncio.wait_for(self._rpc_server.stop(), gateway_constants.RPC_SERVER_STOP_TIMEOUT_S)
         except Exception as e:
             logger.error("Failed to close Gateway RPC server: {}.", e, exc_info=True)
         await super(AbstractGatewayNode, self).close()

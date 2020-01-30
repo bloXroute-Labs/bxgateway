@@ -132,7 +132,7 @@ async def handle_command(opts: Namespace, client: GatewayRpcClient, stdout_write
     elif opts.command == CLICommand.HELP:
         try:
             response: ClientResponse = await client.get_server_help()
-            response_text = f"Server Help:\n\n{await format_response(response)}"
+            response_text = "Server Help:\n\n{}".format(await format_response(response))
         except ClientConnectorError:
             pass
     if response_text is not None:
