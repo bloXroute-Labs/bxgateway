@@ -119,7 +119,11 @@ class AbstractGatewayNode(AbstractNode):
 
         self.send_request_for_relay_peers_num_of_calls = 0
         if not self.opts.peer_relays:
-            self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers)
+            self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
+                                            self.send_request_for_relay_peers)
+        else:
+            self.alarm_queue.register_alarm(gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
+                                            self.send_request_for_relay_peers)
 
         if opts.connect_to_remote_blockchain:
             if opts.remote_blockchain_peer is not None:
@@ -182,8 +186,6 @@ class AbstractGatewayNode(AbstractNode):
                               self.opts.continent, self.opts.country, self.opts.should_update_source_version,
                               self.account_id)
 
-        self.alarm_queue.register_alarm(gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
-                                        self.send_request_for_relay_peers)
 
     @abstractmethod
     def build_blockchain_connection(
