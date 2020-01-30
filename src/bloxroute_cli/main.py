@@ -115,7 +115,7 @@ async def format_response(response: ClientResponse, content_type=rpc_constants.J
         result = response_json.get("result", response_json)
         if not result:
             result = response_json.get("error", "Unknown error")
-        return json.dumps(result, indent=4, sort_keys=True)
+        return json.dumps(result, indent=4)
     except (JSONDecodeError, ContentTypeError):
         return await response.text()
 
