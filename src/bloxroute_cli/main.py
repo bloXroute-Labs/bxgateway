@@ -11,7 +11,7 @@ from asyncio.streams import FlowControlMixin
 from argparse import ArgumentParser, Namespace, RawDescriptionHelpFormatter
 from json import JSONDecodeError
 from typing import Optional, Union, Dict, List, Any
-from aiohttp import ClientSession, ClientResponse, ClientConnectorError, ContentTypeError
+from aiohttp import ClientSession, ClientResponse, ClientConnectorError, ContentTypeError, ClientConnectionError
 
 from bxgateway.rpc import rpc_constants
 from bxgateway.rpc.rpc_request_type import RpcRequestType
@@ -133,7 +133,7 @@ async def handle_command(opts: Namespace, client: GatewayRpcClient, stdout_write
         try:
             response: ClientResponse = await client.get_server_help()
             response_text = "Server Help:\n\n{}".format(await format_response(response))
-        except ClientConnectorError:
+        except (ClientConnectorError, ClientConnectionError):
             pass
     if response_text is not None:
         stdout_writer.write(response_text.encode("utf-8"))
@@ -304,7 +304,7 @@ async def main():
                 cli_parser.print_help(file=ArgParserFile(stdout_writer))
             async with GatewayRpcClient(opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password) as client:
                 await parse_and_handle_command(cli_parser, stdout_writer, client)
-    except (ClientConnectorError, TimeoutError, CancelledError) as e:
+    except (ClientConnectorError, ClientConnectionError, TimeoutError, CancelledError) as e:
         stdout_writer.write(f"Connection to RPC server is broken: {e}, exiting!\n".encode("utf-8"))
         await stdout_writer.drain()
         if opts.debug:
