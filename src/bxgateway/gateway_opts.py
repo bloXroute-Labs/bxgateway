@@ -9,6 +9,7 @@ from bxcommon.utils import node_cache
 from bxgateway import gateway_constants
 from bxgateway import eth_constants
 from bxutils import logging
+import os
 
 logger = logging.get_logger(__name__)
 
@@ -64,6 +65,9 @@ class GatewayOpts(CommonOpts):
     consensus_port: int
     relay: bool
     is_consensus: bool
+
+    # ENV
+    is_docker: bool
 
     def __init__(self, opts: Namespace):
 
@@ -133,12 +137,15 @@ class GatewayOpts(CommonOpts):
         self.relay = opts.relay
         self.is_consensus = opts.is_consensus
 
+        self.is_docker = os.path.exists("/.dockerenv")
+
         # do rest of validation
         if self.blockchain_protocol == "ethereum":
             self.validate_eth_opts()
         if not self.cookie_file_path:
             self.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
                 "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip))
+        self.validate_blockchain_ip()
 
     def validate_eth_opts(self):
 
@@ -155,6 +162,13 @@ class GatewayOpts(CommonOpts):
                     exc_info=False)
                 exit(1)
             validate_pub_key(self.remote_public_key)
+
+    def validate_blockchain_ip(self):
+        # self.blockchain_ip will always exist as it is a required param
+        if self.blockchain_ip == gateway_constants.LOCALHOST and self.is_docker:
+            logger.fatal("The specified blockchain IP is localhost, which is not compatible with a dockerized "
+                         "gateway. Did you mean 172.17.0.X?", exc_info=False)
+            exit(1)
 
 
 def get_sdn_hostname(sdn_url: str) -> str:
