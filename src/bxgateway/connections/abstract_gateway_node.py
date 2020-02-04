@@ -345,6 +345,7 @@ class AbstractGatewayNode(AbstractNode):
         return duration, relay_description
 
     async def init(self) -> None:
+        await super(AbstractGatewayNode, self).init()
         try:
             await asyncio.wait_for(self._rpc_server.start(), gateway_constants.RPC_SERVER_INIT_TIMEOUT_S)
         except Exception as e:

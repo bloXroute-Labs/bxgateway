@@ -21,7 +21,6 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxutils.logging.log_level import LogLevel
 
 
 class AbstractRelayConnectionTest(AbstractTestCase):

@@ -46,6 +46,7 @@ class MockOntGatewayNode(OntGatewayNode):
         if node_ssl_service is None:
             node_ssl_service = MockNodeSSLService(self.NODE_TYPE, MagicMock())
         super(MockOntGatewayNode, self).__init__(opts, node_ssl_service)
+        self.requester = MagicMock()
 
         self.broadcast_messages = []
         self.send_to_node_messages = []

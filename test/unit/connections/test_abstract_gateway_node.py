@@ -41,6 +41,7 @@ class GatewayNode(AbstractGatewayNode):
         if node_ssl_service is None:
             node_ssl_service = MockNodeSSLService(self.NODE_TYPE, MagicMock())
         super().__init__(opts, node_ssl_service)
+        self.requester = MagicMock()
 
     def build_block_queuing_service(self) -> PushBlockQueuingService:
         pass

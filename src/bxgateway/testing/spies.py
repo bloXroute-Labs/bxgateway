@@ -13,6 +13,7 @@ def make_spy_node(gateway_cls, port, **kwargs):
         helpers.set_extensions_parallelism()
     gateway_node = gateway_cls(opts, MockNodeSSLService(gateway_cls.NODE_TYPE, MagicMock()))
     gateway_node.broadcast = MagicMock(wraps=gateway_node.broadcast)
+    gateway_node.requester = MagicMock()
     return gateway_node
 
 

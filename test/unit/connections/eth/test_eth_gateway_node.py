@@ -142,6 +142,7 @@ class EthGatewayNodeTest(AbstractTestCase):
             helpers.set_extensions_parallelism()
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
         self.node = EthGatewayNode(opts, node_ssl_service)
+        self.node.requester = MagicMock()
         self.assertTrue(self.node)
 
         return self.node
