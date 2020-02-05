@@ -420,10 +420,11 @@ class BlockProcessingService:
                                                       blockchain_protocol=self._node.opts.blockchain_network,
                                                       matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
-                                                      more_info="Compression rate {}, Decompression time {}".format(
+                                                      more_info="Compression rate {}, Decompression time {}, "
+                                                                "Queued behind {} blocks".format(
                                                           stats_format.percentage(block_info.compression_rate),
-                                                          stats_format.duration(block_info.duration_ms))
-                                                      )
+                                                          stats_format.duration(block_info.duration_ms),
+                                                          len(self._node.block_queuing_service)))
 
 
             self._on_block_decompressed(block_message)
