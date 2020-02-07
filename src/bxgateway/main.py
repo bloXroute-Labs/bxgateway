@@ -74,12 +74,15 @@ def get_opts() -> GatewayOpts:
                                                "arguments]")
     arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g BitcoinCash, Ethereum", type=str,
                             required=True)
-    arg_parser.add_argument("--blockchain-network", help="Blockchain network. e.g Mainnet, Testnet", type=str,
-                            required=False)
+    arg_parser.add_argument("--blockchain-network", help="Blockchain network. e.g Mainnet, Testnet", type=str)
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip",
                             type=ip_resolver.blocking_resolve_ip,
-                            required=True)
+                            default=None)
+    arg_parser.add_argument("--enode", help="Ethereum enode. ex) enode://<eth node public key>@<eth node "
+                                            "ip>:<port>?discport=0",
+                            type=str,
+                            default=None)
     arg_parser.add_argument("--peer-gateways",
                             help="Optional gateway peer ip/ports that will always be connected to. "
                                  "Should be in the format ip1:port1,ip2:port2,...",

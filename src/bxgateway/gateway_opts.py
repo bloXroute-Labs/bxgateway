@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from bxcommon.utils.cli import CommonOpts
+from bxcommon.utils import ip_resolver
 from typing import Union, List
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -35,6 +36,7 @@ class GatewayOpts(CommonOpts):
     blockchain_services: int
     enable_node_cache: bool
     node_public_key: str
+    enode: str
     private_key: str
     network_id: int
     genesis_hash: str
@@ -106,6 +108,7 @@ class GatewayOpts(CommonOpts):
         self.blockchain_services = opts.blockchain_services
         self.enable_node_cache = opts.enable_node_cache
         self.node_public_key = opts.node_public_key
+        self.enode = opts.enode
         self.private_key = opts.private_key
         self.network_id = opts.network_id
         self.genesis_hash = opts.genesis_hash
@@ -148,7 +151,11 @@ class GatewayOpts(CommonOpts):
         self.validate_blockchain_ip()
 
     def validate_eth_opts(self):
-
+        if self.enode is not None and isinstance(self.enode, str):
+            self.parse_enode()
+        if self.blockchain_ip is None:
+            logger.fatal("Either --blockchain-ip or --enode arguments are required.", exc_info=False)
+            exit(1)
         if self.node_public_key is None:
             logger.fatal("--node-public-key argument is required but not specified.", exc_info=False)
             exit(1)
@@ -163,11 +170,43 @@ class GatewayOpts(CommonOpts):
                 exit(1)
             validate_pub_key(self.remote_public_key)
 
+    def parse_enode(self):
+        # Make sure enode is at least as long as the public key
+        if len(self.enode) < 2 * eth_constants.PUBLIC_KEY_LEN:
+            logger.fatal("Invalid enode. "
+                         "Invalid enode length: {}", len(self.enode), exc_info=False)
+            exit(1)
+        try:
+            enode_and_pub_key, ip_and_port = self.enode.split("@")
+            pub_key = enode_and_pub_key.strip("enode://")
+            ip, port_and_disc = ip_and_port.split(":")
+            port = port_and_disc.split("?")[0]
+        except ValueError:
+            logger.fatal("Invalid enode: {}", self.enode, exc_info=False)
+            exit(1)
+        else:
+            # Node public key gets validated in validate_eth_opts
+            self.node_public_key = pub_key
+            # blockchain IP gets validated in __init__()
+            self.blockchain_ip = ip
+            # Port validation
+            if not port.isnumeric():
+                logger.fatal("Invalid port: {}", port, exc_info=False)
+                exit(1)
+            self.blockchain_port = int(port)
+
     def validate_blockchain_ip(self):
-        # self.blockchain_ip will always exist as it is a required param
+        if self.blockchain_ip is None:
+            logger.fatal("--blockchain-ip is required but not specified.", exc_info=False)
+            exit(1)
         if self.blockchain_ip == gateway_constants.LOCALHOST and self.is_docker:
             logger.fatal("The specified blockchain IP is localhost, which is not compatible with a dockerized "
                          "gateway. Did you mean 172.17.0.X?", exc_info=False)
+            exit(1)
+        try:
+            self.blockchain_ip = ip_resolver.blocking_resolve_ip(self.blockchain_ip)
+        except EnvironmentError:
+            logger.fatal("Blockchain IP could not be resolved, exiting. Blockchain IP: {}", self.blockchain_ip)
             exit(1)
 
 
