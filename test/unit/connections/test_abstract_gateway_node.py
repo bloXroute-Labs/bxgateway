@@ -136,7 +136,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.num_retries_by_ip[(LOCALHOST, 8001)] = MAX_CONNECT_RETRIES
         cli_peer_conn.state = ConnectionState.CONNECTING
         node._connection_timeout(cli_peer_conn)
-        self.assertTrue(mock_socket.state & SocketConnectionState.MARK_FOR_CLOSE)
+        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in mock_socket.state)
 
         node.on_connection_closed(mock_socket.fileno())
         # timeout is fib(3) == 3
@@ -281,8 +281,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         sdn_http_service.submit_peer_connection_error_event.called_once_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertTrue(relay_transaction_conn.socket_connection.state & SocketConnectionState.MARK_FOR_CLOSE)
-        self.assertTrue(relay_transaction_conn.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
+        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in relay_transaction_conn.socket_connection.state)
+        self.assertTrue(SocketConnectionState.DO_NOT_RETRY in relay_transaction_conn.socket_connection.state)
 
     @async_test
     async def test_split_relay_no_reconnect_disconnect_transaction(self):
@@ -302,8 +302,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             sdn_http_service.submit_peer_connection_error_event.assert_called_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertTrue(relay_block_conn.socket_connection.state & SocketConnectionState.MARK_FOR_CLOSE)
-        self.assertTrue(relay_block_conn.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
+        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in relay_block_conn.socket_connection.state)
+        self.assertTrue(SocketConnectionState.DO_NOT_RETRY in relay_block_conn.socket_connection.state)
 
     @async_test
     async def test_queuing_messages_no_blockchain_connection(self):

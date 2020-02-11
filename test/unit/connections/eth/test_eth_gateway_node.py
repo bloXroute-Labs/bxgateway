@@ -92,8 +92,8 @@ class EthGatewayNodeTest(AbstractTestCase):
         new_node_public_key = self._get_dummy_public_key()
         node.set_node_public_key(discovery_connection, new_node_public_key)
 
-        self.assertTrue(discovery_connection.socket_connection.state & SocketConnectionState.MARK_FOR_CLOSE)
-        self.assertTrue(discovery_connection.socket_connection.state & SocketConnectionState.DO_NOT_RETRY)
+        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in discovery_connection.socket_connection.state)
+        self.assertTrue(SocketConnectionState.DO_NOT_RETRY in discovery_connection.socket_connection.state)
 
         updated_node_public_key = node.get_node_public_key()
         self.assertIsNotNone(updated_node_public_key)

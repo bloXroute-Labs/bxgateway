@@ -71,7 +71,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         Handle broadcast message receive from bloXroute.
         This is typically an encrypted block.
         """
-        if self.CONNECTION_TYPE & ConnectionType.RELAY_BLOCK:
+        if ConnectionType.RELAY_BLOCK in self.CONNECTION_TYPE:
             self.node.block_processing_service.process_block_broadcast(msg, self)
         else:
             self.log_error("Received unexpected block message on non-block relay connection: {}", msg)
@@ -81,7 +81,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         Handles key message receive from bloXroute.
         Looks for the encrypted block and decrypts; otherwise stores for later.
         """
-        if self.CONNECTION_TYPE & ConnectionType.RELAY_BLOCK:
+        if ConnectionType.RELAY_BLOCK in self.CONNECTION_TYPE:
             self.node.block_processing_service.process_block_key(msg, self)
         else:
             self.log_error("Received unexpected key message on non-block relay connection: {}", msg)
@@ -90,7 +90,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         """
         Handle transactions receive from bloXroute network.
         """
-        if not self.CONNECTION_TYPE & ConnectionType.RELAY_TRANSACTION:
+        if ConnectionType.RELAY_TRANSACTION not in self.CONNECTION_TYPE:
             self.log_error("Received unexpected tx message on non-tx relay connection: {}", msg)
             return
 
@@ -155,7 +155,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
 
     def msg_txs(self, msg: TxsMessage):
-        if not self.CONNECTION_TYPE & ConnectionType.RELAY_TRANSACTION:
+        if ConnectionType.RELAY_TRANSACTION not in self.CONNECTION_TYPE:
             self.log_error("Received unexpected txs message on non-tx relay connection: {}", msg)
             return
 

@@ -597,13 +597,13 @@ class AbstractGatewayNode(AbstractNode):
             self._remove_gateway_peer(ip, port)
         elif connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
             self.send_request_for_remote_blockchain_peer()
-        elif connection_type & ConnectionType.RELAY_BLOCK:
+        elif ConnectionType.RELAY_BLOCK in connection_type:
             self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
                                                  self.opts.node_id,
                                                  ip,
                                                  port)
             self._remove_relay_peer(ip, port)
-        elif self.opts.split_relays and connection_type & ConnectionType.RELAY_TRANSACTION:
+        elif self.opts.split_relays and ConnectionType.RELAY_TRANSACTION in connection_type:
             self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
                                                  self.opts.node_id,
                                                  ip,
