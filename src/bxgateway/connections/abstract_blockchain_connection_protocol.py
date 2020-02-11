@@ -39,7 +39,8 @@ class AbstractBlockchainConnectionProtocol:
         )
 
         for (bx_tx_message, tx_hash, tx_bytes) in bx_tx_messages:
-            if self.connection.node.get_tx_service().has_transaction_contents(tx_hash):
+            if self.connection.node.get_tx_service().has_transaction_contents(tx_hash) or \
+                    self.connection.node.get_tx_service().removed_transaction(tx_hash):
                 tx_stats.add_tx_by_hash_event(tx_hash,
                                               TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                               self.connection.network_num,

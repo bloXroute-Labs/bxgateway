@@ -20,11 +20,7 @@ jobs:
           path:
             "bxgateway"
       - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
-          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}-{{ checksum "bxgateway/requirements-dev.txt" }}
-      - save_cache: # special step to save dependency cache
-          key: deps1-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}-{{ checksum "bxgateway/requirements-dev.txt" }}
-          paths:
-            - "venv"
+          key: bx-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}-{{ checksum "bxgateway/requirements-dev.txt"}}
       - run:
           name: install dependencies
           command: |
@@ -77,9 +73,10 @@ jobs:
       - run: # install and activate virtual environment with pip
           name: installing virtual env
           command: |
+            sudo rm -rf venv
             python -m virtualenv venv
             . venv/bin/activate
-            pip install pip==18.1
+            pip install pip==19
             pip install -r bxgateway/requirements.txt
             pip install -r bxgateway/requirements-dev.txt
             pip install -r bxcommon/requirements.txt
@@ -105,7 +102,6 @@ jobs:
       - run:
           name: build extensions
           command: |
-            . venv/bin/activate
             cd bxextensions
             python build_extensions.py
       - persist_to_workspace:
@@ -143,6 +139,10 @@ jobs:
     - attach_workspace:
         at: ~/ws
     - run:
+        name: Fix venv issue
+        command: |
+          python -m virtualenv dummy-env
+    - run:
         name: Unit Tests
         command: |
           . venv/bin/activate
@@ -171,6 +171,10 @@ jobs:
       - checkout:
           path:
             "bxgateway"
+      - run:
+          name: Fix venv issue
+          command: |
+            python -m virtualenv dummy-env
       - run:
           name: Try to clone corresponding branches
           command: |
@@ -227,9 +231,6 @@ jobs:
             - v1-{{ .Branch }}-{{ checksum "~/ws/bxgateway/requirements.txt" }}-{{ checksum "~/ws/bxcommon/requirements.txt" }}
           paths:
             - /caches/app.tar
-      - restore_cache:
-          keys:
-            - build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
       - run:
           name: Load Docker image layer cache
           command: |
@@ -250,14 +251,10 @@ jobs:
           command: |
             mkdir -p /caches
             docker save -o /caches/app.tar app
-      - save_cache: 
+      - save_cache:
           key: v1-{{ .Branch }}-{{ checksum "~/ws/bxgateway/requirements.txt" }}-{{ checksum "~/ws/bxcommon/requirements.txt" }}
           paths:
             - /caches/app.tar
-      - save_cache:
-          key: build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
-          paths:
-            - ~/ws/bxextensions/build
   publish:
     working_directory: ~/ws
     docker:
