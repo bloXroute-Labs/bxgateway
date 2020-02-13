@@ -178,7 +178,10 @@ class GatewayOpts(CommonOpts):
             exit(1)
         try:
             enode_and_pub_key, ip_and_port = self.enode.split("@")
-            pub_key = enode_and_pub_key.strip("enode://")
+            if enode_and_pub_key.startswith("enode://"):
+                pub_key = enode_and_pub_key[8:]
+            else:
+                pub_key = enode_and_pub_key
             ip, port_and_disc = ip_and_port.split(":")
             port = port_and_disc.split("?")[0]
         except ValueError:
