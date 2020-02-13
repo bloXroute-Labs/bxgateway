@@ -68,7 +68,6 @@ class GatewayNode(AbstractGatewayNode):
 
 def initialize_split_relay_node():
     relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
-    sdn_http_service.fetch_potential_relay_peers_by_network = MagicMock(return_value=relay_connections)
     network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[0]])
     opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
     if opts.use_extensions:
@@ -76,7 +75,11 @@ def initialize_split_relay_node():
     node = GatewayNode(opts)
     node.enqueue_connection = MagicMock()
 
-    node.send_request_for_relay_peers()
+    node._register_potential_relay_peers(
+        node._find_best_relay_peers(
+            network_latency.get_best_relays_by_ping_latency_one_per_country()
+        )
+    )
     node.enqueue_connection.assert_has_calls([
         call(LOCALHOST, 8001, ConnectionType.RELAY_BLOCK),
         call(LOCALHOST, 8002, ConnectionType.RELAY_TRANSACTION),
@@ -213,7 +216,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
     def test_split_relay_connection(self):
         relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
-        sdn_http_service.fetch_potential_relay_peers_by_network = MagicMock(return_value=relay_connections)
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[0]])
         opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
         if opts.use_extensions:
@@ -221,7 +223,11 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = GatewayNode(opts)
         node.enqueue_connection = MagicMock()
 
-        node.send_request_for_relay_peers()
+        node._register_potential_relay_peers(
+            node._find_best_relay_peers(
+                network_latency.get_best_relays_by_ping_latency_one_per_country()
+            )
+        )
         self.assertEqual(1, len(node.peer_relays))
         self.assertEqual(1, len(node.peer_transaction_relays))
         self.assertEqual(8002, next(iter(node.peer_transaction_relays)).port)
@@ -416,7 +422,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK),
             OutboundPeerModel(LOCALHOST, 9001, node_type=NodeType.RELAY_BLOCK)
         ]
-        sdn_http_service.fetch_potential_relay_peers_by_network = MagicMock(return_value=relay_connections)
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[0]])
         opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
         if opts.use_extensions:
@@ -424,7 +429,11 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = GatewayNode(opts)
         node.enqueue_connection = MagicMock()
 
-        node.send_request_for_relay_peers()
+        node._register_potential_relay_peers(
+            node._find_best_relay_peers(
+                network_latency.get_best_relays_by_ping_latency_one_per_country()
+            )
+        )
         self.assertEqual(1, len(node.peer_relays))
         self.assertEqual(1, len(node.peer_transaction_relays))
         self.assertEqual(8002, next(iter(node.peer_transaction_relays)).port)
@@ -441,7 +450,11 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[1]])
 
-        node.send_request_for_relay_peers()
+        node._register_potential_relay_peers(
+            node._find_best_relay_peers(
+                network_latency.get_best_relays_by_ping_latency_one_per_country()
+            )
+        )
         self.assertEqual(1, len(node.peer_relays))
         self.assertEqual(1, len(node.peer_transaction_relays))
         self.assertEqual(9001, next(iter(node.peer_relays)).port)
@@ -469,7 +482,11 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         # More then 2 potential relay, get 2 fastest
         network_latency.get_best_relays_by_ping_latency_one_per_country.return_value = [relay1, relay2]
-        node._register_potential_relay_peers([relay1, relay2, relay3])
+        node._register_potential_relay_peers(
+            node._find_best_relay_peers(
+                network_latency.get_best_relays_by_ping_latency_one_per_country()
+            )
+        )
         self.assertEqual(2, len(node.peer_relays))
         self.assertIn(relay1, node.peer_relays)
         self.assertIn(relay2, node.peer_relays)
@@ -480,7 +497,11 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         # Second block relay changed
         network_latency.get_best_relays_by_ping_latency_one_per_country.return_value = [relay1, relay3]
-        node._register_potential_relay_peers([relay1, relay2, relay3])
+        node._register_potential_relay_peers(
+            node._find_best_relay_peers(
+                [relay1, relay2, relay3]
+            )
+        )
         self.assertEqual(2, len(node.peer_relays))
         self.assertIn(relay1, node.peer_relays)
         self.assertIn(relay3, node.peer_relays)
@@ -491,7 +512,12 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         # Both relays changed
         network_latency.get_best_relays_by_ping_latency_one_per_country.return_value = [relay4, relay2]
-        node._register_potential_relay_peers([relay1, relay2, relay3, relay4])
+        node._register_potential_relay_peers(
+            node._find_best_relay_peers(
+                [relay1, relay2, relay3, relay4]
+            )
+        )
+
         self.assertEqual(2, len(node.peer_relays))
         self.assertIn(relay4, node.peer_relays)
         self.assertIn(relay2, node.peer_relays)
@@ -502,7 +528,11 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         # Use existing peers if new peers are empty
         network_latency.get_best_relays_by_ping_latency_one_per_country.return_value = [relay4, relay2]
-        node._register_potential_relay_peers([])
+        node._register_potential_relay_peers(
+            node._find_best_relay_peers(
+                []
+            )
+        )
         self.assertEqual(2, len(node.peer_relays))
         self.assertIn(relay4, node.peer_relays)
         self.assertIn(relay2, node.peer_relays)

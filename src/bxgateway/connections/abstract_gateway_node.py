@@ -2,6 +2,7 @@ import asyncio
 import time
 from abc import ABCMeta, abstractmethod
 from argparse import Namespace
+from concurrent.futures import Future
 from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable
 
 from bxcommon import constants
@@ -358,82 +359,26 @@ class AbstractGatewayNode(AbstractNode):
             logger.error("Failed to close Gateway RPC server: {}.", e, exc_info=True)
         await super(AbstractGatewayNode, self).close()
 
-    def _register_potential_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]):
-        logger.info("Received list of potential relays from BDN: {}.",
-                    ", ".join([node.ip for node in potential_relay_peers]))
-
-        # place current relay connection at the start of potential relays to prioritize current connection
-        potential_relay_peers = list(self.peer_relays) + \
-                                [peer for peer in potential_relay_peers if peer not in self.peer_relays]
-        logger.trace("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
-
-        block_relays_count = gateway_constants.MIN_PEER_BLOCK_RELAYS_BY_COUNTRY[self.opts.country]
-
-        best_relay_peers = network_latency.get_best_relays_by_ping_latency_one_per_country(potential_relay_peers,
-                                                                                           block_relays_count)
-        if not best_relay_peers:
-            best_relay_peers = potential_relay_peers[:block_relays_count]
-        logger.trace("Best relay peers to node {} are: {}", self.opts.node_id, best_relay_peers)
-
-        for index, best_relay_peer in enumerate(best_relay_peers):
-            if best_relay_peer not in self.peer_relays:
-                logger.debug("Connecting to new relay {}.", best_relay_peer)
-                self.peer_relays.add(best_relay_peer)
-            else:
-                logger.debug("Current relay {} is optimal, skip.", best_relay_peer)
-
-            # Split relay mode always starts a transaction relay at one port number higher than the block relay
-            if self.opts.split_relays and index == 0:
-                best_relay_peer_tx = OutboundPeerModel(
-                    best_relay_peer.ip,
-                    best_relay_peer.port + 1,
-                    "{}-tx".format(best_relay_peer.node_id),
-                    False,
-                    best_relay_peer.attributes,
-                    node_type=NodeType.RELAY_TRANSACTION
-                )
-
-                # Connect only to one transaction relay
-                if best_relay_peer_tx not in self.peer_transaction_relays:
-                    logger.debug("Connecting to new transaction relay {}.", best_relay_peer_tx)
-                    self.peer_transaction_relays.clear()
-                    self.peer_transaction_relays.add(best_relay_peer_tx)
-                else:
-                    logger.debug("Current transaction relay {} is optimal, skip.", best_relay_peer_tx)
-
-        for removed_peer in self.peer_relays - set(best_relay_peers):
-            logger.info("Disconnecting from current relay {}", removed_peer)
-            self.peer_relays.remove(removed_peer)
-
-        self.on_updated_peers(self._get_all_peers())
-
     def send_request_for_relay_peers(self):
         """
         Requests potential relay peers from SDN. Merges list with provided command line relays.
+
+        This function retrieves from the SDN potential_relay_peers_by_network
+        Then it try to ping for each relay (timeout of 2 seconds). The ping is done in parallel
+        Once there are ping result, it calculate the best relay and decides if need to switch relays
+
+        The above can take time, so the functions is splitted into several internal functions and use the thread pool
+        not to block the main thread.
         """
-        potential_relay_peers = sdn_http_service.fetch_potential_relay_peers_by_network(self.opts.node_id,
-                                                                                        self.network_num)
 
-        if potential_relay_peers:
-            node_cache.update(self.opts, potential_relay_peers)
-            self._register_potential_relay_peers(potential_relay_peers)
-        else:
-            # if called too many times to send_request_for_relay_peers, reset relay peers to empty list in cache file
-            if self.send_request_for_relay_peers_num_of_calls > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS:
-                node_cache.update(self.opts, [])
-                self.send_request_for_relay_peers_num_of_calls = 0
-            self.send_request_for_relay_peers_num_of_calls += 1
+        self.requester.send_threaded_request(
+            sdn_http_service.fetch_potential_relay_peers_by_network,
+            self.opts.node_id,
+            self.network_num,
+            done_callback=self._process_potential_relays_from_sdn
+        )
 
-            cache_file_info = node_cache.read(self.opts)
-            if cache_file_info is not None:
-                cache_file_relay_peers = cache_file_info.relay_peers
-                if cache_file_relay_peers:
-                    self._register_potential_relay_peers(cache_file_relay_peers)
-                else:
-                    return constants.SDN_CONTACT_RETRY_SECONDS
-            else:
-                return constants.SDN_CONTACT_RETRY_SECONDS
-        return gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S
+        return constants.CANCEL_ALARMS
 
     def send_request_for_remote_blockchain_peer(self):
         """
@@ -831,3 +776,106 @@ class AbstractGatewayNode(AbstractNode):
             self.last_sync_message_received_by_network.pop(self.network_num, None)
             self.alarm_queue.unregister_alarm(self._transaction_sync_timeout_alarm_id)
             self.on_fully_updated_tx_service()
+
+    def _process_potential_relays_from_sdn(self, get_potential_relays_future: Future):
+        """
+        part of send_request_for_relay_peers logic
+        This function is called once there is a result from SDN regarding potential_relays.
+        The process of potential_relays should be run in the main thread, hence the register_alarm
+        :param get_potential_relays_future: the list of potentital relays from the BDN API
+        :return:
+        """
+
+        potential_relay_peers = get_potential_relays_future.result()
+
+        if potential_relay_peers:
+            node_cache.update(self.opts, potential_relay_peers)
+        else:
+            # if called too many times to send_request_for_relay_peers, reset relay peers to empty list in cache file
+            if self.send_request_for_relay_peers_num_of_calls > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS:
+                node_cache.update(self.opts, [])
+                self.send_request_for_relay_peers_num_of_calls = 0
+            self.send_request_for_relay_peers_num_of_calls += 1
+
+            cache_file_info = node_cache.read(self.opts)
+            if cache_file_info is not None:
+                potential_relay_peers = cache_file_info.relay_peers
+                if not potential_relay_peers:
+                    self.alarm_queue.register_alarm(
+                        constants.SDN_CONTACT_RETRY_SECONDS,
+                        self.send_request_for_relay_peers
+                    )
+                    return
+            else:
+                self.alarm_queue.register_alarm(
+                        constants.SDN_CONTACT_RETRY_SECONDS,
+                        self.send_request_for_relay_peers
+                )
+                return
+
+        # check the network latency using the thread pool
+        self.requester.send_threaded_request(
+            self._find_best_relay_peers,
+            potential_relay_peers,
+            done_callback=self._register_potential_relay_peers_from_future
+        )
+
+        self.alarm_queue.register_alarm(
+            gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
+            self.send_request_for_relay_peers
+        )
+
+    def _find_best_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]) -> \
+        List[OutboundPeerModel]:
+        logger.info("Received list of potential relays from BDN: {}.",
+                    ", ".join([node.ip for node in potential_relay_peers]))
+
+        logger.trace("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
+
+        block_relays_count = gateway_constants.MIN_PEER_BLOCK_RELAYS_BY_COUNTRY[self.opts.country]
+
+        best_relay_peers = network_latency.get_best_relays_by_ping_latency_one_per_country(potential_relay_peers,
+                                                                                           block_relays_count)
+        if not best_relay_peers:
+            best_relay_peers = potential_relay_peers[:block_relays_count]
+        logger.trace("Best relay peers to node {} are: {}", self.opts.node_id, best_relay_peers)
+
+        return best_relay_peers
+
+    def _register_potential_relay_peers_from_future(self, ping_potential_relays_future: Future):
+        best_relay_peers = ping_potential_relays_future.result()
+        self._register_potential_relay_peers(best_relay_peers)
+
+    def _register_potential_relay_peers(self, best_relay_peers: List[OutboundPeerModel]):
+        for index, best_relay_peer in enumerate(best_relay_peers):
+            if best_relay_peer not in self.peer_relays:
+                logger.debug("Connecting to new relay {}.", best_relay_peer)
+                self.peer_relays.add(best_relay_peer)
+            else:
+                logger.debug("Current relay {} is optimal, skip.", best_relay_peer)
+
+            # Split relay mode always starts a transaction relay at one port number higher than the block relay
+            if self.opts.split_relays and index == 0:
+                best_relay_peer_tx = OutboundPeerModel(
+                    best_relay_peer.ip,
+                    best_relay_peer.port + 1,
+                    "{}-tx".format(best_relay_peer.node_id),
+                    False,
+                    best_relay_peer.attributes,
+                    node_type=NodeType.RELAY_TRANSACTION
+                )
+
+                # Connect only to one transaction relay
+                if best_relay_peer_tx not in self.peer_transaction_relays:
+                    logger.debug("Connecting to new transaction relay {}.", best_relay_peer_tx)
+                    self.peer_transaction_relays.clear()
+                    self.peer_transaction_relays.add(best_relay_peer_tx)
+                else:
+                    logger.debug("Current transaction relay {} is optimal, skip.", best_relay_peer_tx)
+
+        for removed_peer in self.peer_relays - set(best_relay_peers):
+            logger.info("Disconnecting from current relay {}", removed_peer)
+            self.peer_relays.remove(removed_peer)
+
+        self.on_updated_peers(self._get_all_peers())
+
