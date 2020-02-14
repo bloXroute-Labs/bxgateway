@@ -1,10 +1,11 @@
 from abc import ABCMeta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
+from bxcommon.messages.bloxroute.bdn_performance_stats_message import BdnPerformanceStatsMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.messages.bloxroute.bloxroute_message_validator import BloxrouteMessageValidator
 from bxcommon.messages.bloxroute.disconnect_relay_peer_message import DisconnectRelayPeerMessage
@@ -20,6 +21,8 @@ from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
+    GatewayBdnPerformanceStatInterval
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -128,6 +131,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         gateway_transaction_stats_service.log_transaction_from_relay(tx_hash,
                                                                      short_id is not None,
                                                                      tx_val == TxMessage.EMPTY_TX_VAL)
+        gateway_bdn_performance_stats_service.log_tx_from_bdn()
 
         if short_id:
             tx_service.assign_short_id(tx_hash, short_id)
@@ -227,6 +231,14 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 object_type=memory_utils.ObjectType.META,
                 size_type=memory_utils.SizeType.SPECIAL
             )
+
+    def send_bdn_performance_stats(self, bdn_stats_interval: GatewayBdnPerformanceStatInterval):
+        msg_to_send = BdnPerformanceStatsMessage(bdn_stats_interval.start_time,
+                                                 bdn_stats_interval.new_blocks_received_from_blockchain_node,
+                                                 bdn_stats_interval.new_blocks_received_from_bdn,
+                                                 bdn_stats_interval.new_tx_received_from_blockchain_node,
+                                                 bdn_stats_interval.new_tx_received_from_bdn)
+        self.enqueue_msg(msg_to_send)
 
     def msg_cleanup(self, msg: AbstractCleanupMessage):
         self.node.block_cleanup_service.process_cleanup_message(msg, self.node)

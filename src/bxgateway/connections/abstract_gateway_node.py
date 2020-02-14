@@ -3,7 +3,7 @@ import time
 from abc import ABCMeta, abstractmethod
 from argparse import Namespace
 from concurrent.futures import Future
-from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable
+from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, cast
 
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -46,6 +46,7 @@ from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.utils import configuration_utils
 from bxgateway.utils.blockchain_message_queue import BlockchainMessageQueue
 from bxgateway.utils.logging.status import status_log
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
@@ -153,6 +154,7 @@ class AbstractGatewayNode(AbstractNode):
             self._tx_service = TransactionService(self, self.network_num)
 
         self.init_transaction_stat_logging()
+        self.init_bdn_performance_stats_logging()
         self.init_node_config_update()
 
         self._block_from_node_handling_times = ExpiringDict(
@@ -220,6 +222,24 @@ class AbstractGatewayNode(AbstractNode):
         gateway_transaction_stats_service.set_node(self)
         self.alarm_queue.register_alarm(gateway_transaction_stats_service.interval,
                                         gateway_transaction_stats_service.flush_info)
+
+    def init_bdn_performance_stats_logging(self):
+        gateway_bdn_performance_stats_service.set_node(self)
+        self.alarm_queue.register_alarm(gateway_bdn_performance_stats_service.interval,
+                                        self.send_bdn_performance_stats)
+
+    def send_bdn_performance_stats(self) -> int:
+        relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)
+        if not relay_connections:
+            gateway_bdn_performance_stats_service.create_interval_data_object()
+            return gateway_bdn_performance_stats_service.interval
+
+        relay_connection = cast(AbstractRelayConnection, next(iter(relay_connections)))
+        gateway_bdn_performance_stats_service.close_interval_data()
+        # pyre-ignore
+        relay_connection.send_bdn_performance_stats(gateway_bdn_performance_stats_service.interval_data)
+        gateway_bdn_performance_stats_service.create_interval_data_object()
+        return gateway_bdn_performance_stats_service.interval
 
     def init_node_config_update(self):
         self.update_node_config()

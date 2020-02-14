@@ -21,6 +21,7 @@ from bxgateway.connections.abstract_relay_connection import AbstractRelayConnect
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.services.block_recovery_service import BlockRecoveryInfo
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxutils import logging
 
 if TYPE_CHECKING:
@@ -155,6 +156,7 @@ class BlockProcessingService:
                                     BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                     network_num=connection.network_num,
                                     more_info=stats_format.connection(connection))
+        gateway_bdn_performance_stats_service.log_block_from_bdn()
 
         block_hash = msg.block_hash()
         is_encrypted = msg.is_encrypted()

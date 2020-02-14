@@ -13,6 +13,7 @@ from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEven
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
 
@@ -51,6 +52,7 @@ class AbstractBlockchainConnectionProtocol:
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE,
                                           self.connection.network_num, peer=stats_format.connection(self.connection))
             gateway_transaction_stats_service.log_transaction_from_blockchain(tx_hash)
+            gateway_bdn_performance_stats_service.log_tx_from_blockchain_node()
 
             # All connections outside of this one is a bloXroute server
             broadcast_peers = self.connection.node.broadcast(bx_tx_message, self.connection,
@@ -98,6 +100,7 @@ class AbstractBlockchainConnectionProtocol:
         node.track_block_from_node_handling_started(block_hash)
         node.on_block_seen_by_blockchain_node(block_hash, msg)
         node.block_processing_service.queue_block_for_processing(msg, self.connection)
+        gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
         return
 
     def msg_proxy_request(self, msg):
