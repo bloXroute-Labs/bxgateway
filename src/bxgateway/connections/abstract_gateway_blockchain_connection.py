@@ -54,12 +54,12 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
         self.connection_protocol = None
         self.is_server = False
 
-    def advance_sent_bytes(self, bytes_sent):
+    def advance_bytes_written_to_socket(self, bytes_sent):
         if self.message_tracker and self.message_tracker.is_sending_block_message():
             assert self.node.opts.track_detailed_sent_messages
 
             entry = self.message_tracker.messages[0]
-            super(AbstractGatewayBlockchainConnection, self).advance_sent_bytes(bytes_sent)
+            super(AbstractGatewayBlockchainConnection, self).advance_bytes_written_to_socket(bytes_sent)
 
             if not self.message_tracker.is_sending_block_message():
                 block_message = typing.cast(AbstractBlockMessage, entry.message)
@@ -83,7 +83,7 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
                                                               block_message.extra_stats_data()
                                                           ))
         else:
-            super(AbstractGatewayBlockchainConnection, self).advance_sent_bytes(bytes_sent)
+            super(AbstractGatewayBlockchainConnection, self).advance_bytes_written_to_socket(bytes_sent)
 
     def log_connection_mem_stats(self) -> None:
         """

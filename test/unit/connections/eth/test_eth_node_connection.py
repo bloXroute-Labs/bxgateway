@@ -30,22 +30,27 @@ class EthNodeConnectionTest(AbstractTestCase):
         self.connection.connection_protocol.rlpx_cipher = cipher1
 
     def test_message_tracked_correctly_when_framed(self):
+        block_stats.add_block_event_by_block_hash = MagicMock()
+
+        # send the handshake message
+        self.node.on_bytes_sent(self.connection_fileno, 307)
+        self.node.on_bytes_written_to_socket(self.connection_fileno, 307)
+
         block_message = NewBlockEthProtocolMessage(
             None,
             mock_eth_messages.get_dummy_block(1, mock_eth_messages.get_dummy_block_header(5, int(time.time()))),
             10
         )
         block_message.serialize()
-        block_stats.add_block_event_by_block_hash = MagicMock()
 
         self.connection.enqueue_msg(block_message)
         message_length = self.connection.outputbuf.length
         print(message_length)
         for message in self.connection.message_tracker.messages:
             print(message.length)
-        self.assertEqual(message_length, self.connection.message_tracker.messages[0].length + self.connection.message_tracker.messages[1].length)
         block_stats.add_block_event_by_block_hash.assert_not_called()
+        self.assertEqual(message_length, self.connection.message_tracker.messages[0].length)
 
-        self.node.on_bytes_sent(self.connection_fileno, 307)
-        self.node.on_bytes_sent(self.connection_fileno, message_length - 307)
+        self.node.on_bytes_sent(self.connection_fileno, message_length)
+        self.node.on_bytes_written_to_socket(self.connection_fileno, message_length)
         block_stats.add_block_event_by_block_hash.assert_called_once()
