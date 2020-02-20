@@ -62,10 +62,6 @@ class GatewayNode(AbstractGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         return BtcRemoteConnection(socket_connection, self)
 
-    def _authenticate_connection(self, connection: Optional[AbstractConnection]) -> None:
-        pass
-
-
 def initialize_split_relay_node():
     relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
     network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[0]])

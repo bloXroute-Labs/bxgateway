@@ -71,9 +71,6 @@ class NullGatewayNode(AbstractGatewayNode):
             convert.peer_node_to_connection_type(self.NODE_TYPE, peer.node_type)) for peer in self.outbound_peers
         ]
 
-    def _authenticate_connection(self, connection: Optional[AbstractConnection]) -> None:
-        pass
-
 
 class NullBlockchainNode:
 
