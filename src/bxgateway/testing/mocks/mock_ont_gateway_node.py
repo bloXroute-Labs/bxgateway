@@ -1,12 +1,13 @@
 # pyre-ignore-all-errors
 from typing import Optional
 
-from bxcommon.test_utils import helpers
+from mock import MagicMock
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.models.node_type import NodeType
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -15,11 +16,10 @@ from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
 from bxgateway.services.ont.abstract_ont_block_cleanup_service import AbstractOntBlockCleanupService
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.services.ont.ont_block_queuing_service import OntBlockQueuingService
 from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
+from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxutils.services.node_ssl_service import NodeSSLService
-from mock import MagicMock
 
 
 class _MockCleanupService(AbstractOntBlockCleanupService):
@@ -37,7 +37,6 @@ class _MockCleanupService(AbstractOntBlockCleanupService):
 
 
 class MockOntGatewayNode(OntGatewayNode):
-
     NODE_TYPE = NodeType.EXTERNAL_GATEWAY
 
     def __init__(self, opts, node_ssl_service: Optional[NodeSSLService] = None):
@@ -75,15 +74,15 @@ class MockOntGatewayNode(OntGatewayNode):
         return self._tx_service
 
     def build_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
-    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> AbstractRelayConnection:
         pass
 
     def build_remote_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         pass
 

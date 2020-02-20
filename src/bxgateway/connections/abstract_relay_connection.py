@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
@@ -10,19 +10,19 @@ from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageT
 from bxcommon.messages.bloxroute.bloxroute_message_validator import BloxrouteMessageValidator
 from bxcommon.messages.bloxroute.disconnect_relay_peer_message import DisconnectRelayPeerMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
+from bxcommon.messages.bloxroute.notification_message import NotificationMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.messages.validation.message_size_validation_settings import MessageSizeValidationSettings
-from bxcommon.messages.bloxroute.notification_message import NotificationCode, NotificationMessage
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.utils import convert
 from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
+from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -34,7 +34,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     CONNECTION_TYPE = ConnectionType.RELAY_ALL
 
-    def __init__(self, sock: SocketConnectionProtocol, node: "AbstractGatewayNode"):
+    def __init__(self, sock: AbstractSocketConnectionProtocol, node: "AbstractGatewayNode"):
         super(AbstractRelayConnection, self).__init__(sock, node)
 
         hello_msg = HelloMessage(protocol_version=self.protocol_version, network_num=self.network_num,
@@ -62,7 +62,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         }
 
         msg_size_validation_settings = MessageSizeValidationSettings(self.node.network.max_block_size_bytes,
-                                                                self.node.network.max_tx_size_bytes)
+                                                                     self.node.network.max_tx_size_bytes)
         self.message_validator = BloxrouteMessageValidator(msg_size_validation_settings, self.protocol_version)
 
     def msg_hello(self, msg):
@@ -107,7 +107,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         attempt_recovery = False
 
         if not short_id and tx_service.has_transaction_short_id(tx_hash) and \
-                tx_service.has_transaction_contents(tx_hash) and not tx_service.removed_transaction(tx_hash):
+            tx_service.has_transaction_contents(tx_hash) and not tx_service.removed_transaction(tx_hash):
             gateway_transaction_stats_service.log_duplicate_transaction_from_relay()
             tx_stats.add_tx_by_hash_event(tx_hash,
                                           TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
@@ -225,7 +225,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 self.node.message_converter,
                 "message_converter",
                 memory_utils.ObjectSize(
-                    "message_converter", memory_utils.get_special_size(self.node.message_converter).size, is_actual_size=True
+                    "message_converter", memory_utils.get_special_size(self.node.message_converter).size,
+                    is_actual_size=True
                 ),
                 object_item_count=1,
                 object_type=memory_utils.ObjectType.META,

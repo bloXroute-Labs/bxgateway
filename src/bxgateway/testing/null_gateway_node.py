@@ -2,25 +2,24 @@
 import socket
 from argparse import Namespace
 from typing import Optional, List
+
 from mock import MagicMock
 
-from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
-from bxcommon.network.ip_endpoint import IpEndpoint
-from bxcommon.utils import convert
-from bxcommon.network.peer_info import ConnectionPeerInfo
-from bxcommon.test_utils import helpers
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.constants import LOCALHOST
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
-
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
+from bxcommon.network.ip_endpoint import IpEndpoint
+from bxcommon.network.peer_info import ConnectionPeerInfo
+from bxcommon.test_utils import helpers
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
+from bxcommon.utils import convert
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
-
-from bxutils.services.node_ssl_service import NodeSSLService
 from bxutils import logging
+from bxutils.services.node_ssl_service import NodeSSLService
 
 logger = logging.get_logger(__name__)
 
@@ -42,15 +41,15 @@ class NullGatewayNode(AbstractGatewayNode):
         super().__init__(opts, node_ssl_service)
 
     def build_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         return NullConnection
 
-    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> AbstractRelayConnection:
         return NullConnection
 
     def build_remote_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         return NullConnection
 

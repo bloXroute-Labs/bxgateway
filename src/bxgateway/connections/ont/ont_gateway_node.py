@@ -1,4 +1,5 @@
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
+import bxgateway.messages.ont.ont_message_converter_factory as converter_factory
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -11,8 +12,6 @@ from bxgateway.services.ont.ont_block_queuing_service import OntBlockQueuingServ
 from bxgateway.services.ont.ont_normal_block_cleanup_service import OntNormalBlockCleanupService
 from bxgateway.utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
 from bxutils.services.node_ssl_service import NodeSSLService
-
-import bxgateway.messages.ont.ont_message_converter_factory as converter_factory
 
 
 class OntGatewayNode(AbstractGatewayNode):
@@ -29,15 +28,15 @@ class OntGatewayNode(AbstractGatewayNode):
             self.current_block_height = new_block_height
             self.current_block_hash = new_block_hash
 
-    def build_blockchain_connection(self, socket_connection: SocketConnectionProtocol) -> \
-            AbstractGatewayBlockchainConnection:
+    def build_blockchain_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> \
+        AbstractGatewayBlockchainConnection:
         return OntNodeConnection(socket_connection, self)
 
-    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> AbstractRelayConnection:
         return OntRelayConnection(socket_connection, self)
 
-    def build_remote_blockchain_connection(self, socket_connection: SocketConnectionProtocol) -> \
-            AbstractGatewayBlockchainConnection:
+    def build_remote_blockchain_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> \
+        AbstractGatewayBlockchainConnection:
         return OntRemoteConnection(socket_connection, self)
 
     def build_block_queuing_service(self) -> AbstractBlockQueuingService:

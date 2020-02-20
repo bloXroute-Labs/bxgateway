@@ -1,17 +1,18 @@
 from argparse import Namespace
 from typing import Type, NamedTuple
 
+from mock import MagicMock
+
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
-from mock import MagicMock
 
 
 class FullGatewayInfo(NamedTuple):
@@ -21,9 +22,9 @@ class FullGatewayInfo(NamedTuple):
     relay_fileno: int
     gateway_fileno: int
 
-    blockchain_socket: SocketConnectionProtocol
-    relay_socket: SocketConnectionProtocol
-    gateway_socket: SocketConnectionProtocol
+    blockchain_socket: AbstractSocketConnectionProtocol
+    relay_socket: AbstractSocketConnectionProtocol
+    gateway_socket: AbstractSocketConnectionProtocol
 
     blockchain_connection: AbstractGatewayBlockchainConnection
     relay_connection: AbstractRelayConnection

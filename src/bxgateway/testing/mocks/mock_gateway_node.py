@@ -1,26 +1,27 @@
 # pyre-ignore-all-errors
-from typing import Optional, Deque
 from _collections import deque
-from bxcommon.test_utils import helpers
+from typing import Optional, Deque
+
+from mock import MagicMock
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.models.node_type import NodeType
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
+from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
+from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
+from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
-from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
-from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
 from bxutils.services.node_ssl_service import NodeSSLService
-from mock import MagicMock
 
 
 class _MockCleanupService(AbstractBtcBlockCleanupService):
@@ -38,7 +39,6 @@ class _MockCleanupService(AbstractBtcBlockCleanupService):
 
 
 class MockGatewayNode(AbstractGatewayNode):
-
     NODE_TYPE = NodeType.EXTERNAL_GATEWAY
 
     def __init__(self, opts, node_ssl_service: Optional[NodeSSLService] = None):
@@ -77,15 +77,15 @@ class MockGatewayNode(AbstractGatewayNode):
         return self._tx_service
 
     def build_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
-    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> AbstractRelayConnection:
         pass
 
     def build_remote_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         pass
 

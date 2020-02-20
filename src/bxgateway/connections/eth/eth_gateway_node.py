@@ -3,9 +3,9 @@ from typing import Optional, List, Deque
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.peer_info import ConnectionPeerInfo
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
@@ -19,13 +19,13 @@ from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
-from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
+from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlockCleanupService
+from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
@@ -78,14 +78,14 @@ class EthGatewayNode(AbstractGatewayNode):
         logger.info("Gateway enode url: {}", self.get_enode())
 
     def build_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         if self._is_in_local_discovery():
             return EthNodeDiscoveryConnection(socket_connection, self)
         else:
             return EthNodeConnection(socket_connection, self)
 
-    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> AbstractRelayConnection:
         if TestModes.DROPPING_TXS in self.opts.test_mode:
             cls = EthLossyRelayConnection
         else:
@@ -95,7 +95,7 @@ class EthGatewayNode(AbstractGatewayNode):
         return relay_connection
 
     def build_remote_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         return EthRemoteConnection(socket_connection, self)
 
@@ -203,7 +203,8 @@ class EthGatewayNode(AbstractGatewayNode):
                 break
 
         if previous_block_total_difficulty is None:
-            logger.debug("Unable to calculate total difficulty after block {}.", convert.bytes_to_hex(block_hash.binary))
+            logger.debug("Unable to calculate total difficulty after block {}.",
+                         convert.bytes_to_hex(block_hash.binary))
             return None
 
         block_total_difficulty = previous_block_total_difficulty + new_block_parts.get_block_difficulty()

@@ -15,10 +15,10 @@ from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.models.quota_type_model import QuotaType
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.network_direction import NetworkDirection
 from bxcommon.network.peer_info import ConnectionPeerInfo
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
 from bxcommon.services import sdn_http_service
 from bxcommon.services.broadcast_service import BroadcastService
 from bxcommon.services.transaction_service import TransactionService
@@ -190,20 +190,19 @@ class AbstractGatewayNode(AbstractNode):
                               self.opts.continent, self.opts.country, self.opts.should_update_source_version,
                               self.account_id)
 
-
     @abstractmethod
     def build_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
     @abstractmethod
-    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> AbstractRelayConnection:
         pass
 
     @abstractmethod
     def build_remote_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
@@ -429,7 +428,7 @@ class AbstractGatewayNode(AbstractNode):
             )
         return peers
 
-    def build_connection(self, socket_connection: SocketConnectionProtocol) -> Optional[AbstractConnection]:
+    def build_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> Optional[AbstractConnection]:
         """
         Builds a connection class object based on the characteristics of the ip, port, and direction of the connection.
 
@@ -581,9 +580,9 @@ class AbstractGatewayNode(AbstractNode):
         self.enqueue_connection(outbound_peer.ip, outbound_peer.port, ConnectionType.REMOTE_BLOCKCHAIN_NODE)
 
     def on_block_seen_by_blockchain_node(
-            self,
-            block_hash: Sha256Hash,
-            block_message: Optional[AbstractMessage] = None
+        self,
+        block_hash: Sha256Hash,
+        block_message: Optional[AbstractMessage] = None
     ):
         self.blocks_seen.add(block_hash)
         recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
@@ -597,10 +596,10 @@ class AbstractGatewayNode(AbstractNode):
         )
 
     def post_block_cleanup_tasks(
-            self,
-            block_hash: Sha256Hash,
-            short_ids: Iterable[int],
-            unknown_tx_hashes: Iterable[Sha256Hash]):
+        self,
+        block_hash: Sha256Hash,
+        short_ids: Iterable[int],
+        unknown_tx_hashes: Iterable[Sha256Hash]):
         """post cleanup tasks for blocks, override method to implement"""
         pass
 
@@ -656,12 +655,12 @@ class AbstractGatewayNode(AbstractNode):
         """
         peer_gateways = sdn_http_service.fetch_gateway_peers(self.opts.node_id)
         if not peer_gateways and not self.peer_gateways and \
-                self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+            self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
             # Try again later
             logger.warning("Did not receive expected gateway peers from BDN. Retrying.")
             self.send_request_for_gateway_peers_num_of_calls += 1
             if self.send_request_for_gateway_peers_num_of_calls == \
-                    gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+                gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
                 logger.warning("Giving up on querying for gateway peers from the BDN.")
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
@@ -712,7 +711,7 @@ class AbstractGatewayNode(AbstractNode):
         self.outbound_peers = self._get_all_peers()
 
         if len(self.peer_relays) < gateway_constants.MIN_PEER_BLOCK_RELAYS_BY_COUNTRY[self.opts.country] or \
-                len(self.peer_transaction_relays) < gateway_constants.MIN_PEER_TRANSACTION_RELAYS:
+            len(self.peer_transaction_relays) < gateway_constants.MIN_PEER_TRANSACTION_RELAYS:
             self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
                                             self.send_request_for_relay_peers)
 
@@ -788,7 +787,8 @@ class AbstractGatewayNode(AbstractNode):
 
     def _check_sync_relay_connections(self):
         if self.network_num in self.last_sync_message_received_by_network and \
-                time.time() - self.last_sync_message_received_by_network[self.network_num] > constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
+            time.time() - self.last_sync_message_received_by_network[
+            self.network_num] > constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
             logger.warning(
                 "It has been more than {0} seconds since the last time gateway received a message from requested "
                 "relay, assuming requested relay turned offline and mark gateway as synced",
@@ -828,8 +828,8 @@ class AbstractGatewayNode(AbstractNode):
                     return
             else:
                 self.alarm_queue.register_alarm(
-                        constants.SDN_CONTACT_RETRY_SECONDS,
-                        self.send_request_for_relay_peers
+                    constants.SDN_CONTACT_RETRY_SECONDS,
+                    self.send_request_for_relay_peers
                 )
                 return
 
@@ -898,4 +898,3 @@ class AbstractGatewayNode(AbstractNode):
             self.peer_relays.remove(removed_peer)
 
         self.on_updated_peers(self._get_all_peers())
-

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
 from bxgateway.connections.eth.eth_node_connection_protocol import EthNodeConnectionProtocol
 
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class EthNodeConnection(EthBaseConnection):
-    def __init__(self, sock: SocketConnectionProtocol, node: "EthGatewayNode"):
+    def __init__(self, sock: AbstractSocketConnectionProtocol, node: "EthGatewayNode"):
         super(EthNodeConnection, self).__init__(sock, node)
 
         node_public_key = self.node.get_node_public_key()

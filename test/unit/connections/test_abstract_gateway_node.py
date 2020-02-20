@@ -12,7 +12,7 @@ from bxcommon.constants import LOCALHOST, MAX_CONNECT_RETRIES
 from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.network.socket_connection_state import SocketConnectionState
 from bxcommon.services import sdn_http_service
 from bxcommon.test_utils import helpers
@@ -50,15 +50,15 @@ class GatewayNode(AbstractGatewayNode):
         pass
 
     def build_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         return BtcNodeConnection(socket_connection, self)
 
-    def build_relay_connection(self, socket_connection: SocketConnectionProtocol) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> AbstractRelayConnection:
         return BtcRelayConnection(socket_connection, self)
 
     def build_remote_blockchain_connection(
-            self, socket_connection: SocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         return BtcRemoteConnection(socket_connection, self)
 

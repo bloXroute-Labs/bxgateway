@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, TypeVar
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import stats_format, hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -25,7 +25,7 @@ logger = logging.get_logger(__name__)
 class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
     CONNECTION_TYPE = ConnectionType.BLOCKCHAIN_NODE
 
-    def __init__(self, sock: SocketConnectionProtocol, node: GatewayNode):
+    def __init__(self, sock: AbstractSocketConnectionProtocol, node: GatewayNode):
         super(AbstractGatewayBlockchainConnection, self).__init__(sock, node)
 
         if node.opts.tune_send_buffer_size:
@@ -99,7 +99,8 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
                 self.node.message_converter,
                 "message_converter",
                 memory_utils.ObjectSize(
-                    "message_converter", memory_utils.get_special_size(self.node.message_converter).size, is_actual_size=True
+                    "message_converter", memory_utils.get_special_size(self.node.message_converter).size,
+                    is_actual_size=True
                 ),
                 object_item_count=1,
                 object_type=memory_utils.ObjectType.META,
@@ -125,4 +126,3 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
                 logger.warning("Detected attempt to close remote node connection when another is already established. "
                                "Connection being destroyed - {}. Established connection - {}.",
                                self.peer_desc, self.node.remote_node_conn.peer_desc)
-

@@ -6,7 +6,7 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
-from bxcommon.network.socket_connection_protocol import SocketConnectionProtocol
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.services import sdn_http_service
 from bxcommon.utils import crypto
 from bxcommon.utils.stats import stats_format
@@ -32,7 +32,7 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     NULL_ORDERING = -1
     ACK_MESSAGE = AckMessage()
 
-    def __init__(self, sock: SocketConnectionProtocol, node: "AbstractGatewayNode"):
+    def __init__(self, sock: AbstractSocketConnectionProtocol, node: "AbstractGatewayNode"):
         super(GatewayConnection, self).__init__(sock, node)
 
         self.hello_messages = gateway_constants.GATEWAY_HELLO_MESSAGES
