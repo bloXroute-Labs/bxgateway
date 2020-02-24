@@ -122,11 +122,15 @@ class AbstractGatewayNode(AbstractNode):
 
         self.send_request_for_relay_peers_num_of_calls = 0
         if not self.opts.peer_relays:
-            self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
-                                            self.send_request_for_relay_peers)
+            self.check_relay_alarm_id = self.alarm_queue.register_alarm(
+                constants.SDN_CONTACT_RETRY_SECONDS,
+                self.send_request_for_relay_peers
+            )
         else:
-            self.alarm_queue.register_alarm(gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
-                                            self.send_request_for_relay_peers)
+            self.check_relay_alarm_id = self.alarm_queue.register_alarm(
+                gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
+                self.send_request_for_relay_peers
+            )
 
         if opts.connect_to_remote_blockchain:
             if opts.remote_blockchain_peer is not None:
@@ -390,6 +394,7 @@ class AbstractGatewayNode(AbstractNode):
         not to block the main thread.
         """
 
+        self.check_relay_alarm_id = None
         self.requester.send_threaded_request(
             sdn_http_service.fetch_potential_relay_peers_by_network,
             self.opts.node_id,
@@ -806,44 +811,44 @@ class AbstractGatewayNode(AbstractNode):
         :return:
         """
 
-        potential_relay_peers = get_potential_relays_future.result()
+        try:
+            potential_relay_peers = get_potential_relays_future.result()
 
-        if potential_relay_peers:
-            node_cache.update(self.opts, potential_relay_peers)
-        else:
-            # if called too many times to send_request_for_relay_peers, reset relay peers to empty list in cache file
-            if self.send_request_for_relay_peers_num_of_calls > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS:
-                node_cache.update(self.opts, [])
-                self.send_request_for_relay_peers_num_of_calls = 0
-            self.send_request_for_relay_peers_num_of_calls += 1
-
-            cache_file_info = node_cache.read(self.opts)
-            if cache_file_info is not None:
-                potential_relay_peers = cache_file_info.relay_peers
-                if not potential_relay_peers:
-                    self.alarm_queue.register_alarm(
-                        constants.SDN_CONTACT_RETRY_SECONDS,
-                        self.send_request_for_relay_peers
-                    )
-                    return
+            if potential_relay_peers:
+                node_cache.update(self.opts, potential_relay_peers)
             else:
-                self.alarm_queue.register_alarm(
-                    constants.SDN_CONTACT_RETRY_SECONDS,
-                    self.send_request_for_relay_peers
-                )
-                return
+                # if called too many times to send_request_for_relay_peers, reset relay peers to empty list in cache file
+                if self.send_request_for_relay_peers_num_of_calls > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS:
+                    node_cache.update(self.opts, [])
+                    self.send_request_for_relay_peers_num_of_calls = 0
+                self.send_request_for_relay_peers_num_of_calls += 1
 
-        # check the network latency using the thread pool
-        self.requester.send_threaded_request(
-            self._find_best_relay_peers,
-            potential_relay_peers,
-            done_callback=self._register_potential_relay_peers_from_future
-        )
+                cache_file_info = node_cache.read(self.opts)
+                if cache_file_info is not None:
+                    potential_relay_peers = cache_file_info.relay_peers
 
-        self.alarm_queue.register_alarm(
-            gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
-            self.send_request_for_relay_peers
-        )
+                if not potential_relay_peers:
+                    if self.check_relay_alarm_id is None:
+                        self.check_relay_alarm_id = self.alarm_queue.register_alarm(
+                            constants.SDN_CONTACT_RETRY_SECONDS,
+                            self.send_request_for_relay_peers
+                        )
+                    return
+
+            # check the network latency using the thread pool
+            self.requester.send_threaded_request(
+                self._find_best_relay_peers,
+                potential_relay_peers,
+                done_callback=self._register_potential_relay_peers_from_future
+            )
+        except Exception as e:
+            logger.info("Got {} when trying to read potential_relays from sdn", e)
+
+        if self.check_relay_alarm_id is None:
+            self.check_relay_alarm_id = self.alarm_queue.register_alarm(
+                gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
+                self.send_request_for_relay_peers
+            )
 
     def _find_best_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]) -> \
         List[OutboundPeerModel]:
