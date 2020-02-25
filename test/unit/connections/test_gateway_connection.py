@@ -78,11 +78,10 @@ class GatewayConnectionTest(AbstractTestCase):
 
         peer_outbound_connection.msg_ack(AckMessage())
 
-        self.assertEqual(ConnectionState.ESTABLISHED, main_inbound_connection.state)
-        self.assertEqual(ConnectionState.ESTABLISHED, peer_outbound_connection.state)
+        self.assertIn(ConnectionState.ESTABLISHED, main_inbound_connection.state)
+        self.assertIn(ConnectionState.ESTABLISHED, peer_outbound_connection.state)
 
     def test_msg_hello_not_rejecting_on_mismatched_ip(self):
-        fileno = 1
         inbound_connection = create_connection(40000, self.node, from_me=False)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
 
