@@ -81,6 +81,7 @@ jobs:
             pip install -r bxgateway/requirements-dev.txt
             pip install -r bxcommon/requirements.txt
             pip install -r bxcommon/requirements-dev.txt
+            pip install -r bxcommon/requirements-optional.txt
       - persist_to_workspace:
           root: .
           paths:
@@ -199,6 +200,7 @@ jobs:
             . venv/bin/activate
             pip install -r bxrelay/requirements.txt
             pip install -r bxrelay/requirements-dev.txt
+            pip install -r bxcommon/requirements-optional.txt
       - run:
           name: Integration Test
           command: |

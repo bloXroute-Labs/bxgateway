@@ -201,12 +201,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     self._pending_new_blocks_parts.contents[block_hash].block_body_bytes = block_body_bytes
                     self._check_pending_new_block(block_hash)
                 elif self.node.block_cleanup_service.is_marked_for_cleanup(block_hash):
-                    transactions_list = \
-                        BlockBodiesEthProtocolMessage.from_body_bytes(block_body_bytes).get_blocks()[0].transactions
+                    transactions_hashes = \
+                        BlockBodiesEthProtocolMessage.from_body_bytes(block_body_bytes).get_block_transaction_hashes(0)
                     self.node.block_cleanup_service.clean_block_transactions_by_block_components(
                         transaction_service=self.node.get_tx_service(),
                         block_hash=block_hash,
-                        transactions_list=(tx.hash() for tx in transactions_list)
+                        transactions_list=transactions_hashes
                     )
                 else:
                     logger.warning(
