@@ -175,6 +175,7 @@ class AbstractGatewayNode(AbstractNode):
 
         self.opts.has_fully_updated_tx_service = False
         self.last_sync_message_received_by_network[self.network_num] = time.time()
+        self.alarm_queue.register_alarm(constants.TX_SERVICE_SYNC_PROGRESS_S, self.sync_tx_services)
 
         self.block_cleanup_processed_blocks = ExpiringSet(self.alarm_queue,
                                                           gateway_constants.BLOCK_CONFIRMATION_EXPIRE_TIME_S)
@@ -752,9 +753,9 @@ class AbstractGatewayNode(AbstractNode):
         raise EnvironmentError(f"Unexpectedly did not find network num {self.network} in set of blockchain networks: "
                                f"{self.opts.blockchain_networks}")
 
-    def _sync_tx_services(self):
+    def sync_tx_services(self):
         logger.info("Starting to sync transaction state with BDN.")
-        super(AbstractGatewayNode, self)._sync_tx_services()
+        super(AbstractGatewayNode, self).sync_tx_services()
         if self.opts.sync_tx_service:
             retry = True
             if self.opts.split_relays:
@@ -792,12 +793,14 @@ class AbstractGatewayNode(AbstractNode):
 
     def _check_sync_relay_connections(self):
         if self.network_num in self.last_sync_message_received_by_network and \
-            time.time() - self.last_sync_message_received_by_network[
-            self.network_num] > constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
+            time.time() - self.last_sync_message_received_by_network[self.network_num] > \
+                constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
             logger.warning(
                 "It has been more than {0} seconds since the last time gateway received a message from requested "
                 "relay, assuming requested relay turned offline and mark gateway as synced",
-                constants.LAST_MSG_FROM_RELAY_THRESHOLD_S)
+                constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
+            )
+
             self.last_sync_message_received_by_network.pop(self.network_num, None)
             self.alarm_queue.unregister_alarm(self._transaction_sync_timeout_alarm_id)
             self.on_fully_updated_tx_service()
