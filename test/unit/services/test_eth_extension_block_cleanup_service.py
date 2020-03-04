@@ -10,9 +10,13 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBl
 from bxgateway.services.eth.eth_extension_block_cleanup_service import EthExtensionBlockCleanupService
 from bxgateway.testing.abstract_block_cleanup_service_test import AbstractBlockCleanupServiceTest
 from bxgateway.services.eth.abstract_eth_block_cleanup_service import AbstractEthBlockCleanupService
+from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 
 
 class EthExtensionBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
+    def setUp(self) -> None:
+        super().setUp()
+        self.node.block_queuing_service = EthBlockQueuingService(self.node)
 
     def _get_sample_block(self, file_path):
         root_dir = os.path.dirname(os.path.dirname(os.path.abspath(file_path)))

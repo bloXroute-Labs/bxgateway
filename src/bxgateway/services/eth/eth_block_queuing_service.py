@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, Set, List, Optional
+from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator
 
 from bxcommon import constants
 from bxcommon.utils.alarm_queue import AlarmId
@@ -119,6 +119,13 @@ class EthBlockQueuingService(
         self, block_message: NewBlockEthProtocolMessage
     ) -> Sha256Hash:
         return block_message.prev_block_hash()
+
+    def get_block_body_from_message(self, block_hash: Sha256Hash) -> Optional[BlockBodiesEthProtocolMessage]:
+        if block_hash not in self._block_parts:
+            logger.debug("requested transaction info for a block not in the queueing service {}", block_hash)
+            return None
+        block_parts = self._block_parts[block_hash]
+        return BlockBodiesEthProtocolMessage.from_body_bytes(block_parts.block_body_bytes)
 
     def on_block_sent(
         self, block_hash: Sha256Hash, _block_message: NewBlockEthProtocolMessage
@@ -282,6 +289,37 @@ class EthBlockQueuingService(
             return []
 
         return block_hashes
+
+    def iterate_block_hashes_starting_from_hash(
+            self,
+            block_hash: Sha256Hash,
+            max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        """
+        iterate over cached blocks headers in descending order
+        :param block_hash: starting block hash
+        :param max_count: max number of elements to return
+        :return: Iterator of block hashes in descending order
+        """
+        block_hash_ = block_hash
+        for _ in range(max_count):
+            if block_hash_ and block_hash_ in self._block_parts:
+                yield block_hash_
+                block_hash_ = self._block_parts[block_hash_].get_previous_block_hash()
+            else:
+                break
+
+    def iterate_recent_block_hashes(
+            self,
+            max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        """
+        :param max_count:
+        :return: Iterator[Sha256Hash] in descending order (last -> first)
+        """
+        block_hashes = self._block_hashes_by_height[self._highest_block_number]
+        block_hash = next(iter(block_hashes))
+        if len(block_hashes) > 1:
+            logger.debug(f"iterating over queued blocks starting for a possible fork {block_hash}")
+        return self.iterate_block_hashes_starting_from_hash(block_hash, max_count=max_count)
 
     def try_send_headers_to_node(self, block_hashes: List[Sha256Hash]) -> bool:
         headers = []

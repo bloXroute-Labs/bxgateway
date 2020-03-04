@@ -10,6 +10,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+from bxcommon import constants
 
 logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
@@ -32,7 +33,13 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
         if not self.is_marked_for_cleanup(block_hash):
             self._block_hash_marked_for_cleanup.add(block_hash)
             self.last_confirmed_block = block_hash
-            if self.node.node_conn is not None:
+            if block_hash in self.node.block_queuing_service._block_parts:
+                self.node.alarm_queue.register_alarm(
+                    constants.MIN_SLEEP_TIMEOUT,
+                    self.clean_block_transactions_from_block_queue,
+                    block_hash)
+
+            elif self.node.node_conn is not None:
                 connection_protocol =\
                     typing.cast("bxgateway.connections.eth.eth_node_connection_protocol.EthNodeConnectionProtocol",
                                 self.node.node_conn.connection_protocol)
@@ -52,6 +59,18 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
             block_hash=block_hash,
             transactions_list=(tx.hash() for tx in transactions_list),
             transaction_service=transaction_service
+        )
+
+    def clean_block_transactions_from_block_queue(
+            self,
+            block_hash: Sha256Hash
+    ) -> None:
+        block_body = self.node.block_queuing_service.get_block_body_from_message(block_hash)
+        transactions_hashes = block_body.get_transactions_hashes_from_message(0)
+        self.node.block_cleanup_service.clean_block_transactions_by_block_components(
+            transaction_service=self.node.get_tx_service(),
+            block_hash=block_hash,
+            transactions_list=transactions_hashes
         )
 
     @abstractmethod

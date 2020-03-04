@@ -24,6 +24,7 @@ from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message impor
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
 from bxutils import logging
+from bxgateway import eth_constants
 
 logger = logging.get_logger(__name__)
 
@@ -57,10 +58,18 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         # queue of lists of hashes that are awaiting block bodies response
         self._block_bodies_requests: Deque[List[Sha256Hash]] = deque(maxlen=eth_constants.REQUESTED_NEW_BLOCK_BODIES_MAX_COUNT)
 
-        self.connection.node.alarm_queue.register_alarm(
-            self.block_cleanup_poll_interval_s,
-            self._request_blocks_confirmation
-        )
+        if self.block_cleanup_poll_interval_s > 0:
+            self.connection.node.alarm_queue.register_alarm(
+                self.block_cleanup_poll_interval_s,
+                self._request_blocks_confirmation
+            )
+
+        if eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S > 0:
+            self.connection.node.alarm_queue.register_alarm(
+                eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S,
+                self._tracked_block_cleanup
+            )
+
         self.requested_blocks_for_confirmation: ExpiringDict[Sha256Hash, float] = \
             ExpiringDict(self.node.alarm_queue, eth_constants.BLOCK_CONFIRMATION_REQUEST_CACHE_INTERVAL_S)
 
@@ -258,6 +267,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self.connection.node.get_tx_service().set_transaction_contents(tx_hash, _tx_content)
 
     def _request_blocks_confirmation(self):
+        # TODO: remove unused method
         try:
             super(EthNodeConnectionProtocol, self)._request_blocks_confirmation()
         except CipherNotInitializedError:
@@ -268,6 +278,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         return self.block_cleanup_poll_interval_s
 
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
+        # TODO: remove unused method
         block_hash = NULL_SHA256_HASH
         for block_hash in hashes:
             last_attempt = self.requested_blocks_for_confirmation.contents.get(block_hash, 0)
@@ -286,3 +297,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 reverse=0
             )
 
+    def _tracked_block_cleanup(self):
+        node = self.connection.node
+        tx_service = node.get_tx_service()
+        block_queuing_service = self.node.block_queuing_service
+        tracked_blocks = tx_service.get_oldest_tracked_block(0)
+        for depth, block_hash in enumerate(block_queuing_service.iterate_recent_block_hashes()):
+            if depth > node.network.block_confirmations_count and block_hash in tracked_blocks:
+                self.node.block_cleanup_service.block_cleanup_request(block_hash)
+        return eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S

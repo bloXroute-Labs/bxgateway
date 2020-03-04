@@ -38,13 +38,15 @@ class EthBlockQueuingServiceTest(AbstractTestCase):
         self.block_hashes = []
 
         # block numbers: 1000-1019
+        prev_block_hash = None
         for i in range(20):
             block_message = InternalEthBlockInfo.from_new_block_msg(
-                mock_eth_messages.new_block_eth_protocol_message(i, i + 1000)
+                mock_eth_messages.new_block_eth_protocol_message(i, i + 1000, prev_block_hash=prev_block_hash)
             )
             block_hash = block_message.block_hash()
             self.block_hashes.append(block_hash)
             self.block_queuing_service.push(block_hash, block_message)
+            prev_block_hash = block_hash
 
     def test_get_block_hashes_from_hash(self):
         # request: start: 1019, count: 1
@@ -132,3 +134,15 @@ class EthBlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(2, len(self.node.send_to_node_messages))
         self.assertEqual(0, len(self.block_queuing_service))
 
+    def test_iterate_recent_block_hashes(self):
+        top_blocks = list(self.block_queuing_service.iterate_recent_block_hashes(max_count=10))
+        block_hash = top_blocks[0]
+        self.assertEqual(self.block_queuing_service._height_by_block_hash[block_hash],
+                         self.block_queuing_service._highest_block_number)
+        self.assertEqual(10, len(top_blocks))
+
+    def test_get_transactions_hashes_from_message(self):
+        last_block_hash = list(self.block_queuing_service._block_hashes_by_height[
+            self.block_queuing_service._highest_block_number])[0]
+        self.assertIsNotNone(self.block_queuing_service.get_block_body_from_message(last_block_hash))
+        self.assertIsNone(self.block_queuing_service.get_block_body_from_message(bytes(64)))
