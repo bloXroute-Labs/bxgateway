@@ -36,6 +36,10 @@ class _GatewayBdnPerformanceStatsService(StatisticsService):
     def create_interval_data_object(self):
         self.interval_data = self.INTERVAL_DATA_CLASS(self.node, self.node.opts.node_id, time.time())
 
+    def close_interval_data(self):
+        self.interval_data.end_time = time.time()
+        self.history.append(self.interval_data)
+
     def log_block_from_blockchain_node(self):
         self.interval_data.new_blocks_received_from_blockchain_node += 1
 

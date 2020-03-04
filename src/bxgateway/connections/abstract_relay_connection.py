@@ -236,6 +236,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def send_bdn_performance_stats(self, bdn_stats_interval: GatewayBdnPerformanceStatInterval):
         msg_to_send = BdnPerformanceStatsMessage(bdn_stats_interval.start_time,
+                                                 bdn_stats_interval.end_time,
                                                  bdn_stats_interval.new_blocks_received_from_blockchain_node,
                                                  bdn_stats_interval.new_blocks_received_from_bdn,
                                                  bdn_stats_interval.new_tx_received_from_blockchain_node,
