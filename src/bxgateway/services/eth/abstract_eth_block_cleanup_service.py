@@ -66,7 +66,7 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
             block_hash: Sha256Hash
     ) -> None:
         block_body = self.node.block_queuing_service.get_block_body_from_message(block_hash)
-        transactions_hashes = block_body.get_transactions_hashes_from_message(0)
+        transactions_hashes = block_body.get_block_transaction_hashes(0)
         self.node.block_cleanup_service.clean_block_transactions_by_block_components(
             transaction_service=self.node.get_tx_service(),
             block_hash=block_hash,

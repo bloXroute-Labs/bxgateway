@@ -315,10 +315,13 @@ class EthBlockQueuingService(
         :param max_count:
         :return: Iterator[Sha256Hash] in descending order (last -> first)
         """
+        if self._highest_block_number not in self._block_hashes_by_height:
+            return iter([])
         block_hashes = self._block_hashes_by_height[self._highest_block_number]
         block_hash = next(iter(block_hashes))
         if len(block_hashes) > 1:
             logger.debug(f"iterating over queued blocks starting for a possible fork {block_hash}")
+
         return self.iterate_block_hashes_starting_from_hash(block_hash, max_count=max_count)
 
     def try_send_headers_to_node(self, block_hashes: List[Sha256Hash]) -> bool:
