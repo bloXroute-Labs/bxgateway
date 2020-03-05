@@ -12,6 +12,7 @@ from bxgateway.services.eth.abstract_eth_block_cleanup_service import AbstractEt
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
 
+
 if TYPE_CHECKING:
     from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 
@@ -38,6 +39,9 @@ class EthExtensionBlockCleanupService(AbstractEthBlockCleanupService):
             transaction_service: TransactionService
          ) -> None:
         logger.debug("Processing block for cleanup: {}", block_hash)
+        tx_hash_to_contents_len_before_cleanup = transaction_service.get_tx_hash_to_contents_len()
+        short_id_count_before_cleanup = transaction_service.get_short_id_count()
+
         start_time = time.time()
         if not isinstance(transactions_list, list):
             transactions_list = list(transactions_list)
@@ -60,6 +64,16 @@ class EthExtensionBlockCleanupService(AbstractEthBlockCleanupService):
             sids,
             transactions_list
         )
+
+        transactions_processed = len(transactions_list)
+        tx_hash_to_contents_len_after_cleanup = transaction_service.get_tx_hash_to_contents_len()
+        short_id_count_after_cleanup = transaction_service.get_short_id_count()
+
+        transaction_service.log_block_transaction_cleanup_stats(block_hash, transactions_processed,
+                                                                tx_hash_to_contents_len_before_cleanup,
+                                                                tx_hash_to_contents_len_after_cleanup,
+                                                                short_id_count_before_cleanup,
+                                                                short_id_count_after_cleanup)
 
     def contents_cleanup(
             self,
