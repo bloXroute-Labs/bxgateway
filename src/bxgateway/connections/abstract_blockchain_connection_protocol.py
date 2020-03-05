@@ -57,11 +57,15 @@ class AbstractBlockchainConnectionProtocol:
             # All connections outside of this one is a bloXroute server
             broadcast_peers = self.connection.node.broadcast(bx_tx_message, self.connection,
                                                              connection_types=[ConnectionType.RELAY_TRANSACTION])
-            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
-                                          self.connection.network_num,
-                                          peers=map(lambda conn: (stats_format.connection(conn)),
-                                                    broadcast_peers))
-            self._set_transaction_contents(tx_hash, tx_bytes)
+            if broadcast_peers:
+                tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
+                                              self.connection.network_num,
+                                              peers=map(lambda conn: (stats_format.connection(conn)),
+                                                        broadcast_peers))
+                self._set_transaction_contents(tx_hash, tx_bytes)
+            else:
+                logger.trace("Tx Message: {} from BlockchainNode was dropped, no upstream relay connection available",
+                             tx_hash)
 
     def msg_block(self, msg: AbstractBlockMessage):
         """
