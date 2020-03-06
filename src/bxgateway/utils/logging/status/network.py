@@ -5,7 +5,6 @@ from typing import Optional, List, Union
 from bxcommon.connections.connection_type import ConnectionType
 from bxgateway.utils.logging.status import summary
 from bxgateway.utils.logging.status.blockchain_connection import BlockchainConnection
-from bxgateway.utils.logging.status.connection_info import ConnectionInfo
 from bxgateway.utils.logging.status.connection_state import ConnectionState
 from bxgateway.utils.logging.status.gateway_status import GatewayStatus
 from bxgateway.utils.logging.status.relay_connection import RelayConnection

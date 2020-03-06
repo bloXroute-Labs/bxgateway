@@ -12,14 +12,12 @@ from bxcommon.constants import OS_VERSION
 from bxcommon.utils import config
 from bxcommon.utils import model_loader
 from bxgateway.utils.logging.status.analysis import Analysis
-from bxgateway.utils.logging.status.blockchain_connection import BlockchainConnection
 from bxgateway.utils.logging.status.diagnostics import Diagnostics
 from bxgateway.utils.logging.status.environment import Environment
 from bxgateway.utils.logging.status.extension_modules_state import ExtensionModulesState
 from bxgateway.utils.logging.status.gateway_status import GatewayStatus
 from bxgateway.utils.logging.status.installation_type import InstallationType
 from bxgateway.utils.logging.status.network import Network
-from bxgateway.utils.logging.status.relay_connection import RelayConnection
 from bxgateway.utils.logging.status.summary import Summary
 from bxutils import logging
 from bxutils.encoding.json_encoder import EnhancedJSONEncoder
@@ -64,11 +62,8 @@ def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: s
 
     network.clear()
 
-    current_conn_types = set()
     for conn_type in CONN_TYPES:
         for conn in conn_pool.get_by_connection_type(conn_type):
-            if conn_type not in current_conn_types:
-                current_conn_types.add(conn_type)
             network.add_connection(conn.CONNECTION_TYPE, conn.peer_desc, conn.file_no, conn.peer_id)
 
     summary = network.get_summary(ip_address, continent, country, update_required, account_id)
