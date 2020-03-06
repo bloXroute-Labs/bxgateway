@@ -55,7 +55,7 @@ pip install bloxroute-gateway
 
 Running:
 ```
-bloxroute_gateway --blockchain-protocol [blockchain-protocol] --blockchain-network [blockchain-network]
+bloxroute-gateway --blockchain-protocol [blockchain-protocol] --blockchain-network [blockchain-network]
 ```
 
 For more details, refer to `README.gateway.md`.
