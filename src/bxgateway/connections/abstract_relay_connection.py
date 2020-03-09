@@ -131,8 +131,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         gateway_transaction_stats_service.log_transaction_from_relay(tx_hash,
                                                                      short_id is not None,
                                                                      tx_val == TxMessage.EMPTY_TX_VAL)
-        if not tx_service.has_transaction_contents(tx_hash):
-            gateway_bdn_performance_stats_service.log_tx_from_bdn()
 
         if short_id:
             tx_service.assign_short_id(tx_hash, short_id)
@@ -147,6 +145,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         if tx_val != TxMessage.EMPTY_TX_VAL and not tx_service.has_transaction_contents(tx_hash):
             self.log_trace("Adding hash value to tx service and forwarding it to node")
             tx_service.set_transaction_contents(tx_hash, msg.tx_val())
+            gateway_bdn_performance_stats_service.log_tx_from_bdn()
             attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
             if self.node.node_conn is not None:
