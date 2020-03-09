@@ -298,6 +298,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             )
 
     def _tracked_block_cleanup(self):
+        if not self.connection.is_alive():
+            return None
         node = self.connection.node
         tx_service = node.get_tx_service()
         block_queuing_service = self.node.block_queuing_service
