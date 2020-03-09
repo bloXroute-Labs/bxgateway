@@ -226,7 +226,7 @@ class EthGatewayNode(AbstractGatewayNode):
                                                           more_info="Protocol: {}, Network: {}".format(
                                                               self.opts.blockchain_protocol,
                                                               self.opts.blockchain_network))
-                self._requested_remote_blocks_queue.append(block_hashes)
+            self._requested_remote_blocks_queue.append(block_hashes)
 
     def log_received_remote_blocks(self, blocks_count: int) -> None:
         if len(self._requested_remote_blocks_queue) > 0:
