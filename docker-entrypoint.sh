@@ -7,7 +7,7 @@ PROGNAME=$(basename $0)
 
 USER="bxgateway"
 GROUP="bxgateway"
-PYTHON="/usr/local/bin/python"
+PYTHON="/opt/venv/bin/python"
 WORKDIR="src/bxgateway"
 STARTUP="$PYTHON main.py $@"
 
