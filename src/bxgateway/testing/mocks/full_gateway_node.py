@@ -52,8 +52,14 @@ def of_type(gateway_class: Type[AbstractGatewayNode], opts: Namespace) -> FullGa
     gateway.on_connection_added(gateway_socket)
 
     blockchain_connection = gateway.connection_pool.get_by_fileno(blockchain_fileno)
+    assert blockchain_connection is not None
+    assert isinstance(blockchain_connection, AbstractGatewayBlockchainConnection)
     relay_connection = gateway.connection_pool.get_by_fileno(relay_fileno)
+    assert relay_connection is not None
+    assert isinstance(relay_connection, AbstractRelayConnection)
     gateway_connection = gateway.connection_pool.get_by_fileno(gateway_fileno)
+    assert gateway_connection is not None
+    assert isinstance(gateway_connection, GatewayConnection)
 
     gateway.on_blockchain_connection_ready(blockchain_connection)
     blockchain_connection.state |= ConnectionState.ESTABLISHED

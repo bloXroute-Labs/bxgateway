@@ -163,6 +163,9 @@ class BlockRecoveryService:
         else:
             return False
 
+    def awaiting_recovery(self, block_hash: Sha256Hash) -> bool:
+        return block_hash in self._block_hash_to_bx_block_hashes
+
     def cleanup_old_blocks(self, clean_up_time: float = None):
         """
         Cleans up old compressed blocks awaiting recovery.

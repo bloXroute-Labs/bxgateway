@@ -526,10 +526,13 @@ class BlockProcessingService:
 
     def _trigger_recovery_retry(self, block_awaiting_recovery: BlockRecoveryInfo):
         block_hash = block_awaiting_recovery.block_hash
-        self._node.block_recovery_service.recovery_attempts_by_block[block_hash] += 1
-        self.start_transaction_recovery(block_awaiting_recovery.unknown_short_ids,
-                                        block_awaiting_recovery.unknown_transaction_hashes,
-                                        block_hash)
+        if self._node.block_recovery_service.awaiting_recovery(block_hash):
+            self._node.block_recovery_service.recovery_attempts_by_block[block_hash] += 1
+            self.start_transaction_recovery(
+                block_awaiting_recovery.unknown_short_ids,
+                block_awaiting_recovery.unknown_transaction_hashes,
+                block_hash
+            )
 
     def _on_block_decompressed(self, block_msg):
         pass
