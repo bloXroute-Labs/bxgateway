@@ -156,7 +156,6 @@ class BlockProcessingService:
                                     BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                     network_num=connection.network_num,
                                     more_info=stats_format.connection(connection))
-        gateway_bdn_performance_stats_service.log_block_from_bdn()
 
         block_hash = msg.block_hash()
         is_encrypted = msg.is_encrypted()
@@ -428,12 +427,14 @@ class BlockProcessingService:
                                                           stats_format.duration(block_info.duration_ms),
                                                           len(self._node.block_queuing_service)))
 
-
             self._on_block_decompressed(block_message)
             if recovered or block_hash in self._node.block_queuing_service:
                 self._node.block_queuing_service.update_recovered_block(block_hash, block_message)
             else:
                 self._node.block_queuing_service.push(block_hash, block_message)
+
+            if block_hash not in self._node.blocks_seen.contents:
+                gateway_bdn_performance_stats_service.log_block_from_bdn()
 
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self._node.blocks_seen.add(block_hash)
