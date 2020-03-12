@@ -102,6 +102,3 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
         return TxMessage(
             message_hash=tx_hash, network_num=network_num, tx_val=raw_tx, quota_type=quota_type
         )
-
-    def encode_raw_msg(self, raw_msg: str) -> bytes:
-        return convert.hex_to_bytes(raw_msg)

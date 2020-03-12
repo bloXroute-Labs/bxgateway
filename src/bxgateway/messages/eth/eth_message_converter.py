@@ -19,6 +19,7 @@ from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import Tr
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.eth import rlp_utils
+from bxcommon.exceptions import ParseError
 
 logger = logging.get_logger(__name__)
 
@@ -81,7 +82,9 @@ class EthMessageConverter(AbstractMessageConverter):
     ) -> TxMessage:
         if isinstance(raw_tx, bytes):
             raw_tx = bytearray(raw_tx)
-        bx_tx, _, _ = raw_tx_to_bx_tx(raw_tx, 0, network_num, quota_type)
+        bx_tx, tx_item_length, tx_item_start = raw_tx_to_bx_tx(raw_tx, 0, network_num, quota_type)
+        if tx_item_length + tx_item_start != len(raw_tx):
+            raise ParseError(raw_tx)
         return bx_tx
 
     def bx_tx_to_tx(self, bx_tx_msg):
@@ -381,9 +384,3 @@ class EthMessageConverter(AbstractMessageConverter):
                 unknown_tx_sids,
                 unknown_tx_hashes
             )
-
-    def encode_raw_msg(self, raw_msg: str) -> bytes:
-        try:
-            return raw_msg.encode("utf-8")
-        except (UnicodeEncodeError, AttributeError) as e:
-            raise ValueError(f"Failed to encode raw message: {raw_msg}!") from e
