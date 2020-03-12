@@ -580,6 +580,9 @@ class AbstractGatewayNode(AbstractNode):
                                                  port)
             self._remove_relay_transaction_peer(ip, port)
 
+        # Reset number of retries in case if SDN instructs to connect to the same node again
+        self.num_retries_by_ip[(ip, port)] = 0
+
     def on_updated_remote_blockchain_peer(self, outbound_peer):
         self.remote_blockchain_ip = outbound_peer.ip
         self.remote_blockchain_port = outbound_peer.port
