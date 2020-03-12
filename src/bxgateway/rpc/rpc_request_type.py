@@ -7,3 +7,4 @@ class RpcRequestType(SerializeableEnum):
     STOP = 2
     MEMORY = 3
     PEERS = 4
+    BDN_PERFORMANCE = 5

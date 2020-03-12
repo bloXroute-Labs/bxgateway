@@ -1,4 +1,5 @@
 import time
+from typing import Optional
 
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
 from bxgateway import gateway_constants
@@ -54,6 +55,13 @@ class _GatewayBdnPerformanceStatsService(StatisticsService):
 
     def get_info(self):
         pass
+
+    def get_most_recent_stats(self) -> Optional[GatewayBdnPerformanceStatInterval]:
+        if self.history:
+            interval_data = self.history[0]
+            return interval_data
+        else:
+            return None
 
 
 gateway_bdn_performance_stats_service = _GatewayBdnPerformanceStatsService()
