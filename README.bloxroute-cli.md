@@ -5,14 +5,7 @@ bloxroute-cli is a utility for communicating with the [bloxroute-gateway].
 # Installation
 
 It's best to run this program inside of a [virtual environment][1], especially if your system's default Python 
-version is not 3. You maybe need to substitute `pip3` for `pip` and/or add Python binaries to your 
-`PATH` (usually `PATH=$PATH:~/.local`) for the following commands to work.
-```bash
-pip install virtualenv
-virtualenv venv -p python3
-source venv/bin/activate
-pip install bloxroute-cli
-```
+version is not 3.6 or 3.7. The recommended Python version is 3.7.
 
 # Running
 

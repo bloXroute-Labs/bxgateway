@@ -29,13 +29,7 @@ apk add build-base automake libtool libffi-dev python3-dev linux-headers
 # Installation
 
 It's best to run this program inside of a [virtual environment][1], especially if your system's default Python 
-version is not 3. You maybe need to substitute `pip3` for `pip` and/or add Python binaries to your 
-`PATH` (usually `PATH=$PATH:~/.local`) for the following commands to work.
-```bash
-pip install virtualenv
-virtualenv venv -p python3
-source venv/bin/activate
-```
+version is not 3.6 or 3.7. The recommended Python version is 3.7.
 
 bloxroute-gateway has C++ extensions that are compiled per operating system, so this PIP package is distributed 
 only as an [Source Distribution][2]. During installation, we require `distro` to determine the operating system version
@@ -60,9 +54,6 @@ $ bloxroute-gateway [...] --node-public-key [hex-encoded-key]
 ## Supported Protocols and Networks for bloXroute Mainnet
 * BitcoinCash: Mainnet
 * Ethereum: Mainnet
-
-You can also specify a `BLXR_ENV` environment variable to specify which BDN you want to connect to.
- * `BLXR_ENV=test`: Testnet
  
 # Documentation
 You can find our full technical documentation and architecture [on our website][documentation].
