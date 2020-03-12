@@ -257,7 +257,7 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def get_enode(self):
         return \
-            f"enode://{convert.bytes_to_hex(self.get_public_key())}@{self.opts.external_ip}:{self.opts.external_port}"
+            f"enode://{convert.bytes_to_hex(self.get_public_key())}@{self.opts.external_ip}:{self.opts.non_ssl_port}"
 
     def _is_in_local_discovery(self):
         return not self.opts.no_discovery and self._node_public_key is None
