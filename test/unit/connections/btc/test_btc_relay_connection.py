@@ -1,5 +1,6 @@
 from typing import cast
 
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from mock import MagicMock
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -42,9 +43,15 @@ class BtcRelayConnectionTest(AbstractTestCase):
         opts = helpers.get_gateway_opts(8000, include_default_btc_args=True)
         if opts.use_extensions:
             helpers.set_extensions_parallelism(opts.thread_pool_parallelism_degree)
-        self.gateway_node = BtcGatewayNode(opts)
-        self.sut = BtcRelayConnection(MockSocketConnection(), (LOCALHOST, 8001), self.gateway_node)
-        self.gateway_node.node_conn = MockConnection(MockSocketConnection(1), (LOCALHOST, 8002), self.gateway_node)
+        node_ssl_service = MockNodeSSLService(BtcGatewayNode.NODE_TYPE, MagicMock())
+        self.gateway_node = BtcGatewayNode(opts, node_ssl_service)
+        self.gateway_node.opts.has_fully_updated_tx_service = True
+        self.sut = BtcRelayConnection(MockSocketConnection(
+            node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
+        )
+        self.gateway_node.node_conn = MockConnection(MockSocketConnection(
+            1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
+        )
         self.gateway_node.message_converter = converter_factory.create_btc_message_converter(
             12345, self.gateway_node.opts
         )
@@ -140,7 +147,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.sut.msg_key(unknown_key_message)
 
         self.assertEqual(1, len(self.gateway_node.block_queuing_service))
-        self.assertEqual(True, self.gateway_node.block_queuing_service._blocks[block_hash][0])
+        self.assertEqual(True, self.gateway_node.block_queuing_service._blocks_waiting_for_recovery[block_hash])
         self.assertEqual(1, len(self.gateway_node.block_recovery_service._block_hash_to_bx_block_hashes))
         self.assertNotIn(block_hash, self.gateway_node.blocks_seen.contents)
 

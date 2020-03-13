@@ -324,7 +324,6 @@ class EthMessagesTests(AbstractTestCase):
         block_headers_msg = BlockHeadersEthProtocolMessage.from_header_bytes(block_header_bytes)
         raw_headers = block_headers_msg.get_block_headers()
         headers_list = list(raw_headers)
-
         self.assertEqual(len(headers_list), 1)
         self.assertTrue(headers_list)
         self.assertEqual(1, len(block_headers_msg.get_block_headers()))
@@ -363,6 +362,45 @@ class EthMessagesTests(AbstractTestCase):
         self.assertEqual(1, len(block_bodies_msg.get_block_bodies_bytes()))
         self.assertEqual(block_body, block_bodies_msg.get_blocks()[0])
         self.assertEqual(block_body_bytes, block_bodies_msg.get_block_bodies_bytes()[0])
+
+    def test_block_bodies_msg__get_block_transactions(self):
+        txs = []
+        txs_bytes = []
+        txs_hashes = []
+
+        tx_count = 10
+
+        for i in range(1, tx_count):
+            tx = mock_eth_messages.get_dummy_transaction(1)
+            txs.append(tx)
+
+            tx_bytes = rlp.encode(tx, Transaction)
+            txs_bytes.append(tx_bytes)
+
+            tx_hash = tx.hash()
+            txs_hashes.append(tx_hash)
+
+        uncles = [
+            mock_eth_messages.get_dummy_block_header(2),
+            mock_eth_messages.get_dummy_block_header(3),
+        ]
+
+        block_body = TransientBlockBody(txs, uncles)
+        block_body_bytes = memoryview(rlp.encode(TransientBlockBody.serialize(block_body)))
+
+        block_bodies_msg = BlockBodiesEthProtocolMessage.from_body_bytes(block_body_bytes)
+
+        parsed_txs_bytes = block_bodies_msg.get_block_transaction_bytes(0)
+        self.assertEqual(len(parsed_txs_bytes), len(txs_hashes))
+
+        for index, parsed_tx_bytes in enumerate(parsed_txs_bytes):
+            self.assertEqual(convert.bytes_to_hex(parsed_tx_bytes), convert.bytes_to_hex(txs_bytes[index]))
+
+        parsed_txs_hashes = block_bodies_msg.get_block_transaction_hashes(0)
+        self.assertEqual(len(parsed_txs_hashes), len(txs_hashes))
+
+        for index, parsed_tx_hash in enumerate(parsed_txs_hashes):
+            self.assertEqual(parsed_tx_hash, txs_hashes[index])
 
     def test_new_block_hashes_msg_from_block_hash(self):
         block_hash_bytes = helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)

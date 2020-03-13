@@ -127,7 +127,7 @@ class TestBadSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         self._verify_connection_closed()
 
     def _verify_recovery_after_bad_message(self):
-        self.assertTrue(self.btc_node_connection.state & ConnectionState.MARK_FOR_CLOSE == 0)
+        self.assertTrue(self.btc_node_connection.is_alive())
 
         gateway_bytes_to_send = self.gateway_node.get_bytes_to_send(self.local_node_fileno)
         self.assertTrue(len(gateway_bytes_to_send) > 0)
@@ -138,4 +138,4 @@ class TestBadSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         self.assertEqual(0, self.btc_node_connection.num_bad_messages)
 
     def _verify_connection_closed(self):
-        self.assertTrue(self.btc_node_connection.state & ConnectionState.MARK_FOR_CLOSE > 0)
+        self.assertFalse(self.btc_node_connection.is_alive())

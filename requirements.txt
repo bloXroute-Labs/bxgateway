@@ -9,6 +9,7 @@ pycryptodome==3.9.1
 cffi==1.12.2
 rlp==0.6.0
 csiphash==0.0.5
+aiohttp==3.6.2
 
 # TODO: plan future work to remove this package
 bloxroute-pyelliptic==1.5.10

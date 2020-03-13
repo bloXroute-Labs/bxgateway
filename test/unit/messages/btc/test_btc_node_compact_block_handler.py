@@ -15,7 +15,6 @@ from bxgateway.connections.btc.btc_node_connection_protocol import BtcNodeConnec
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BtcNodeConnectionProtocolHandler(AbstractTestCase):
@@ -30,7 +29,9 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
         ))
         self.node.block_processing_service = MagicMock()
 
-        self.connection = BtcNodeConnection(MockSocketConnection(node=self.node), (LOCALHOST, 123), self.node)
+        self.connection = BtcNodeConnection(
+            MockSocketConnection(node=self.node, ip_address=LOCALHOST, port=123), self.node
+        )
         self.connection.node = self.node
         self.connection.peer_ip = LOCALHOST
         self.connection.peer_port = 8001

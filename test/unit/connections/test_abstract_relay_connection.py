@@ -12,6 +12,7 @@ from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.messages.bloxroute.notification_message import NotificationMessage, NotificationCode
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -29,7 +30,9 @@ class AbstractRelayConnectionTest(AbstractTestCase):
                                                              include_default_btc_args=True,
                                                              include_default_eth_args=True))
 
-        self.connection = AbstractRelayConnection(MockSocketConnection(), ("127.0.0.1", 12345), self.node)
+        self.connection = AbstractRelayConnection(
+            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
+        )
         self.connection.state = ConnectionState.INITIALIZED
 
     @patch("bxgateway.services.block_processing_service.BlockProcessingService._handle_decrypted_block")
@@ -123,3 +126,12 @@ class AbstractRelayConnectionTest(AbstractTestCase):
         self.assertTrue(len(ping_msg_bytes) > 0)
         msg_type, payload_len = AbstractBloxrouteMessage.unpack(ping_msg_bytes[:AbstractBloxrouteMessage.HEADER_LENGTH])
         self.assertEqual(BloxrouteMessageType.PING, msg_type)
+
+    @patch("bxgateway.connections.abstract_relay_connection.AbstractRelayConnection.log")
+    def test_msg_notification(self, log):
+        notification_msg = NotificationMessage(NotificationCode.QUOTA_DEPLETED_TX_BLOCKED,
+                                               helpers.generate_object_hash().binary.hex()
+                                               )
+        log.assert_not_called()
+        self.connection.msg_notify(notification_msg)
+        log.assert_called_once()

@@ -21,6 +21,7 @@ from bxgateway.connections.abstract_relay_connection import AbstractRelayConnect
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.services.block_recovery_service import BlockRecoveryInfo
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxutils import logging
 
 if TYPE_CHECKING:
@@ -108,8 +109,7 @@ class BlockProcessingService:
                                                       more_info=stats_format.connection(hold.holding_connection))
 
             if hold.alarm is None:
-                # Fix for <1.1 Gateways. This code should not make it to develop.
-                hold.alarm = self._node.alarm_queue.register_alarm(gateway_constants.BLOCK_HOLD_MAX_TIMEOUT_S,
+                hold.alarm = self._node.alarm_queue.register_alarm(self._node.opts.blockchain_block_hold_timeout_s,
                                                                    self._holding_timeout, block_hash, hold)
                 hold.block_message = block_message
                 hold.connection = connection
@@ -146,6 +146,11 @@ class BlockProcessingService:
         Handle broadcast message receive from bloXroute.
         This is typically an encrypted block.
         """
+
+        # TODO handle the situation where txs that received from relays while syncing are in the blocks that were
+        #  ignored while syncing, so these txs won't be cleaned for 3 days
+        if not self._node.should_process_block_hash(msg.block_hash):
+            return
 
         block_stats.add_block_event(msg,
                                     BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
@@ -206,6 +211,9 @@ class BlockProcessingService:
         key = msg.key()
         block_hash = msg.block_hash()
 
+        if not self._node.should_process_block_hash(block_hash):
+            return
+
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                                   network_num=connection.network_num,
@@ -247,7 +255,7 @@ class BlockProcessingService:
                                                       more_info=stats_format.connections(conns))
 
     def retry_broadcast_recovered_blocks(self, connection):
-        if self._node.block_recovery_service.recovered_blocks:
+        if self._node.block_recovery_service.recovered_blocks and self._node.opts.has_fully_updated_tx_service:
             for msg in self._node.block_recovery_service.recovered_blocks:
                 self._handle_decrypted_block(msg, connection, recovered=True)
 
@@ -380,6 +388,7 @@ class BlockProcessingService:
                                                       network_num=connection.network_num,
                                                       prev_block_hash=block_info.prev_block_hash,
                                                       original_size=block_info.original_size,
+                                                      compressed_size=block_info.compressed_size,
                                                       txs_count=block_info.txn_count,
                                                       blockchain_network=self._node.opts.blockchain_protocol,
                                                       blockchain_protocol=self._node.opts.blockchain_network,
@@ -406,22 +415,26 @@ class BlockProcessingService:
                                                       network_num=connection.network_num,
                                                       prev_block_hash=block_info.prev_block_hash,
                                                       original_size=block_info.original_size,
+                                                      compressed_size=block_info.compressed_size,
                                                       txs_count=block_info.txn_count,
                                                       blockchain_network=self._node.opts.blockchain_protocol,
                                                       blockchain_protocol=self._node.opts.blockchain_network,
                                                       matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
-                                                      more_info="Compression rate {}, Decompression time {}".format(
+                                                      more_info="Compression rate {}, Decompression time {}, "
+                                                                "Queued behind {} blocks".format(
                                                           stats_format.percentage(block_info.compression_rate),
-                                                          stats_format.duration(block_info.duration_ms))
-                                                      )
-
+                                                          stats_format.duration(block_info.duration_ms),
+                                                          len(self._node.block_queuing_service)))
 
             self._on_block_decompressed(block_message)
             if recovered or block_hash in self._node.block_queuing_service:
                 self._node.block_queuing_service.update_recovered_block(block_hash, block_message)
             else:
                 self._node.block_queuing_service.push(block_hash, block_message)
+
+            if block_hash not in self._node.blocks_seen.contents:
+                gateway_bdn_performance_stats_service.log_block_from_bdn()
 
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self._node.blocks_seen.add(block_hash)
@@ -437,6 +450,14 @@ class BlockProcessingService:
                                                       start_date_time=block_info.start_datetime,
                                                       end_date_time=block_info.end_datetime,
                                                       network_num=connection.network_num,
+                                                      prev_block_hash=block_info.prev_block_hash,
+                                                      original_size=block_info.original_size,
+                                                      compressed_size=block_info.compressed_size,
+                                                      txs_count=block_info.txn_count,
+                                                      blockchain_network=self._node.opts.blockchain_protocol,
+                                                      blockchain_protocol=self._node.opts.blockchain_network,
+                                                      matching_block_hash=block_info.compressed_block_hash,
+                                                      matching_block_type=StatBlockType.COMPRESSED.value,
                                                       more_info="{} sids, {} hashes".format(
                                                           len(unknown_sids), len(unknown_hashes)))
 
@@ -492,9 +513,8 @@ class BlockProcessingService:
         """
         block_hash = block_awaiting_recovery.block_hash
         recovery_attempts = self._node.block_recovery_service.recovery_attempts_by_block[block_hash]
-        # Fix for <1.1 Gateways. This code should not make it to develop.
         recovery_timed_out = time.time() - block_awaiting_recovery.recovery_start_time >= \
-                             gateway_constants.BLOCK_RECOVERY_MAX_TIMEOUT_S
+                             self._node.opts.blockchain_block_recovery_timeout_s
         if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS or recovery_timed_out:
             logger.error("Could not decompress block {} after attempts to recover short ids. Discarding.", block_hash)
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
@@ -506,10 +526,13 @@ class BlockProcessingService:
 
     def _trigger_recovery_retry(self, block_awaiting_recovery: BlockRecoveryInfo):
         block_hash = block_awaiting_recovery.block_hash
-        self._node.block_recovery_service.recovery_attempts_by_block[block_hash] += 1
-        self.start_transaction_recovery(block_awaiting_recovery.unknown_short_ids,
-                                        block_awaiting_recovery.unknown_transaction_hashes,
-                                        block_hash)
+        if self._node.block_recovery_service.awaiting_recovery(block_hash):
+            self._node.block_recovery_service.recovery_attempts_by_block[block_hash] += 1
+            self.start_transaction_recovery(
+                block_awaiting_recovery.unknown_short_ids,
+                block_awaiting_recovery.unknown_transaction_hashes,
+                block_hash
+            )
 
     def _on_block_decompressed(self, block_msg):
         pass

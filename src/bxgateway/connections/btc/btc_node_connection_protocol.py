@@ -1,4 +1,5 @@
 import time
+import typing
 from typing import List, TYPE_CHECKING, Union
 
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -84,7 +85,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         )
 
         if self.connection.is_active():
-            self.connection.node.on_blockchain_connection_ready(self.connection)
+            self.node.on_blockchain_connection_ready(self.connection)
 
     def msg_inv(self, msg: InvBtcMessage) -> None:
         """
@@ -98,6 +99,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         block_hashes = []
         for inventory_type, item_hash in msg:
             if InventoryType.is_block(inventory_type):
+                if not self.node.should_process_block_hash(item_hash):
+                    continue
                 block_hashes.append(item_hash)
                 if item_hash not in self.node.blocks_seen.contents:
                     contains_block = True
@@ -161,6 +164,9 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         """
 
         block_hash = msg.block_hash()
+        if not self.node.should_process_block_hash(block_hash):
+            return
+
         short_ids_count = len(msg.short_ids())
         block_stats.add_block_event_by_block_hash(
             block_hash,

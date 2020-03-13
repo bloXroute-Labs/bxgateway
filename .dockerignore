@@ -1,0 +1,3 @@
+.pyre
+*.pyc
+__pycache__

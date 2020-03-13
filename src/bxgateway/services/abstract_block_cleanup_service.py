@@ -9,7 +9,7 @@ from bxgateway.utils.btc.btc_object_hash import Sha256Hash
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
 
-logger = logging.get_logger(LogRecordType.BlockCleanup)
+logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
 
 class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
@@ -71,6 +71,7 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
                             cross_match_idx = tracked_idx
                         logger.trace("Block cleanup flow requested block: {}", block_hash)
                         self.block_cleanup_request(block_hash)
+                        self.node.block_queuing_service.remove(block_hash)
                         del tracked_blocks[block_hash]
                     else:
                         logger.trace("Block cleanup flow confirmed block is not tracked: {}", block_hash)
@@ -125,6 +126,8 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
     ):
         block_cleanup = msg.MESSAGE_TYPE == BloxrouteMessageType.BLOCK_CONFIRMATION
         message_hash = msg.message_hash()
+        if not self.node.should_process_block_hash(message_hash):
+            return
         transaction_service = node.get_tx_service()
         tracked_blocks = transaction_service.get_tracked_blocks()
         if message_hash in node.block_cleanup_processed_blocks:

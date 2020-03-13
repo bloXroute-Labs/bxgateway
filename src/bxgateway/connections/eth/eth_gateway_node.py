@@ -1,8 +1,11 @@
 from collections import deque
-from typing import Tuple, Optional, List, Deque
+from typing import Optional, List, Deque
 
 from bxcommon import constants
-from bxcommon.network.socket_connection import SocketConnection
+from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
+from bxcommon.network.ip_endpoint import IpEndpoint
+from bxcommon.network.peer_info import ConnectionPeerInfo
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
@@ -16,49 +19,54 @@ from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
-from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
-from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlockCleanupService
+from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
+from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
 from bxutils import logging
+from bxutils.services.node_ssl_service import NodeSSLService
 
 logger = logging.get_logger(__name__)
 
 
 class EthGatewayNode(AbstractGatewayNode):
-    def __init__(self, opts):
-        super(EthGatewayNode, self).__init__(opts)
+    def __init__(self, opts, node_ssl_service: NodeSSLService):
+        super(EthGatewayNode, self).__init__(opts, node_ssl_service)
 
         self._node_public_key = None
         self._remote_public_key = None
 
         if opts.node_public_key is not None:
             self._node_public_key = convert.hex_to_bytes(opts.node_public_key)
-
+        else:
+            raise RuntimeError(
+                "128 digit public key must be included with command-line specified blockchain peer.")
         if opts.remote_blockchain_peer is not None:
             if opts.remote_public_key is None:
-                raise ValueError("Public key must be included with command-line specified remote blockchain peer.")
+                raise RuntimeError(
+                    "128 digit public key must be included with command-line specified remote blockchain peer.")
             else:
                 self._remote_public_key = convert.hex_to_bytes(opts.remote_public_key)
 
         self.block_processing_service: EthBlockProcessingService = EthBlockProcessingService(self)
         self.block_queuing_service: EthBlockQueuingService = EthBlockQueuingService(self)
 
+        # queue to track header requests to remote blockchain node
+        self.requested_remote_headers_queue: Deque[RemoteHeaderRequest] = deque()
+
         # List of know total difficulties, tuples of values (block hash, total difficulty)
         self._last_known_difficulties = deque(maxlen=eth_constants.LAST_KNOWN_TOTAL_DIFFICULTIES_MAX_COUNT)
 
         # queue of the block hashes requested from remote blockchain node during sync
         self._requested_remote_blocks_queue = deque()
-
-        self.requested_remote_headers_queue: Deque[Tuple[GetBlockHeadersEthProtocolMessage, int]] = deque()
 
         # number of remote block requests to skip in case if requests and responses got out of sync
         self._skip_remote_block_requests_stats_count = 0
@@ -67,28 +75,31 @@ class EthGatewayNode(AbstractGatewayNode):
 
         self.message_converter = EthMessageConverter()
 
-    def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                    from_me: bool) -> AbstractGatewayBlockchainConnection:
-        if self._is_in_local_discovery():
-            return EthNodeDiscoveryConnection(socket_connection, address, self, from_me)
-        else:
-            return EthNodeConnection(socket_connection, address, self, from_me)
+        logger.info("Gateway enode url: {}", self.get_enode())
 
-    def build_relay_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                               from_me: bool) -> AbstractRelayConnection:
+    def build_blockchain_connection(
+        self, socket_connection: AbstractSocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
+        if self._is_in_local_discovery():
+            return EthNodeDiscoveryConnection(socket_connection, self)
+        else:
+            return EthNodeConnection(socket_connection, self)
+
+    def build_relay_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> AbstractRelayConnection:
         if TestModes.DROPPING_TXS in self.opts.test_mode:
             cls = EthLossyRelayConnection
         else:
             cls = EthRelayConnection
 
-        relay_connection = cls(socket_connection, address, self, from_me)
+        relay_connection = cls(socket_connection, self)
         return relay_connection
 
-    def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                           from_me: bool) -> AbstractGatewayBlockchainConnection:
-        return EthRemoteConnection(socket_connection, address, self, from_me)
+    def build_remote_blockchain_connection(
+        self, socket_connection: AbstractSocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
+        return EthRemoteConnection(socket_connection, self)
 
-    def build_block_queuing_service(self) -> BlockQueuingService:
+    def build_block_queuing_service(self) -> PushBlockQueuingService:
         return EthBlockQueuingService(self)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
@@ -107,19 +118,29 @@ class EthGatewayNode(AbstractGatewayNode):
             self._remote_public_key = convert.hex_to_bytes(peer.attributes["node_public_key"])
             return constants.CANCEL_ALARMS
 
-    def get_outbound_peer_addresses(self):
+    def get_outbound_peer_info(self) -> List[ConnectionPeerInfo]:
         peers = []
 
         for peer in self.opts.outbound_peers:
-            peers.append((peer.ip, peer.port))
+            peers.append(ConnectionPeerInfo(
+                IpEndpoint(peer.ip, peer.port), convert.peer_node_to_connection_type(self.NODE_TYPE, peer.node_type)
+            ))
 
         local_protocol = TransportLayerProtocol.UDP if self._is_in_local_discovery() else TransportLayerProtocol.TCP
-        peers.append((self.opts.blockchain_ip, self.opts.blockchain_port, local_protocol))
+        peers.append(ConnectionPeerInfo(
+            IpEndpoint(self.opts.blockchain_ip, self.opts.blockchain_port),
+            ConnectionType.BLOCKCHAIN_NODE,
+            local_protocol
+        ))
 
         if self.remote_blockchain_ip is not None and self.remote_blockchain_port is not None:
             remote_protocol = TransportLayerProtocol.UDP if self._is_in_remote_discovery() else \
                 TransportLayerProtocol.TCP
-            peers.append((self.remote_blockchain_ip, self.remote_blockchain_port, remote_protocol))
+            peers.append(ConnectionPeerInfo(
+                IpEndpoint(self.remote_blockchain_ip, self.remote_blockchain_port),
+                ConnectionType.REMOTE_BLOCKCHAIN_NODE,
+                remote_protocol
+            ))
 
         return peers
 
@@ -140,12 +161,10 @@ class EthGatewayNode(AbstractGatewayNode):
         self._node_public_key = node_public_key
 
         # close UDP connection
-        self.mark_connection_for_close(discovery_connection, False)
-
-        self.connection_pool.delete(discovery_connection)
+        discovery_connection.mark_for_close(False)
 
         # establish TCP connection
-        self.enqueue_connection(self.opts.blockchain_ip, self.opts.blockchain_port)
+        self.enqueue_connection(self.opts.blockchain_ip, self.opts.blockchain_port, ConnectionType.BLOCKCHAIN_NODE)
 
     def set_remote_public_key(self, discovery_connection, remote_public_key):
         if not isinstance(discovery_connection, EthNodeDiscoveryConnection):
@@ -158,12 +177,12 @@ class EthGatewayNode(AbstractGatewayNode):
         self._remote_public_key = remote_public_key
 
         # close UDP connection
-        self.mark_connection_for_close(discovery_connection, False)
-
-        self.connection_pool.delete(discovery_connection)
+        discovery_connection.mark_for_close(False)
 
         # establish TCP connection
-        self.enqueue_connection(self.remote_blockchain_ip, self.remote_blockchain_port)
+        self.enqueue_connection(
+            self.remote_blockchain_ip, self.remote_blockchain_port, ConnectionType.REMOTE_BLOCKCHAIN_NODE
+        )
 
     def get_node_public_key(self):
         return self._node_public_key
@@ -184,7 +203,8 @@ class EthGatewayNode(AbstractGatewayNode):
                 break
 
         if previous_block_total_difficulty is None:
-            logger.debug("Unable to calculate total difficulty after block {}.", convert.bytes_to_hex(block_hash.binary))
+            logger.debug("Unable to calculate total difficulty after block {}.",
+                         convert.bytes_to_hex(block_hash.binary))
             return None
 
         block_total_difficulty = previous_block_total_difficulty + new_block_parts.get_block_difficulty()
@@ -206,7 +226,7 @@ class EthGatewayNode(AbstractGatewayNode):
                                                           more_info="Protocol: {}, Network: {}".format(
                                                               self.opts.blockchain_protocol,
                                                               self.opts.blockchain_network))
-                self._requested_remote_blocks_queue.append(block_hashes)
+            self._requested_remote_blocks_queue.append(block_hashes)
 
     def log_received_remote_blocks(self, blocks_count: int) -> None:
         if len(self._requested_remote_blocks_queue) > 0:
@@ -234,6 +254,10 @@ class EthGatewayNode(AbstractGatewayNode):
     def init_eth_gateway_stat_logging(self):
         eth_gateway_stats_service.set_node(self)
         self.alarm_queue.register_alarm(eth_gateway_stats_service.interval, eth_gateway_stats_service.flush_info)
+
+    def get_enode(self):
+        return \
+            f"enode://{convert.bytes_to_hex(self.get_public_key())}@{self.opts.external_ip}:{self.opts.non_ssl_port}"
 
     def _is_in_local_discovery(self):
         return not self.opts.no_discovery and self._node_public_key is None

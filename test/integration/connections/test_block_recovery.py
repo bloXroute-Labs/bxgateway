@@ -88,13 +88,13 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
 
         helpers.receive_node_message(self.node2, self.blockchain_fileno, self.block.rawbytes())
 
-        _block_hold_bytes = helpers.get_queued_node_message(self.node2, self.relay_fileno,
-                                                            BlockHoldingMessage.MESSAGE_TYPE)
-        broadcast_bytes = helpers.get_queued_node_message(self.node2, self.relay_fileno, BroadcastMessage.MESSAGE_TYPE)
+        _block_hold_bytes = helpers.get_queued_node_bytes(self.node2, self.relay_fileno,
+                                                          BlockHoldingMessage.MESSAGE_TYPE)
+        broadcast_bytes = helpers.get_queued_node_bytes(self.node2, self.relay_fileno, BroadcastMessage.MESSAGE_TYPE)
 
         helpers.receive_node_message(self.node1, self.relay_fileno, broadcast_bytes)
 
-        get_txs_bytes = helpers.get_queued_node_message(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
+        get_txs_bytes = helpers.get_queued_node_bytes(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
         get_txs_message = GetTxsMessage(buf=get_txs_bytes.tobytes())
 
         self._assert_no_block_node_1()
@@ -167,7 +167,7 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
         time.time = MagicMock(return_value=time.time() + gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[0])
         self.node1.alarm_queue.fire_alarms()
 
-        get_txs_bytes_2 = helpers.get_queued_node_message(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
+        get_txs_bytes_2 = helpers.get_queued_node_bytes(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
         get_txs_message_2 = GetTxsMessage(buf=get_txs_bytes_2.tobytes())
         self.assertEqual(5, len(get_txs_message_2.get_short_ids()))
 
@@ -189,7 +189,7 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
         time.time = MagicMock(return_value=time.time() + gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[1])
         self.node1.alarm_queue.fire_alarms()
 
-        get_txs_bytes_3 = helpers.get_queued_node_message(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
+        get_txs_bytes_3 = helpers.get_queued_node_bytes(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
         get_txs_message_3 = GetTxsMessage(buf=get_txs_bytes_3.tobytes())
         self.assertEqual(1, len(get_txs_message_3.get_short_ids()))
 
@@ -217,7 +217,7 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
         time.time = MagicMock(return_value=time.time() + gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[0])
         self.node1.alarm_queue.fire_alarms()
 
-        get_txs_bytes_2 = helpers.get_queued_node_message(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
+        get_txs_bytes_2 = helpers.get_queued_node_bytes(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
         get_txs_message_2 = GetTxsMessage(buf=get_txs_bytes_2.tobytes())
         self.assertEqual(10, len(get_txs_message_2.get_short_ids()))
 
@@ -232,7 +232,7 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
         time.time = MagicMock(return_value=time.time() + gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[1])
         self.node1.alarm_queue.fire_alarms()
 
-        get_txs_bytes_3 = helpers.get_queued_node_message(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
+        get_txs_bytes_3 = helpers.get_queued_node_bytes(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
         get_txs_message_3 = GetTxsMessage(buf=get_txs_bytes_3.tobytes())
         self.assertEqual(10, len(get_txs_message_3.get_short_ids()))
 
@@ -247,7 +247,7 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
         time.time = MagicMock(return_value=time.time() + gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[2])
         self.node1.alarm_queue.fire_alarms()
 
-        get_txs_bytes_4 = helpers.get_queued_node_message(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
+        get_txs_bytes_4 = helpers.get_queued_node_bytes(self.node1, self.relay_fileno, GetTxsMessage.MESSAGE_TYPE)
         get_txs_message_4 = GetTxsMessage(buf=get_txs_bytes_4.tobytes())
         self.assertEqual(10, len(get_txs_message_4.get_short_ids()))
 

@@ -3,21 +3,22 @@ from abc import abstractmethod
 from datetime import datetime
 import time
 
+from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import crypto, convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.proxy.vector_proxy import VectorProxy
+from bxgateway.messages.btc import btc_messages_util
 
 from bxgateway import btc_constants
-from bxgateway.abstract_message_converter import AbstractMessageConverter
+from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.utils.block_info import BlockInfo
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class CompactBlockCompressionResult:
@@ -47,7 +48,7 @@ class CompactBlockRecoveryData(NamedTuple):
 
 def get_block_info(
         bx_block: memoryview,
-        block_hash: BtcObjectHash,
+        block_hash: Sha256Hash,
         short_ids: List[int],
         decompress_start_datetime: datetime,
         decompress_start_timestamp: float,
@@ -99,9 +100,7 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
         pass
 
     @abstractmethod
-    def bx_block_to_block(
-            self, bx_block_msg, tx_service
-    ) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int], List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         """
         Uncompresses a bx_block from a broadcast bx_block message and converts to a raw BTC bx_block.
 
@@ -139,10 +138,29 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
 
         return btc_tx_msg
 
-    def tx_to_bx_txs(self, btc_tx_msg, network_num):
+    def tx_to_bx_txs(self, btc_tx_msg, network_num, quota_type: Optional[QuotaType] = None):
         if not isinstance(btc_tx_msg, TxBtcMessage):
             raise TypeError("tx_msg is expected to be of type TxBTCMessage")
 
-        tx_msg = TxMessage(btc_tx_msg.tx_hash(), network_num, tx_val=btc_tx_msg.tx())
+        tx_msg = TxMessage(btc_tx_msg.tx_hash(), network_num, tx_val=btc_tx_msg.tx(), quota_type=quota_type)
 
         return [(tx_msg, btc_tx_msg.tx_hash(), btc_tx_msg.tx())]
+
+    def bdn_tx_to_bx_tx(
+            self,
+            raw_tx: Union[bytes, bytearray, memoryview],
+            network_num: int,
+            quota_type: Optional[QuotaType] = None
+    ) -> TxMessage:
+        if isinstance(raw_tx, bytes):
+            raw_tx = bytearray(raw_tx)
+        try:
+            tx_hash = btc_messages_util.get_txid(raw_tx)
+        except IndexError:
+            raise ValueError(f"Invalid raw transaction provided!")
+        return TxMessage(
+            message_hash=tx_hash, network_num=network_num, tx_val=raw_tx, quota_type=quota_type
+        )
+
+    def encode_raw_msg(self, raw_msg: str) -> bytes:
+        return convert.hex_to_bytes(raw_msg)

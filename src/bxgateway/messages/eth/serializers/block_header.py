@@ -26,9 +26,11 @@ class BlockHeader(rlp.Serializable):
         ("mix_hash", rlp.sedes.binary),
         ("nonce", rlp.sedes.binary)
     ]
+    
+    number: int
 
     def __repr__(self):
-        return f"EthBlockHeader<{self.hash()}>"
+        return f"EthBlockHeader<{self.hash_object()}>"
 
     def hash(self) -> Sha256Hash:
         """The binary block hash"""

@@ -1,10 +1,12 @@
 import random
+from typing import TYPE_CHECKING
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.services import sdn_http_service
 from bxcommon.utils import crypto
 from bxcommon.utils.stats import stats_format
@@ -16,19 +18,22 @@ from bxgateway.messages.gateway.gateway_message_factory import gateway_message_f
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
 
+if TYPE_CHECKING:
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
-class GatewayConnection(InternalNodeConnection):
+
+class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     """
     Connection handler for Gateway-Gateway connections.
     """
 
-    CONNECTION_TYPE = ConnectionType.GATEWAY
+    CONNECTION_TYPE = ConnectionType.EXTERNAL_GATEWAY
 
     NULL_ORDERING = -1
     ACK_MESSAGE = AckMessage()
 
-    def __init__(self, sock, address, node, from_me=False):
-        super(GatewayConnection, self).__init__(sock, address, node, from_me)
+    def __init__(self, sock: AbstractSocketConnectionProtocol, node: "AbstractGatewayNode"):
+        super(GatewayConnection, self).__init__(sock, node)
 
         self.hello_messages = gateway_constants.GATEWAY_HELLO_MESSAGES
         self.header_size = constants.STARTING_SEQUENCE_BYTES_LEN + constants.BX_HDR_COMMON_OFF
@@ -45,7 +50,7 @@ class GatewayConnection(InternalNodeConnection):
         self.version_manager = gateway_version_manager
         self.protocol_version = self.version_manager.CURRENT_PROTOCOL_VERSION
 
-        if from_me:
+        if self.from_me:
             self._initialize_ordered_handshake()
         else:
             self.ordering = self.NULL_ORDERING
@@ -63,23 +68,23 @@ class GatewayConnection(InternalNodeConnection):
         if network_num != self.node.network_num:
             self.log_error("Network number mismatch. Current network num {}, remote network num {}. "
                            "Closing connection.", self.network_num, network_num)
-            self.mark_for_close()
+            self.mark_for_close(should_retry=False)
             return
 
         ip = msg.ip()
         if ip != self.peer_ip:
-            self.log_error("Received hello message with mismatched IP address. Disconnecting.")
-            self.mark_for_close()
-            return
+            self.log_warning(
+                "Received hello message with mismatched IP address. Continuing. Expected ip: {} Socket ip: {}",
+                ip, self.peer_ip)
 
         port = msg.port()
         ordering = msg.ordering()
         peer_id = msg.node_id()
-
-        # naively set the the peer id to what reported
-        if peer_id is None:
-            self.log_warning("Received hello message without peer id.")
-        self.peer_id = peer_id
+        if not self._is_authenticated:
+            # naively set the the peer id to what reported
+            if peer_id is None:
+                self.log_warning("Received hello message without peer id.")
+            self.peer_id = peer_id
 
         if not self.from_me:
             self.log_trace("Connection established with peer: {}.", peer_id)
@@ -96,7 +101,7 @@ class GatewayConnection(InternalNodeConnection):
 
             if connection.is_active():
                 self.log_debug("Duplicate established connection. Dropping.")
-                self.mark_for_close()
+                self.mark_for_close(should_retry=False)
                 return
 
             # ordering numbers were the same; take over the slot and try again
@@ -119,15 +124,15 @@ class GatewayConnection(InternalNodeConnection):
 
             if connection.ordering > ordering:
                 self.log_warning("Connection already exists, with higher priority. Dropping connection {} and "
-                                 "keeping {}.", self.fileno, connection.fileno)
-                self.mark_for_close()
+                                 "keeping {}.", self.file_no, connection.file_no)
+                self.mark_for_close(should_retry=False)
                 connection.on_connection_established()
                 connection.enqueue_msg(connection.ack_message)
             else:
                 self.log_warning(
                     "Connection already exists, with lower priority. Dropping connection {} and keeping {}.",
-                    connection.fileno, self.fileno)
-                connection.mark_for_close()
+                    connection.file_no, self.file_no)
+                connection.mark_for_close(should_retry=False)
                 self.on_connection_established()
                 self.enqueue_msg(self.ack_message)
                 self.node.connection_pool.update_port(self.peer_port, port, self)
@@ -156,7 +161,7 @@ class GatewayConnection(InternalNodeConnection):
                                                   BlockStatEventType.BX_BLOCK_PROPAGATION_REQUESTED_BY_PEER,
                                                   network_num=self.network_num,
                                                   more_info=stats_format.connection(self))
-        self.node.neutrality_service.propagate_block_to_network(bx_block, self)
+        self.node.neutrality_service.propagate_block_to_network(bx_block, self, from_peer=True)
 
     def msg_block_holding(self, msg):
         block_hash = msg.block_hash()
@@ -178,11 +183,8 @@ class GatewayConnection(InternalNodeConnection):
         self.peer_port = new_port
         self.peer_desc = "%s %d" % (self.peer_ip, self.peer_port)
 
-    def mark_for_close(self):
-        super(GatewayConnection, self).mark_for_close()
-
-    def close(self):
-        super().close()
+    def dispose(self):
+        super().dispose()
 
         if not self.from_me:
             if self.peer_id:

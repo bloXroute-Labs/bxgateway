@@ -54,8 +54,10 @@ def compare_and_update(new_value, target, setter, item=None):
 
 
 def update_node_config(node: AbstractNode):
-    default_node_config = read_config_file(config.get_relative_file(gateway_constants.CONFIG_FILE_NAME))
-    override_node_config = read_config_file(config.get_relative_file(gateway_constants.CONFIG_OVERRIDE_NAME))
+    config.init_file_in_data_dir(gateway_constants.CONFIG_FILE_NAME)
+    config.init_file_in_data_dir(gateway_constants.CONFIG_OVERRIDE_NAME)
+    default_node_config = read_config_file(config.get_data_file(gateway_constants.CONFIG_FILE_NAME))
+    override_node_config = read_config_file(config.get_data_file(gateway_constants.CONFIG_OVERRIDE_NAME))
     node_config = GatewayNodeConfigModel()
     node_config.merge(default_node_config)
     node_config.merge(override_node_config)

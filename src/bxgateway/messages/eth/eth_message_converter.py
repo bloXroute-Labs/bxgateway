@@ -2,8 +2,9 @@ import datetime
 import struct
 import time
 from collections import deque
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Union
 
+from bxcommon.models.quota_type_model import QuotaType
 from bxutils import logging
 from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -12,7 +13,7 @@ from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway.abstract_message_converter import AbstractMessageConverter
+from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.block_info import BlockInfo
@@ -22,9 +23,22 @@ from bxgateway.utils.eth import rlp_utils
 logger = logging.get_logger(__name__)
 
 
+def raw_tx_to_bx_tx(
+        txs_bytes: Union[bytearray, memoryview], tx_start_index: int, network_num: int, quota_type: Optional[QuotaType] = None
+) -> Tuple[TxMessage, int, int]:
+    if isinstance(txs_bytes, bytearray):
+        txs_bytes = memoryview(txs_bytes)
+    _, tx_item_length, tx_item_start = rlp_utils.consume_length_prefix(txs_bytes, tx_start_index)
+    tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
+    tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
+    msg_hash = Sha256Hash(tx_hash_bytes)
+    bx_tx = TxMessage(message_hash=msg_hash, network_num=network_num, tx_val=tx_bytes, quota_type=quota_type)
+    return bx_tx, tx_item_length, tx_item_start
+
+
 class EthMessageConverter(AbstractMessageConverter):
 
-    def tx_to_bx_txs(self, tx_msg, network_num):
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None):
         """
         Converts Ethereum transactions message to array of internal transaction messages
 
@@ -32,6 +46,7 @@ class EthMessageConverter(AbstractMessageConverter):
 
         :param tx_msg: Ethereum transaction message
         :param network_num: blockchain network number
+        :param quota_type: the quota type to assign to the BDN transaction.
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 
@@ -48,12 +63,8 @@ class EthMessageConverter(AbstractMessageConverter):
         tx_start_index = 0
 
         while True:
-            _, tx_item_length, tx_item_start = rlp_utils.consume_length_prefix(txs_bytes, tx_start_index)
-            tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
-            tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
-            msg_hash = Sha256Hash(tx_hash_bytes)
-            bx_tx_msg = TxMessage(message_hash=msg_hash, network_num=network_num, tx_val=tx_bytes)
-            bx_tx_msgs.append((bx_tx_msg, msg_hash, tx_bytes))
+            bx_tx, tx_item_length, tx_item_start = raw_tx_to_bx_tx(txs_bytes, tx_start_index, network_num, quota_type)
+            bx_tx_msgs.append((bx_tx, bx_tx.message_hash(), bx_tx.tx_val()))
 
             tx_start_index = tx_item_start + tx_item_length
 
@@ -61,6 +72,17 @@ class EthMessageConverter(AbstractMessageConverter):
                 break
 
         return bx_tx_msgs
+
+    def bdn_tx_to_bx_tx(
+            self,
+            raw_tx: Union[bytes, bytearray, memoryview],
+            network_num: int,
+            quota_type: Optional[QuotaType] = None
+    ) -> TxMessage:
+        if isinstance(raw_tx, bytes):
+            raw_tx = bytearray(raw_tx)
+        bx_tx, _, _ = raw_tx_to_bx_tx(raw_tx, 0, network_num, quota_type)
+        return bx_tx
 
     def bx_tx_to_tx(self, bx_tx_msg):
         """
@@ -206,8 +228,7 @@ class EthMessageConverter(AbstractMessageConverter):
                                content_size, 100 - float(content_size) / original_size * 100)
         return memoryview(block), block_info
 
-    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
-                                                                   List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         """
         Converts internal broadcast message to Ethereum new block message
 
@@ -332,7 +353,7 @@ class EthMessageConverter(AbstractMessageConverter):
                                    len(block_msg.rawbytes()), compressed_size,
                                    100 - float(compressed_size) / content_size * 100)
 
-            return block_msg, block_info, unknown_tx_sids, unknown_tx_hashes
+            return BlockDecompressionResult(block_msg, block_info, unknown_tx_sids, unknown_tx_hashes)
         else:
             logger.debug(
                 "Block recovery needed for {}. Missing {} sids, {} tx hashes. "
@@ -343,6 +364,26 @@ class EthMessageConverter(AbstractMessageConverter):
                 tx_count
             )
 
-            return None, BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
-                                   (time.time() - decompress_start_timestamp) * 1000, None, None, None, None, None,
-                                   None), unknown_tx_sids, unknown_tx_hashes
+            return BlockDecompressionResult(
+                None,
+                BlockInfo(
+                    block_hash,
+                    short_ids,
+                    decompress_start_datetime, datetime.datetime.utcnow(),
+                    (time.time() - decompress_start_timestamp) * 1000,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None
+                ),
+                unknown_tx_sids,
+                unknown_tx_hashes
+            )
+
+    def encode_raw_msg(self, raw_msg: str) -> bytes:
+        try:
+            return raw_msg.encode("utf-8")
+        except (UnicodeEncodeError, AttributeError) as e:
+            raise ValueError(f"Failed to encode raw message: {raw_msg}!") from e

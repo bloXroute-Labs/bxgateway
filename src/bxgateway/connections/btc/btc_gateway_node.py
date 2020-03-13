@@ -1,6 +1,5 @@
-from typing import Tuple
-
-from bxcommon.network.socket_connection import SocketConnection
+import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -8,19 +7,18 @@ from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.block_queuing_service import BlockQueuingService
 from bxgateway.services.btc.btc_block_processing_service import BtcBlockProcessingService
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 from bxgateway.services.btc.btc_normal_block_cleanup_service import BtcNormalBlockCleanupService
+from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.testing.btc_lossy_relay_connection import BtcLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
-
-import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
+from bxutils.services.node_ssl_service import NodeSSLService
 
 
 class BtcGatewayNode(AbstractGatewayNode):
-    def __init__(self, opts):
-        super(BtcGatewayNode, self).__init__(opts)
+    def __init__(self, opts, node_ssl_service: NodeSSLService):
+        super(BtcGatewayNode, self).__init__(opts, node_ssl_service)
 
         self.block_processing_service = BtcBlockProcessingService(self)
 
@@ -29,25 +27,26 @@ class BtcGatewayNode(AbstractGatewayNode):
             self.opts
         )
 
-    def build_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                    from_me: bool) -> AbstractGatewayBlockchainConnection:
-        return BtcNodeConnection(socket_connection, address, self, from_me)
+    def build_blockchain_connection(
+        self, socket_connection: AbstractSocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
+        return BtcNodeConnection(socket_connection, self)
 
-    def build_relay_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                               from_me: bool) -> AbstractRelayConnection:
+    def build_relay_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> AbstractRelayConnection:
         if TestModes.DROPPING_TXS in self.opts.test_mode:
             cls = BtcLossyRelayConnection
         else:
             cls = BtcRelayConnection
 
-        relay_connection = cls(socket_connection, address, self, from_me)
+        relay_connection = cls(socket_connection, self)
         return relay_connection
 
-    def build_remote_blockchain_connection(self, socket_connection: SocketConnection, address: Tuple[str, int],
-                                           from_me: bool) -> AbstractGatewayBlockchainConnection:
-        return BtcRemoteConnection(socket_connection, address, self, from_me)
+    def build_remote_blockchain_connection(
+        self, socket_connection: AbstractSocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
+        return BtcRemoteConnection(socket_connection, self)
 
-    def build_block_queuing_service(self) -> BlockQueuingService:
+    def build_block_queuing_service(self) -> PushBlockQueuingService:
         return BtcBlockQueuingService(self)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:

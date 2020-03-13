@@ -1,18 +1,25 @@
+from typing import List
+
 import rlp
 
-from bxutils.logging.log_level import LogLevel
-
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
-from bxgateway.utils.eth import rlp_utils
+from bxgateway.utils.eth import rlp_utils, crypto_utils
+from bxutils.logging.log_level import LogLevel
 
 
 class BlockBodiesEthProtocolMessage(EthProtocolMessage):
     msg_type = EthProtocolMessageType.BLOCK_BODIES
 
     fields = [("blocks", rlp.sedes.CountableList(TransientBlockBody))]
-    
+
+    def __init__(self, msg_bytes, *args, **kwargs):
+        super(BlockBodiesEthProtocolMessage, self).__init__(msg_bytes, *args, **kwargs)
+
+        self._block_body_bytes = None
+
     def __repr__(self):
         return f"BlockBodiesEthProtocolMessage<bodies_count: {len(self.get_block_bodies_bytes())}>"
 
@@ -20,10 +27,34 @@ class BlockBodiesEthProtocolMessage(EthProtocolMessage):
         return self.get_field_value("blocks")
 
     def get_block_bodies_bytes(self):
+        if self._block_body_bytes:
+            return self._block_body_bytes
+
         if self._memory_view is None:
             self.serialize()
 
-        return rlp_utils.get_first_list_field_items_bytes(self._memory_view)
+        self._block_body_bytes = rlp_utils.get_first_list_field_items_bytes(self._memory_view)
+
+        return self._block_body_bytes
+
+    def get_block_transaction_hashes(self, block_index: int) -> List[Sha256Hash]:
+        tx_hashes = []
+
+        for tx_bytes in self.get_block_transaction_bytes(block_index):
+            tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
+            tx_hashes.append(Sha256Hash(tx_hash_bytes))
+
+        return tx_hashes
+
+    def get_block_transaction_bytes(self, block_index: int) -> List[memoryview]:
+        block_body_bytes = self.get_block_bodies_bytes()
+
+        if block_index >= len(block_body_bytes):
+            return []
+
+        txs_bytes = rlp_utils.get_first_list_field_items_bytes(block_body_bytes[block_index])[0]
+
+        return rlp_utils.get_first_list_field_items_bytes(txs_bytes)
 
     @classmethod
     def from_body_bytes(cls, body_bytes: memoryview) -> "BlockBodiesEthProtocolMessage":
@@ -37,4 +68,3 @@ class BlockBodiesEthProtocolMessage(EthProtocolMessage):
 
     def log_level(self):
         return LogLevel.DEBUG
-

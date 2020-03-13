@@ -1,6 +1,6 @@
 import typing
 
-from bxgateway import btc_constants
+from bxgateway import btc_constants, gateway_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
 from bxgateway.messages.btc.btc_message_factory import btc_message_factory
@@ -35,7 +35,7 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         version_msg = VersionBtcMessage(self.magic, self.version, connection.peer_ip, connection.peer_port,
                                         self.node.opts.external_ip, self.node.opts.external_port,
                                         self.node.opts.blockchain_nonce, 0,
-                                        str(self.node.opts.protocol_version).encode("utf-8"),
+                                        f"{gateway_constants.GATEWAY_PEER_NAME} {self.node.opts.source_version}".encode("utf-8"),
                                         self.node.opts.blockchain_services)
         connection.enqueue_msg(version_msg)
 
@@ -44,6 +44,8 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         Handle block message
         """
         block_hash = msg.block_hash()
+        if not self.node.should_process_block_hash(block_hash):
+            return
         if self.node.block_cleanup_service.is_marked_for_cleanup(block_hash):
             self.connection.log_trace("Marked block for cleanup: {}", block_hash)
             self.node.block_cleanup_service.clean_block_transactions(

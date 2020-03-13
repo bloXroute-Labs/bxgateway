@@ -5,10 +5,12 @@ from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_bx_messages import hello_message
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 
 from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.testing.mocks.mock_btc_messages import btc_version_message
+from mock import MagicMock
 
 
 class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
@@ -33,8 +35,11 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
                                         include_default_btc_args=True)
 
     def reinitialize_gateways(self, opts1, opts2):
-        self.node1 = BtcGatewayNode(opts1)
-        self.node2 = BtcGatewayNode(opts2)
+        node_ssl_service = MockNodeSSLService(BtcGatewayNode.NODE_TYPE, MagicMock())
+        self.node1 = BtcGatewayNode(opts1, node_ssl_service)
+        self.node1.opts.has_fully_updated_tx_service = True
+        self.node2 = BtcGatewayNode(opts2, node_ssl_service)
+        self.node2.opts.has_fully_updated_tx_service = True
 
         self.node1.peer_gateways = {OutboundPeerModel(LOCALHOST, 7002)}
         self.node1.peer_relays = {OutboundPeerModel(LOCALHOST, 7001)}
@@ -45,21 +50,21 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
         self.relay_fileno = 2
         self.gateway_fileno = 3
 
-        self.blockchain_connection = MockSocketConnection(self.blockchain_fileno)
-        self.relay_connection = MockSocketConnection(self.relay_fileno)
-        self.gateway_connection = MockSocketConnection(self.gateway_fileno)
+        self.blockchain_connection = MockSocketConnection(
+            self.blockchain_fileno, self.node1, ip_address=LOCALHOST, port=7000
+        )
+        self.relay_connection = MockSocketConnection(self.relay_fileno, self.node1, ip_address=LOCALHOST, port=7001)
+        self.gateway_connection = MockSocketConnection(self.gateway_fileno, self.node1, ip_address=LOCALHOST, port=7002)
 
         # add node1 connections
-        self.node1.on_connection_added(self.blockchain_connection, LOCALHOST, 7000, True)
-        self.node1.on_connection_added(self.relay_connection, LOCALHOST, 7001, True)
-        self.node1.on_connection_initialized(self.relay_fileno)
-        self.node1.on_connection_added(self.gateway_connection, LOCALHOST, 7002, True)
+        self.node1.on_connection_added(self.blockchain_connection)
+        self.node1.on_connection_added(self.relay_connection)
+        self.node1.on_connection_added(self.gateway_connection)
 
         # add node 2 connections
-        self.node2.on_connection_added(self.blockchain_connection, LOCALHOST, 7000, True)
-        self.node2.on_connection_added(self.relay_connection, LOCALHOST, 7001, True)
-        self.node2.on_connection_initialized(self.relay_fileno)
-        self.node2.on_connection_added(self.gateway_connection, LOCALHOST, 7002, True)
+        self.node2.on_connection_added(self.blockchain_connection)
+        self.node2.on_connection_added(self.relay_connection)
+        self.node2.on_connection_added(self.gateway_connection)
 
         # initialize node1 connections
         helpers.receive_node_message(self.node1, self.blockchain_fileno, btc_version_message().rawbytes())

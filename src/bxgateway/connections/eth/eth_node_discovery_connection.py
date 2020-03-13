@@ -1,25 +1,29 @@
 import socket
 import time
+from typing import TYPE_CHECKING
 
-from bxutils import logging
-
+from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxgateway import eth_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.messages.eth.discovery.eth_discovery_message_factory import eth_discovery_message_factory
 from bxgateway.messages.eth.discovery.eth_discovery_message_type import EthDiscoveryMessageType
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
+from bxutils import logging
+
+if TYPE_CHECKING:
+    from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 
 logger = logging.get_logger(__name__)
 
 
-class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection):
-    
+class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection["EthGatewayNode"]):
     """
     Discovery protocol connection with Ethereum node.
     This connection is used to obtain public key of Ethereum node from Ping message.
     """
-    def __init__(self, sock, address, node, from_me):
-        super(EthNodeDiscoveryConnection, self).__init__(sock, address, node, from_me)
+
+    def __init__(self, sock: AbstractSocketConnectionProtocol, node: "EthGatewayNode"):
+        super(EthNodeDiscoveryConnection, self).__init__(sock, node)
 
         self.message_factory = eth_discovery_message_factory
         self.message_handlers = {
@@ -32,7 +36,8 @@ class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection):
                                                     self.node.get_private_key(),
                                                     eth_constants.P2P_PROTOCOL_VERSION,
                                                     (self.external_ip, self.external_port, self.external_port),
-                                                    (socket.gethostbyname(self.peer_ip), self.peer_port, self.peer_port),
+                                                    (
+                                                    socket.gethostbyname(self.peer_ip), self.peer_port, self.peer_port),
                                                     int(time.time()) + eth_constants.PING_MSG_TTL_SEC)
         self.pong_message = None
 

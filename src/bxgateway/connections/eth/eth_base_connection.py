@@ -1,15 +1,21 @@
+from typing import TYPE_CHECKING
+
 from bxutils import logging
 
 from bxcommon.connections.connection_state import ConnectionState
 
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 
+if TYPE_CHECKING:
+    # noinspection PyUnresolvedReferences
+    from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
+
 logger = logging.get_logger(__name__)
 
 
-class EthBaseConnection(AbstractGatewayBlockchainConnection):
+class EthBaseConnection(AbstractGatewayBlockchainConnection["EthGatewayNode"]):
     def enqueue_msg(self, msg, prepend=False):
-        if self.state & ConnectionState.MARK_FOR_CLOSE:
+        if not self.is_alive():
             return
 
         self._log_message(msg.log_level(), "Enqueued message: {}", msg)

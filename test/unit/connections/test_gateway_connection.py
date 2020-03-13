@@ -1,4 +1,5 @@
 from mock import MagicMock
+from collections import defaultdict
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.connections.connection_pool import ConnectionPool
@@ -39,6 +40,7 @@ def create_node(ip=LOCALHOST, port=8000) -> AbstractGatewayNode:
     node.opts.stats_calculate_actual_size = True
     block_stats.set_node(node)
     tx_stats.set_node(node)
+    node.num_retries_by_ip = defaultdict(int)
     return node
 
 
@@ -60,9 +62,9 @@ class GatewayConnectionTest(AbstractTestCase):
         main_node = create_node(LOCALHOST, 40001)
         peer_node = create_node(LOCALHOST, 40000)
         main_inbound_fileno = 1
-        main_inbound_connection = create_connection(50000, main_node, fileno=main_inbound_fileno, from_me=False)
+        main_inbound_connection = create_connection(50000, main_node, file_no=main_inbound_fileno, from_me=False)
         peer_outbound_fileno = 2
-        peer_outbound_connection = create_connection(40001, peer_node, fileno=peer_outbound_fileno, from_me=True)
+        peer_outbound_connection = create_connection(40001, peer_node, file_no=peer_outbound_fileno, from_me=True)
 
         self.assertTrue(main_node.connection_pool.has_connection(LOCALHOST, 50000))
 
@@ -76,50 +78,49 @@ class GatewayConnectionTest(AbstractTestCase):
 
         peer_outbound_connection.msg_ack(AckMessage())
 
-        self.assertEqual(ConnectionState.ESTABLISHED, main_inbound_connection.state)
-        self.assertEqual(ConnectionState.ESTABLISHED, peer_outbound_connection.state)
+        self.assertIn(ConnectionState.ESTABLISHED, main_inbound_connection.state)
+        self.assertIn(ConnectionState.ESTABLISHED, peer_outbound_connection.state)
 
-    def test_msg_hello_reject_mismatched_ip(self):
-        fileno = 1
+    def test_msg_hello_not_rejecting_on_mismatched_ip(self):
         inbound_connection = create_connection(40000, self.node, from_me=False)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
 
         inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
                                                          DEFAULT_NETWORK_NUM, "192.168.1.1", 8001, 1))
 
-        self.assertTrue(inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertTrue(inbound_connection.is_alive())
 
     def test_msg_hello_replace_other_connection(self):
         inbound_fileno = 1
-        inbound_connection = create_connection(40000, self.node, fileno=inbound_fileno, from_me=False)
+        inbound_connection = create_connection(40000, self.node, file_no=inbound_fileno, from_me=False)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
 
         outbound_fileno = 2
-        outbound_connection = create_connection(8001, self.node, fileno=outbound_fileno, from_me=True)
+        outbound_connection = create_connection(8001, self.node, file_no=outbound_fileno, from_me=True)
         outbound_connection.ordering = 1
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
 
         inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
                                                          DEFAULT_NETWORK_NUM, LOCALHOST, 8001, 10))
 
-        self.assertTrue(outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertFalse(outbound_connection.is_alive())
         self.assertFalse(self.node.connection_pool.has_connection(LOCALHOST, 40000))
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
 
     def test_msg_hello_replace_self(self):
         inbound_fileno = 1
-        inbound_connection = create_connection(40000, self.node, fileno=inbound_fileno, from_me=False)
+        inbound_connection = create_connection(40000, self.node, file_no=inbound_fileno, from_me=False)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 40000))
 
         outbound_fileno = 2
-        outbound_connection = create_connection(8001, self.node, fileno=outbound_fileno, from_me=True)
+        outbound_connection = create_connection(8001, self.node, file_no=outbound_fileno, from_me=True)
         outbound_connection.ordering = 10
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
 
         inbound_connection.msg_hello(GatewayHelloMessage(gateway_version_manager.CURRENT_PROTOCOL_VERSION,
                                                          DEFAULT_NETWORK_NUM, LOCALHOST, 8001, 1))
 
-        self.assertTrue(inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertFalse(inbound_connection.is_alive())
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, 8001))
         self.assertEqual(outbound_connection, self.node.connection_pool.get_by_ipport(LOCALHOST, 8001))
 
@@ -129,14 +130,14 @@ class GatewayConnectionTest(AbstractTestCase):
 
         main_inbound_fileno = 1
         main_inbound_port = 40000
-        main_inbound_connection = create_connection(main_inbound_port, self.node, fileno=main_inbound_fileno,
+        main_inbound_connection = create_connection(main_inbound_port, self.node, file_no=main_inbound_fileno,
                                                     from_me=False)
         self.assertEqual(GatewayConnection.NULL_ORDERING, main_inbound_connection.ordering)
         self.assertTrue(self.node.connection_pool.has_connection(LOCALHOST, main_inbound_port))
 
         main_outbound_fileno = 2
         main_outbound_ordering = 11
-        main_outbound_connection = create_connection(peer_port, self.node, fileno=main_outbound_fileno,
+        main_outbound_connection = create_connection(peer_port, self.node, file_no=main_outbound_fileno,
                                                      from_me=True)
         main_outbound_connection.ordering = main_outbound_ordering
         self.assertNotEqual(GatewayConnection.NULL_ORDERING, main_outbound_connection.ordering)
@@ -146,14 +147,14 @@ class GatewayConnectionTest(AbstractTestCase):
 
         peer_inbound_fileno = 1
         peer_inbound_port = 40001
-        peer_inbound_connection = create_connection(peer_inbound_port, peer_node, fileno=peer_inbound_fileno,
+        peer_inbound_connection = create_connection(peer_inbound_port, peer_node, file_no=peer_inbound_fileno,
                                                     from_me=False)
         self.assertEqual(GatewayConnection.NULL_ORDERING, peer_inbound_connection.ordering)
         self.assertTrue(peer_node.connection_pool.has_connection(LOCALHOST, peer_inbound_port))
 
         peer_outbound_fileno = 2
         peer_outbound_ordering = 10
-        peer_outbound_connection = create_connection(main_port, peer_node, fileno=peer_outbound_fileno,
+        peer_outbound_connection = create_connection(main_port, peer_node, file_no=peer_outbound_fileno,
                                                      from_me=True)
         peer_outbound_connection.ordering = peer_outbound_ordering
         self.assertNotEqual(GatewayConnection.NULL_ORDERING, peer_outbound_connection.ordering)
@@ -166,8 +167,8 @@ class GatewayConnectionTest(AbstractTestCase):
                                                               DEFAULT_NETWORK_NUM, LOCALHOST, main_port,
                                                               main_outbound_ordering))
 
-        self.assertTrue(main_inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
-        self.assertTrue(peer_outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertFalse(main_inbound_connection.is_alive())
+        self.assertFalse(peer_outbound_connection.is_alive())
 
     def test_msg_hello_calls_on_two_nodes_retry(self):
         main_port = 8000
@@ -175,7 +176,7 @@ class GatewayConnectionTest(AbstractTestCase):
 
         main_inbound_fileno = 1
         main_inbound_port = 40000
-        main_inbound_connection = create_connection(main_inbound_port, self.node, fileno=main_inbound_fileno,
+        main_inbound_connection = create_connection(main_inbound_port, self.node, file_no=main_inbound_fileno,
                                                     from_me=False)
         main_inbound_connection.enqueue_msg = MagicMock()
         self.assertEqual(GatewayConnection.NULL_ORDERING, main_inbound_connection.ordering)
@@ -183,7 +184,7 @@ class GatewayConnectionTest(AbstractTestCase):
 
         main_outbound_fileno = 2
         main_outbound_ordering = 10
-        main_outbound_connection = create_connection(peer_port, self.node, fileno=main_outbound_fileno,
+        main_outbound_connection = create_connection(peer_port, self.node, file_no=main_outbound_fileno,
                                                      from_me=True)
         main_outbound_connection.ordering = main_outbound_ordering
         self.assertNotEqual(GatewayConnection.NULL_ORDERING, main_outbound_connection.ordering)
@@ -193,7 +194,7 @@ class GatewayConnectionTest(AbstractTestCase):
 
         peer_inbound_fileno = 1
         peer_inbound_port = 40001
-        peer_inbound_connection = create_connection(peer_inbound_port, peer_node, fileno=peer_inbound_fileno,
+        peer_inbound_connection = create_connection(peer_inbound_port, peer_node, file_no=peer_inbound_fileno,
                                                     from_me=False)
         peer_inbound_connection.enqueue_msg = MagicMock()
         self.assertEqual(GatewayConnection.NULL_ORDERING, peer_inbound_connection.ordering)
@@ -201,7 +202,7 @@ class GatewayConnectionTest(AbstractTestCase):
 
         peer_outbound_fileno = 2
         peer_outbound_ordering = 10
-        peer_outbound_connection = create_connection(main_port, peer_node, fileno=peer_outbound_fileno,
+        peer_outbound_connection = create_connection(main_port, peer_node, file_no=peer_outbound_fileno,
                                                      from_me=True)
         peer_outbound_connection.ordering = peer_outbound_ordering
         self.assertNotEqual(GatewayConnection.NULL_ORDERING, peer_outbound_connection.ordering)
@@ -214,10 +215,10 @@ class GatewayConnectionTest(AbstractTestCase):
                                                               DEFAULT_NETWORK_NUM, LOCALHOST, main_port,
                                                               main_outbound_ordering))
 
-        self.assertFalse(main_inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
-        self.assertFalse(main_outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
-        self.assertFalse(peer_inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
-        self.assertFalse(peer_outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertTrue(main_inbound_connection.is_alive())
+        self.assertTrue(main_outbound_connection.is_alive())
+        self.assertTrue(peer_inbound_connection.is_alive())
+        self.assertTrue(peer_outbound_connection.is_alive())
 
         main_inbound_connection.enqueue_msg.assert_called_once()
         peer_inbound_connection.enqueue_msg.assert_called_once()
@@ -232,8 +233,8 @@ class GatewayConnectionTest(AbstractTestCase):
                                                                DEFAULT_NETWORK_NUM, LOCALHOST, main_port,
                                                                main_inbound_connection.ordering))
 
-        self.assertTrue(main_inbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
-        self.assertTrue(peer_outbound_connection.state & ConnectionState.MARK_FOR_CLOSE)
+        self.assertFalse(main_inbound_connection.is_alive())
+        self.assertFalse(peer_outbound_connection.is_alive())
 
     def test_msg_block_propagation_request(self):
         block = helpers.generate_bytearray(30)

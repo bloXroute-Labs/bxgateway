@@ -2,17 +2,18 @@ import time
 from abc import ABCMeta, abstractmethod
 from typing import List, Union
 
-from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
 
@@ -34,29 +35,37 @@ class AbstractBlockchainConnectionProtocol:
         """
         Handle a TX message by broadcasting to the entire network
         """
-        bx_tx_messages = self.connection.node.message_converter.tx_to_bx_txs(msg, self.connection.network_num)
+        bx_tx_messages = self.connection.node.message_converter.tx_to_bx_txs(
+            msg, self.connection.network_num, self.connection.node.default_tx_quota_type
+        )
 
         for (bx_tx_message, tx_hash, tx_bytes) in bx_tx_messages:
-            if self.connection.node.get_tx_service().has_transaction_contents(tx_hash):
+            if self.connection.node.get_tx_service().has_transaction_contents(tx_hash) or \
+                    self.connection.node.get_tx_service().removed_transaction(tx_hash):
                 tx_stats.add_tx_by_hash_event(tx_hash,
                                               TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                               self.connection.network_num,
-                                              peer=self.connection.peer_desc)
+                                              peer=stats_format.connection(self.connection))
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
                 continue
 
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE,
-                                          self.connection.network_num, peer=self.connection.peer_desc)
+                                          self.connection.network_num, peer=stats_format.connection(self.connection))
             gateway_transaction_stats_service.log_transaction_from_blockchain(tx_hash)
+            gateway_bdn_performance_stats_service.log_tx_from_blockchain_node()
 
             # All connections outside of this one is a bloXroute server
             broadcast_peers = self.connection.node.broadcast(bx_tx_message, self.connection,
                                                              connection_types=[ConnectionType.RELAY_TRANSACTION])
-            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
-                                          self.connection.network_num,
-                                          peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE),
-                                                    broadcast_peers))
-            self._set_transaction_contents(tx_hash, tx_bytes)
+            if broadcast_peers:
+                tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
+                                              self.connection.network_num,
+                                              peers=map(lambda conn: (stats_format.connection(conn)),
+                                                        broadcast_peers))
+                self._set_transaction_contents(tx_hash, tx_bytes)
+            else:
+                logger.trace("Tx Message: {} from BlockchainNode was dropped, no upstream relay connection available",
+                             tx_hash)
 
     def msg_block(self, msg: AbstractBlockMessage):
         """
@@ -64,6 +73,9 @@ class AbstractBlockchainConnectionProtocol:
         """
         block_hash = msg.block_hash()
         node = self.connection.node
+        # if gateway is still syncing, skip this process
+        if not node.should_process_block_hash(block_hash):
+            return
 
         node.block_cleanup_service.on_new_block_received(block_hash, msg.prev_block_hash())
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
@@ -90,8 +102,9 @@ class AbstractBlockchainConnectionProtocol:
             return
 
         node.track_block_from_node_handling_started(block_hash)
-        node.on_block_seen_by_blockchain_node(block_hash)
+        node.on_block_seen_by_blockchain_node(block_hash, msg)
         node.block_processing_service.queue_block_for_processing(msg, self.connection)
+        gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
         return
 
     def msg_proxy_request(self, msg):
@@ -116,7 +129,7 @@ class AbstractBlockchainConnectionProtocol:
         return True
 
     def _request_blocks_confirmation(self):
-        if self.connection.state & ConnectionState.MARK_FOR_CLOSE:
+        if not self.connection.is_alive():
             return None
         node = self.connection.node
         last_confirmed_block = node.block_cleanup_service.last_confirmed_block
@@ -132,7 +145,7 @@ class AbstractBlockchainConnectionProtocol:
             msg = self._build_get_blocks_message_for_block_confirmation(hashes)
             self.connection.enqueue_msg(msg)
             self.connection.log_debug("Sending block confirmation request. Last confirmed block: {}, hashes: {}",
-                                      last_confirmed_block, hashes)
+                                      last_confirmed_block, hashes[:gateway_constants.LOGGING_LIMIT_ITEM_COUNT])
         return self.block_cleanup_poll_interval_s
 
     @abstractmethod

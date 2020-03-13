@@ -1,3 +1,6 @@
+from collections import defaultdict
+
+from bxcommon import constants
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
@@ -10,18 +13,14 @@ GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S = 60 * 60 * 24
 BLOCKCHAIN_SYNC_BROADCAST_DELAY_S = 5
 BLOCKCHAIN_PING_INTERVAL_S = 15
 
-
-# Fix for <1.1 Gateways. This code should not make it to develop.
-BLOCK_HOLD_MAX_TIMEOUT_S = 0.1
-BLOCK_RECOVERY_MAX_TIMEOUT_S = 0.1
-
 BLOCK_RECOVERY_RECOVERY_INTERVAL_S = [0.1, 0.5, 1, 2, 5]
-BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS = len(BLOCK_RECOVERY_RECOVERY_INTERVAL_S)
+# BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS = len(BLOCK_RECOVERY_RECOVERY_INTERVAL_S)
+BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS = 1  # for now, since longer retries aren't really worth it
 BLOCK_RECOVERY_MAX_QUEUE_TIME = 15  # slightly more than sum(BLOCK_RECOVERY_RECOVERY_INTERVAL_S)
 
 
 # enum for setting Gateway neutrality assertion policy for releasing encryption keys
-class NeutralityPolicy(object):
+class NeutralityPolicy:
     RECEIPT_COUNT = 1
     RECEIPT_PERCENT = 2
     RECEIPT_COUNT_AND_PERCENT = 3
@@ -30,7 +29,7 @@ class NeutralityPolicy(object):
 
 
 # duration to wait for block receipts until timeout
-NEUTRALITY_BROADCAST_BLOCK_TIMEOUT_S = 30 * 60
+NEUTRALITY_BROADCAST_BLOCK_TIMEOUT_S = 3
 
 NEUTRALITY_POLICY = NeutralityPolicy.RECEIPT_PERCENT
 NEUTRALITY_EXPECTED_RECEIPT_COUNT = 1
@@ -39,16 +38,23 @@ NEUTRALITY_EXPECTED_RECEIPT_PERCENT = 50
 # Max duration to wait before releasing a block, even if blockchain node has not indicated receipt of
 # previous block in chain. This value can be set to 0 if a blockchain node implementation is capable of
 # immediately taking block messages without validating previous block.
+
 MAX_INTERVAL_BETWEEN_BLOCKS_S = 2
 NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S = 5
+MAX_BLOCK_CACHE_TIME_S = 20 * 60
 
 GATEWAY_TRANSACTION_STATS_INTERVAL_S = 1 * 60
 GATEWAY_TRANSACTION_STATS_LOOKBACK = 1
+GATEWAY_BDN_PERFORMANCE_STATS_INTERVAL_S = 15 * 60
+GATEWAY_BDN_PERFORMANCE_STATS_LOOKBACK = 1
 
 ETH_GATEWAY_STATS_INTERVAL = 60
 ETH_GATEWAY_STATS_LOOKBACK = 1
 
-MIN_PEER_RELAYS = 1
+MIN_PEER_BLOCK_RELAYS_BY_COUNTRY = defaultdict(lambda: 1)
+MIN_PEER_BLOCK_RELAYS_BY_COUNTRY[constants.NODE_COUNTRY_CHINA] = 2
+
+MIN_PEER_TRANSACTION_RELAYS = 1
 
 BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE = 16 * 1024 * 1024
 
@@ -78,3 +84,16 @@ REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES = 10
 REMOTE_BLOCKCHAIN_SDN_CONTACT_RETRY_SECONDS = 30
 
 BLOCK_CONFIRMATION_EXPIRE_TIME_S = 60 * 60
+
+LOGGING_LIMIT_ITEM_COUNT = 10
+
+RELAY_CONNECTION_REEVALUATION_INTERVAL_S = 4 * 60 * 60
+
+BLOCK_QUEUE_LENGTH_LIMIT = 128
+
+RPC_SERVER_INIT_TIMEOUT_S = 10
+RPC_SERVER_STOP_TIMEOUT_S = 10
+
+LOCALHOST = "127.0.0.1"
+
+TRACKED_BLOCK_MAX_HASH_LOOKUP = 100

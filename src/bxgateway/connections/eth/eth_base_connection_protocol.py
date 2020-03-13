@@ -103,7 +103,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         self._enqueue_status_message()
 
     def msg_disconnect(self, msg):
-        self.connection.log_trace("Disconnect message received. Disconnect reason {0}.", msg.get_reason())
+        self.connection.log_debug("Disconnect message received. Disconnect reason {0}.", msg.get_reason())
         self.connection.mark_for_close()
 
     def msg_get_block_headers(self, msg):
@@ -194,14 +194,14 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
     def _handshake_timeout(self):
         if not self._handshake_complete:
-            self.connection.log_trace("Handshake was not completed within defined timeout. Closing connection.")
+            self.connection.log_debug("Handshake was not completed within defined timeout. Closing connection.")
             self.connection.mark_for_close()
         else:
             self.connection.log_trace("Handshake completed within defined timeout.")
         return 0
 
     def _ping_timeout(self):
-        if self.connection.state & ConnectionState.MARK_FOR_CLOSE:
+        if not self.connection.is_alive():
             return 0
 
         time_since_last_ping_pong = time.time() - self._last_ping_pong_time
@@ -209,7 +209,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                   time_since_last_ping_pong)
 
         if time_since_last_ping_pong > eth_constants.PING_PONG_TIMEOUT_SEC:
-            self.connection.log_trace("Node has not replied with ping / pong for {} seconds, more than {} limit."
+            self.connection.log_debug("Node has not replied with ping / pong for {} seconds, more than {} limit."
                                       "Disconnecting", time_since_last_ping_pong, eth_constants.PING_PONG_TIMEOUT_SEC)
             self._enqueue_disconnect_message(eth_constants.DISCONNECT_REASON_TIMEOUT)
             self.node.alarm_queue.register_alarm(eth_constants.DISCONNECT_DELAY_SEC, self.connection.mark_for_close)

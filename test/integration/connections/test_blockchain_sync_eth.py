@@ -24,7 +24,7 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
         self.remote_node_fileno = 2
 
         eth_node_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
-        self.gateway_node = spies.make_spy_node(EthGatewayNode, 8000, include_default_eth_args=True)
+        self.gateway_node = spies.make_spy_node(EthGatewayNode, 8000, include_default_eth_args=True, pub_key="d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396")
         gateway_node_private_key = convert.hex_to_bytes(self.gateway_node.opts.private_key)
         eth_node_public_key = crypto_utils.private_to_public_key(eth_node_private_key)
 

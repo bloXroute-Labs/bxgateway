@@ -1,12 +1,20 @@
 from abc import ABCMeta, abstractmethod
-from typing import Tuple, Optional, List, Set
+from typing import Tuple, Optional, List, Set, Union, NamedTuple
 
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
-from bxcommon.utils import memory_utils
 
 from bxgateway.utils.block_info import BlockInfo
+
+
+class BlockDecompressionResult(NamedTuple):
+    block_msg: Optional[AbstractMessage]
+    block_info: BlockInfo
+    unknown_short_ids: List[int]
+    unknown_tx_hashes: List[Sha256Hash]
 
 
 class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
@@ -17,12 +25,13 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def tx_to_bx_txs(self, tx_msg, network_num):
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None):
         """
         Converts blockchain transactions message to internal transaction message
 
         :param tx_msg: blockchain transactions message
         :param network_num: blockchain network number
+        :param quota_type: the quota type to assign to the BDN transaction.
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 
@@ -52,8 +61,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def bx_block_to_block(self, bx_block_msg, tx_service) -> Tuple[Optional[AbstractMessage], BlockInfo, List[int],
-                                                                   List[Sha256Hash]]:
+    def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         """
         Converts internal broadcast message to blockchain new block message
 
@@ -61,9 +69,35 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
 
         :param bx_block_msg: internal broadcast message bytes
         :param tx_service: Transactions service
-        :return: tuple (new block message, block info, unknown transaction short ids, unknown transaction hashes)
+        :return: block decompression result
         """
 
+        pass
+
+    @abstractmethod
+    def bdn_tx_to_bx_tx(
+            self,
+            raw_tx: Union[bytes, bytearray, memoryview],
+            network_num: int,
+            quota_type: Optional[QuotaType] = None
+    ) -> TxMessage:
+        """
+        Convert a raw transaction which arrived from an RPC request into bx transaction.
+        :param raw_tx: The raw transaction bytes.
+        :param network_num: the network number.
+        :param quota_type: the quota type to assign to the BDN transaction.
+        :return: bx transaction.
+        """
+        pass
+
+    @abstractmethod
+    def encode_raw_msg(self, raw_msg: str) -> bytes:
+        """
+        Encode a raw message string into bytes
+        :param raw_msg: the raw message to encode
+        :return: binary encoded message
+        :raise ValueError: if the encoding fails
+        """
         pass
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:

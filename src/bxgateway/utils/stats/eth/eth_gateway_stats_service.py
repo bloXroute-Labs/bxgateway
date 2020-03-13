@@ -38,7 +38,7 @@ class _EthGatewayStatsService(StatisticsService):
                  look_back: int = gateway_constants.ETH_GATEWAY_STATS_LOOKBACK):
         self.interval_data: EthGatewayStatInterval = None
         super(_EthGatewayStatsService, self).__init__("EthGatewayStatsService", interval, look_back, reset=True,
-                                                      logger=logging.get_logger(LogRecordType.TransactionStats))
+                                                      logger=logging.get_logger(LogRecordType.TransactionStats, __name__))
 
     def log_encrypted_message(self, time: float) -> None:
         self.interval_data.total_encryption_time += time
