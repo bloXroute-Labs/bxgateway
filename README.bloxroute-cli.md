@@ -21,5 +21,5 @@ You can find our full technical documentation and architecture [on our website][
 Contact us at support@bloxroute.com for further questions.
 
 [1]: https://virtualenv.pypa.io/en/latest/
-[documentation]: https://bloxroute.com/documentation/
+[documentation]: https://bloxroute.com/docs/bloxroute-documentation/
 [bloxroute-gateway]: https://pypi.org/project/bloxroute-gateway/
