@@ -10,5 +10,8 @@ class TransactionsEthProtocolMessage(EthProtocolMessage):
 
     fields = [("transactions", rlp.sedes.CountableList(Transaction))]
 
+    def __repr__(self):
+        return f"TransactionsEthProtocolMessage<num_txs: {len(self.get_transactions())}>"
+
     def get_transactions(self):
         return self.get_field_value("transactions")

@@ -1,10 +1,13 @@
-import time
-from typing import Optional, Type
+from typing import Type, Dict, Any, Optional, TYPE_CHECKING
 
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
 from bxgateway import gateway_constants
-from bxutils.logging.log_record_type import LogRecordType
 from bxutils import logging
+from bxutils.logging.log_record_type import LogRecordType
+
+if TYPE_CHECKING:
+    # noinspection PyUnresolvedReferences
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
 class GatewayBdnPerformanceStatInterval(StatsIntervalData):
@@ -21,40 +24,43 @@ class GatewayBdnPerformanceStatInterval(StatsIntervalData):
         self.new_tx_received_from_bdn = 0
 
 
-class _GatewayBdnPerformanceStatsService(StatisticsService):
-    INTERVAL_DATA_CLASS = GatewayBdnPerformanceStatInterval
-
-    def __init__(self, interval=gateway_constants.GATEWAY_BDN_PERFORMANCE_STATS_INTERVAL_S,
-                 look_back=gateway_constants.GATEWAY_BDN_PERFORMANCE_STATS_LOOKBACK):
-        super().__init__(
+class _GatewayBdnPerformanceStatsService(
+    StatisticsService[GatewayBdnPerformanceStatInterval, "AbstractGatewayNode"]
+):
+    def __init__(
+        self,
+        interval=gateway_constants.GATEWAY_BDN_PERFORMANCE_STATS_INTERVAL_S,
+        look_back=gateway_constants.GATEWAY_BDN_PERFORMANCE_STATS_LOOKBACK,
+    ):
+        super(_GatewayBdnPerformanceStatsService, self).__init__(
             "GatewayBdnPerformanceStats",
             interval,
             look_back,
             reset=True,
-            logger=logging.get_logger(LogRecordType.BdnPerformanceStats, __name__)
+            stat_logger=logging.get_logger(LogRecordType.BdnPerformanceStats, __name__),
         )
 
     def get_interval_data_class(self) -> Type[GatewayBdnPerformanceStatInterval]:
         return GatewayBdnPerformanceStatInterval
 
-    def close_interval_data(self):
-        self.interval_data.end_time = time.time()
-        self.history.append(self.interval_data)
+    def get_info(self) -> Dict[str, Any]:
+        return {}
 
-    def log_block_from_blockchain_node(self):
+    def log_block_from_blockchain_node(self) -> None:
+        assert self.interval_data is not None
         self.interval_data.new_blocks_received_from_blockchain_node += 1
 
-    def log_block_from_bdn(self):
+    def log_block_from_bdn(self) -> None:
+        assert self.interval_data is not None
         self.interval_data.new_blocks_received_from_bdn += 1
 
-    def log_tx_from_blockchain_node(self):
+    def log_tx_from_blockchain_node(self) -> None:
+        assert self.interval_data is not None
         self.interval_data.new_tx_received_from_blockchain_node += 1
 
-    def log_tx_from_bdn(self):
+    def log_tx_from_bdn(self) -> None:
+        assert self.interval_data is not None
         self.interval_data.new_tx_received_from_bdn += 1
-
-    def get_info(self):
-        pass
 
     def get_most_recent_stats(self) -> Optional[GatewayBdnPerformanceStatInterval]:
         if self.history:
