@@ -132,13 +132,13 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                                                                      short_id is not None,
                                                                      tx_val == TxMessage.EMPTY_TX_VAL)
 
-        if short_id:
+        if short_id and short_id not in existing_short_ids:
             tx_service.assign_short_id(tx_hash, short_id)
             was_missing = self.node.block_recovery_service.check_missing_sid(short_id)
             attempt_recovery |= was_missing
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SHORT_ID_STORED_BY_GATEWAY,
                                           network_num, short_id, was_missing=was_missing)
-        else:
+        elif not short_id:
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SHORT_ID_EMPTY_IN_MSG_FROM_RELAY,
                                           network_num, short_id, peer=stats_format.connection(self))
 
