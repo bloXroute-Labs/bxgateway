@@ -2,6 +2,7 @@
 from _collections import deque
 from typing import Optional, Deque
 
+from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from mock import MagicMock
 
 from bxcommon.connections.connection_type import ConnectionType
@@ -10,6 +11,7 @@ from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketC
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -68,7 +70,7 @@ class MockGatewayNode(AbstractGatewayNode):
             connection_types = [ConnectionType.RELAY_ALL]
 
         self.broadcast_messages.append((msg, connection_types))
-        return []
+        return [MockConnection(MockSocketConnection(1, ip_address="123.123.123.123", port=1000), self)]
 
     def send_msg_to_node(self, msg):
         self.send_to_node_messages.append(msg)

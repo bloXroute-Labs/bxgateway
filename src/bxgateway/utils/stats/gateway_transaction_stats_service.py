@@ -15,24 +15,26 @@ if TYPE_CHECKING:
 
 class GatewayTransactionStatInterval(StatsIntervalData):
     new_transactions_received_from_blockchain: int
-    new_transactions_received_from_relays: int
-    compact_transactions_received_from_relays: int
     duplicate_transactions_received_from_blockchain: int
-    duplicate_transactions_received_from_relays: int
-    short_id_assignments_processed: int
+    new_full_transactions_received_from_relays: int
+    new_compact_transactions_received_from_relays: int
+    duplicate_full_transactions_received_from_relays: int
+    duplicate_compact_transactions_received_from_relays: int
     redundant_transaction_content_messages: int
+    short_id_assignments_processed: int
     transaction_tracker: Dict[Sha256Hash, float]
     transaction_intervals: Deque[float]
 
     def __init__(self, *args, **kwargs):
         super(GatewayTransactionStatInterval, self).__init__(*args, **kwargs)
         self.new_transactions_received_from_blockchain = 0
-        self.new_transactions_received_from_relays = 0
-        self.compact_transactions_received_from_relays = 0
         self.duplicate_transactions_received_from_blockchain = 0
-        self.duplicate_transactions_received_from_relays = 0
-        self.short_id_assignments_processed = 0
+        self.new_full_transactions_received_from_relays = 0
+        self.new_compact_transactions_received_from_relays = 0
+        self.duplicate_full_transactions_received_from_relays = 0
+        self.duplicate_compact_transactions_received_from_relays = 0
         self.redundant_transaction_content_messages = 0
+        self.short_id_assignments_processed = 0
         self.transaction_tracker = {}
         self.transaction_intervals = deque()
 
@@ -72,7 +74,6 @@ class _GatewayTransactionStatsService(
         self, transaction_hash: Sha256Hash, has_short_id: bool, is_compact: bool = False
     ) -> None:
         assert self.interval_data is not None
-        self.interval_data.new_transactions_received_from_relays += 1
         if has_short_id and transaction_hash in self.interval_data.transaction_tracker:
             start_time = self.interval_data.transaction_tracker[transaction_hash]
             if start_time != self.TRANSACTION_SHORT_ID_ASSIGNED_DONE:
@@ -81,14 +82,20 @@ class _GatewayTransactionStatsService(
                     transaction_hash
                 ] = self.TRANSACTION_SHORT_ID_ASSIGNED_DONE
 
-        if has_short_id:
-            self.interval_data.short_id_assignments_processed += 1
         if is_compact:
-            self.interval_data.compact_transactions_received_from_relays += 1
+            self.interval_data.new_compact_transactions_received_from_relays += 1
+        else:
+            self.interval_data.new_full_transactions_received_from_relays += 1
 
-    def log_duplicate_transaction_from_relay(self) -> None:
+    def log_short_id_assignment_processed(self):
+        self.interval_data.short_id_assignments_processed += 1
+
+    def log_duplicate_transaction_from_relay(self, is_compact=False):
         assert self.interval_data is not None
-        self.interval_data.duplicate_transactions_received_from_relays += 1
+        if is_compact:
+            self.interval_data.duplicate_compact_transactions_received_from_relays += 1
+        else:
+            self.interval_data.duplicate_full_transactions_received_from_relays += 1
 
     def log_redundant_transaction_content(self) -> None:
         assert self.interval_data is not None
@@ -110,13 +117,14 @@ class _GatewayTransactionStatsService(
 
         return {
             "node_id": self.interval_data.node_id,
-            "transactions_received_from_blockchain": self.interval_data.new_transactions_received_from_blockchain,
-            "transactions_received_from_relays": self.interval_data.new_transactions_received_from_relays,
-            "compact_transactions_received_from_relays": self.interval_data.compact_transactions_received_from_relays,
+            "new_transactions_received_from_blockchain": self.interval_data.new_transactions_received_from_blockchain,
             "duplicate_transactions_received_from_blockchain": self.interval_data.duplicate_transactions_received_from_blockchain,
-            "duplicate_transactions_received_from_relays": self.interval_data.duplicate_transactions_received_from_relays,
-            "short_ids_assignments_processed": self.interval_data.short_id_assignments_processed,
+            "new_full_transactions_received_from_relays": self.interval_data.new_full_transactions_received_from_relays,
+            "new_compact_transactions_received_from_relays": self.interval_data.new_compact_transactions_received_from_relays,
+            "duplicate_full_transactions_received_from_relays": self.interval_data.duplicate_full_transactions_received_from_relays,
+            "duplicate_compact_transactions_received_from_relays": self.interval_data.duplicate_compact_transactions_received_from_relays,
             "redundant_transaction_content_messages": self.interval_data.redundant_transaction_content_messages,
+            "short_ids_assignments_processed": self.interval_data.short_id_assignments_processed,
             "start_time": self.interval_data.start_time,
             "end_time": self.interval_data.end_time,
             "min_short_id_assign_time": min_short_id_assign_time,
