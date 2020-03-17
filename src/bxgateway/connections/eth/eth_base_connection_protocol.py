@@ -1,7 +1,7 @@
 import time
 import typing
+from dataclasses import dataclass
 
-from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.utils import convert
 from bxgateway import eth_constants, gateway_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
@@ -22,6 +22,20 @@ from bxutils import logging
 logger = logging.get_logger(__name__)
 
 
+@dataclass
+class EthConnectionProtocolStatus:
+    auth_message_sent: bool = False
+    auth_message_received: bool = False
+    auth_ack_message_sent: bool = False
+    auth_ack_message_received: bool = False
+    hello_message_sent: bool = False
+    hello_message_received: bool = False
+    status_message_sent: bool = False
+    status_message_received: bool = False
+    disconnect_message_received: bool = False
+    disconnect_reason: typing.Optional[int] = None
+
+
 class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
     def __init__(self, connection, is_handshake_initiator, private_key, public_key):
@@ -30,7 +44,10 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             block_cleanup_poll_interval_s=eth_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S)
 
         self.node = typing.cast("bxgateway.connections.eth.eth_gateway_node.EthGatewayNode", connection.node)
+
         self.rlpx_cipher = RLPxCipher(is_handshake_initiator, private_key, public_key)
+
+        self.connection_status = EthConnectionProtocolStatus()
 
         self._last_ping_pong_time = None
         self._handshake_complete = False
@@ -40,7 +57,8 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                      EthProtocolMessageType.HELLO,
                                      EthProtocolMessageType.STATUS,
                                      # Ethereum Parity sends PING message before handshake is completed
-                                     EthProtocolMessageType.PING]
+                                     EthProtocolMessageType.PING,
+                                     EthProtocolMessageType.DISCONNECT]
 
         connection.message_factory = EthProtocolMessageFactory(self.rlpx_cipher)
         expected_first_msg_type = EthProtocolMessageType.AUTH_ACK if is_handshake_initiator \
@@ -50,6 +68,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             EthProtocolMessageType.AUTH: self.msg_auth,
             EthProtocolMessageType.AUTH_ACK: self.msg_auth_ack,
             EthProtocolMessageType.HELLO: self.msg_hello,
+            EthProtocolMessageType.STATUS: self.msg_status,
             EthProtocolMessageType.DISCONNECT: self.msg_disconnect,
             EthProtocolMessageType.PING: self.msg_ping,
             EthProtocolMessageType.PONG: self.msg_pong,
@@ -69,6 +88,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
     def msg_auth(self, msg):
         self.connection.log_trace("Beginning processing of auth message.")
+        self.connection_status.auth_message_received = True
         msg_bytes = msg.rawbytes()
         decrypted_auth_msg, size = self.rlpx_cipher.decrypt_auth_message(bytes(msg_bytes))
         if decrypted_auth_msg is None:
@@ -84,6 +104,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
     def msg_auth_ack(self, msg):
         self.connection.log_trace("Beginning processing of auth ack message.")
+        self.connection_status.auth_ack_message_received = True
         auth_ack_msg_bytes = msg.rawbytes()
         self.rlpx_cipher.decrypt_auth_ack_message(bytes(auth_ack_msg_bytes))
         self._finalize_handshake()
@@ -98,12 +119,21 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         self.connection.msg_pong(msg)
         self._last_ping_pong_time = time.time()
 
-    def msg_hello(self, msg):
+    def msg_hello(self, _msg):
         self.connection.log_trace("Hello message received.")
+        self.connection_status.hello_message_received = True
         self._enqueue_status_message()
 
+    def msg_status(self, _msg):
+        self.connection.log_trace("Status message received.")
+        self.connection_status.status_message_received = True
+
     def msg_disconnect(self, msg):
-        self.connection.log_debug("Disconnect message received. Disconnect reason {0}.", msg.get_reason())
+        self.connection_status.disconnect_message_received = True
+        self.connection_status.disconnect_reason = msg.get_reason()
+
+        self.connection.log_debug("Disconnect message was received from the blockchain node. Disconnect reason '{0}'.",
+                                  self.connection_status.disconnect_reason)
         self.connection.mark_for_close()
 
     def msg_get_block_headers(self, msg):
@@ -135,11 +165,13 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         auth_msg_bytes = self._get_auth_msg_bytes()
         self.connection.log_debug("Enqueued auth bytes.")
         self.connection.enqueue_msg_bytes(auth_msg_bytes)
+        self.connection_status.auth_message_sent = True
 
     def _enqueue_auth_ack_message(self):
         auth_ack_msg_bytes = self._get_auth_ack_msg_bytes()
         self.connection.log_debug("Enqueued auth ack bytes.")
         self.connection.enqueue_msg_bytes(auth_ack_msg_bytes)
+        self.connection_status.auth_ack_message_sent = True
 
     def _enqueue_hello_message(self):
         public_key = self.node.get_public_key()
@@ -151,6 +183,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                             self.connection.external_port,
                                             public_key)
         self.connection.enqueue_msg(hello_msg)
+        self.connection_status.hello_message_sent = True
 
     def _enqueue_status_message(self):
         network_id = self.node.opts.network_id
@@ -166,6 +199,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                               genesis_hash)
 
         self.connection.enqueue_msg(status_msg)
+        self.connection_status.status_message_sent = True
 
     def _enqueue_disconnect_message(self, disconnect_reason):
         disconnect_msg = DisconnectEthProtocolMessage(None, [disconnect_reason])
