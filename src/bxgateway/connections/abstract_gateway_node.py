@@ -174,7 +174,6 @@ class AbstractGatewayNode(AbstractNode):
         self.schedule_relay_liveliness_check(self.opts.initial_liveliness_check)
 
         self.opts.has_fully_updated_tx_service = False
-        self.last_sync_message_received_by_network[self.network_num] = time.time()
         self.alarm_queue.register_alarm(constants.TX_SERVICE_SYNC_PROGRESS_S, self.sync_tx_services)
 
         self.block_cleanup_processed_blocks = ExpiringSet(self.alarm_queue,
