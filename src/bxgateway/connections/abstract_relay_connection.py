@@ -117,7 +117,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             return
 
         existing_short_ids = tx_service.get_short_ids(tx_hash)
-        if tx_service.has_transaction_contents(tx_hash) and short_id and short_id in existing_short_ids:
+        if (tx_service.has_transaction_contents(tx_hash) or msg.is_compact()) \
+                and short_id and short_id in existing_short_ids:
             gateway_transaction_stats_service.log_duplicate_transaction_from_relay()
             tx_stats.add_tx_by_hash_event(tx_hash,
                                           TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
