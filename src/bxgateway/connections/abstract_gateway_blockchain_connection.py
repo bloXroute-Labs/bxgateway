@@ -109,6 +109,13 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
         t_m_c_diff = round(time.time() - t0, 3)
         logger.debug("Recording {} message_converter MemoryStats took: {} seconds", class_name, t_m_c_diff)
 
+    def get_connection_state_details(self):
+        """
+        Returns details of the current connection state. Used to submit details to SDN on disconnect.
+        :return:
+        """
+        return f"Connection state: {self.state}"
+
     def dispose(self):
         super().dispose()
 

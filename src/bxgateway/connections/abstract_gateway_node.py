@@ -524,9 +524,24 @@ class AbstractGatewayNode(AbstractNode):
                                              NodeEventType.BLOCKCHAIN_NODE_CONN_ERR,
                                              self.opts.node_id,
                                              connection.peer_ip,
-                                             connection.peer_port)
+                                             connection.peer_port,
+                                             connection.get_connection_state_details())
         self.node_conn = None
         self.node_msg_queue.pop_items()
+
+    def log_refused_connection(self, peer_info: ConnectionPeerInfo, error: str):
+        if peer_info.connection_type == ConnectionType.BLOCKCHAIN_NODE:
+            logger.info("Failed to connect to: {}, {}. Verify that provided ip address ({}) and port ({}) "
+                        "are correct. Verify that firewall port is open.", peer_info, error,
+                        peer_info.endpoint.ip_address, peer_info.endpoint.port)
+            self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_event,
+                                                 NodeEventType.BLOCKCHAIN_NODE_CONN_ERR,
+                                                 self.opts.node_id,
+                                                 peer_info.endpoint.ip_address,
+                                                 peer_info.endpoint.port,
+                                                 "Connection refused")
+        else:
+            super(AbstractGatewayNode, self).log_refused_connection(peer_info, error)
 
     def on_remote_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection):
         for msg in self.remote_node_msg_queue.pop_items():
@@ -796,7 +811,7 @@ class AbstractGatewayNode(AbstractNode):
     def _check_sync_relay_connections(self):
         if self.network_num in self.last_sync_message_received_by_network and \
             time.time() - self.last_sync_message_received_by_network[self.network_num] > \
-                constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
+            constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
             logger.warning(
                 "It has been more than {0} seconds since the last time gateway received a message from requested "
                 "relay, assuming requested relay turned offline and mark gateway as synced",

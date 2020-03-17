@@ -1,7 +1,9 @@
 from collections import deque
-from typing import Optional, List, Deque
+from typing import Optional, List, Deque, cast
 
 from bxcommon import constants
+from bxcommon.connections.abstract_connection import AbstractConnection
+from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.network.ip_endpoint import IpEndpoint
@@ -19,6 +21,7 @@ from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
+from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
@@ -38,6 +41,28 @@ logger = logging.get_logger(__name__)
 
 
 class EthGatewayNode(AbstractGatewayNode):
+    DISCONNECT_REASON_TO_DESCRIPTION = {
+        0: "Disconnect requested",
+        1: "TCP sub-system error",
+        2: "Breach of protocol, e.g. a malformed message or bad RLP",
+        3: "Useless peer",
+        4: "Too many peers",
+        5: "Already connected",
+        6: "Incompatible P2P protocol version",
+        7: "Null node identity received - this is automatically invalid",
+        8: "Client quitting",
+        9: "Unexpected identity in handshake",
+        10: "Identity is the same as this node",
+        11: "Ping timeout",
+        16: "Some other reason specific to a subprotocol"
+    }
+
+    DISCONNECT_REASON_TO_INSTRUCTION = {
+        4: "Remove some peers or add gateway as trusted peer.",
+        5: "Verify that another instance of the gateway is not already running.",
+        16: "Verify that '--blockchain-network' and other blockchain network parameters are correct."
+    }
+
     def __init__(self, opts, node_ssl_service: NodeSSLService):
         super(EthGatewayNode, self).__init__(opts, node_ssl_service)
 
@@ -251,6 +276,39 @@ class EthGatewayNode(AbstractGatewayNode):
         else:
             logger.warning("Received blocks from remote node but nothing is expected.")
 
+    def log_closed_connection(self, connection: AbstractConnection):
+        if isinstance(connection, EthNodeConnection):
+            eth_node_connection = cast(EthNodeConnection, connection)
+            connection_status = connection.connection_protocol.connection_status
+
+            if ConnectionState.INITIALIZED not in eth_node_connection.state:
+                logger.info("Failed to connect to Ethereum node. Verify that provided ip address ({}) and port ({}) "
+                            "are correct. Verify that firewall port is open. Connection details: {}.",
+                            eth_node_connection.peer_ip, eth_node_connection.peer_port, eth_node_connection)
+            elif connection_status.disconnect_message_received:
+                logger.info("Connection to Ethereum node failed. Disconnect reason: '{}'. {} Connection details: {}.",
+                            self._get_disconnect_reason_description(connection_status.disconnect_reason),
+                            self._get_disconnect_reason_instruction(connection_status.disconnect_reason),
+                            connection)
+            elif not connection_status.auth_message_received and not connection_status.auth_ack_message_received:
+                logger.info("Failed to connect to Ethereum node. Verify that '--node-public-key' argument is provided "
+                            "and value matches enode of the Ethereum node. Connection details: {}.",
+                            eth_node_connection)
+            elif connection_status.hello_message_received and connection_status.status_message_sent and \
+                not connection_status.status_message_received:
+                logger.info("Failed to connect to Ethereum node. Verify that '--blockchain-network' and other "
+                            "blockchain network arguments are correct. Connection details: {}.",
+                            eth_node_connection)
+            else:
+                super(EthGatewayNode, self).log_closed_connection(connection)
+        elif isinstance(connection, GatewayConnection):
+            if ConnectionState.ESTABLISHED not in connection.state:
+                logger.debug("Failed to connect to: {}.", connection)
+            else:
+                logger.debug("Closed connection: {}", connection)
+        else:
+            super(EthGatewayNode, self).log_closed_connection(connection)
+
     def init_eth_gateway_stat_logging(self):
         eth_gateway_stats_service.set_node(self)
         self.alarm_queue.register_alarm(eth_gateway_stats_service.interval, eth_gateway_stats_service.flush_info)
@@ -264,3 +322,15 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def _is_in_remote_discovery(self):
         return not self.opts.no_discovery and self._remote_public_key is None
+
+    def _get_disconnect_reason_description(self, reason: int):
+        if reason not in self.DISCONNECT_REASON_TO_DESCRIPTION:
+            return f"Disconnect reason ({reason}) is unknown."
+
+        return self.DISCONNECT_REASON_TO_DESCRIPTION[reason]
+
+    def _get_disconnect_reason_instruction(self, reason: int):
+        if reason not in self.DISCONNECT_REASON_TO_INSTRUCTION:
+            return ""
+
+        return self.DISCONNECT_REASON_TO_INSTRUCTION[reason]

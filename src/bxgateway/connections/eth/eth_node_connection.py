@@ -18,3 +18,10 @@ class EthNodeConnection(EthBaseConnection):
         self.connection_protocol = EthNodeConnectionProtocol(
             self, is_handshake_initiator, private_key, node_public_key
         )
+
+    def get_connection_state_details(self):
+        """
+        Returns details of the current connection state. Used to submit details to SDN on disconnect.
+        :return:
+        """
+        return f"Connection state: {self.state}. Protocol status: {self.connection_protocol.connection_status}."

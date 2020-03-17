@@ -11,4 +11,4 @@ class DisconnectEthProtocolMessage(EthProtocolMessage):
     fields = [("reason", CountableList(rlp.sedes.big_endian_int))]
 
     def get_reason(self):
-        return self.get_field_value("reason")
+        return self.get_field_value("reason")[0]
