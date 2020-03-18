@@ -540,6 +540,8 @@ class AbstractGatewayNode(AbstractNode):
                                                  peer_info.endpoint.ip_address,
                                                  peer_info.endpoint.port,
                                                  "Connection refused")
+        elif peer_info.connection_type == ConnectionType.EXTERNAL_GATEWAY:
+            logger.debug("Failed to connect to: {}, {}.", peer_info, error)
         else:
             super(AbstractGatewayNode, self).log_refused_connection(peer_info, error)
 
