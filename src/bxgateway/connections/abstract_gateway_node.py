@@ -48,6 +48,7 @@ from bxgateway.utils.blockchain_message_queue import BlockchainMessageQueue
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxgateway.log_messages import GatewayErrorMessage, GatewayWarningMessage
 from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
 from bxutils.ssl.extensions import extensions_factory
@@ -662,8 +663,7 @@ class AbstractGatewayNode(AbstractNode):
     def check_relay_liveliness(self):
         if not self.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL):
             self.should_force_exit = True
-            logger.error("Gateway does not have an active connection to the relay network. "
-                         "There may be issues with the BDN. Exiting.")
+            logger.error(GatewayErrorMessage.NO_ACTIVE_CONNECTIONS)
 
     def should_process_block_hash(self, block_hash: Optional[Sha256Hash] = None) -> bool:
         if not self.opts.has_fully_updated_tx_service:
@@ -682,7 +682,7 @@ class AbstractGatewayNode(AbstractNode):
         if not peer_gateways and not self.peer_gateways and \
             self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
             # Try again later
-            logger.warning("Did not receive expected gateway peers from BDN. Retrying.")
+            logger.warning(GatewayWarningMessage.NO_GATEWAY_PEERS)
             self.send_request_for_gateway_peers_num_of_calls += 1
             if self.send_request_for_gateway_peers_num_of_calls == \
                 gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:

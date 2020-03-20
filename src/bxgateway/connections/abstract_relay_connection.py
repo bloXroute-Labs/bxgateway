@@ -23,6 +23,7 @@ from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxgateway.log_messages import GatewayErrorMessage as Gem
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -77,7 +78,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         if ConnectionType.RELAY_BLOCK in self.CONNECTION_TYPE:
             self.node.block_processing_service.process_block_broadcast(msg, self)
         else:
-            self.log_error("Received unexpected block message on non-block relay connection: {}", msg)
+            self.log_error(Gem.UNEXPECTED_BLOCK_ON_NON_RELAY_CONN, msg)
 
     def msg_key(self, msg):
         """
@@ -165,7 +166,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_txs(self, msg: TxsMessage):
         if ConnectionType.RELAY_TRANSACTION not in self.CONNECTION_TYPE:
-            self.log_error("Received unexpected txs message on non-tx relay connection: {}", msg)
+            self.log_error(Gem.UNEXPECTED_TXS_ON_NON_RELAY_CONN, msg)
             return
 
         transactions = msg.get_txs()
