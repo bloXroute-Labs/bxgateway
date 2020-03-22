@@ -4,6 +4,7 @@ from aiohttp.web import Request, Response
 from aiohttp.web_exceptions import HTTPBadRequest
 
 from bxgateway.rpc import rpc_constants
+from bxgateway.rpc.requests.bdn_performance_rpc_request import BdnPerformanceRpcRequest
 from bxgateway.rpc.requests.blxr_transaction_rpc_request import BlxrTransactionRpcRequest
 from bxgateway.rpc.requests.gateway_status_rpc_request import GatewayStatusRpcRequest
 from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcRequest
@@ -39,6 +40,7 @@ class RPCRequestHandler:
             RpcRequestType.STOP: GatewayStopRpcRequest,
             RpcRequestType.MEMORY: GatewayMemoryRpcRequest,
             RpcRequestType.PEERS: GatewayPeersRpcRequest,
+            RpcRequestType.BDN_PERFORMANCE: BdnPerformanceRpcRequest
         }
         self.request_id = ""
 
