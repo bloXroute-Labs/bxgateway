@@ -13,6 +13,8 @@ from bxgateway.gateway_constants import (
     MAX_INTERVAL_BETWEEN_BLOCKS_S,
     NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S,
     BLOCK_RECOVERY_MAX_QUEUE_TIME,
+    BLOCK_QUEUE_LENGTH_LIMIT,
+    MAX_BLOCK_CACHE_TIME_S,
 )
 from bxgateway.services.push_block_queuing_service import (
     PushBlockQueuingService,
@@ -255,6 +257,33 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(0, len(self.block_queuing_service))
         self.assertIn(block_hash_1, self.block_queuing_service)
         self.assertIn(block_hash_2, self.block_queuing_service)
+
+    def test_block_removed_with_ttl_check(self):
+        self.node.node_conn.is_active = MagicMock(return_value=False)
+
+        block_hash_start = Sha256Hash(helpers.generate_hash())
+        block_msg_start = create_block_message(block_hash_start)
+        block_hash_end = Sha256Hash(helpers.generate_hash())
+        block_msg_end = create_block_message(block_hash_end)
+        self.block_queuing_service.push(block_hash_start, block_msg_start)
+
+        for i in range(2, BLOCK_QUEUE_LENGTH_LIMIT + 1):
+            block_hash = Sha256Hash(helpers.generate_hash())
+            block_msg = create_block_message(block_hash)
+            self.block_queuing_service.push(block_hash, block_msg)
+
+        self.assertEqual(BLOCK_QUEUE_LENGTH_LIMIT, len(self.block_queuing_service))
+        self.assertEqual(0, len(self.node.send_to_node_messages))
+
+        self.node.node_conn.is_active = MagicMock(return_value=True)
+        time.time = MagicMock(
+            return_value=time.time()
+            + MAX_BLOCK_CACHE_TIME_S * 2
+        )
+        self.assertEqual(BLOCK_QUEUE_LENGTH_LIMIT, len(self.block_queuing_service._block_queue))
+        self.block_queuing_service.push(block_hash_end, block_msg_end)
+        self.block_queuing_service.mark_blocks_seen_by_blockchain_node([block_hash_end])
+        self.assertEqual(0, len(self.block_queuing_service._block_queue))
 
     def test_waiting_confirmation_timeout(self):
         block_hash_1 = Sha256Hash(helpers.generate_hash())

@@ -189,6 +189,9 @@ class PushBlockQueuingService(
                 timeout, self._top_block_recovery_timeout
             )
         else:
+            if not self._is_elapsed_time_shorter_than_ttl(time.time() - timestamp, block_hash):
+                self._remove_old_blocks_from_queue()
+                return
             block_message = self._blocks[block_hash]
             assert block_message is not None
             if self._can_send_block_message(block_hash, block_message):
@@ -236,17 +239,11 @@ class PushBlockQueuingService(
         index = self.remove_from_queue(block_hash)
         assert index == 0
 
-        elapsed_time = time.time() - timestamp
-        if elapsed_time < self.node.opts.blockchain_message_ttl:
+        if self._is_elapsed_time_shorter_than_ttl(time.time() - timestamp, block_hash):
             self.send_block_to_node(block_hash, block_msg)
             self._schedule_alarm_for_next_item()
         else:
-            logger.debug(
-                "Skipping block {}, since {:.2f}s have passed "
-                "since receiving the block.",
-                block_hash,
-                elapsed_time,
-            )
+            self._remove_old_blocks_from_queue()
 
         return 0
 
@@ -283,6 +280,33 @@ class PushBlockQueuingService(
         self._schedule_alarm_for_next_item()
 
         return constants.CANCEL_ALARMS
+
+    def _is_elapsed_time_shorter_than_ttl(self, elapsed_time: int, block_hash: Sha256Hash) -> bool:
+        if elapsed_time < self.node.opts.blockchain_message_ttl:
+            return True
+
+        logger.debug("Skipping block {}, since {:.2f}s have passed since receiving the block.",
+                     block_hash, elapsed_time)
+        return False
+
+    def _remove_old_blocks_from_queue(self):
+        """
+        Removes old blocks from block queue even if block_hash is not in self._blocks, similar to remove_from_queue
+        """
+        logger.trace("Checking block queue and removing old blocks from queue.")
+        currrent_time = time.time()
+        block_queue_start_len = len(self._block_queue)
+        while len(self._block_queue) > 0:
+            block_hash, timestamp = self._block_queue[0]
+            if currrent_time - timestamp < self.node.opts.blockchain_message_ttl:
+                return
+
+            if block_queue_start_len == len(self._block_queue) and self._last_alarm_id is not None:
+                self.node.alarm_queue.unregister_alarm(self._last_alarm_id)
+                self._schedule_alarm_for_next_item()
+
+            del self._block_queue[0]
+            del self._blocks_waiting_for_recovery[block_hash]
 
     def _is_node_ready_to_accept_blocks(self) -> bool:
         return (
