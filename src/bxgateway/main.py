@@ -91,7 +91,7 @@ def get_opts() -> GatewayOpts:
     arg_parser.add_argument("--min-peer-gateways",
                             help="Minimum number of peer gateways before node will contact SDN for more.",
                             type=int,
-                            default=1)
+                            default=0)
     arg_parser.add_argument("--remote-blockchain-ip", help="Remote blockchain node ip to proxy messages from",
                             type=ip_resolver.blocking_resolve_ip)
     arg_parser.add_argument("--remote-blockchain-port", help="Remote blockchain node port to proxy messages from",
