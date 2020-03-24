@@ -5,10 +5,12 @@ from typing import Union, List
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.models.quota_type_model import QuotaType
+from bxcommon.utils.convert import hex_to_bytes
 from argparse import Namespace
 from bxcommon.utils import node_cache
 from bxgateway import gateway_constants
 from bxgateway import eth_constants
+from bxgateway.utils.eth.eccx import ECCx
 from bxutils import logging
 import os
 
@@ -228,3 +230,8 @@ def validate_pub_key(key):
         logger.fatal("Public key must be the 128 digit key associated with the blockchain enode. "
                      "Invalid key length: {}", len(key), exc_info=False)
         exit(1)
+    eccx_obj = ECCx()
+    if not eccx_obj.is_valid_key(hex_to_bytes(key)):
+        logger.fatal("Public key must be constructed from a valid private key.", exc_info=False)
+        exit(1)
+
