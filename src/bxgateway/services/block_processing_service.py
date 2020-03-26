@@ -359,10 +359,10 @@ class BlockProcessingService:
                     conversion_type=e.conversion_type.value
                 )
                 transaction_service.on_block_cleaned_up(e.msg_hash)
-                connection.log_warning(FAILED_TO_DECOMPRESS_BLOCK, e.msg_hash, e)
+                connection.log_warning(log_messages.FAILED_TO_DECOMPRESS_BLOCK, e.msg_hash, e)
                 return
         else:
-            connection.log_warning(LACK_BLOCKCHAIN_CONNECTION)
+            connection.log_warning(log_messages.LACK_BLOCKCHAIN_CONNECTION)
             return
 
         block_hash = block_info.block_hash
