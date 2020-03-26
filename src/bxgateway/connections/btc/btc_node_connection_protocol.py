@@ -11,6 +11,7 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants, btc_constants
 from bxgateway.btc_constants import NODE_WITNESS_SERVICE_FLAG
 from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnectionProtocol
+from bxgateway import log_messages
 from bxgateway.messages.btc.block_transactions_btc_message import BlockTransactionsBtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
@@ -234,7 +235,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 network_num=self.connection.network_num,
                 conversion_type=e.conversion_type.value
             )
-            self.connection.log_warning("Failed to process compact block: {}. Request full block. Error: {}",
+            self.connection.log_warning(log_messages.PROCESS_BLOCK_FAILURE,
                                         e.msg_hash, e)
             get_data_msg = GetDataBtcMessage(
                 magic=self.magic,

@@ -19,6 +19,7 @@ from bxgateway.utils.block_header_info import BlockHeaderInfo
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.errors import message_conversion_error
 from bxutils import logging
+from bxgateway import log_messages
 
 logger = logging.get_logger(__name__)
 
@@ -185,7 +186,7 @@ class OntNormalMessageConverter(AbstractOntMessageConverter):
             logger.debug("Successfully parsed bx_block broadcast message. {} transactions in bx_block", total_tx_count)
         else:
             ont_block_msg = None
-            logger.warning("Block recovery needed. Missing {} sids, {} tx hashes. Total txs in bx_block: {}",
+            logger.warning(log_messages.BLOCK_RECOVERY_NEEDED,
                            len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count)
         block_info = get_block_info(
             bx_block_msg,

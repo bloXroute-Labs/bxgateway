@@ -4,6 +4,7 @@ from json import JSONDecodeError
 from collections import defaultdict
 
 from bxutils import logging
+from bxgateway import log_messages
 from bxutils.logging import log_config
 from bxutils.logging import log_level
 
@@ -31,14 +32,15 @@ def read_config_file(full_path: str) -> GatewayNodeConfigModel:
         try:
             with open(full_path, "r") as f:
                 raw_input = f.read()
-                config_model = model_loader.load_model_from_json(model_class=GatewayNodeConfigModel, model_params=raw_input)
+                config_model = model_loader.load_model_from_json(model_class=GatewayNodeConfigModel,
+                                                                 model_params=raw_input)
                 config_file_last_updated[full_path] = file_mod_time
                 last_config_model[full_path] = config_model
         except (TypeError, JSONDecodeError):
-            logger.warning("Payload in gateway config file ({}) was invalid.", full_path)
+            logger.warning(log_messages.INVALID_CONFIG_PAYLOAD, full_path)
             return GatewayNodeConfigModel()
         except Exception as e:
-            logger.warning("Could not read contents of gateway config file ({}): {}", full_path, e)
+            logger.warning(log_messages.READ_CONFIG_FAIL, full_path, e)
             return GatewayNodeConfigModel()
         return config_model
     else:
@@ -74,8 +76,8 @@ def update_node_config(node: AbstractNode):
             if log_config_model.log_level_overrides is not None:
                 log_config.set_log_levels(log_config_model.log_level_overrides)
         except (AttributeError, KeyError):
-            logger.warning("Invalid log level provided in config: {}.", log_config_model.log_level)
-            
+            logger.warning(log_messages.INVALID_CONFIG_LOG_LEVEL, log_config_model.log_level)
+
     if node_config.cron_config is not None:
         compare_and_update(node_config.cron_config.config_update_interval,
                            node.opts.config_update_interval,

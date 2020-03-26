@@ -5,6 +5,7 @@ from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketC
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.btc import btc_messages_util
 from bxutils import logging
+from bxgateway import log_messages
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -22,8 +23,7 @@ class BtcRelayConnection(AbstractRelayConnection):
             hash_val = btc_messages_util.get_txid(msg.tx_val())
 
             if hash_val != msg.tx_hash():
-                self.log_error("Received malformed transaction message from the BDN."
-                               "Expected hash: {}. Actual: {}", hash_val, msg.tx_hash())
+                self.log_error(log_messages.MALFORMED_TX_FROM_RELAY, hash_val, msg.tx_hash())
                 return
 
         super(BtcRelayConnection, self).msg_tx(msg)

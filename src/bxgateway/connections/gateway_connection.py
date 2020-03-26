@@ -13,6 +13,7 @@ from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
+from bxgateway import log_messages
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
@@ -74,7 +75,7 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         ip = msg.ip()
         if ip != self.peer_ip:
             self.log_warning(
-                "Received hello message with mismatched IP address. Continuing. Expected ip: {} Socket ip: {}",
+                log_messages.MISMATCH_IP_IN_HELLO_MSG,
                 ip, self.peer_ip)
 
         port = msg.port()
@@ -83,7 +84,7 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         if not self._is_authenticated:
             # naively set the the peer id to what reported
             if peer_id is None:
-                self.log_warning("Received hello message without peer id.")
+                self.log_warning(log_messages.HELLO_MSG_WITH_NO_PEER_ID)
             self.peer_id = peer_id
 
         if not self.from_me:
@@ -123,14 +124,13 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 return
 
             if connection.ordering > ordering:
-                self.log_warning("Connection already exists, with higher priority. Dropping connection {} and "
-                                 "keeping {}.", self.file_no, connection.file_no)
+                self.log_warning(log_messages.REDUNDANT_CONNECTION, self.file_no, connection.file_no)
                 self.mark_for_close(should_retry=False)
                 connection.on_connection_established()
                 connection.enqueue_msg(connection.ack_message)
             else:
                 self.log_warning(
-                    "Connection already exists, with lower priority. Dropping connection {} and keeping {}.",
+                    log_messages.REDUNDANT_CONNECTION,
                     connection.file_no, self.file_no)
                 connection.mark_for_close(should_retry=False)
                 self.on_connection_established()

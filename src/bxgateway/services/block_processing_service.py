@@ -1,12 +1,12 @@
 import datetime
 import time
-from typing import TYPE_CHECKING, Optional, Iterable
+from typing import Iterable, Optional, TYPE_CHECKING
 
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
-from bxcommon.utils import crypto, convert
+from bxcommon.utils import convert, crypto
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
@@ -23,6 +23,7 @@ from bxgateway.services.block_recovery_service import BlockRecoveryInfo
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxutils import logging
+from bxgateway import log_messages
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -169,8 +170,7 @@ class BlockProcessingService:
         cipherblob = msg.blob()
         expected_hash = Sha256Hash(crypto.double_sha256(cipherblob))
         if block_hash != expected_hash:
-            connection.log_warning("Received a block with inconsistent hashes from the BDN. "
-                                   "Expected: {}. Actual: {}. Dropping.",
+            connection.log_warning(log_messages.BLOCK_WITH_INCONSISTENT_HASHES,
                                    expected_hash, block_hash)
             return
 
@@ -285,7 +285,7 @@ class BlockProcessingService:
         block_hash = block_message.block_hash()
         try:
             bx_block, block_info = self._node.message_converter.block_to_bx_block(
-                block_message,self._node.get_tx_service()
+                block_message, self._node.get_tx_service()
             )
         except MessageConversionError as e:
             block_stats.add_block_event_by_block_hash(
@@ -294,7 +294,7 @@ class BlockProcessingService:
                 network_num=connection.network_num,
                 conversion_type=e.conversion_type.value
             )
-            connection.log_error("Failed to compress block {} - {}", e.msg_hash, e)
+            connection.log_error(log_messages.BLOCK_COMPRESSION_FAIL, e.msg_hash, e)
             return
 
         block_stats.add_block_event_by_block_hash(block_hash,
@@ -319,7 +319,8 @@ class BlockProcessingService:
         if self._node.opts.dump_short_id_mapping_compression:
             mapping = {}
             for short_id in block_info.short_ids:
-                mapping[short_id] = convert.bytes_to_hex(self._node.get_tx_service().get_transaction(short_id).hash.binary)
+                mapping[short_id] = convert.bytes_to_hex(
+                    self._node.get_tx_service().get_transaction(short_id).hash.binary)
             with open(f"{self._node.opts.dump_short_id_mapping_compression_path}/"
                       f"{convert.bytes_to_hex(block_hash.binary)}", "w") as f:
                 f.write(str(mapping))
@@ -358,10 +359,10 @@ class BlockProcessingService:
                     conversion_type=e.conversion_type.value
                 )
                 transaction_service.on_block_cleaned_up(e.msg_hash)
-                connection.log_warning("Failed to decompress block {} - {}", e.msg_hash, e)
+                connection.log_warning(FAILED_TO_DECOMPRESS_BLOCK, e.msg_hash, e)
                 return
         else:
-            connection.log_warning("Discarding block. No connection currently exists to the blockchain node.")
+            connection.log_warning(LACK_BLOCKCHAIN_CONNECTION)
             return
 
         block_hash = block_info.block_hash
@@ -461,12 +462,12 @@ class BlockProcessingService:
                                                       more_info="{} sids, {} hashes".format(
                                                           len(unknown_sids), len(unknown_hashes)))
 
-            connection.log_warning("Block {} requires short id recovery. Querying BDN...", block_hash)
+            connection.log_warning(log_messages.BLOCK_REQUIRES_RECOVERY, block_hash)
 
             self.start_transaction_recovery(unknown_sids, unknown_hashes, block_hash, connection)
             if recovered:
                 # should never happen –– this should not be called on blocks that have not recovered
-                connection.log_error("Unexpectedly, could not decompress block {} after block was recovered.",
+                connection.log_error(log_messages.BLOCK_DECOMPRESSION_FAILURE,
                                      block_hash)
             else:
                 self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
@@ -516,7 +517,7 @@ class BlockProcessingService:
         recovery_timed_out = time.time() - block_awaiting_recovery.recovery_start_time >= \
                              self._node.opts.blockchain_block_recovery_timeout_s
         if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS or recovery_timed_out:
-            logger.error("Could not decompress block {} after attempts to recover short ids. Discarding.", block_hash)
+            logger.error(log_messages.SHORT_ID_RECOVERY_FAIL, block_hash)
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self._node.block_queuing_service.remove(block_hash)
         else:

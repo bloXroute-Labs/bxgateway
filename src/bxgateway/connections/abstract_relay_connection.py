@@ -23,7 +23,6 @@ from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
-from bxgateway.log_messages import GatewayErrorMessage as Gem
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences

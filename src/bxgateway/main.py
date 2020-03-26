@@ -10,8 +10,6 @@ import os
 import random
 import sys
 
-from bxgateway.log_messages_map import gateway_message_map
-from bxutils.message_map import update_log_messages
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
@@ -22,6 +20,7 @@ from bxgateway.utils.eth import crypto_utils
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.utils.gateway_start_args import GatewayStartArgs
 from bxcommon.models.quota_type_model import QuotaType
+from bxutils import logging_messages_utils
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -279,8 +278,8 @@ def get_opts() -> GatewayOpts:
 def main():
     logger_names = node_runner.LOGGER_NAMES.copy()
     logger_names.append("bxgateway")
+    logging_messages_utils.logger_names = set(logger_names)
     opts = get_opts()
-    update_log_messages(gateway_message_map, logger_names)
     node_type = get_gateway_node_type(opts.blockchain_protocol)
     node_runner.run_node(config.get_data_file(PID_FILE_NAME), opts, node_type, logger_names=logger_names)
 

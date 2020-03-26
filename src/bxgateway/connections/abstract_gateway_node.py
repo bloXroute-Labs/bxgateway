@@ -48,8 +48,8 @@ from bxgateway.utils.blockchain_message_queue import BlockchainMessageQueue
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
-from bxgateway.log_messages import GatewayErrorMessage, GatewayWarningMessage
 from bxutils import logging
+from bxgateway import log_messages
 from bxutils.services.node_ssl_service import NodeSSLService
 from bxutils.ssl.extensions import extensions_factory
 from bxutils.ssl.ssl_certificate_type import SSLCertificateType
@@ -186,8 +186,7 @@ class AbstractGatewayNode(AbstractNode):
         )
         self.default_tx_quota_type: QuotaType = opts.default_tx_quota_type
         if self.default_tx_quota_type == QuotaType.PAID_DAILY_QUOTA and self.account_id is None:
-            logger.error(
-                "Valid Account Id is required in order to propagate Transactions as Paid, revert quota type to Free")
+            logger.error(log_messages.INVALID_ACCOUNT_ID)
             self.default_tx_quota_type = QuotaType.FREE_DAILY_QUOTA
         self._rpc_server = GatewayRpcServer(self)
 
@@ -197,7 +196,7 @@ class AbstractGatewayNode(AbstractNode):
 
     @abstractmethod
     def build_blockchain_connection(
-        self, socket_connection: AbstractSocketConnectionProtocol
+            self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
@@ -207,7 +206,7 @@ class AbstractGatewayNode(AbstractNode):
 
     @abstractmethod
     def build_remote_blockchain_connection(
-        self, socket_connection: AbstractSocketConnectionProtocol
+            self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
@@ -374,13 +373,13 @@ class AbstractGatewayNode(AbstractNode):
         try:
             await asyncio.wait_for(self._rpc_server.start(), gateway_constants.RPC_SERVER_INIT_TIMEOUT_S)
         except Exception as e:
-            logger.error("Failed to initialize Gateway RPC server: {}.", e, exc_info=True)
+            logger.error(log_messages.RPC_INITIALIZATION_FAIL, e, exc_info=True)
 
     async def close(self):
         try:
             await asyncio.wait_for(self._rpc_server.stop(), gateway_constants.RPC_SERVER_STOP_TIMEOUT_S)
         except Exception as e:
-            logger.error("Failed to close Gateway RPC server: {}.", e, exc_info=True)
+            logger.error(log_messages.RPC_CLOSE_FAIL, e, exc_info=True)
         await super(AbstractGatewayNode, self).close()
 
     def send_request_for_relay_peers(self):
@@ -606,9 +605,9 @@ class AbstractGatewayNode(AbstractNode):
         self.enqueue_connection(outbound_peer.ip, outbound_peer.port, ConnectionType.REMOTE_BLOCKCHAIN_NODE)
 
     def on_block_seen_by_blockchain_node(
-        self,
-        block_hash: Sha256Hash,
-        block_message: Optional[AbstractMessage] = None
+            self,
+            block_hash: Sha256Hash,
+            block_message: Optional[AbstractMessage] = None
     ):
         self.blocks_seen.add(block_hash)
         recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
@@ -622,10 +621,10 @@ class AbstractGatewayNode(AbstractNode):
         )
 
     def post_block_cleanup_tasks(
-        self,
-        block_hash: Sha256Hash,
-        short_ids: Iterable[int],
-        unknown_tx_hashes: Iterable[Sha256Hash]):
+            self,
+            block_hash: Sha256Hash,
+            short_ids: Iterable[int],
+            unknown_tx_hashes: Iterable[Sha256Hash]):
         """post cleanup tasks for blocks, override method to implement"""
         pass
 
@@ -657,13 +656,12 @@ class AbstractGatewayNode(AbstractNode):
         """
         if self.node_conn is None:
             self.should_force_exit = True
-            logger.error("Gateway does not have an active connection to the blockchain node. "
-                         "Check that the blockchain node is running and available. Exiting.")
+            logger.error(log_messages.NO_ACTIVE_BLOCKCHAIN_CONNECTION)
 
     def check_relay_liveliness(self):
         if not self.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL):
             self.should_force_exit = True
-            logger.error(GatewayErrorMessage.NO_ACTIVE_CONNECTIONS)
+            logger.error(log_messages.NO_ACTIVE_BDN_CONNECTIONS)
 
     def should_process_block_hash(self, block_hash: Optional[Sha256Hash] = None) -> bool:
         if not self.opts.has_fully_updated_tx_service:
@@ -680,13 +678,13 @@ class AbstractGatewayNode(AbstractNode):
         """
         peer_gateways = sdn_http_service.fetch_gateway_peers(self.opts.node_id)
         if not peer_gateways and not self.peer_gateways and \
-            self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+                self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
             # Try again later
-            logger.warning(GatewayWarningMessage.NO_GATEWAY_PEERS)
+            logger.warning(log_messages.NO_GATEWAY_PEERS)
             self.send_request_for_gateway_peers_num_of_calls += 1
             if self.send_request_for_gateway_peers_num_of_calls == \
-                gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
-                logger.warning("Giving up on querying for gateway peers from the BDN.")
+                    gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+                logger.warning(log_messages.ABANDON_GATEWAY_PEER_REQUEST)
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
             logger.debug("Processing updated peer gateways: {}", peer_gateways)
@@ -736,7 +734,7 @@ class AbstractGatewayNode(AbstractNode):
         self.outbound_peers = self._get_all_peers()
 
         if len(self.peer_relays) < gateway_constants.MIN_PEER_BLOCK_RELAYS_BY_COUNTRY[self.opts.country] or \
-            len(self.peer_transaction_relays) < gateway_constants.MIN_PEER_TRANSACTION_RELAYS:
+                len(self.peer_transaction_relays) < gateway_constants.MIN_PEER_TRANSACTION_RELAYS:
             self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
                                             self.send_request_for_relay_peers)
 
@@ -805,20 +803,17 @@ class AbstractGatewayNode(AbstractNode):
 
     def _transaction_sync_timeout(self):
         if not self.opts.has_fully_updated_tx_service:
-            logger.warning("Gateway transaction sync took too long; marking gateway as synced.")
+            logger.warning(log_messages.TX_SYNC_TIMEOUT)
             self.alarm_queue.unregister_alarm(self._check_sync_relay_connections_alarm_id)
             self.on_fully_updated_tx_service()
             return constants.CANCEL_ALARMS
 
     def _check_sync_relay_connections(self):
         if self.network_num in self.last_sync_message_received_by_network and \
-            time.time() - self.last_sync_message_received_by_network[self.network_num] > \
-            constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
-            logger.warning(
-                "It has been more than {0} seconds since the last time gateway received a message from requested "
-                "relay, assuming requested relay turned offline and mark gateway as synced",
-                constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
-            )
+                time.time() - self.last_sync_message_received_by_network[self.network_num] > \
+                constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
+            logger.warning(log_messages.RELAY_CONNECTION_TIMEOUT,
+                           constants.LAST_MSG_FROM_RELAY_THRESHOLD_S)
 
             self.last_sync_message_received_by_network.pop(self.network_num, None)
             self.alarm_queue.unregister_alarm(self._transaction_sync_timeout_alarm_id)
@@ -873,7 +868,7 @@ class AbstractGatewayNode(AbstractNode):
             )
 
     def _find_best_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]) -> \
-        List[OutboundPeerModel]:
+            List[OutboundPeerModel]:
         logger.info("Received list of potential relays from BDN: {}.",
                     ", ".join([node.ip for node in potential_relay_peers]))
 

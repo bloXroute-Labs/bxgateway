@@ -20,6 +20,7 @@ from bxgateway.utils.logging.status.installation_type import InstallationType
 from bxgateway.utils.logging.status.network import Network
 from bxgateway.utils.logging.status.summary import Summary
 from bxutils import logging
+from bxgateway import log_messages
 from bxutils.encoding.json_encoder import EnhancedJSONEncoder
 from bxgateway.utils.logging.status import summary as summary_status
 
@@ -126,9 +127,7 @@ def _load_status_from_file(use_ext: bool, src_ver: str, ip_address: str, contine
         model_dict = json.loads(status_file)
         diagnostics = model_loader.load_model(Diagnostics, model_dict)
     except JSONDecodeError:
-        logger.warning("The status file may have been modified. This message can be safely ignored when "
-                       "running multiple nodes on the same machine. "
-                       f"For more information, please check the status file: {path}")
+        logger.warning(log_messages.STATUS_FILE_JSON_LOAD_FAIL, path)
         diagnostics = initialize(use_ext, src_ver, ip_address, continent, country, update_required, account_id)
     return diagnostics
 

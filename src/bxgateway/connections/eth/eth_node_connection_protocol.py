@@ -24,6 +24,7 @@ from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message impor
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
 from bxutils import logging
+from bxgateway import log_messages
 from bxgateway import eth_constants
 
 logger = logging.get_logger(__name__)
@@ -218,9 +219,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                         transactions_list=transactions_hashes
                     )
                 else:
-                    logger.warning(
-                        "Block body for hash {} is not in the list of pending new blocks and not marked for cleanup.",
-                        convert.bytes_to_hex(block_hash.binary))
+                    logger.warning(log_messages.REDUNDANT_BLOCK_BODY,
+                                   convert.bytes_to_hex(block_hash.binary))
 
             self._process_ready_new_blocks()
 
