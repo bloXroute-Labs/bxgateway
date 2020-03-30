@@ -207,10 +207,12 @@ class EthBlockQueuingService(
             block_body_bytes
         )
         self.node.send_msg_to_node(block_body_msg)
+        height = self._height_by_block_hash.contents.get(block_hash, None)
         block_stats.add_block_event_by_block_hash(
             block_hash,
             BlockStatEventType.BLOCK_HEADER_SENT_TO_BLOCKCHAIN_NODE,
             network_num=self.node.network_num,
+            block_height=height,
         )
         return True
 
