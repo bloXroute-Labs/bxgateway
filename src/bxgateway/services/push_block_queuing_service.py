@@ -97,7 +97,7 @@ class PushBlockQueuingService(
 
             # if this is the first item in the queue then cancel alarm for
             # block recovery timeout and send block
-            if self._block_queue[0][0] == block_hash:
+            if len(self._block_queue) > 0 and self._block_queue[0][0] == block_hash:
                 self.node.alarm_queue.unregister_alarm(self._last_alarm_id)
                 self._schedule_alarm_for_next_item()
 
@@ -248,6 +248,9 @@ class PushBlockQueuingService(
         return 0
 
     def _top_block_recovery_timeout(self) -> int:
+        if len(self._block_queue) == 0:
+            return constants.CANCEL_ALARMS
+
         current_time = time.time()
 
         block_hash, timestamp = self._block_queue[0]
