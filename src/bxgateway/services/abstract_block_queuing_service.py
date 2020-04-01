@@ -227,7 +227,7 @@ class AbstractBlockQueuingService(
         if block_hash not in self._blocks:
             return -1
 
-        logger.trace("Removing block {} from queue.")
+        logger.trace("Removing block {} from queue.", block_hash)
 
         for index in range(len(self._block_queue)):
             if self._block_queue[index][0] == block_hash:
@@ -245,7 +245,7 @@ class AbstractBlockQueuingService(
         :return: index of block in queue when removed (-1 if doesn't exist)
         """
 
-        logger.trace("Purging block {} from queuing service.")
+        logger.trace("Purging block {} from queuing service.", block_hash)
 
         index = self.remove_from_queue(block_hash)
         if block_hash in self._blocks:
