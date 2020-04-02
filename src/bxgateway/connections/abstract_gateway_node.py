@@ -779,7 +779,7 @@ class AbstractGatewayNode(AbstractNode):
             logger.warning(log_messages.RELAY_CONNECTION_TIMEOUT,
                            constants.LAST_MSG_FROM_RELAY_THRESHOLD_S)
 
-            self.last_sync_message_received_by_network.pop(self.network_num, None)
+            self.on_network_synced(self.network_num)
             self.alarm_queue.unregister_alarm(self._transaction_sync_timeout_alarm_id)
             self.on_fully_updated_tx_service()
 
