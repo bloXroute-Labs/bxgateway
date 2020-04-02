@@ -696,8 +696,13 @@ class AbstractGatewayNode(AbstractNode):
 
         if (
             len(self.peer_relays) < gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country]
-            or len(self.peer_transaction_relays) < gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country]
+            or len(self.peer_transaction_relays) < gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country] and
+            self.check_relay_alarm_id is None
         ):
+            logger.debug("Removed relay peer with ip {} and port {}. "
+                         "Current number of relay peers is lower than required. "
+                         "Scheduling request of new relays from BDN.",
+                         ip, port)
             self.alarm_queue.register_alarm(
                 constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers
             )
