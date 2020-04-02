@@ -47,9 +47,7 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
             # the socket buffer is at least the size set
             set_buffer_size = sock.transport.get_write_buffer_size()
             if set_buffer_size < gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE:
-                self.log_warning(
-                    "Socket buffer size set was unsuccessful, and was instead set to {}. Reverting to: {}",
-                    set_buffer_size, previous_buffer_size)
+                self.log_warning(log_messages.SET_SOCKET_BUFFER_SIZE, set_buffer_size, previous_buffer_size)
                 sock.transport.set_write_buffer_limits(high=previous_buffer_size)
 
         self.connection_protocol = None

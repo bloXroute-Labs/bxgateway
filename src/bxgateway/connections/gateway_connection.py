@@ -67,16 +67,13 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         """
         network_num = msg.network_num()
         if network_num != self.node.network_num:
-            self.log_error("Network number mismatch. Current network num {}, remote network num {}. "
-                           "Closing connection.", self.network_num, network_num)
+            self.log_error(log_messages.NETWORK_NUMBER_MISMATCH, self.network_num, network_num)
             self.mark_for_close(should_retry=False)
             return
 
         ip = msg.ip()
         if ip != self.peer_ip:
-            self.log_warning(
-                log_messages.MISMATCH_IP_IN_HELLO_MSG,
-                ip, self.peer_ip)
+            self.log_warning(log_messages.MISMATCH_IP_IN_HELLO_MSG, ip, self.peer_ip)
 
         port = msg.port()
         ordering = msg.ordering()
@@ -129,9 +126,7 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 connection.on_connection_established()
                 connection.enqueue_msg(connection.ack_message)
             else:
-                self.log_warning(
-                    log_messages.REDUNDANT_CONNECTION,
-                    connection.file_no, self.file_no)
+                self.log_warning(log_messages.REDUNDANT_CONNECTION, connection.file_no, self.file_no)
                 connection.mark_for_close(should_retry=False)
                 self.on_connection_established()
                 self.enqueue_msg(self.ack_message)

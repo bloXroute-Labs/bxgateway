@@ -11,7 +11,6 @@ from bxcommon.messages.bloxroute.bloxroute_message_validator import BloxrouteMes
 from bxcommon.messages.bloxroute.disconnect_relay_peer_message import DisconnectRelayPeerMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.notification_message import NotificationMessage
-from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.messages.validation.message_size_validation_settings import MessageSizeValidationSettings
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
@@ -20,6 +19,7 @@ from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxgateway import log_messages
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
@@ -77,7 +77,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         if ConnectionType.RELAY_BLOCK in self.CONNECTION_TYPE:
             self.node.block_processing_service.process_block_broadcast(msg, self)
         else:
-            self.log_error(Gem.UNEXPECTED_BLOCK_ON_NON_RELAY_CONN, msg)
+            self.log_error(log_messages.UNEXPECTED_BLOCK_ON_NON_RELAY_CONN, msg)
 
     def msg_key(self, msg):
         """
@@ -87,14 +87,14 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         if ConnectionType.RELAY_BLOCK in self.CONNECTION_TYPE:
             self.node.block_processing_service.process_block_key(msg, self)
         else:
-            self.log_error("Received unexpected key message on non-block relay connection: {}", msg)
+            self.log_error(log_messages.UNEXPECTED_KEY_MESSAGE, msg)
 
     def msg_tx(self, msg):
         """
         Handle transactions receive from bloXroute network.
         """
         if ConnectionType.RELAY_TRANSACTION not in self.CONNECTION_TYPE:
-            self.log_error("Received unexpected tx message on non-tx relay connection: {}", msg)
+            self.log_error(log_messages.UNEXPECTED_TX_MESSAGE, msg)
             return
 
         tx_service = self.node.get_tx_service()
@@ -165,18 +165,21 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_txs(self, msg: TxsMessage):
         if ConnectionType.RELAY_TRANSACTION not in self.CONNECTION_TYPE:
-            self.log_error(Gem.UNEXPECTED_TXS_ON_NON_RELAY_CONN, msg)
+            self.log_error(log_messages.UNEXPECTED_TXS_ON_NON_RELAY_CONN, msg)
             return
 
         transactions = msg.get_txs()
         tx_service = self.node.get_tx_service()
 
-        tx_stats.add_txs_by_short_ids_event(map(lambda x: x.short_id, transactions),
-                                            TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REPLY_RECEIVED_BY_GATEWAY_FROM_RELAY,
-                                            network_num=self.node.network_num,
-                                            peer=stats_format.connection(self),
-                                            found_tx_hashes=map(lambda x: convert.bytes_to_hex(x.hash.binary),
-                                                                transactions))
+        tx_stats.add_txs_by_short_ids_event(
+            map(lambda x: x.short_id, transactions),
+            TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REPLY_RECEIVED_BY_GATEWAY_FROM_RELAY,
+            network_num=self.node.network_num,
+            peer=stats_format.connection(self),
+            found_tx_hashes=map(lambda x: convert.bytes_to_hex(x.hash.binary),
+                                transactions
+                                )
+        )
 
         for transaction in transactions:
             tx_hash, transaction_contents, short_id = transaction

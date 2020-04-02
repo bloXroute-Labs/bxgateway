@@ -220,3 +220,23 @@ PROCESS_BLOCK_FAILURE = LogMessage(
     PROCESSING_FAILED_CATEGORY,
     "Failed to process compact block: {}. Request full block. Error: {}"
 )
+NETWORK_NUMBER_MISMATCH = LogMessage(
+    "G-000042",
+    PROCESSING_FAILED_CATEGORY,
+    "Network number mismatch. Current network num {}, remote network num {}. Closing connection."
+)
+UNEXPECTED_KEY_MESSAGE = LogMessage(
+    "G-000043",
+    PROCESSING_FAILED_CATEGORY,
+    "Received unexpected key message on non-block relay connection: {}"
+)
+UNEXPECTED_TX_MESSAGE = LogMessage(
+    "G-000044",
+    PROCESSING_FAILED_CATEGORY,
+    "Received unexpected tx message on non-tx relay connection: {}"
+)
+SET_SOCKET_BUFFER_SIZE = LogMessage(
+    "G-000045",
+    NETWORK_CATEGORY,
+    "Socket buffer size set was unsuccessful, and was instead set to {}. Reverting to: {}"
+)
