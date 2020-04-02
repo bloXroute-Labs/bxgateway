@@ -22,6 +22,7 @@ from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.services.block_processing_service import BlockProcessingService
+from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxgateway.utils.eth import crypto_utils
@@ -37,7 +38,8 @@ def _block_with_timestamp(timestamp):
 
 class GatewayTransactionStatsServiceTest(AbstractTestCase):
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_eth_args=True))
+        self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_eth_args=True),
+                                    block_queueing_cls=MagicMock())
         self.node.message_converter = EthMessageConverter()
         self.node.block_processing_service = BlockProcessingService(self.node)
 
@@ -51,7 +53,10 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.eth_node)
 
         self.blockchain_connection = EthBaseConnection(
-            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node)
+            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=333), self.node)
+        self.blockchain_connection.state = ConnectionState.ESTABLISHED
+        self.node.node_conn = self.blockchain_connection
+
         self.blockchain_connection.network_num = 0
 
         self.tx_blockchain_connection_protocol = EthNodeConnectionProtocol(
@@ -63,6 +68,7 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
         )
         self.relay_connection.state = ConnectionState.INITIALIZED
+
 
         gateway_bdn_performance_stats_service.set_node(self.node)
 

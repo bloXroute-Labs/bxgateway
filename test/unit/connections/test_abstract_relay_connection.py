@@ -18,6 +18,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
@@ -34,6 +35,13 @@ class AbstractRelayConnectionTest(AbstractTestCase):
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
         )
         self.connection.state = ConnectionState.INITIALIZED
+
+        self.blockchain_connecton = AbstractGatewayBlockchainConnection(
+            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=333), self.node)
+        self.blockchain_connecton.state = ConnectionState.ESTABLISHED
+
+        self.node.node_conn = self.blockchain_connecton
+
 
     @patch("bxgateway.services.block_processing_service.BlockProcessingService._handle_decrypted_block")
     def test_msg_broadcast_encrypted(self, mock_handle_decrypted_block):

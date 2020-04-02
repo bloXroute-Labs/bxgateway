@@ -2,7 +2,6 @@
 from _collections import deque
 from typing import Optional, Deque
 
-from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from mock import MagicMock
 
 from bxcommon.connections.connection_type import ConnectionType
@@ -10,8 +9,10 @@ from bxcommon.models.node_type import NodeType
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
+from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -43,7 +44,8 @@ class _MockCleanupService(AbstractBtcBlockCleanupService):
 class MockGatewayNode(AbstractGatewayNode):
     NODE_TYPE = NodeType.EXTERNAL_GATEWAY
 
-    def __init__(self, opts, node_ssl_service: Optional[NodeSSLService] = None):
+    def __init__(self, opts, node_ssl_service: Optional[NodeSSLService] = None,
+                 block_queueing_cls=BtcBlockQueuingService):
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         if node_ssl_service is None:
@@ -54,7 +56,7 @@ class MockGatewayNode(AbstractGatewayNode):
         self.send_to_node_messages = []
         self._tx_service = TransactionService(self, 0)
         self.block_cleanup_service = self._get_cleanup_service()
-        self.block_queuing_service = BtcBlockQueuingService(self)
+        self.block_queuing_service = block_queueing_cls(self)
         self.message_converter = MockMessageConverter()
         if opts.use_extensions:
             from bxcommon.services.extension_transaction_service import ExtensionTransactionService
@@ -95,6 +97,9 @@ class MockGatewayNode(AbstractGatewayNode):
         pass
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
+        pass
+
+    def set_known_total_difficulty(self, block_hash: Sha256Hash, total_difficulty: int) -> None:
         pass
 
     def _get_cleanup_service(self) -> AbstractBtcBlockCleanupService:
