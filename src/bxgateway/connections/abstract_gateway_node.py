@@ -720,7 +720,7 @@ class AbstractGatewayNode(AbstractNode):
                          "Current number of relay peers is lower than required. "
                          "Scheduling request of new relays from BDN.",
                          ip, port)
-            self.alarm_queue.register_alarm(
+            self.check_relay_alarm_id = self.alarm_queue.register_alarm(
                 constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers
             )
 
