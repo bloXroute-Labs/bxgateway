@@ -59,6 +59,8 @@ class MockOntGatewayNode(OntGatewayNode):
         else:
             self._tx_service = TransactionService(self, self.network_num)
         self.opts.has_fully_updated_tx_service = True
+        self.node_conn = MagicMock()
+        self.node_conn.is_active = MagicMock(return_value=True)
 
     def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, connection_types=None):
         if connection_types is None:

@@ -28,10 +28,11 @@ from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
-from bxcommon.utils.stats import hooks
+from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
+from bxgateway import log_messages
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -49,7 +50,6 @@ from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
-from bxgateway import log_messages
 from bxutils.services.node_ssl_service import NodeSSLService
 from bxutils.ssl.extensions import extensions_factory
 from bxutils.ssl.ssl_certificate_type import SSLCertificateType
@@ -195,7 +195,7 @@ class AbstractGatewayNode(AbstractNode):
 
     @abstractmethod
     def build_blockchain_connection(
-            self, socket_connection: AbstractSocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
@@ -205,7 +205,7 @@ class AbstractGatewayNode(AbstractNode):
 
     @abstractmethod
     def build_remote_blockchain_connection(
-            self, socket_connection: AbstractSocketConnectionProtocol
+        self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
@@ -566,9 +566,9 @@ class AbstractGatewayNode(AbstractNode):
         self.enqueue_connection(outbound_peer.ip, outbound_peer.port, ConnectionType.REMOTE_BLOCKCHAIN_NODE)
 
     def on_block_seen_by_blockchain_node(
-            self,
-            block_hash: Sha256Hash,
-            block_message: Optional[AbstractMessage] = None
+        self,
+        block_hash: Sha256Hash,
+        block_message: Optional[AbstractMessage] = None
     ):
         self.blocks_seen.add(block_hash)
         recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
@@ -582,10 +582,10 @@ class AbstractGatewayNode(AbstractNode):
         )
 
     def post_block_cleanup_tasks(
-            self,
-            block_hash: Sha256Hash,
-            short_ids: Iterable[int],
-            unknown_tx_hashes: Iterable[Sha256Hash]):
+        self,
+        block_hash: Sha256Hash,
+        short_ids: Iterable[int],
+        unknown_tx_hashes: Iterable[Sha256Hash]):
         """post cleanup tasks for blocks, override method to implement"""
         pass
 
@@ -625,13 +625,30 @@ class AbstractGatewayNode(AbstractNode):
             logger.error(log_messages.NO_ACTIVE_BDN_CONNECTIONS)
 
     def should_process_block_hash(self, block_hash: Optional[Sha256Hash] = None) -> bool:
+        result = True
+        reason = None
+
         if not self.opts.has_fully_updated_tx_service:
+            result = False
+            reason = "Tx sync in progress"
+
+        if self.node_conn is None or not self.node_conn.is_active():
+            result = False
+            reason = "No blockchain connection"
+
+        if not result:
             logger.debug(
-                "Gateway skipped processing block {} while tx syncing.",
-                block_hash if block_hash is not None else "block message"
+                "Gateway skipped processing block {}. Reason: {}.",
+                block_hash if block_hash is not None else "block message",
+                reason
             )
-            return False
-        return True
+            if block_hash is not None:
+                block_stats.add_block_event_by_block_hash(block_hash,
+                                                          BlockStatEventType.ENC_BLOCK_GATEWAY_IGNORE_NO_BLOCKCHAIN,
+                                                          network_num=self.network_num,
+                                                          more_info=reason)
+
+        return result
 
     def _send_request_for_gateway_peers(self):
         """
@@ -639,12 +656,12 @@ class AbstractGatewayNode(AbstractNode):
         """
         peer_gateways = sdn_http_service.fetch_gateway_peers(self.opts.node_id)
         if not peer_gateways and not self.peer_gateways and \
-                self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+            self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
             # Try again later
             logger.warning(log_messages.NO_GATEWAY_PEERS)
             self.send_request_for_gateway_peers_num_of_calls += 1
             if self.send_request_for_gateway_peers_num_of_calls == \
-                    gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+                gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
                 logger.warning(log_messages.ABANDON_GATEWAY_PEER_REQUEST)
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
@@ -779,8 +796,8 @@ class AbstractGatewayNode(AbstractNode):
 
     def _check_sync_relay_connections(self):
         if self.network_num in self.last_sync_message_received_by_network and \
-                time.time() - self.last_sync_message_received_by_network[self.network_num] > \
-                constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
+            time.time() - self.last_sync_message_received_by_network[self.network_num] > \
+            constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
             logger.warning(log_messages.RELAY_CONNECTION_TIMEOUT,
                            constants.LAST_MSG_FROM_RELAY_THRESHOLD_S)
 
@@ -837,7 +854,7 @@ class AbstractGatewayNode(AbstractNode):
             )
 
     def _find_best_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]) -> \
-            List[OutboundPeerModel]:
+        List[OutboundPeerModel]:
         logger.info("Received list of potential relays from BDN: {}.",
                     ", ".join([node.ip for node in potential_relay_peers]))
 
@@ -870,7 +887,7 @@ class AbstractGatewayNode(AbstractNode):
             if self.opts.split_relays:
                 self.peer_transaction_relays = {
                     peer for peer in self.peer_transaction_relays
-                    if not(
+                    if not (
                         peer.ip == peer_to_remove.ip and peer.port == peer_to_remove.port + 1
                     )
                 }

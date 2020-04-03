@@ -153,13 +153,6 @@ class BlockProcessingService:
         if not self._node.should_process_block_hash(msg.block_hash):
             return
 
-        if self._node.node_conn is None or not self._node.node_conn.is_active():
-            block_stats.add_block_event(msg,
-                                        BlockStatEventType.ENC_BLOCK_GATEWAY_IGNORE_NO_BLOCKCHAIN,
-                                        network_num=connection.network_num,
-                                        more_info=stats_format.connection(connection))
-            return
-
         block_stats.add_block_event(msg,
                                     BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                     network_num=connection.network_num,

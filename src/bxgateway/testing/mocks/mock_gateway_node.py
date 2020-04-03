@@ -66,6 +66,8 @@ class MockGatewayNode(AbstractGatewayNode):
         self.opts.has_fully_updated_tx_service = True
         self.requested_remote_headers_queue: Deque[RemoteHeaderRequest] = deque()
         self.requester = MagicMock()
+        self.node_conn = MagicMock()
+        self.node_conn.is_active = MagicMock(return_value=True)
 
     def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, connection_types=None):
         if connection_types is None:
