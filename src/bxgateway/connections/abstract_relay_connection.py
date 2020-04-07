@@ -157,8 +157,12 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 btc_tx_msg = self.node.message_converter.bx_tx_to_tx(msg)
                 self.node.send_msg_to_node(btc_tx_msg)
 
-            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
-                                          network_num, short_id)
+                tx_stats.add_tx_by_hash_event(
+                    tx_hash,
+                    TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
+                    network_num,
+                    short_id
+                )
 
         if attempt_recovery:
             self.node.block_processing_service.retry_broadcast_recovered_blocks(self)

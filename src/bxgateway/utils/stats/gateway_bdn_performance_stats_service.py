@@ -1,5 +1,7 @@
 from typing import Type, Dict, Any, Optional, TYPE_CHECKING
 
+from prometheus_client import Counter
+
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
 from bxgateway import gateway_constants
 from bxutils import logging
@@ -22,6 +24,14 @@ class GatewayBdnPerformanceStatInterval(StatsIntervalData):
         self.new_blocks_received_from_bdn = 0
         self.new_tx_received_from_blockchain_node = 0
         self.new_tx_received_from_bdn = 0
+
+
+blocks_from_bdn = Counter("blocks_from_bdn", "Number of blocks received first from the BDN")
+blocks_from_blockchain = Counter("blocks_from_blockchain", "Number of blocks received first from the blockchain node")
+transactions_from_bdn = Counter("transactions_from_bdn", "Number of transactions received first from the BDN")
+transactions_from_blockchain = Counter(
+    "transactions_from_blockchain", "Number of transactions received first from the blockchain node"
+)
 
 
 class _GatewayBdnPerformanceStatsService(
@@ -49,18 +59,22 @@ class _GatewayBdnPerformanceStatsService(
     def log_block_from_blockchain_node(self) -> None:
         assert self.interval_data is not None
         self.interval_data.new_blocks_received_from_blockchain_node += 1
+        blocks_from_blockchain.inc()
 
     def log_block_from_bdn(self) -> None:
         assert self.interval_data is not None
         self.interval_data.new_blocks_received_from_bdn += 1
+        blocks_from_bdn.inc()
 
     def log_tx_from_blockchain_node(self) -> None:
         assert self.interval_data is not None
         self.interval_data.new_tx_received_from_blockchain_node += 1
+        transactions_from_blockchain.inc()
 
     def log_tx_from_bdn(self) -> None:
         assert self.interval_data is not None
         self.interval_data.new_tx_received_from_bdn += 1
+        transactions_from_bdn.inc()
 
     def get_most_recent_stats(self) -> Optional[GatewayBdnPerformanceStatInterval]:
         if self.history:

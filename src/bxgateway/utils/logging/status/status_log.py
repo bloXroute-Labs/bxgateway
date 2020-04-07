@@ -6,6 +6,8 @@ from datetime import datetime
 from json.decoder import JSONDecodeError
 from typing import List, Optional
 
+from prometheus_client import Enum
+
 from bxcommon.connections.connection_pool import ConnectionPool
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import OS_VERSION
@@ -30,13 +32,26 @@ STATUS_FILE_NAME = "gateway_status.log"
 CONN_TYPES = {ConnectionType.RELAY_BLOCK, ConnectionType.RELAY_TRANSACTION, ConnectionType.BLOCKCHAIN_NODE,
               ConnectionType.REMOTE_BLOCKCHAIN_NODE}
 
+gateway_status = Enum(
+    "gateway_status",
+    "Gateway's online/offline status",
+    states=[status.value for status in GatewayStatus]
+)
+
 
 def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
                update_required: bool, account_id: Optional[str]) -> Diagnostics:
     current_time = _get_current_time()
-    summary = Summary(gateway_status=GatewayStatus.OFFLINE, ip_address=ip_address, continent=continent, country=country,
-                      update_required=update_required,
-                      account_info=summary_status.gateway_status_get_account_info(account_id))
+    summary = Summary(
+        gateway_status=GatewayStatus.OFFLINE,
+        ip_address=ip_address,
+        continent=continent,
+        country=country,
+        update_required=update_required,
+        account_info=summary_status.gateway_status_get_account_info(account_id)
+    )
+    assert summary.gateway_status is not None
+    gateway_status.state(summary.gateway_status.value)
     environment = Environment(_get_installation_type(), OS_VERSION, platform.python_version(), sys.executable)
     network = Network([], [], [], [])
     analysis = Analysis(current_time, _get_startup_param(), src_ver, _check_extensions_validity(use_ext, src_ver),
@@ -68,6 +83,8 @@ def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: s
             network.add_connection(conn.CONNECTION_TYPE, conn.peer_desc, conn.file_no, conn.peer_id)
 
     summary = network.get_summary(ip_address, continent, country, update_required, account_id)
+    assert summary.gateway_status is not None
+    gateway_status.state(summary.gateway_status.value)
     diagnostics = Diagnostics(summary, analysis)
 
     _save_status_to_file(diagnostics)
