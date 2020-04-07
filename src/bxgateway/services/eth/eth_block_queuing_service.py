@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator
+from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator, cast
 
 from bxcommon import constants
 from bxcommon.utils.alarm_queue import AlarmId
@@ -32,6 +32,7 @@ from bxutils import logging
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+    from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 
 logger = logging.get_logger(__name__)
 
@@ -50,6 +51,7 @@ class EthBlockQueuingService(
 
     def __init__(self, node: "AbstractGatewayNode"):
         super().__init__(node)
+        self.node: "EthGatewayNode" = cast("EthGatewayNode", node)
         self.block_checking_alarms = {}
         self.block_repeat_count = defaultdict(int)
         self._block_parts = ExpiringDict(
@@ -77,9 +79,10 @@ class EthBlockQueuingService(
             block_header_bytes
         )
 
+    # pyre-ignore
     def send_block_to_node(
-        self, block_hash: Sha256Hash, block_msg: Optional[InternalEthBlockInfo]
-    ):
+        self, block_hash: Sha256Hash, block_msg: Optional[InternalEthBlockInfo],
+    ) -> None:
         assert block_msg is not None
         new_block_parts = self._block_parts[block_hash]
 
@@ -140,12 +143,13 @@ class EthBlockQueuingService(
                 block_hash,
             )
 
+    # pyre-ignore
     def push(
         self,
         block_hash: Sha256Hash,
         block_msg: Optional[InternalEthBlockInfo] = None,
         waiting_for_recovery: bool = False,
-    ):
+    ) -> None:
         if not waiting_for_recovery:
             assert block_msg is not None
             self._store_block_parts(block_hash, block_msg)
@@ -159,11 +163,12 @@ class EthBlockQueuingService(
         super().store_block_data(block_hash, block_msg)
         self._store_block_parts(block_hash, block_msg)
 
+    # pyre-ignore
     def mark_block_seen_by_blockchain_node(
         self,
         block_hash: Sha256Hash,
         block_message: Optional[InternalEthBlockInfo] = None,
-    ):
+    ) -> None:
         if block_message is not None:
             self._store_block_parts(block_hash, block_message)
 

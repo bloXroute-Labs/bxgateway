@@ -12,6 +12,7 @@ from typing import (
     NamedTuple,
 )
 
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
 
 logger = logging.get_logger(__name__)
 
-TBlockMessage = TypeVar("TBlockMessage", bound=AbstractMessage)
+TBlockMessage = TypeVar("TBlockMessage", bound=AbstractBlockMessage)
 THeaderMessage = TypeVar("THeaderMessage", bound=AbstractMessage)
 
 
@@ -118,13 +119,16 @@ class AbstractBlockQueuingService(
         block_hash: Sha256Hash,
         block_msg: Optional[TBlockMessage] = None,
         waiting_for_recovery: bool = False,
-    ):
+    ) -> None:
         """
         Pushes block to the queue
         :param block_hash: Block hash
         :param block_msg: Block message instance (can be None if waiting for recovery flag is set to True
         :param waiting_for_recovery: flag indicating if gateway is waiting for recovery of the block
         """
+        if block_msg is None and not waiting_for_recovery:
+            raise ValueError("Must provided block_msg if recovery not needed.")
+
         if self.can_add_block_to_queuing_service(
             block_hash, block_msg, waiting_for_recovery
         ):
@@ -172,7 +176,7 @@ class AbstractBlockQueuingService(
 
     def send_block_to_node(
         self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None
-    ):
+    ) -> None:
         if block_msg is None:
             block_msg = self._blocks[block_hash]
 
@@ -181,6 +185,7 @@ class AbstractBlockQueuingService(
 
         logger.info("Forwarding block {} to blockchain node.", block_hash)
 
+        assert block_msg is not None
         self.node.send_msg_to_node(block_msg)
         (
             handling_time,
