@@ -51,6 +51,7 @@ def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, cou
         account_info=summary_status.gateway_status_get_account_info(account_id)
     )
     assert summary.gateway_status is not None
+    # pyre-fixme[16]: `Optional` has no attribute `value`.
     gateway_status.state(summary.gateway_status.value)
     environment = Environment(_get_installation_type(), OS_VERSION, platform.python_version(), sys.executable)
     network = Network([], [], [], [])
@@ -84,6 +85,7 @@ def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: s
 
     summary = network.get_summary(ip_address, continent, country, update_required, account_id)
     assert summary.gateway_status is not None
+    # pyre-fixme[16]: `Optional` has no attribute `value`.
     gateway_status.state(summary.gateway_status.value)
     diagnostics = Diagnostics(summary, analysis)
 
@@ -99,7 +101,7 @@ def update_alarm_callback(conn_pool: ConnectionPool, use_ext: bool, src_ver: str
 def _check_extensions_validity(use_ext: bool, src_ver: str) -> ExtensionModulesState:
     if use_ext:
         try:
-            import task_pool_executor as tpe  # pyre-ignore
+            import task_pool_executor as tpe
         except ImportError:
             return ExtensionModulesState.UNAVAILABLE
         extensions_version = tpe.__version__

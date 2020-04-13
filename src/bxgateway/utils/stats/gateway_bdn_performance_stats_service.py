@@ -58,21 +58,27 @@ class _GatewayBdnPerformanceStatsService(
 
     def log_block_from_blockchain_node(self) -> None:
         assert self.interval_data is not None
+        # pyre-fixme[16]: `Optional` has no attribute
+        #  `new_blocks_received_from_blockchain_node`.
         self.interval_data.new_blocks_received_from_blockchain_node += 1
         blocks_from_blockchain.inc()
 
     def log_block_from_bdn(self) -> None:
         assert self.interval_data is not None
+        # pyre-fixme[16]: `Optional` has no attribute `new_blocks_received_from_bdn`.
         self.interval_data.new_blocks_received_from_bdn += 1
         blocks_from_bdn.inc()
 
     def log_tx_from_blockchain_node(self) -> None:
         assert self.interval_data is not None
+        # pyre-fixme[16]: `Optional` has no attribute
+        #  `new_tx_received_from_blockchain_node`.
         self.interval_data.new_tx_received_from_blockchain_node += 1
         transactions_from_blockchain.inc()
 
     def log_tx_from_bdn(self) -> None:
         assert self.interval_data is not None
+        # pyre-fixme[16]: `Optional` has no attribute `new_tx_received_from_bdn`.
         self.interval_data.new_tx_received_from_bdn += 1
         transactions_from_bdn.inc()
 

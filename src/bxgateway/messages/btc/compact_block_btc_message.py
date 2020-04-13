@@ -22,9 +22,21 @@ class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
 
     MESSAGE_TYPE = BtcMessageType.COMPACT_BLOCK
 
+    # pyre-fixme[9]: magic has type `int`; used as `None`.
+    # pyre-fixme[9]: version has type `int`; used as `None`.
+    # pyre-fixme[9]: prev_block has type `BtcObjectHash`; used as `None`.
     def __init__(self, magic: int = None, version: int = None, prev_block: BtcObjectHash = None,
+                 # pyre-fixme[9]: merkle_root has type `BtcObjectHash`; used as `None`.
+                 # pyre-fixme[9]: timestamp has type `int`; used as `None`.
+                 # pyre-fixme[9]: bits has type `int`; used as `None`.
                  merkle_root: BtcObjectHash = None, timestamp: int = None, bits: int = None,
+                 # pyre-fixme[9]: block_nonce has type `int`; used as `None`.
+                 # pyre-fixme[9]: short_nonce has type `int`; used as `None`.
+                 # pyre-fixme[9]: short_ids has type `List[memoryview]`; used as `None`.
                  block_nonce: int = None, short_nonce: int = None, short_ids: List[memoryview] = None,
+                 # pyre-fixme[9]: prefilled_txns has type `List[memoryview]`; used
+                 #  as `None`.
+                 # pyre-fixme[9]: buf has type `bytearray`; used as `None`.
                  prefilled_txns: List[memoryview] = None, buf: bytearray = None):
 
         if buf is None:
@@ -47,7 +59,11 @@ class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
             off += pack_int_to_btc_varint(len(prefilled_txns), buf, off)
 
             for index, tx in prefilled_txns:
+                # pyre-fixme[6]: Expected `Sized` for 1st param but got `int`.
+                # pyre-fixme[6]: Expected `Union[typing.Iterable[int], bytes]` for
+                #  2nd param but got `int`.
                 buf[off:off + len(tx)] = tx
+                # pyre-fixme[6]: Expected `Sized` for 1st param but got `int`.
                 off += len(tx)
 
             self.buf = buf
@@ -60,20 +76,28 @@ class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
             self._payload = None
 
         self._version = self._prev_block = self._merkle_root = self._timestamp = None
+        # pyre-fixme[8]: Attribute has type `int`; used as `None`.
         self._bits: int = None
+        # pyre-fixme[8]: Attribute has type `int`; used as `None`.
         self._block_nonce: int = None
+        # pyre-fixme[8]: Attribute has type `int`; used as `None`.
         self._short_nonce: int = None
+        # pyre-fixme[8]: Attribute has type `int`; used as `None`.
         self._short_id_c: int = None
         self._short_nonce_buf = None
+        # pyre-fixme[8]: Attribute has type `Dict[bytes, int]`; used as `None`.
         self._short_ids: Dict[bytes, int] = None
+        # pyre-fixme[8]: Attribute has type `Dict[int, memoryview]`; used as `None`.
         self._pre_filled_transactions: Dict[int, memoryview] = None
         self._block_header = None
+        # pyre-fixme[8]: Attribute has type `BtcObjectHash`; used as `None`.
         self._hash_val: BtcObjectHash = None
         self._pre_filled_tx_count = None
 
     def block_header(self) -> memoryview:
         if self._block_header is None:
             self._block_header = self._memoryview[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE]
+        # pyre-fixme[7]: Expected `memoryview` but got `None`.
         return self._block_header
 
     def block_hash(self) -> BtcObjectHash:
@@ -86,18 +110,21 @@ class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
         if self._version is None:
             off = BTC_HDR_COMMON_OFF
             self._version = struct.unpack_from("<I", self.buf, off)[0]
+        # pyre-fixme[7]: Expected `int` but got `None`.
         return self._version
 
     def prev_block_hash(self) -> BtcObjectHash:
         if self._prev_block is None:
             off = BTC_HDR_COMMON_OFF + UL_INT_SIZE_IN_BYTES
             self._prev_block = BtcObjectHash(self.buf, off, BTC_SHA_HASH_LEN)
+        # pyre-fixme[7]: Expected `BtcObjectHash` but got `None`.
         return self._prev_block
 
     def merkle_root(self) -> memoryview:
         if self._merkle_root is None:
             off = BTC_HDR_COMMON_OFF + UL_INT_SIZE_IN_BYTES + BTC_SHA_HASH_LEN
             self._merkle_root = self._memoryview[off:off + BTC_SHA_HASH_LEN]
+        # pyre-fixme[7]: Expected `memoryview` but got `None`.
         return self._merkle_root
 
     def timestamp(self) -> int:
@@ -106,6 +133,7 @@ class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
             self._timestamp, self._bits, self._block_nonce, self._short_nonce = \
                 struct.unpack_from("<IIIQ", self.buf, off)
 
+        # pyre-fixme[7]: Expected `int` but got `None`.
         return self._timestamp
 
     def bits(self) -> int:
@@ -127,6 +155,7 @@ class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
         if self._short_nonce_buf is None:
             start = BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE
             self._short_nonce_buf = self._memoryview[start:start + BTC_SHORT_NONCE_SIZE]
+        # pyre-fixme[7]: Expected `memoryview` but got `None`.
         return self._short_nonce_buf
 
     def short_ids(self) -> Dict[bytes, int]:
@@ -153,6 +182,7 @@ class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
             self._pre_filled_transactions = {}
 
             index = -1
+            # pyre-fixme[6]: Expected `int` for 1st param but got `None`.
             for _ in range(self._pre_filled_tx_count):
                 diff, size = btc_varint_to_int(self.buf, off)
                 off += size

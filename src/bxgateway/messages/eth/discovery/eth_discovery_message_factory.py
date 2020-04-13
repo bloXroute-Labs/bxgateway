@@ -30,6 +30,7 @@ class _EthDiscoveryMessageFactory(AbstractMessageFactory):
         Peeks at a message, determining if its full.
         Returns (is_full_message, command, payload_length)
         """
+        # pyre-fixme[25]: Assertion will always fail.
         if not isinstance(input_buffer, InputBuffer):
             raise ValueError("InputBuffer type is expected")
 

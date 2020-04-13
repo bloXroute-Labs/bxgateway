@@ -14,6 +14,9 @@ class Block(rlp.Serializable):
         ("uncles", rlp.sedes.CountableList(BlockHeader))
     ]
 
+    # pyre-fixme[8]: Attribute has type `BlockHeader`; used as `None`.
     header: BlockHeader = None
+    # pyre-fixme[8]: Attribute has type `List[Transaction]`; used as `None`.
     transactions: List[Transaction] = None
+    # pyre-fixme[8]: Attribute has type `List[BlockHeader]`; used as `None`.
     uncles: List[BlockHeader] = None

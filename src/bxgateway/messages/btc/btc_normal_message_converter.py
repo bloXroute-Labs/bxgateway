@@ -105,7 +105,11 @@ def parse_bx_block_transactions(
             tx = bx_block[offset:offset + tx_size]
             offset += tx_size
 
+        # pyre-fixme[6]: Expected `Union[bytearray, memoryview]` for 1st param but
+        #  got `Optional[Union[bytearray, memoryview]]`.
         block_pieces.append(tx)
+        # pyre-fixme[6]: Expected `Sized` for 1st param but got
+        #  `Optional[Union[bytearray, memoryview]]`.
         output_offset += len(tx)
 
     return unknown_tx_sids, unknown_tx_hashes, output_offset

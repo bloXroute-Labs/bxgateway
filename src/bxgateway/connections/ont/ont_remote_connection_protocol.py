@@ -19,6 +19,7 @@ class OntRemoteConnectionProtocol(OntBaseConnectionProtocol):
     def __init__(self, connection: "OntRemoteConnection"):
         super(OntRemoteConnectionProtocol, self).__init__(connection)
 
+        # pyre-fixme[16]: Optional type has no attribute `update`.
         connection.message_handlers.update({
             OntMessageType.VERSION: self.msg_version,
             OntMessageType.BLOCK: self.msg_block,

@@ -18,6 +18,7 @@ class DataOntMessage(OntMessage):
             struct.pack_into("<B", buf, off, length)
             off += ont_constants.ONT_CHAR_LEN
 
+            # pyre-fixme[16]: `Optional` has no attribute `get_big_endian`.
             buf[off:off + ont_constants.ONT_HASH_LEN] = hash_start.get_big_endian()
             off += ont_constants.ONT_HASH_LEN
             buf[off:off + ont_constants.ONT_HASH_LEN] = hash_stop.get_big_endian()

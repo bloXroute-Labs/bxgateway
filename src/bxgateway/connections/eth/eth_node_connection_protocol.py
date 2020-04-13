@@ -83,6 +83,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self.node.alarm_queue.register_alarm(eth_constants.CHECKPOINT_BLOCK_HEADERS_REQUEST_WAIT_TIME_S,
                                              self._stop_waiting_checkpoint_headers_request)
 
+    # pyre-fixme[14]: `msg_block` overrides method defined in
+    #  `AbstractBlockchainConnectionProtocol` inconsistently.
     def msg_block(self, msg: NewBlockEthProtocolMessage):
         if not self.node.should_process_block_hash(msg.block_hash()):
             return
@@ -131,6 +133,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             return
 
         for block_hash, block_number in block_hash_number_pairs:
+            # pyre-fixme[6]: Expected `memoryview` for 1st param but got `None`.
             self._pending_new_blocks_parts.add(block_hash, NewBlockParts(None, None, block_number))
             self.node.send_msg_to_node(
                 GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, False)

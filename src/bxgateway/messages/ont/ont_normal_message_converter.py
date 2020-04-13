@@ -70,7 +70,11 @@ def parse_bx_block_transactions(block_hash: Sha256Hash, bx_block: memoryview, of
             tx = bx_block[offset:offset + tx_size]
             offset += tx_size
 
+        # pyre-fixme[6]: Expected `Union[bytearray, memoryview]` for 1st param but
+        #  got `Optional[Union[bytearray, memoryview]]`.
         block_pieces.append(tx)
+        # pyre-fixme[6]: Expected `Sized` for 1st param but got
+        #  `Optional[Union[bytearray, memoryview]]`.
         output_offset += len(tx)
 
     merkle_root = bx_block[block_offsets.block_begin_offset:
@@ -161,6 +165,7 @@ class OntNormalMessageConverter(AbstractOntMessageConverter):
         bx_block must be a memoryview, since memoryview[offset] returns a bytearray, while bytearray[offset] returns
         a byte.
         """
+        # pyre-fixme[25]: Assertion will always fail.
         if not isinstance(bx_block_msg, memoryview):
             bx_block_msg = memoryview(bx_block_msg)
 

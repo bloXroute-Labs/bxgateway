@@ -21,6 +21,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
     fields = [("block", Block),
               ("chain_difficulty", rlp.sedes.big_endian_int)]
 
+    # pyre-fixme[8]: Attribute has type `Block`; used as `None`.
     block: Block = None
 
     def __init__(self, msg_bytes, *args, **kwargs):
@@ -116,6 +117,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             raw_hash = crypto_utils.keccak_hash(self.block_header())
             self._block_hash = Sha256Hash(raw_hash)
 
+        # pyre-fixme[7]: Expected `Sha256Hash` but got `None`.
         return self._block_hash
 
     def prev_block_hash(self) -> Sha256Hash:
@@ -163,6 +165,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             timestamp, _timestamp_length = rlp_utils.decode_int(block_hdr_bytes, offset)
             self._timestamp = timestamp
         assert self._timestamp is not None
+        # pyre-fixme[7]: Expected `int` but got `None`.
         return self._timestamp
 
     def number(self) -> int:
@@ -185,6 +188,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             self._number, _ = rlp_utils.decode_int(block_hdr_bytes, offset)
 
         assert self._number is not None
+        # pyre-fixme[7]: Expected `int` but got `Optional[int]`.
         return self._number
 
 

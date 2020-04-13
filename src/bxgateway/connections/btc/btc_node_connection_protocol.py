@@ -32,6 +32,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
     def __init__(self, connection: "BtcNodeConnection"):
         super(BtcNodeConnectionProtocol, self).__init__(connection)
 
+        # pyre-fixme[16]: Optional type has no attribute `update`.
         connection.message_handlers.update({
             BtcMessageType.VERSION: self.msg_version,
             BtcMessageType.INVENTORY: self.msg_inv,

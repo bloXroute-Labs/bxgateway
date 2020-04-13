@@ -18,6 +18,7 @@ class AbstractOntBlockCleanupService(AbstractBlockCleanupService):
     Service for managing block cleanup.
     """
 
+    # pyre-fixme[11]: Annotation `OntGatewayNode` is not defined as a type.
     def __init__(self, node: "OntGatewayNode", network_num: int):
         """
         Constructor

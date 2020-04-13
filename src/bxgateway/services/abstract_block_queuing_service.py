@@ -177,11 +177,11 @@ class AbstractBlockQueuingService(
     def send_block_to_node(
         self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None
     ) -> None:
-        if block_msg is None:
-            block_msg = self._blocks[block_hash]
-
         if not self.node.should_process_block_hash(block_hash):
             return
+
+        if block_msg is None:
+            block_msg = self._blocks[block_hash]
 
         logger.info("Forwarding block {} to blockchain node.", block_hash)
 

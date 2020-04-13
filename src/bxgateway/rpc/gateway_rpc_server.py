@@ -39,6 +39,21 @@ class GatewayRpcServer:
 
     def __init__(self, node: "AbstractGatewayNode"):
         self._node = node
+        # pyre-fixme[6]: Expected
+        #  `Iterable[typing.Union[typing.Callable[[aiohttp.web_app.Application,
+        #  typing.Callable[[aiohttp.web_request.Request],
+        #  Awaitable[aiohttp.web_response.StreamResponse]]],
+        #  Awaitable[typing.Callable[[aiohttp.web_request.Request],
+        #  Awaitable[aiohttp.web_response.StreamResponse]]]],
+        #  typing.Callable[[aiohttp.web_request.Request,
+        #  typing.Callable[[aiohttp.web_request.Request],
+        #  Awaitable[aiohttp.web_response.StreamResponse]]],
+        #  Awaitable[aiohttp.web_response.StreamResponse]]]]` for 1st param but got
+        #  `Iterable[typing.Callable(request_middleware)[[Named(request,
+        #  aiohttp.web_request.Request), Named(handler,
+        #  typing.Callable[[aiohttp.web_request.Request],
+        #  Awaitable[aiohttp.web_response.Response]])], typing.Coroutine[typing.Any,
+        #  typing.Any, aiohttp.web_response.Response]]]`.
         self._app = Application(middlewares=[request_middleware])
         self._app.add_routes(
             [
@@ -102,6 +117,7 @@ class GatewayRpcServer:
     async def handle_metrics(self, request: Request) -> Response:
         try:
             self._authenticate_request(request)
+            # pyre-fixme[16]: Callable `headers` has no attribute `get`.
             encoder, content_type = choose_encoder(request.headers.get("Accept"))
             output = encoder(REGISTRY)
             response = Response(
@@ -119,6 +135,7 @@ class GatewayRpcServer:
         await self._runner.setup()
         opts = self._node.opts
         self._site = TCPSite(self._runner, opts.rpc_host, opts.rpc_port)
+        # pyre-fixme[16]: Optional type has no attribute `start`.
         await self._site.start()
 
     def _format_client_error(self, client_error: HTTPClientError) -> HTTPClientError:
@@ -138,6 +155,7 @@ class GatewayRpcServer:
     def _authenticate_request(self, request: Request) -> None:
         is_authenticated = True
         if self._encoded_auth is not None:
+            # pyre-fixme[16]: Callable `headers` has no attribute `__getitem__`.
             if rpc_constants.AUTHORIZATION_HEADER_KEY in request.headers:
                 is_authenticated = self._encoded_auth == request.headers[rpc_constants.AUTHORIZATION_HEADER_KEY]
             else:

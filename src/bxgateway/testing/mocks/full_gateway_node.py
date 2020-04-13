@@ -32,6 +32,7 @@ class FullGatewayInfo(NamedTuple):
 
 
 def of_type(gateway_class: Type[AbstractGatewayNode], opts: Namespace) -> FullGatewayInfo:
+    # pyre-fixme[45]: Cannot instantiate abstract class `AbstractGatewayNode`.
     gateway = gateway_class(opts, MockNodeSSLService(gateway_class.NODE_TYPE, MagicMock()))
     gateway.requester = MagicMock()
 

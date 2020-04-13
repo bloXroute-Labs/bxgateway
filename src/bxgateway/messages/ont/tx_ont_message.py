@@ -15,6 +15,7 @@ class TxOntMessage(OntMessage):
     def __init__(self, magic: Optional[int] = None, version: Optional[int] = None, txload: Optional[bytes] = None,
                  buf: Optional[bytearray] = None):
         if buf is None:
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
             buf = bytearray(ont_constants.ONT_HDR_COMMON_OFF + len(txload) + ont_constants.ONT_CHAR_LEN)
             self.buf = buf
 
@@ -22,7 +23,11 @@ class TxOntMessage(OntMessage):
             struct.pack_into("<B", buf, off, version)
             off += ont_constants.ONT_CHAR_LEN
 
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
+            # pyre-fixme[6]: Expected `Union[typing.Iterable[int], bytes]` for 2nd
+            #  param but got `Optional[bytes]`.
             buf[off:off + len(txload)] = txload
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
             off += len(txload)
 
             super().__init__(magic, self.MESSAGE_TYPE, off - ont_constants.ONT_HDR_COMMON_OFF, buf)
@@ -46,6 +51,7 @@ class TxOntMessage(OntMessage):
         if self._version is None:
             off = ont_constants.ONT_HDR_COMMON_OFF
             self._version, = struct.unpack_from("<B", self.buf, off)
+        # pyre-fixme[7]: Expected `int` but got `None`.
         return self._version
 
     def tx(self) -> bytearray:
@@ -54,4 +60,5 @@ class TxOntMessage(OntMessage):
     def tx_hash(self) -> OntObjectHash:
         if self._tx_hash is None:
             self._tx_hash, _ = ont_messages_util.get_txid(self.payload())
+        # pyre-fixme[7]: Expected `OntObjectHash` but got `None`.
         return self._tx_hash

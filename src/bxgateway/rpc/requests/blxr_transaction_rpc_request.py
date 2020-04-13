@@ -26,6 +26,7 @@ class BlxrTransactionRpcRequest(AbstractRpcRequest):
         assert message_converter is not None, "Invalid server state!"
         try:
             assert self.params is not None and isinstance(self.params, dict)
+            # pyre-fixme[16]: Optional type has no attribute `__getitem__`.
             transaction_str = self.params[self.TRANSACTION]
         except TypeError:
             raise HTTPBadRequest(text=f"Invalid transaction request params type: {self.params}!")
@@ -35,6 +36,8 @@ class BlxrTransactionRpcRequest(AbstractRpcRequest):
             raise HTTPBadRequest(text="Params request field is either missing or not a dictionary type!")
         network_num = self._node.network_num
         account_id = self._node.account_id
+        # pyre-fixme[6]: Expected `Dict[str, typing.Any]` for 1st param but got
+        #  `Optional[typing.Union[Dict[str, typing.Any], typing.List[typing.Any]]]`.
         quota_type = self._get_quota_type(self.params)
         try:
             transaction = message_converter.encode_raw_msg(transaction_str)
@@ -83,6 +86,7 @@ class BlxrTransactionRpcRequest(AbstractRpcRequest):
         account_id = self._node.account_id
         quota_type_str = params.get(self.QUOTA_TYPE, QuotaType.PAID_DAILY_QUOTA.name).upper()
         if quota_type_str in QuotaType:
+            # pyre-fixme[6]: Expected `str` for 1st param but got `QuotaType`.
             quota_type = QuotaType[quota_type_str]
         elif account_id is None:
             quota_type = QuotaType.FREE_DAILY_QUOTA

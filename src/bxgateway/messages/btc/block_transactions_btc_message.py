@@ -14,10 +14,15 @@ class BlockTransactionsBtcMessage(BtcMessage):
 
     MESSAGE_TYPE = BtcMessageType.BLOCK_TRANSACTIONS
 
+    # pyre-fixme[9]: magic has type `int`; used as `None`.
+    # pyre-fixme[9]: block_hash has type `BtcObjectHash`; used as `None`.
+    # pyre-fixme[9]: transactions has type `List[memoryview]`; used as `None`.
     def __init__(self, magic: int = None, block_hash: BtcObjectHash = None, transactions: List[memoryview] = None,
+                 # pyre-fixme[9]: buf has type `memoryview`; used as `None`.
                  buf: memoryview = None):
         if buf is None:
             total_tx_size = sum(len(tx) for tx in transactions)
+            # pyre-fixme[9]: buf has type `memoryview`; used as `bytearray`.
             buf = bytearray(BTC_HDR_COMMON_OFF + BTC_SHA_HASH_LEN + BTC_VARINT_MIN_SIZE + total_tx_size)
             off = BTC_HDR_COMMON_OFF
 
@@ -39,12 +44,14 @@ class BlockTransactionsBtcMessage(BtcMessage):
             self._payload = None
 
         self._block_hash = None
+        # pyre-fixme[8]: Attribute has type `List[int]`; used as `None`.
         self._transactions: List[int] = None
 
     def block_hash(self) -> BtcObjectHash:
         if self._block_hash is None:
             self._block_hash = BtcObjectHash(buf=self.buf, offset=BTC_HDR_COMMON_OFF, length=BTC_SHA_HASH_LEN)
 
+        # pyre-fixme[7]: Expected `BtcObjectHash` but got `None`.
         return self._block_hash
 
     def transactions(self) -> List[memoryview]:

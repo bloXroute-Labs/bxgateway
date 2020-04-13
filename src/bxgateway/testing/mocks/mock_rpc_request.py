@@ -13,6 +13,7 @@ class MockRPCRequest:
 
     async def text(self) -> str:
         assert self._text is not None
+        # pyre-fixme[7]: Expected `str` but got `Optional[str]`.
         return self._text
 
     async def json(self) -> Dict[str, Any]:

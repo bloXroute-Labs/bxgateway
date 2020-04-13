@@ -11,4 +11,7 @@ class GetHeadersOntMessage(DataOntMessage):
     def __init__(self, magic: Optional[int] = None, length: Optional[int] = None,
                  hash_start: Optional[Sha256Hash] = None, hash_stop: Optional[Sha256Hash] = None,
                  buf: Optional[bytearray] = None):
+        # pyre-fixme[6]: Expected
+        #  `Optional[bxgateway.utils.ont.ont_object_hash.OntObjectHash]` for 3rd param
+        #  but got `Optional[Sha256Hash]`.
         super(GetHeadersOntMessage, self).__init__(magic, length, hash_start, hash_stop, self.MESSAGE_TYPE, buf)

@@ -201,6 +201,7 @@ class TxBtcMessage(BtcMessage):
         """
         if self._tx_hash is None:
             self._tx_hash = btc_messages_util.get_txid(self.payload())
+        # pyre-fixme[7]: Expected `BtcObjectHash` but got `None`.
         return self._tx_hash
 
     def tx(self):

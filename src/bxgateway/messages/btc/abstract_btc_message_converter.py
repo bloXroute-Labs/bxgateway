@@ -23,13 +23,13 @@ from bxgateway.utils.block_info import BlockInfo
 
 class CompactBlockCompressionResult:
     def __init__(
-            self,
-            success: bool,
-            block_info: Optional[BlockInfo],
-            bx_block: Optional[Union[memoryview, bytearray]],
-            recovery_index: Optional[int],
-            missing_indices: List[int],
-            recovered_transactions: Union[List[memoryview], VectorProxy]
+        self,
+        success: bool,
+        block_info: Optional[BlockInfo],
+        bx_block: Optional[Union[memoryview, bytearray]],
+        recovery_index: Optional[int],
+        missing_indices: List[int],
+        recovered_transactions: Union[List[memoryview], VectorProxy]
      ):
         self.success = success
         self.block_info = block_info
@@ -138,6 +138,8 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
 
         return btc_tx_msg
 
+    # pyre-fixme[14]: `tx_to_bx_txs` overrides method defined in
+    #  `AbstractMessageConverter` inconsistently.
     def tx_to_bx_txs(self, btc_tx_msg, network_num, quota_type: Optional[QuotaType] = None):
         if not isinstance(btc_tx_msg, TxBtcMessage):
             raise TypeError("tx_msg is expected to be of type TxBTCMessage")

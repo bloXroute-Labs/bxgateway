@@ -188,16 +188,21 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         for transaction in transactions:
             tx_hash, transaction_contents, short_id = transaction
 
+            # pyre-fixme[6]: Expected `int` for 1st param but got `Optional[int]`.
             self.node.block_recovery_service.check_missing_sid(short_id)
 
             if not tx_service.has_short_id(short_id):
                 tx_service.assign_short_id(tx_hash, short_id)
 
+            # pyre-fixme[6]: Expected `Sha256Hash` for 1st param but got
+            #  `Optional[bxcommon.utils.object_hash.Sha256Hash]`.
             self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
             if not tx_service.has_transaction_contents(tx_hash):
                 tx_service.set_transaction_contents(tx_hash, transaction_contents)
 
+            # pyre-fixme[6]: Expected `Sha256Hash` for 1st param but got
+            #  `Optional[bxcommon.utils.object_hash.Sha256Hash]`.
             tx_stats.add_tx_by_hash_event(tx_hash,
                                           TransactionStatEventType.TX_UNKNOWN_TRANSACTION_RECEIVED_BY_GATEWAY_FROM_RELAY,
                                           self.node.network_num, short_id, peer=stats_format.connection(self))
@@ -247,6 +252,9 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def send_bdn_performance_stats(self, bdn_stats_interval: GatewayBdnPerformanceStatInterval):
         msg_to_send = BdnPerformanceStatsMessage(bdn_stats_interval.start_time,
+                                                 # pyre-fixme[6]: Expected
+                                                 #  `datetime` for 2nd param but got
+                                                 #  `Optional[datetime.datetime]`.
                                                  bdn_stats_interval.end_time,
                                                  bdn_stats_interval.new_blocks_received_from_blockchain_node,
                                                  bdn_stats_interval.new_blocks_received_from_bdn,

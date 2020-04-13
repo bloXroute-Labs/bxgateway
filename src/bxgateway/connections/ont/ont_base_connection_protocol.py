@@ -43,6 +43,8 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                         self.node.opts.blockchain_services)
         connection.enqueue_msg(version_msg)
 
+    # pyre-fixme[14]: `msg_block` overrides method defined in
+    #  `AbstractBlockchainConnectionProtocol` inconsistently.
     def msg_block(self, msg: BlockOntMessage):
         block_hash = msg.block_hash()
 
