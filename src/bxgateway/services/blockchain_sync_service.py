@@ -1,6 +1,7 @@
 from collections import defaultdict
 
 from bxutils import logging
+from bxgateway import log_messages
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
@@ -88,8 +89,7 @@ class BlockchainSyncService(object):
                 self.node.send_msg_to_node(message)
             self.awaiting_local_callback_connections[response_command].add(connection)
         else:
-            logger.warning("Received blockchain sync request type with unknown callback mapping: {}."
-                        .format(command))
+            logger.warning(log_messages.UNKNOWN_CALLBACK_MAPPING_WITH_SYNC_REQ.format(command))
 
     def process_remote_sync_response(self, command, message, connection):
         """
@@ -107,8 +107,7 @@ class BlockchainSyncService(object):
             self.node.set_preferred_gateway_connection(connection)
             self.node.send_msg_to_node(message)
         else:
-            logger.warning("Received blockchain sync response type that was not asked for or already processed: {}"
-                        .format(command))
+            logger.warning(log_messages.UNSOLICITED_SYNC_RESPONSE.format(command))
 
     def process_local_sync_response(self, command, message):
         """

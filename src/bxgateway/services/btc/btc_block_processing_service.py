@@ -2,6 +2,7 @@ import typing
 from datetime import datetime
 
 from bxutils import logging
+from bxgateway import log_messages
 
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
@@ -83,10 +84,8 @@ class BtcBlockProcessingService(BlockProcessingService):
                     duration * 1000
                 )
             )
-            logger.warning(
-                "Compact block was parsed with {} unknown short ids. Requesting unknown transactions.",
-                missing_indices_count
-            )
+            logger.warning(log_messages.UNKNOWN_SHORT_IDS,
+                           missing_indices_count)
         return parse_result
 
     def process_compact_block_recovery(
@@ -115,7 +114,7 @@ class BtcBlockProcessingService(BlockProcessingService):
                 network_num=connection.network_num,
                 conversion_type=e.conversion_type.value
             )
-            logger.warning("Failed to process compact block '{}' after recovery. Requesting full block. Error: {}",
+            logger.warning(log_messages.COMPACT_BLOCK_PROCESSING_FAIL,
                            e.msg_hash, e)
             get_data_msg = GetDataBtcMessage(
                 magic=msg.magic(),
@@ -169,13 +168,10 @@ class BtcBlockProcessingService(BlockProcessingService):
                     len(msg.transactions())
                 )
             )
-            logger.warning(
-                "Failed to recover compact block '{}' after receiving BLOCK_TRANSACTIONS message. "
-                "Requesting full block.", msg.block_hash()
-            )
+            logger.warning(log_messages.COMPACT_BLOCK_RECOVERY_FAIL, msg.block_hash())
             get_data_msg = GetDataBtcMessage(
-                    magic=msg.magic(),
-                    inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
+                magic=msg.magic(),
+                inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
             )
             self._node.send_msg_to_node(get_data_msg)
 

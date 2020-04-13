@@ -6,6 +6,8 @@ from aiohttp import web
 from aiohttp.web import Application, Request, Response, AppRunner, TCPSite
 from aiohttp.web_exceptions import HTTPClientError
 from aiohttp.web_exceptions import HTTPUnauthorized
+from prometheus_client import MetricsHandler, REGISTRY
+from prometheus_client.exposition import choose_encoder
 
 from bxgateway.rpc import rpc_constants
 from bxgateway.rpc.request_formatter import RequestFormatter
@@ -38,7 +40,13 @@ class GatewayRpcServer:
     def __init__(self, node: "AbstractGatewayNode"):
         self._node = node
         self._app = Application(middlewares=[request_middleware])
-        self._app.add_routes([web.post("/", self.handle_request), web.get("/", self.handle_get_request)])
+        self._app.add_routes(
+            [
+                web.get("/", self.handle_get_request),
+                web.post("/", self.handle_request),
+                web.get("/metrics", self.handle_metrics)
+            ]
+        )
         self._runner = AppRunner(self._app)
         self._site = None
         self._handler = RPCRequestHandler(self._node)
@@ -90,6 +98,21 @@ class GatewayRpcServer:
                 "required_headers": [{RPCRequestHandler.CONTENT_TYPE: RPCRequestHandler.PLAIN}],
                 "payload_structures": await self._handler.help()
             })
+
+    async def handle_metrics(self, request: Request) -> Response:
+        try:
+            self._authenticate_request(request)
+            encoder, content_type = choose_encoder(request.headers.get("Accept"))
+            output = encoder(REGISTRY)
+            response = Response(
+                body=output,
+                headers={
+                    "Content-Type": content_type
+                }
+            )
+            return response
+        except HTTPClientError as e:
+            return self._format_client_error(e)
 
     async def _start(self) -> None:
         self._started = True

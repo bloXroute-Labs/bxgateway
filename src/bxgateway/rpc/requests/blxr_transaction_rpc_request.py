@@ -52,7 +52,7 @@ class BlxrTransactionRpcRequest(AbstractRpcRequest):
                 account_id=account_id,
                 short_id=short_id
             )
-            raise HTTPBadRequest(text=f"Transaction [{bx_tx.tx_hash} was already seen!")
+            raise HTTPBadRequest(text=f"Transaction [{tx_hash} was already seen!")
         tx_stats.add_tx_by_hash_event(
             tx_hash,
             TransactionStatEventType.BDN_TX_RECEIVED_FROM_CLIENT_ACCOUNT,

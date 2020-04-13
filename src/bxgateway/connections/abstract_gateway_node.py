@@ -32,6 +32,7 @@ from bxcommon.utils.stats import hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
+from bxgateway import log_messages
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -71,7 +72,6 @@ class AbstractGatewayNode(AbstractNode):
     remote_blockchain_ip: Optional[str] = None
     remote_blockchain_port: Optional[int] = None
     remote_node_conn: Optional[AbstractGatewayBlockchainConnection] = None
-    _preferred_gateway_connection: Optional[GatewayConnection] = None
 
     _blockchain_liveliness_alarm: Optional[AlarmId] = None
     _relay_liveliness_alarm: Optional[AlarmId] = None
@@ -185,8 +185,7 @@ class AbstractGatewayNode(AbstractNode):
         )
         self.default_tx_quota_type: QuotaType = opts.default_tx_quota_type
         if self.default_tx_quota_type == QuotaType.PAID_DAILY_QUOTA and self.account_id is None:
-            logger.error(
-                "Valid Account Id is required in order to propagate Transactions as Paid, revert quota type to Free")
+            logger.error(log_messages.INVALID_ACCOUNT_ID)
             self.default_tx_quota_type = QuotaType.FREE_DAILY_QUOTA
         self._rpc_server = GatewayRpcServer(self)
 
@@ -281,44 +280,6 @@ class AbstractGatewayNode(AbstractNode):
         self.requester.send_threaded_request(sdn_http_service.submit_tx_synced_event,
                                              self.opts.node_id)
 
-    def get_preferred_gateway_connection(self):
-        """
-        Gets gateway connection of highest priority. This is usually a bloxroute owned node, but can also be
-        overridden by the command line arguments, otherwise a randomly chosen connection.
-
-        This can return None.
-        """
-        if self._preferred_gateway_connection is None or not self._preferred_gateway_connection.is_alive():
-
-            connected_opts_peer = self._find_active_connection(self.opts.peer_gateways)
-            if connected_opts_peer is not None:
-                self._preferred_gateway_connection = connected_opts_peer
-                return connected_opts_peer
-
-            bloxroute_peers = filter(lambda peer: peer.is_internal_gateway, self.peer_gateways)
-            connected_bloxroute_peer = self._find_active_connection(bloxroute_peers)
-            if connected_bloxroute_peer is not None:
-                self._preferred_gateway_connection = connected_bloxroute_peer
-                return connected_bloxroute_peer
-
-            connected_peer = self._find_active_connection(self.peer_gateways)
-            if connected_peer is not None:
-                self._preferred_gateway_connection = connected_peer
-                return connected_peer
-
-            self._preferred_gateway_connection = None
-
-        return self._preferred_gateway_connection
-
-    def set_preferred_gateway_connection(self, connection):
-        """
-        Override current preferred gateway connection.
-        """
-        if not isinstance(connection, GatewayConnection):
-            raise ValueError("Cannot set preferred gateway connection to a connection of type {}"
-                             .format(type(connection)))
-        self._preferred_gateway_connection = connection
-
     def track_block_from_node_handling_started(self, block_hash: Sha256Hash) -> None:
         """
         Tracks that node started handling a block received from blockchain node
@@ -373,13 +334,13 @@ class AbstractGatewayNode(AbstractNode):
         try:
             await asyncio.wait_for(self._rpc_server.start(), gateway_constants.RPC_SERVER_INIT_TIMEOUT_S)
         except Exception as e:
-            logger.error("Failed to initialize Gateway RPC server: {}.", e, exc_info=True)
+            logger.error(log_messages.RPC_INITIALIZATION_FAIL, e, exc_info=True)
 
     async def close(self):
         try:
             await asyncio.wait_for(self._rpc_server.stop(), gateway_constants.RPC_SERVER_STOP_TIMEOUT_S)
         except Exception as e:
-            logger.error("Failed to close Gateway RPC server: {}.", e, exc_info=True)
+            logger.error(log_messages.RPC_CLOSE_FAIL, e, exc_info=True)
         await super(AbstractGatewayNode, self).close()
 
     def send_request_for_relay_peers(self):
@@ -656,23 +617,38 @@ class AbstractGatewayNode(AbstractNode):
         """
         if self.node_conn is None:
             self.should_force_exit = True
-            logger.error("Gateway does not have an active connection to the blockchain node. "
-                         "Check that the blockchain node is running and available. Exiting.")
+            logger.error(log_messages.NO_ACTIVE_BLOCKCHAIN_CONNECTION)
 
     def check_relay_liveliness(self):
         if not self.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL):
             self.should_force_exit = True
-            logger.error("Gateway does not have an active connection to the relay network. "
-                         "There may be issues with the BDN. Exiting.")
+            logger.error(log_messages.NO_ACTIVE_BDN_CONNECTIONS)
 
     def should_process_block_hash(self, block_hash: Optional[Sha256Hash] = None) -> bool:
+        result = True
+        reason = None
+
         if not self.opts.has_fully_updated_tx_service:
+            result = False
+            reason = "Tx sync in progress"
+
+        if self.node_conn is None or not self.node_conn.is_active():
+            result = False
+            reason = "No blockchain connection"
+
+        if not result:
             logger.debug(
-                "Gateway skipped processing block {} while tx syncing.",
-                block_hash if block_hash is not None else "block message"
+                "Gateway skipped processing block {}. Reason: {}.",
+                block_hash if block_hash is not None else "block message",
+                reason
             )
-            return False
-        return True
+            if block_hash is not None:
+                block_stats.add_block_event_by_block_hash(block_hash,
+                                                          BlockStatEventType.ENC_BLOCK_GATEWAY_IGNORE_NO_BLOCKCHAIN,
+                                                          network_num=self.network_num,
+                                                          more_info=reason)
+
+        return result
 
     def _send_request_for_gateway_peers(self):
         """
@@ -682,11 +658,11 @@ class AbstractGatewayNode(AbstractNode):
         if not peer_gateways and not self.peer_gateways and \
             self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
             # Try again later
-            logger.warning("Did not receive expected gateway peers from BDN. Retrying.")
+            logger.warning(log_messages.NO_GATEWAY_PEERS)
             self.send_request_for_gateway_peers_num_of_calls += 1
             if self.send_request_for_gateway_peers_num_of_calls == \
                 gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
-                logger.warning("Giving up on querying for gateway peers from the BDN.")
+                logger.warning(log_messages.ABANDON_GATEWAY_PEER_REQUEST)
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
             logger.debug("Processing updated peer gateways: {}", peer_gateways)
@@ -735,10 +711,18 @@ class AbstractGatewayNode(AbstractNode):
 
         self.outbound_peers = self._get_all_peers()
 
-        if len(self.peer_relays) < gateway_constants.MIN_PEER_BLOCK_RELAYS_BY_COUNTRY[self.opts.country] or \
-            len(self.peer_transaction_relays) < gateway_constants.MIN_PEER_TRANSACTION_RELAYS:
-            self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
-                                            self.send_request_for_relay_peers)
+        if (
+            len(self.peer_relays) < gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country]
+            or len(self.peer_transaction_relays) < gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country] and
+            self.check_relay_alarm_id is None
+        ):
+            logger.debug("Removed relay peer with ip {} and port {}. "
+                         "Current number of relay peers is lower than required. "
+                         "Scheduling request of new relays from BDN.",
+                         ip, port)
+            self.check_relay_alarm_id = self.alarm_queue.register_alarm(
+                constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers
+            )
 
     def _remove_relay_transaction_peer(self, ip: str, port: int, remove_block_relay: bool = True):
         """
@@ -805,7 +789,7 @@ class AbstractGatewayNode(AbstractNode):
 
     def _transaction_sync_timeout(self):
         if not self.opts.has_fully_updated_tx_service:
-            logger.warning("Gateway transaction sync took too long; marking gateway as synced.")
+            logger.warning(log_messages.TX_SYNC_TIMEOUT)
             self.alarm_queue.unregister_alarm(self._check_sync_relay_connections_alarm_id)
             self.on_fully_updated_tx_service()
             return constants.CANCEL_ALARMS
@@ -814,13 +798,10 @@ class AbstractGatewayNode(AbstractNode):
         if self.network_num in self.last_sync_message_received_by_network and \
             time.time() - self.last_sync_message_received_by_network[self.network_num] > \
             constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
-            logger.warning(
-                "It has been more than {0} seconds since the last time gateway received a message from requested "
-                "relay, assuming requested relay turned offline and mark gateway as synced",
-                constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
-            )
+            logger.warning(log_messages.RELAY_CONNECTION_TIMEOUT,
+                           constants.LAST_MSG_FROM_RELAY_THRESHOLD_S)
 
-            self.last_sync_message_received_by_network.pop(self.network_num, None)
+            self.on_network_synced(self.network_num)
             self.alarm_queue.unregister_alarm(self._transaction_sync_timeout_alarm_id)
             self.on_fully_updated_tx_service()
 
@@ -879,10 +860,11 @@ class AbstractGatewayNode(AbstractNode):
 
         logger.trace("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
 
-        block_relays_count = gateway_constants.MIN_PEER_BLOCK_RELAYS_BY_COUNTRY[self.opts.country]
+        block_relays_count = gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country]
 
-        best_relay_peers = network_latency.get_best_relays_by_ping_latency_one_per_country(potential_relay_peers,
-                                                                                           block_relays_count)
+        best_relay_peers = network_latency.get_best_relays_by_ping_latency_one_per_country(
+            potential_relay_peers, block_relays_count
+        )
         if not best_relay_peers:
             best_relay_peers = potential_relay_peers[:block_relays_count]
         logger.trace("Best relay peers to node {} are: {}", self.opts.node_id, best_relay_peers)
@@ -894,34 +876,35 @@ class AbstractGatewayNode(AbstractNode):
         self._register_potential_relay_peers(best_relay_peers)
 
     def _register_potential_relay_peers(self, best_relay_peers: List[OutboundPeerModel]):
-        for index, best_relay_peer in enumerate(best_relay_peers):
-            if best_relay_peer not in self.peer_relays:
-                logger.debug("Connecting to new relay {}.", best_relay_peer)
-                self.peer_relays.add(best_relay_peer)
-            else:
-                logger.debug("Current relay {} is optimal, skip.", best_relay_peer)
+        best_relay_set = set(best_relay_peers)
 
-            # Split relay mode always starts a transaction relay at one port number higher than the block relay
-            if self.opts.split_relays and index == 0:
-                best_relay_peer_tx = OutboundPeerModel(
-                    best_relay_peer.ip,
-                    best_relay_peer.port + 1,
-                    "{}-tx".format(best_relay_peer.node_id),
-                    False,
-                    best_relay_peer.attributes,
-                    node_type=NodeType.RELAY_TRANSACTION
+        to_disconnect = self.peer_relays - best_relay_set
+        to_connect = best_relay_set - self.peer_relays
+
+        for peer_to_remove in to_disconnect:
+            logger.info("Disconnecting from current relay {}", peer_to_remove)
+            self.peer_relays.remove(peer_to_remove)
+            if self.opts.split_relays:
+                self.peer_transaction_relays = {
+                    peer for peer in self.peer_transaction_relays
+                    if not (
+                        peer.ip == peer_to_remove.ip and peer.port == peer_to_remove.port + 1
+                    )
+                }
+
+        for peer_to_connect in to_connect:
+            logger.info("Connecting to better relay {}", peer_to_connect)
+            self.peer_relays.add(peer_to_connect)
+            if self.opts.split_relays:
+                self.peer_transaction_relays.add(
+                    OutboundPeerModel(
+                        peer_to_connect.ip,
+                        peer_to_connect.port + 1,
+                        f"{peer_to_connect.node_id}-tx",
+                        False,
+                        peer_to_connect.attributes,
+                        NodeType.RELAY_TRANSACTION
+                    )
                 )
-
-                # Connect only to one transaction relay
-                if best_relay_peer_tx not in self.peer_transaction_relays:
-                    logger.debug("Connecting to new transaction relay {}.", best_relay_peer_tx)
-                    self.peer_transaction_relays.clear()
-                    self.peer_transaction_relays.add(best_relay_peer_tx)
-                else:
-                    logger.debug("Current transaction relay {} is optimal, skip.", best_relay_peer_tx)
-
-        for removed_peer in self.peer_relays - set(best_relay_peers):
-            logger.info("Disconnecting from current relay {}", removed_peer)
-            self.peer_relays.remove(removed_peer)
 
         self.on_updated_peers(self._get_all_peers())

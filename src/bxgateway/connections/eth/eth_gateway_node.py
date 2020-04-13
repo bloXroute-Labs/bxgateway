@@ -35,6 +35,7 @@ from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
 from bxutils import logging
+from bxgateway import log_messages
 from bxutils.services.node_ssl_service import NodeSSLService
 
 logger = logging.get_logger(__name__)
@@ -136,7 +137,7 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def on_updated_remote_blockchain_peer(self, peer):
         if "node_public_key" not in peer.attributes:
-            logger.warning("Received remote blockchain peer without remote public key. This is currently unsupported.")
+            logger.warning(log_messages.BLOCKCHAIN_PEER_LACKS_PUBLIC_KEY)
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
             super(EthGatewayNode, self).on_updated_remote_blockchain_peer(peer)
@@ -258,9 +259,7 @@ class EthGatewayNode(AbstractGatewayNode):
             expected_blocks = self._requested_remote_blocks_queue.pop()
 
             if len(expected_blocks) != blocks_count:
-                logger.warning(
-                    "Number of blocks received from remote blockchain node ({}) does not match expected ({}). "
-                    "Temporarily suspending logging of remote blocks sync.",
+                logger.warning(log_messages.BLOCK_COUNT_MISMATCH,
                     blocks_count, len(expected_blocks))
                 self._skip_remote_block_requests_stats_count = len(self._requested_remote_blocks_queue) * 2
                 self._requested_remote_blocks_queue.clear()
@@ -274,7 +273,7 @@ class EthGatewayNode(AbstractGatewayNode):
                                                               self.opts.blockchain_protocol,
                                                               self.opts.blockchain_network))
         else:
-            logger.warning("Received blocks from remote node but nothing is expected.")
+            logger.warning(log_messages.UNEXPECTED_BLOCKS)
 
     def log_closed_connection(self, connection: AbstractConnection):
         if isinstance(connection, EthNodeConnection):

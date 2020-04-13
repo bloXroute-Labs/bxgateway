@@ -9,6 +9,7 @@ from bxgateway.messages.eth.discovery.eth_discovery_message_factory import eth_d
 from bxgateway.messages.eth.discovery.eth_discovery_message_type import EthDiscoveryMessageType
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
 from bxutils import logging
+from bxgateway import log_messages
 
 if TYPE_CHECKING:
     from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
@@ -57,5 +58,5 @@ class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection["EthGateway
 
     def _pong_timeout(self):
         if not self._pong_received:
-            self.log_warning("Pong message was not received within allocated timeout connection. Closing.")
+            self.log_warning(log_messages.PONG_MESSAGE_TIMEOUT)
             self.mark_for_close()

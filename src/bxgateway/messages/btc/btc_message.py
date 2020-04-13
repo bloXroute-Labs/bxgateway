@@ -1,13 +1,12 @@
 import struct
 
-from bxutils import logging
-from bxutils.logging.log_level import LogLevel
-
 from bxcommon.constants import MSG_NULL_BYTE
 from bxcommon.exceptions import ChecksumError, PayloadLenError
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import crypto
-from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_MAGIC_NUMBERS, BTC_HEADER_MINUS_CHECKSUM
+from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_HEADER_MINUS_CHECKSUM, BTC_MAGIC_NUMBERS
+from bxutils import logging
+from bxgateway import log_messages
 
 logger = logging.get_logger(__name__)
 
@@ -45,12 +44,12 @@ class BtcMessage(AbstractMessage):
     def validate_payload(cls, buf, unpacked_args):
         command, _magic, checksum, payload_length = unpacked_args
         if payload_length != len(buf) - cls.HEADER_LENGTH:
-            error_message = "Payload length does not match buffer size: %d vs %d bytes" % (payload_length, len(buf))
+            error_message = log_messages.PAYLOAD_LENGTH_MISMATCH.text.format(payload_length, len(buf))
             logger.error(error_message)
             raise PayloadLenError(error_message)
         ref_checksum = crypto.bitcoin_hash(buf[cls.HEADER_LENGTH:cls.HEADER_LENGTH + payload_length])[0:4]
         if checksum != ref_checksum:
-            error_message = "Checksum (%s) for packet doesn't match (%s): %s" % (checksum, ref_checksum, repr(buf))
+            error_message = log_messages.PACKET_CHECKSUM_MISMATCH.text.format(checksum, ref_checksum, repr(buf))
             logger.error(error_message)
             raise ChecksumError(error_message, buf)
 

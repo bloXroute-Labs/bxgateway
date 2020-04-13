@@ -173,43 +173,6 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel(LOCALHOST, 8003, "12345", node_type=NodeType.EXTERNAL_GATEWAY), node.outbound_peers
         )
 
-    def test_get_preferred_gateway_connection_opts(self):
-        opts_peer_gateways = [
-            OutboundPeerModel(LOCALHOST, 8001)
-        ]
-        opts = helpers.get_gateway_opts(8000, peer_gateways=opts_peer_gateways)
-        if opts.use_extensions:
-            helpers.set_extensions_parallelism()
-        node = GatewayNode(opts)
-        node.on_connection_added(MockSocketConnection(node=node, ip_address=LOCALHOST, port=8001))
-
-        opts_connection = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
-        self.assertIsNone(node.get_preferred_gateway_connection())
-        opts_connection.state |= ConnectionState.ESTABLISHED
-        self.assertEqual(opts_connection, node.get_preferred_gateway_connection())
-
-    def test_get_preferred_gateway_connection_bloxroute(self):
-        opts = helpers.get_gateway_opts(8000)
-        if opts.use_extensions:
-            helpers.set_extensions_parallelism()
-        node = GatewayNode(opts)
-        node.peer_gateways = [
-            OutboundPeerModel(LOCALHOST, 8001, is_internal_gateway=False),
-            OutboundPeerModel(LOCALHOST, 8002, is_internal_gateway=True)
-        ]
-
-        node.on_connection_added(MockSocketConnection(node=node, ip_address=LOCALHOST, port=8001))
-        node.on_connection_added(MockSocketConnection(node=node, ip_address=LOCALHOST, port=8002))
-
-        other_connection = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
-        other_connection.state |= ConnectionState.ESTABLISHED
-        bloxroute_connection = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
-        bloxroute_connection.state |= ConnectionState.ESTABLISHED
-        self.assertEqual(bloxroute_connection, node.get_preferred_gateway_connection())
-
-        bloxroute_connection.mark_for_close()
-        self.assertEqual(other_connection, node.get_preferred_gateway_connection())
-
     def test_split_relay_connection(self):
         relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[0]])
@@ -486,10 +449,21 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(2, len(node.peer_relays))
         self.assertIn(relay1, node.peer_relays)
         self.assertIn(relay2, node.peer_relays)
-        self.assertEqual(1, len(node.peer_transaction_relays))
+        self.assertEqual(2, len(node.peer_transaction_relays))
         self.assertNotIn(relay1, node.peer_transaction_relays)
-        self.assertEqual(relay1.ip, next(iter(node.peer_transaction_relays)).ip)
-        self.assertEqual(relay1.port + 1, next(iter(node.peer_transaction_relays)).port)
+        self.assertNotIn(relay2, node.peer_transaction_relays)
+        self.assertTrue(
+            any(
+                peer.ip == relay1.ip and peer.port == relay1.port + 1
+                for peer in node.peer_transaction_relays
+            )
+        )
+        self.assertTrue(
+            any(
+                peer.ip == relay2.ip and peer.port == relay2.port + 1
+                for peer in node.peer_transaction_relays
+            )
+        )
 
         # Second block relay changed
         network_latency.get_best_relays_by_ping_latency_one_per_country.return_value = [relay1, relay3]
@@ -501,10 +475,21 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(2, len(node.peer_relays))
         self.assertIn(relay1, node.peer_relays)
         self.assertIn(relay3, node.peer_relays)
-        self.assertEqual(1, len(node.peer_transaction_relays))
+        self.assertEqual(2, len(node.peer_transaction_relays))
         self.assertNotIn(relay1, node.peer_transaction_relays)
-        self.assertEqual(relay1.ip, next(iter(node.peer_transaction_relays)).ip)
-        self.assertEqual(relay1.port + 1, next(iter(node.peer_transaction_relays)).port)
+        self.assertNotIn(relay3, node.peer_transaction_relays)
+        self.assertTrue(
+            any(
+                peer.ip == relay1.ip and peer.port == relay1.port + 1
+                for peer in node.peer_transaction_relays
+            )
+        )
+        self.assertTrue(
+            any(
+                peer.ip == relay3.ip and peer.port == relay3.port + 1
+                for peer in node.peer_transaction_relays
+            )
+        )
 
         # Both relays changed
         network_latency.get_best_relays_by_ping_latency_one_per_country.return_value = [relay4, relay2]
@@ -517,10 +502,21 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(2, len(node.peer_relays))
         self.assertIn(relay4, node.peer_relays)
         self.assertIn(relay2, node.peer_relays)
-        self.assertEqual(1, len(node.peer_transaction_relays))
+        self.assertEqual(2, len(node.peer_transaction_relays))
         self.assertNotIn(relay4, node.peer_transaction_relays)
-        self.assertEqual(relay4.ip, next(iter(node.peer_transaction_relays)).ip)
-        self.assertEqual(relay4.port + 1, next(iter(node.peer_transaction_relays)).port)
+        self.assertNotIn(relay2, node.peer_transaction_relays)
+        self.assertTrue(
+            any(
+                peer.ip == relay4.ip and peer.port == relay4.port + 1
+                for peer in node.peer_transaction_relays
+            )
+        )
+        self.assertTrue(
+            any(
+                peer.ip == relay2.ip and peer.port == relay2.port + 1
+                for peer in node.peer_transaction_relays
+            )
+        )
 
         # Use existing peers if new peers are empty
         network_latency.get_best_relays_by_ping_latency_one_per_country.return_value = [relay4, relay2]
@@ -532,10 +528,20 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(2, len(node.peer_relays))
         self.assertIn(relay4, node.peer_relays)
         self.assertIn(relay2, node.peer_relays)
-        self.assertEqual(1, len(node.peer_transaction_relays))
+        self.assertEqual(2, len(node.peer_transaction_relays))
         self.assertNotIn(relay4, node.peer_transaction_relays)
-        self.assertEqual(relay4.ip, next(iter(node.peer_transaction_relays)).ip)
-        self.assertEqual(relay4.port + 1, next(iter(node.peer_transaction_relays)).port)
+        self.assertTrue(
+            any(
+                peer.ip == relay4.ip and peer.port == relay4.port + 1
+                for peer in node.peer_transaction_relays
+            )
+        )
+        self.assertTrue(
+            any(
+                peer.ip == relay2.ip and peer.port == relay2.port + 1
+                for peer in node.peer_transaction_relays
+            )
+        )
 
         # Only one potential relay
         node.peer_relays.clear()

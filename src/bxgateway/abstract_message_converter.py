@@ -4,7 +4,7 @@ from typing import Tuple, Optional, List, Set, Union, NamedTuple
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.models.quota_type_model import QuotaType
-from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.object_hash import Sha256Hash, convert
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
 
 from bxgateway.utils.block_info import BlockInfo
@@ -90,7 +90,6 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         """
         pass
 
-    @abstractmethod
     def encode_raw_msg(self, raw_msg: str) -> bytes:
         """
         Encode a raw message string into bytes
@@ -98,7 +97,8 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         :return: binary encoded message
         :raise ValueError: if the encoding fails
         """
-        pass
+        # TODO: remove this method, access hex to bytes directly
+        return convert.hex_to_bytes(raw_msg)
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
         return super(AbstractMessageConverter, self).special_memory_size(ids)

@@ -7,6 +7,7 @@ from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import crypto
 from bxgateway import ont_constants
 from bxutils import logging
+from bxgateway import log_messages
 
 logger = logging.get_logger(__name__)
 
@@ -48,11 +49,11 @@ class OntMessage(AbstractMessage):
     def validate_payload(cls, buf, unpacked_args):
         command, _magic, checksum, payload_length = unpacked_args
         if payload_length != len(buf) - cls.HEADER_LENGTH:
-            logger.error("Payload length does not match buffer size: {} vs {} bytes", payload_length, len(buf))
+            logger.error(log_messages.PAYLOAD_LENGTH_MISMATCH, payload_length, len(buf))
             raise PayloadLenError("Payload length error raised")
         ref_checksum = crypto.double_sha256(buf[cls.HEADER_LENGTH:cls.HEADER_LENGTH + payload_length])[0:4]
         if checksum != ref_checksum:
-            logger.error("Checksum ({}) for packet doesn't match ({}): {}", checksum, ref_checksum, buf)
+            logger.error(log_messages.PACKET_CHECKSUM_MISMATCH, checksum, ref_checksum, buf)
             raise ChecksumError("Checksum error raised", buf)
 
     @classmethod

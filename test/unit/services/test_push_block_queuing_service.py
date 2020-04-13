@@ -107,6 +107,9 @@ def create_block_message(
     return TestBlockMessage(previous_block_hash, block_hash)
 
 
+TTL = 300
+
+
 class BlockQueuingServiceTest(AbstractTestCase):
 
     def setUp(self):
@@ -114,7 +117,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
             helpers.get_gateway_opts(
                 8000,
                 max_block_interval=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S,
-                blockchain_message_ttl=300
+                blockchain_message_ttl=TTL
             )
         )
 
@@ -598,3 +601,29 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(1, len(self.node.send_to_node_messages))
         self.assertEqual(block_msg_1, self.node.send_to_node_messages[0])
         self.assertEqual(0, len(self.block_queuing_service))
+
+    def test_block_queue_continues_after_timeout(self):
+        block_hash_1 = helpers.generate_object_hash()
+        block_msg_1 = create_block_message(block_hash_1)
+
+        block_hash_2 = helpers.generate_object_hash()
+        block_msg_2 = create_block_message(block_hash_2, block_hash_1)
+
+        block_hash_3 = helpers.generate_object_hash()
+        block_msg_3 = create_block_message(block_hash_3, block_hash_2)
+
+        self.node.node_conn = None
+
+        self.block_queuing_service.push(block_hash_1, block_msg_1)
+        time.time = MagicMock(return_value=time.time() + 150)
+
+        self.block_queuing_service.push(block_hash_2, block_msg_2)
+        self.block_queuing_service.push(block_hash_3, block_msg_3)
+        time.time = MagicMock(return_value=time.time() + TTL - 150 + 1)
+
+        # too much time has elapsed for the first message
+        self.node.node_conn = self.node_connection
+        self.node.alarm_queue.fire_alarms()
+
+        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(block_msg_2, self.node.send_to_node_messages[0])

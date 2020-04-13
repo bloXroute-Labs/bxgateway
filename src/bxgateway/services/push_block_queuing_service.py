@@ -1,6 +1,6 @@
 import time
 from abc import abstractmethod, ABCMeta
-from typing import Optional, TYPE_CHECKING, List, Generic
+from typing import Optional, TYPE_CHECKING, List, Generic, Callable
 
 from bxcommon import constants
 from bxcommon.utils.alarm_queue import AlarmId
@@ -65,17 +65,15 @@ class PushBlockQueuingService(
         block_hash: Sha256Hash,
         block_msg: Optional[TBlockMessage] = None,
         waiting_for_recovery: bool = False,
-    ):
+    ) -> None:
         super().push(block_hash, block_msg, waiting_for_recovery)
 
-        if (
-            not waiting_for_recovery
-            and self._is_node_ready_to_accept_blocks()
-            and self._can_send_block_message(block_hash, block_msg)
-        ):
-            self.send_block_to_node(block_hash, block_msg)
-            self.remove_from_queue(block_hash)
-            return
+        if not waiting_for_recovery and self._is_node_ready_to_accept_blocks():
+            assert block_msg is not None
+            if self._can_send_block_message(block_hash, block_msg):
+                self.send_block_to_node(block_hash, block_msg)
+                self.remove_from_queue(block_hash)
+                return
 
         logger.debug(
             "Queued up block {} for sending to the blockchain node. "
@@ -90,20 +88,21 @@ class PushBlockQueuingService(
 
     def update_recovered_block(
         self, block_hash: Sha256Hash, block_msg: TBlockMessage
-    ):
+    ) -> None:
         if block_hash in self._blocks:
             self._blocks_waiting_for_recovery[block_hash] = False
             self.store_block_data(block_hash, block_msg)
 
             # if this is the first item in the queue then cancel alarm for
             # block recovery timeout and send block
-            if self._block_queue[0][0] == block_hash:
+            if len(self._block_queue) > 0 and self._block_queue[0][0] == block_hash:
+                assert self._last_alarm_id is not None
                 self.node.alarm_queue.unregister_alarm(self._last_alarm_id)
                 self._schedule_alarm_for_next_item()
 
     def mark_blocks_seen_by_blockchain_node(
         self, block_hashes: List[Sha256Hash]
-    ):
+    ) -> None:
         """
         Marks blocks seen and retries the top block(s).
         """
@@ -115,18 +114,22 @@ class PushBlockQueuingService(
         self,
         block_hash: Sha256Hash,
         block_message: Optional[TBlockMessage] = None,
-    ):
+    ) -> None:
         super().mark_block_seen_by_blockchain_node(block_hash, block_message)
         self._blocks_seen_by_blockchain_node.add(block_hash)
         self.remove_from_queue(block_hash)
 
     def send_block_to_node(
         self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None
-    ):
+    ) -> None:
+        if block_msg is None:
+            block_msg = self._blocks[block_hash]
+
         super(PushBlockQueuingService, self).send_block_to_node(
             block_hash, block_msg
         )
         self._last_block_sent_time = time.time()
+        # pyre-ignore
         self.on_block_sent(block_hash, block_msg)
 
     def remove_from_queue(self, block_hash: Sha256Hash) -> int:
@@ -162,7 +165,7 @@ class PushBlockQueuingService(
             )
             return previous_block_hash in self._blocks_seen_by_blockchain_node
 
-    def _retry_send(self):
+    def _retry_send(self) -> None:
         """
         Checks if top block can be sent to blockchain node, sending if so.
         This method should be called after adding blocks to the
@@ -172,7 +175,7 @@ class PushBlockQueuingService(
             self.node.alarm_queue.unregister_alarm(self._last_alarm_id)
         self._schedule_alarm_for_next_item()
 
-    def _schedule_alarm_for_next_item(self):
+    def _schedule_alarm_for_next_item(self) -> None:
         self._last_alarm_id = None
 
         if len(self._block_queue) == 0:
@@ -191,6 +194,7 @@ class PushBlockQueuingService(
         else:
             if not self._is_elapsed_time_shorter_than_ttl(time.time() - timestamp, block_hash):
                 self._remove_old_blocks_from_queue()
+                self._schedule_alarm_for_next_item()
                 return
             block_message = self._blocks[block_hash]
             assert block_message is not None
@@ -202,7 +206,7 @@ class PushBlockQueuingService(
                 )
             self._run_or_schedule_alarm(timeout, self._send_top_block_to_node)
 
-    def _run_or_schedule_alarm(self, timeout, func):
+    def _run_or_schedule_alarm(self, timeout: float, func: Callable) -> None:
         if timeout > 0:
             self._last_alarm_id = self.node.alarm_queue.register_alarm(
                 timeout, func
@@ -215,13 +219,13 @@ class PushBlockQueuingService(
         else:
             func()
 
-    def _send_top_block_to_node(self):
+    def _send_top_block_to_node(self) -> int:
         if len(self._block_queue) == 0:
-            return
+            return constants.CANCEL_ALARMS
 
         if not self._is_node_ready_to_accept_blocks():
             self._schedule_alarm_for_next_item()
-            return 0
+            return constants.CANCEL_ALARMS
 
         block_hash, timestamp = self._block_queue[0]
         waiting_recovery = self._blocks_waiting_for_recovery[block_hash]
@@ -233,7 +237,7 @@ class PushBlockQueuingService(
                 block_hash,
             )
             self._schedule_alarm_for_next_item()
-            return
+            return constants.CANCEL_ALARMS
 
         block_msg = self._blocks[block_hash]
         index = self.remove_from_queue(block_hash)
@@ -241,13 +245,16 @@ class PushBlockQueuingService(
 
         if self._is_elapsed_time_shorter_than_ttl(time.time() - timestamp, block_hash):
             self.send_block_to_node(block_hash, block_msg)
-            self._schedule_alarm_for_next_item()
         else:
             self._remove_old_blocks_from_queue()
 
-        return 0
+        self._schedule_alarm_for_next_item()
+        return constants.CANCEL_ALARMS
 
     def _top_block_recovery_timeout(self) -> int:
+        if len(self._block_queue) == 0:
+            return constants.CANCEL_ALARMS
+
         current_time = time.time()
 
         block_hash, timestamp = self._block_queue[0]
@@ -281,7 +288,7 @@ class PushBlockQueuingService(
 
         return constants.CANCEL_ALARMS
 
-    def _is_elapsed_time_shorter_than_ttl(self, elapsed_time: int, block_hash: Sha256Hash) -> bool:
+    def _is_elapsed_time_shorter_than_ttl(self, elapsed_time: float, block_hash: Sha256Hash) -> bool:
         if elapsed_time < self.node.opts.blockchain_message_ttl:
             return True
 
@@ -289,7 +296,7 @@ class PushBlockQueuingService(
                      block_hash, elapsed_time)
         return False
 
-    def _remove_old_blocks_from_queue(self):
+    def _remove_old_blocks_from_queue(self) -> None:
         """
         Removes old blocks from block queue even if block_hash is not in self._blocks, similar to remove_from_queue
         """

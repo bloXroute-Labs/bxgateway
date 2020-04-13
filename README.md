@@ -153,6 +153,6 @@ Contact us at support@bloxroute.com for further questions.
 [docker]: https://www.docker.com
 [bxextensions]: https://github.com/bloXroute-Labs/bxextensions
 [virtual environment]: https://virtualenv.pypa.io/en/latest/
-[install]: https://bloxroute.com/documentation/deployment/
-[args]: https://bloxroute.com/documentation/deployment/#command-line-arguments
-[documentation]: https://bloxroute.com/documentation/
+[install]: https://bloxroute.com/docs/bloxroute-documentation/installation/installation/
+[args]: https://bloxroute.com/docs/bloxroute-documentation/installation/running/
+[documentation]: https://bloxroute.com/docs/bloxroute-documentation/

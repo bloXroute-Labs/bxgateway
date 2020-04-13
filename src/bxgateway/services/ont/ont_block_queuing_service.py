@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, cast, TYPE_CHECKING
 
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import ont_constants
@@ -12,6 +12,10 @@ from bxgateway.services.abstract_block_queuing_service import (
 from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxutils import logging
 
+if TYPE_CHECKING:
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+    from bxgateway.connections.ont.ont_gateway_node import OntGatewayNode
+
 logger = logging.get_logger(__name__)
 
 
@@ -21,6 +25,9 @@ class OntBlockQueuingService(
     """
     Blocks sent to blockchain node only upon request
     """
+    def __init__(self, node: "AbstractGatewayNode"):
+        super().__init__(node)
+        self.node: "OntGatewayNode" = cast("OntGatewayNode", node)
 
     def build_block_header_message(
         self, block_hash: Sha256Hash, block_message: BlockOntMessage
@@ -31,15 +38,17 @@ class OntBlockQueuingService(
 
     def push(
         self,
-        block_hash: OntObjectHash,
-        block_msg: BlockOntMessage = None,
+        block_hash: Sha256Hash,
+        block_msg: Optional[BlockOntMessage] = None,
         waiting_for_recovery: bool = False,
-    ):
+    ) -> None:
         super().push(block_hash, block_msg, waiting_for_recovery)
         logger.debug("Added block {} to queuing service", block_hash)
         self._clean_block_queue()
 
         if block_hash in self._blocks and not waiting_for_recovery:
+            assert block_msg is not None
+            block_hash = cast(OntObjectHash, block_hash)
             self.node.update_current_block_height(
                 block_msg.height(), block_hash
             )
@@ -52,9 +61,9 @@ class OntBlockQueuingService(
 
     def send_block_to_node(
         self,
-        block_hash: OntObjectHash,
+        block_hash: Sha256Hash,
         block_msg: Optional[BlockOntMessage] = None,
-    ):
+    ) -> None:
         if block_hash not in self._blocks:
             return
 

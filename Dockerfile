@@ -1,4 +1,24 @@
-FROM python:3.7.0-alpine3.8
+ARG PYTHON_VERSION=3.7.0-alpine3.8
+
+FROM python:${PYTHON_VERSION} as builder
+# Assumes this repo and bxcommon repo are at equal roots
+
+RUN apk update \
+ && apk add --no-cache linux-headers gcc libtool openssl-dev libffi \
+ && apk add --no-cache --virtual .build_deps build-base libffi-dev \
+ && pip install --upgrade pip
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY bxgateway/requirements.txt ./bxgateway_requirements.txt
+COPY bxcommon/requirements.txt ./bxcommon_requirements.txt
+
+RUN pip install -U pip \
+        && pip install -r ./bxgateway_requirements.txt \
+        && pip install -r ./bxcommon_requirements.txt
+
+FROM python:${PYTHON_VERSION}
 
 # add our user and group first to make sure their IDs get assigned consistently, regardless of whatever dependencies get added
 RUN addgroup -g 502 -S bxgateway \
@@ -11,27 +31,14 @@ RUN addgroup -g 502 -S bxgateway \
 
 RUN apk update \
  && apk add --no-cache \
-# grab su-exec for easy step-down from root
         'su-exec>=0.2' \
-# grab tini for process management
         tini \
-# grab bash for the convenience
         bash \
-        linux-headers \
-	gcc libtool openssl-dev \
+        gcc \
+        openssl-dev \
  && pip install --upgrade pip
 
-# Assumes this repo and bxcommon repo are at equal roots
-COPY --chown=bxgateway:bxgateway bxgateway/requirements.txt /app/bxgateway
-COPY --chown=bxgateway:bxgateway bxcommon/requirements.txt /app/bxcommon
-
-# We add .build_deps dependencies (to build PyNaCl) and then remove them after pip install completed
-RUN apk add libffi \
- && apk add --no-cache --virtual .build_deps build-base libffi-dev \
- && pip install -r /app/bxgateway/requirements.txt \
- && pip install -r /app/bxcommon/requirements.txt \
- && apk del .build_deps
-
+COPY --from=builder /opt/venv /opt/venv
 
 COPY bxgateway/docker-entrypoint.sh /usr/local/bin/
 
@@ -45,5 +52,6 @@ RUN chmod u+s /bin/ping
 WORKDIR /app/bxgateway
 EXPOSE 28332 9001 1801
 ENV PYTHONPATH=/app/bxcommon/src/:/app/bxcommon-internal/src/:/app/bxgateway/src/:/app/bxextensions/ \
-    LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/app/bxextensions"
+    LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/app/bxextensions" \
+    PATH="/opt/venv/bin:$PATH"
 ENTRYPOINT ["/sbin/tini", "--", "/bin/sh", "/usr/local/bin/docker-entrypoint.sh"]

@@ -12,6 +12,7 @@ from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
 from bxutils import logging
+from bxgateway import log_messages
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -40,15 +41,13 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
                     sock.transport.get_write_buffer_size()
                 )
             except Exception as e:
-                self.log_warning("Could not set socket send buffer size: {}", e)
+                self.log_warning(log_messages.SOCKET_BUFFER_SEND_FAIL, e)
 
             # Linux systems generally set the value to 2x what was passed in, so just make sure
             # the socket buffer is at least the size set
             set_buffer_size = sock.transport.get_write_buffer_size()
             if set_buffer_size < gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE:
-                self.log_warning(
-                    "Socket buffer size set was unsuccessful, and was instead set to {}. Reverting to: {}",
-                    set_buffer_size, previous_buffer_size)
+                self.log_warning(log_messages.SET_SOCKET_BUFFER_SIZE, set_buffer_size, previous_buffer_size)
                 sock.transport.set_write_buffer_limits(high=previous_buffer_size)
 
         self.connection_protocol = None
@@ -123,13 +122,11 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
             if self.node.node_conn == self or self.node.node_conn is None:
                 self.node.on_blockchain_connection_destroyed(self)
             else:
-                logger.warning("Detected attempt to close node connection when another is already established. "
-                               "Connection being destroyed - {}. Established connection - {}.",
+                logger.warning(log_messages.CLOSE_CONNECTION_ATTEMPT,
                                self.peer_desc, self.node.node_conn.peer_desc)
         elif self.CONNECTION_TYPE == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
             if self.node.remote_node_conn == self or self.node.remote_node_conn is None:
                 self.node.on_remote_blockchain_connection_destroyed(self)
             else:
-                logger.warning("Detected attempt to close remote node connection when another is already established. "
-                               "Connection being destroyed - {}. Established connection - {}.",
+                logger.warning(log_messages.CLOSE_CONNECTION_ATTEMPT,
                                self.peer_desc, self.node.remote_node_conn.peer_desc)
