@@ -251,15 +251,14 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             )
 
     def send_bdn_performance_stats(self, bdn_stats_interval: GatewayBdnPerformanceStatInterval):
-        msg_to_send = BdnPerformanceStatsMessage(bdn_stats_interval.start_time,
-                                                 # pyre-fixme[6]: Expected
-                                                 #  `datetime` for 2nd param but got
-                                                 #  `Optional[datetime.datetime]`.
-                                                 bdn_stats_interval.end_time,
-                                                 bdn_stats_interval.new_blocks_received_from_blockchain_node,
-                                                 bdn_stats_interval.new_blocks_received_from_bdn,
-                                                 bdn_stats_interval.new_tx_received_from_blockchain_node,
-                                                 bdn_stats_interval.new_tx_received_from_bdn)
+        msg_to_send = BdnPerformanceStatsMessage(
+            bdn_stats_interval.start_time,
+            bdn_stats_interval.end_time,
+            bdn_stats_interval.new_blocks_received_from_blockchain_node,
+            bdn_stats_interval.new_blocks_received_from_bdn,
+            bdn_stats_interval.new_tx_received_from_blockchain_node,
+            bdn_stats_interval.new_tx_received_from_bdn
+        )
         self.enqueue_msg(msg_to_send)
 
     def msg_cleanup(self, msg: AbstractCleanupMessage):

@@ -2,7 +2,6 @@ import datetime
 import time
 from typing import Iterable, Optional, TYPE_CHECKING
 
-from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
@@ -63,7 +62,11 @@ class BlockProcessingService:
 
     def __init__(self, node):
         self._node: AbstractGatewayNode = node
-        self._holds = ExpiringDict(node.alarm_queue, node.opts.blockchain_block_hold_timeout_s)
+        self._holds = ExpiringDict(
+            node.alarm_queue,
+            node.opts.blockchain_block_hold_timeout_s,
+            f"block_processing_holds"
+        )
 
     def place_hold(self, block_hash, connection):
         """

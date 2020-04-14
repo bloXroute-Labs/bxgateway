@@ -113,7 +113,11 @@ class AbstractGatewayNode(AbstractNode):
         self.node_msg_queue = BlockchainMessageQueue(opts.blockchain_message_ttl)
         self.remote_node_msg_queue = BlockchainMessageQueue(opts.remote_blockchain_message_ttl)
 
-        self.blocks_seen = ExpiringSet(self.alarm_queue, gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S)
+        self.blocks_seen = ExpiringSet(
+            self.alarm_queue,
+            gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S,
+            "gateway_blocks_seen"
+        )
         self.in_progress_blocks = BlockEncryptedCache(self.alarm_queue)
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
         self.neutrality_service = NeutralityService(self)
@@ -164,11 +168,13 @@ class AbstractGatewayNode(AbstractNode):
 
         self._block_from_node_handling_times = ExpiringDict(
             self.alarm_queue,
-            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S
+            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S,
+            f"gateway_block_from_node_handling_times",
         )
         self._block_from_bdn_handling_times = ExpiringDict(
             self.alarm_queue,
-            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S
+            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S,
+            f"gateway_block_from_bdn_handling_times",
         )
 
         self.schedule_blockchain_liveliness_check(self.opts.initial_liveliness_check)
@@ -177,8 +183,11 @@ class AbstractGatewayNode(AbstractNode):
         self.opts.has_fully_updated_tx_service = False
         self.alarm_queue.register_alarm(constants.TX_SERVICE_SYNC_PROGRESS_S, self.sync_tx_services)
 
-        self.block_cleanup_processed_blocks = ExpiringSet(self.alarm_queue,
-                                                          gateway_constants.BLOCK_CONFIRMATION_EXPIRE_TIME_S)
+        self.block_cleanup_processed_blocks = ExpiringSet(
+            self.alarm_queue,
+            gateway_constants.BLOCK_CONFIRMATION_EXPIRE_TIME_S,
+            "gateway_block_cleanup_processed_blocks"
+        )
 
         self.message_converter: Optional[AbstractMessageConverter] = None
         self.account_id: Optional[str] = extensions_factory.get_account_id(

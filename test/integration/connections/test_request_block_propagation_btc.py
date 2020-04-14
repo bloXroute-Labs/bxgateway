@@ -70,8 +70,11 @@ class RequestBlockPropagationBtcTest(AbstractBtcGatewayIntegrationTest):
         self.assertEqual(OutputBuffer.EMPTY, bytes_to_blockchain)
 
         # clear blocks seen, rereceive
-        self.node1.blocks_seen = ExpiringSet(self.node1.alarm_queue,
-                                             gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S)
+        self.node1.blocks_seen = ExpiringSet(
+            self.node1.alarm_queue,
+            gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S,
+            "testset"
+        )
         helpers.receive_node_message(self.node1, self.relay_fileno, key_message)
         # ignore key message even if block is not in "blocks_seen"
         bytes_to_blockchain = self.node1.get_bytes_to_send(self.blockchain_fileno)

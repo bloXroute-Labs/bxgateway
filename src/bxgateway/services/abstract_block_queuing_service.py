@@ -56,7 +56,9 @@ class AbstractBlockQueuingService(
         self._blocks: ExpiringDict[
             Sha256Hash, Optional[TBlockMessage]
         ] = ExpiringDict(
-            node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "block_queuing_service_blocks"
         )
 
         self._blocks_seen_by_blockchain_node: ExpiringSet[
@@ -64,6 +66,7 @@ class AbstractBlockQueuingService(
         ] = ExpiringSet(
             node.alarm_queue,
             gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S,
+            "block_queuing_service_blocks_seen",
         )
 
     def __len__(self):

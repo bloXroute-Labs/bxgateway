@@ -49,7 +49,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         self.request_witness_data = False
         self._recovery_compact_blocks = ExpiringDict(
             self.node.alarm_queue,
-            btc_constants.BTC_COMPACT_BLOCK_RECOVERY_TIMEOUT_S
+            btc_constants.BTC_COMPACT_BLOCK_RECOVERY_TIMEOUT_S,
+            f"{str(self)}_compact_btc_recoveries"
         )
         self.ping_interval_s: int = gateway_constants.BLOCKCHAIN_PING_INTERVAL_S
         self.connection.node.alarm_queue.register_alarm(

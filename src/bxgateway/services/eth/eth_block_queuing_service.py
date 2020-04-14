@@ -55,13 +55,19 @@ class EthBlockQueuingService(
         self.block_checking_alarms = {}
         self.block_repeat_count = defaultdict(int)
         self._block_parts = ExpiringDict(
-            node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_parts",
         )
         self._block_hashes_by_height = ExpiringDict(
-            node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_hashes_by_heights",
         )
         self._height_by_block_hash = ExpiringDict(
-            node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_height_by_hash"
         )
 
     def build_block_header_message(

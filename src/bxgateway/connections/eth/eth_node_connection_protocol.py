@@ -8,7 +8,6 @@ from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash, NULL_SHA256_HASH
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-from bxgateway import eth_constants
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.eth_exceptions import CipherNotInitializedError
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
@@ -50,8 +49,13 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self.waiting_checkpoint_headers_request = True
 
         # uses block hash as a key, and NewBlockParts structure as value
-        self._pending_new_blocks_parts: ExpiringDict[Sha256Hash, NewBlockParts] = \
-            ExpiringDict(self.node.alarm_queue, eth_constants.NEW_BLOCK_PARTS_MAX_WAIT_S)
+        self._pending_new_blocks_parts: ExpiringDict[
+            Sha256Hash, NewBlockParts
+        ] = ExpiringDict(
+            self.node.alarm_queue,
+            eth_constants.NEW_BLOCK_PARTS_MAX_WAIT_S,
+            f"{str(self)}_eth_pending_block_parts"
+        )
 
         # hashes of new blocks constructed from headers and bodies, ready to send to BDN
         self._ready_new_blocks: Deque[Sha256Hash] = deque()
@@ -71,8 +75,13 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 self._tracked_block_cleanup
             )
 
-        self.requested_blocks_for_confirmation: ExpiringDict[Sha256Hash, float] = \
-            ExpiringDict(self.node.alarm_queue, eth_constants.BLOCK_CONFIRMATION_REQUEST_CACHE_INTERVAL_S)
+        self.requested_blocks_for_confirmation: ExpiringDict[
+            Sha256Hash, float
+        ] = ExpiringDict(
+            self.node.alarm_queue,
+            eth_constants.BLOCK_CONFIRMATION_REQUEST_CACHE_INTERVAL_S,
+            f"{str(self)}_eth_requested_blocks"
+        )
 
     def msg_status(self, _msg):
         self.connection.on_connection_established()
