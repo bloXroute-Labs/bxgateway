@@ -6,8 +6,8 @@ from aiohttp import web
 from aiohttp.web import Application, Request, Response, AppRunner, TCPSite
 from aiohttp.web_exceptions import HTTPClientError
 from aiohttp.web_exceptions import HTTPUnauthorized
-from prometheus_client import MetricsHandler, REGISTRY
-from prometheus_client.exposition import choose_encoder
+from prometheus_client import REGISTRY
+from prometheus_client import exposition as prometheus_client
 
 from bxgateway.rpc import rpc_constants
 from bxgateway.rpc.request_formatter import RequestFormatter
@@ -115,10 +115,18 @@ class GatewayRpcServer:
             })
 
     async def handle_metrics(self, request: Request) -> Response:
+        """
+        Endpoint for fetching metrics from Prometheus.
+
+        Request can specify a custom encoding type `application/openmetrics-text` to
+        fetch data in a different format.
+        :param request:
+        :return:
+        """
         try:
             self._authenticate_request(request)
             # pyre-fixme[16]: Callable `headers` has no attribute `get`.
-            encoder, content_type = choose_encoder(request.headers.get("Accept"))
+            encoder, content_type = prometheus_client.choose_encoder(request.headers.get("Accept"))
             output = encoder(REGISTRY)
             response = Response(
                 body=output,
