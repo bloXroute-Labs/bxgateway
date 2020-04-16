@@ -109,6 +109,7 @@ class AbstractGatewayNode(AbstractNode):
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
         self.peer_transaction_relays = set(opts.peer_transaction_relays)
+        self.peer_relays_min_count = 1
 
         self.node_msg_queue = BlockchainMessageQueue(opts.blockchain_message_ttl)
         self.remote_node_msg_queue = BlockchainMessageQueue(opts.remote_blockchain_message_ttl)
@@ -728,8 +729,8 @@ class AbstractGatewayNode(AbstractNode):
         self.outbound_peers = self._get_all_peers()
 
         if (
-            len(self.peer_relays) < gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country]
-            or len(self.peer_transaction_relays) < gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country] and
+            len(self.peer_relays) < self.peer_relays_min_count
+            or len(self.peer_transaction_relays) < self.peer_relays_min_count and
             self.check_relay_alarm_id is None
         ):
             logger.debug("Removed relay peer with ip {} and port {}. "
@@ -881,13 +882,20 @@ class AbstractGatewayNode(AbstractNode):
 
         logger.trace("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
 
-        block_relays_count = gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country]
-
         best_relay_peers = network_latency.get_best_relays_by_ping_latency_one_per_country(
-            potential_relay_peers, block_relays_count
+            potential_relay_peers, gateway_constants.MAX_PEER_RELAYS_COUNT
         )
+
         if not best_relay_peers:
-            best_relay_peers = potential_relay_peers[:block_relays_count]
+            best_relay_peers = potential_relay_peers
+
+        best_relay_country = best_relay_peers[0].get_country()
+
+        self.peer_relays_min_count = max(gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country],
+                                         gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[best_relay_country])
+
+        best_relay_peers = best_relay_peers[:self.peer_relays_min_count]
+
         logger.trace("Best relay peers to node {} are: {}", self.opts.node_id, best_relay_peers)
 
         return best_relay_peers
