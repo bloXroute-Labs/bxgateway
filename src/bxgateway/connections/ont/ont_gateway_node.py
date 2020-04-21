@@ -1,5 +1,5 @@
-import bxgateway.messages.ont.ont_message_converter_factory as converter_factory
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
+from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -8,18 +8,31 @@ from bxgateway.connections.ont.ont_relay_connection import OntRelayConnection
 from bxgateway.connections.ont.ont_remote_connection import OntRemoteConnection
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
+from bxgateway.services.ont.ont_block_processing_service import OntBlockProcessingService
 from bxgateway.services.ont.ont_block_queuing_service import OntBlockQueuingService
+from bxgateway.services.ont.ont_neutrality_service import OntNeutralityService
 from bxgateway.services.ont.ont_normal_block_cleanup_service import OntNormalBlockCleanupService
 from bxgateway.utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
 from bxutils.services.node_ssl_service import NodeSSLService
+
+import bxgateway.messages.ont.ont_message_converter_factory as block_msg_converter_factory
+import bxgateway.messages.ont.ont_consensus_message_converter_factory as consensus_msg_converter_factory
 
 
 class OntGatewayNode(AbstractGatewayNode):
     def __init__(self, opts, node_ssl_service: NodeSSLService):
         super(OntGatewayNode, self).__init__(opts, node_ssl_service)
 
-        self.message_converter = converter_factory.create_ont_message_converter(self.opts.blockchain_net_magic,
-                                                                                self.opts)
+        self.message_converter = block_msg_converter_factory.create_ont_message_converter(
+            self.opts.blockchain_net_magic, self.opts
+        )
+        self.consensus_message_converter = consensus_msg_converter_factory.create_ont_consensus_message_converter(
+            self.opts.blockchain_net_magic, self.opts
+        )
+
+        self.block_processing_service = OntBlockProcessingService(self)
+        self.neutrality_service = OntNeutralityService(self)
+
         self.current_block_height = 0
         self.current_block_hash = NULL_ONT_BLOCK_HASH
 

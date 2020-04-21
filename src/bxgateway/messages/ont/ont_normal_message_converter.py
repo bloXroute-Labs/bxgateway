@@ -10,6 +10,7 @@ from bxcommon.messages.bloxroute.compact_block_short_ids_serializer import Block
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
+from bxgateway import log_messages
 from bxgateway import ont_constants
 from bxgateway.abstract_message_converter import BlockDecompressionResult
 from bxgateway.messages.ont import ont_messages_util
@@ -19,7 +20,6 @@ from bxgateway.utils.block_header_info import BlockHeaderInfo
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.errors import message_conversion_error
 from bxutils import logging
-from bxgateway import log_messages
 
 logger = logging.get_logger(__name__)
 
@@ -33,13 +33,13 @@ def parse_bx_block_header(bx_block: memoryview, block_pieces: Deque[Union[bytear
     )
 
     reconstructed_block_message = BlockOntMessage(
-        buf=bx_block[block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN:])
+        buf=bx_block[block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN + 1:])
     block_hash = reconstructed_block_message.block_hash()
     txn_count = reconstructed_block_message.txn_count()
-    offset = reconstructed_block_message.txn_offset() + block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN
+    offset = reconstructed_block_message.txn_offset() + block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN + 1
 
     # Add header piece
-    block_pieces.append(bx_block[block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN:offset])
+    block_pieces.append(bx_block[block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN + 1:offset])
     return BlockHeaderInfo(block_offsets, short_ids, short_ids_len, block_hash, offset, txn_count)
 
 
@@ -77,8 +77,8 @@ def parse_bx_block_transactions(block_hash: Sha256Hash, bx_block: memoryview, of
         #  `Optional[Union[bytearray, memoryview]]`.
         output_offset += len(tx)
 
-    merkle_root = bx_block[block_offsets.block_begin_offset:
-                           block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN]
+    merkle_root = bx_block[block_offsets.block_begin_offset + 1:
+                           block_offsets.block_begin_offset + ont_constants.ONT_HASH_LEN + 1]
     block_pieces.append(merkle_root)
 
     return unknown_tx_sids, unknown_tx_hashes, output_offset
@@ -127,6 +127,10 @@ class OntNormalMessageConverter(AbstractOntMessageConverter):
         merkle_root = block_msg.merkle_root()
         buf.appendleft(merkle_root)
         size += ont_constants.ONT_HASH_LEN
+
+        is_consensus_msg_buf = struct.pack("?", False)
+        buf.appendleft(is_consensus_msg_buf)
+        size += 1
 
         offset_buf = struct.pack("<Q", size)
         buf.appendleft(offset_buf)

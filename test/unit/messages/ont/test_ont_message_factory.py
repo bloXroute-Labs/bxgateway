@@ -44,9 +44,8 @@ class OntMessageFactoryTest(MessageFactoryTestCase):
         self.get_message_preview_successfully(AddrOntMessage(self.MAGIC, [(int(time.time()), 123, "127.0.0.1",
                                                                            20300, 20200, 1234)]),
                                               AddrOntMessage.MESSAGE_TYPE, 52)
-        self.get_message_preview_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, self.HASH, 10, 2, bytes(10),
-                                                                  bytes(33), bytes(10), 1234, self.HASH),
-                                              ConsensusOntMessage.MESSAGE_TYPE, 141)
+        self.get_message_preview_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, bytes(20)),
+                                              ConsensusOntMessage.MESSAGE_TYPE, 24)
 
         self.get_message_preview_successfully(
             InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]),
@@ -91,8 +90,7 @@ class OntMessageFactoryTest(MessageFactoryTestCase):
         self.create_message_successfully(GetAddrOntMessage(self.MAGIC), GetAddrOntMessage)
         self.create_message_successfully(AddrOntMessage(self.MAGIC, [(int(time.time()), 123, "127.0.0.1", 20300,
                                                                       20200, 1234)]), AddrOntMessage)
-        self.create_message_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, self.HASH, 10, 2, bytes(10),
-                                                             bytes(33), bytes(10), 1234, self.HASH),
+        self.create_message_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, bytes(20)),
                                          ConsensusOntMessage)
         self.create_message_successfully(InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]),
                                          InvOntMessage)

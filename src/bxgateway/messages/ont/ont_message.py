@@ -5,9 +5,9 @@ from bxcommon.constants import MSG_NULL_BYTE
 from bxcommon.exceptions import ChecksumError, PayloadLenError
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import crypto
+from bxgateway import log_messages
 from bxgateway import ont_constants
 from bxutils import logging
-from bxgateway import log_messages
 
 logger = logging.get_logger(__name__)
 
