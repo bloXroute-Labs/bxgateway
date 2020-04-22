@@ -52,7 +52,7 @@ class OntRelayConnectionTest(AbstractTestCase):
         node_ssl_service = MockNodeSSLService(OntGatewayNode.NODE_TYPE, MagicMock())
         self.gateway_node = OntGatewayNode(opts, node_ssl_service)
         self.gateway_node.opts.has_fully_updated_tx_service = True
-        self.gateway_node.opts.is_consensus = True
+        self.gateway_node.opts.is_consensus = False
         self.sut = OntRelayConnection(MockSocketConnection(
             node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
         )
@@ -249,7 +249,8 @@ class OntRelayConnectionTest(AbstractTestCase):
 
         self.assertEqual(len(transactions), self.gateway_node.send_msg_to_node.call_count)
 
-    def test_get_txs_block_recovery(self):
+    @skip("Encrpytion in Ontology is not developed yet")
+    def test_get_txs_block_recovery_encrypted(self):
         block: BlockOntMessage = self.ont_block()
         transactions: List[TxOntMessage] = self.ont_transactions(block)
 
@@ -294,6 +295,47 @@ class OntRelayConnectionTest(AbstractTestCase):
         ((key_message, _conn), recovery_kwargs) = key_broadcast
         self.assertIsInstance(key_message, KeyMessage)
         self.assertIn(ConnectionType.GATEWAY, recovery_kwargs["connection_types"])
+
+        txs = [tx for tx in short_id_mapping.values()]
+        txs_message = TxsMessage(txs=txs)
+        self.sut.msg_txs(txs_message)
+
+        self._assert_block_sent(block)
+
+    def test_get_txs_block_recovery(self):
+        block: BlockOntMessage = self.ont_block()
+        transactions: List[TxOntMessage] = self.ont_transactions(block)
+
+        # assign short ids that the local connection won't know about until it gets the txs message
+        remote_transaction_service = ExtensionTransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
+        short_id_mapping = {}
+        for i, transaction in enumerate(transactions):
+            tx_hash = transaction.tx_hash()
+
+            remote_transaction_service.assign_short_id(tx_hash, i + 1)
+            remote_transaction_service.set_transaction_contents(tx_hash, transaction.rawbytes())
+            short_id_mapping[tx_hash] = TransactionInfo(tx_hash, transaction.rawbytes(), i + 1)
+
+        bx_block = bytes(
+            self.gateway_node.message_converter.block_to_bx_block(block, remote_transaction_service)[0])
+
+        self.gateway_node.block_recovery_service.add_block = \
+            MagicMock(wraps=self.gateway_node.block_recovery_service.add_block)
+        self.gateway_node.send_msg_to_node = MagicMock()
+        self.gateway_node.broadcast = MagicMock()
+
+        broadcast_message = BroadcastMessage(block.block_hash(), DEFAULT_NETWORK_NUM, "",
+                                             BroadcastMessageType.BLOCK, False, bytearray(bx_block))
+
+        self.sut.msg_broadcast(broadcast_message)
+
+        self.gateway_node.block_recovery_service.add_block.assert_called_once()
+        self.assertEqual(1, self.gateway_node.broadcast.call_count)
+
+        recovery_broadcast = self.gateway_node.broadcast.call_args_list[0]
+        ((gettxs_message,), recovery_kwargs) = recovery_broadcast
+        self.assertIsInstance(gettxs_message, GetTxsMessage)
+        self.assertIn(ConnectionType.RELAY_TRANSACTION, recovery_kwargs["connection_types"])
 
         txs = [tx for tx in short_id_mapping.values()]
         txs_message = TxsMessage(txs=txs)
