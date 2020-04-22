@@ -15,6 +15,4 @@ class OntRemoteConnection(AbstractGatewayBlockchainConnection["AbstractGatewayNo
 
     def __init__(self, socket_connection: AbstractSocketConnectionProtocol, node: "AbstractGatewayNode"):
         super(OntRemoteConnection, self).__init__(socket_connection, node)
-        # pyre-fixme[45]: Cannot instantiate abstract class
-        #  `OntRemoteConnectionProtocol`.
         self.connection_protocol = weakref.ref(OntRemoteConnectionProtocol(self))

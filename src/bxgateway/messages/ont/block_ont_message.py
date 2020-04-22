@@ -83,6 +83,7 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
             for tx in txns:
                 buf[off:off + len(tx)] = tx
                 off += len(tx)
+
             buf[off:off + ont_constants.ONT_HASH_LEN] = merkle_root.get_little_endian()
             off += ont_constants.ONT_HASH_LEN
 
@@ -261,3 +262,10 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
         assert self._merkle_root_memoryview is not None
         # pyre-fixme[7]: Expected `memoryview` but got `None`.
         return self._merkle_root_memoryview
+
+    def version(self) -> int:
+        if self._version is None:
+            off = ont_constants.ONT_HDR_COMMON_OFF
+            self._version, = struct.unpack_from("<I", self.buf, off)
+        # pyre-fixme[7]: Expected `int` but got `None`.
+        return self._version

@@ -8,7 +8,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
+from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 
 
@@ -57,7 +57,7 @@ class AbstractBlockCleanupServiceTest(AbstractTestCase, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def _get_cleanup_service(self) -> AbstractBtcBlockCleanupService:
+    def _get_cleanup_service(self) -> AbstractBlockCleanupService:
         pass
 
     @abstractmethod

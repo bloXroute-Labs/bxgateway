@@ -135,7 +135,7 @@ class OntBlockQueuingService(
             block_hash, block_msg
         )
         # TODO test remove_from_queue and EncBlockReceivedByGatewayFromNetwork stat event
-        # self.remove_from_queue(block_hash)
+        self.remove_from_queue(block_hash)
 
     def update_recovered_block(
         self, block_hash: Sha256Hash, block_msg: Union[BlockOntMessage, ConsensusOntMessage]

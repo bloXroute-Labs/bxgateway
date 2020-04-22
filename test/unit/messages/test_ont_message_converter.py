@@ -21,7 +21,7 @@ from bxgateway.messages.ont import ont_messages_util
 
 def get_sample_block():
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(root_dir, "sample_ont_block.txt")) as sample_file:
+    with open(os.path.join(root_dir, "ont_sample_block.txt")) as sample_file:
         ont_block = sample_file.read().strip("\n")
     buf = bytearray(convert.hex_to_bytes(ont_block))
     parsed_block = BlockOntMessage(buf=buf)
@@ -87,6 +87,26 @@ class OntMessageConverterTests(AbstractTestCase):
         ref_block, _, unknown_tx_sids, unknown_tx_hashes = self.ont_message_converter.bx_block_to_block(
             bx_block, self.tx_service
         )
+        self.assertEqual(len(unknown_tx_hashes), 0)
+        self.assertEqual(len(unknown_tx_sids), 0)
+        self.assertEqual(
+            parsed_block.rawbytes().tobytes(), ref_block.rawbytes().tobytes()
+        )
+
+    @multi_setup()
+    def test_full_compression(self):
+        parsed_block = get_sample_block()
+        transactions = parsed_block.txns()[:]
+        random.shuffle(transactions)
+        for short_id, txn in enumerate(transactions):
+            bx_tx_hash, _ = ont_messages_util.get_txid(txn)
+            self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
+            self.tx_service.set_transaction_contents(bx_tx_hash, txn)
+        bx_block, block_info = self.ont_message_converter.block_to_bx_block(parsed_block, self.tx_service)
+        ref_block, ref_lock_info, unknown_tx_sids, unknown_tx_hashes = self.ont_message_converter.bx_block_to_block(
+            bx_block, self.tx_service
+        )
+        self.assertEqual(len(block_info.short_ids), block_info.txn_count, "all txs were compressed")
         self.assertEqual(len(unknown_tx_hashes), 0)
         self.assertEqual(len(unknown_tx_sids), 0)
         self.assertEqual(

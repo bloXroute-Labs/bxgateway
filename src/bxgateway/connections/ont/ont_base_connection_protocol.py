@@ -1,5 +1,9 @@
 import typing
+from abc import abstractmethod
+from typing import List, Union
 
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import ont_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
@@ -27,7 +31,6 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
         connection.hello_messages = ont_constants.ONT_HELLO_MESSAGES
         connection.header_size = ont_constants.ONT_HDR_COMMON_OFF
-
         connection.message_factory = ont_message_factory
         connection.message_handlers = {
             OntMessageType.PING: self.msg_ping,
@@ -43,16 +46,25 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                         self.node.opts.blockchain_services)
         connection.enqueue_msg(version_msg)
 
-    # pyre-fixme[14]: `msg_block` overrides method defined in
-    #  `AbstractBlockchainConnectionProtocol` inconsistently.
-    def msg_block(self, msg: BlockOntMessage):
+    def msg_block(self, msg):
         block_hash = msg.block_hash()
 
         if not self.node.should_process_block_hash(block_hash):
             return
 
         # TODO: block_cleanup_service
-        super().msg_block(msg)
+        if self.node.block_cleanup_service.is_marked_for_cleanup(block_hash):
+            self.connection.log_trace("Marked block for cleanup: {}", block_hash)
+            self.node.block_cleanup_service.clean_block_transactions(
+                transaction_service=self.node.get_tx_service(),
+                block_msg=msg
+            )
+        else:
+            super().msg_block(msg)
+
+        # After receiving block message sending INV message for the same block to Bitcoin node
+        # This is needed to update Synced Headers value of the gateway peer on the Bitcoin node
+        # If Synced Headers is not up-to-date than Bitcoin node does not push compact blocks to the gateway
         inv_msg = InvOntMessage(magic=self.node.opts.blockchain_net_magic,
                                 inv_type=InventoryOntType.MSG_BLOCK, blocks=[block_hash])
         self.node.send_msg_to_node(inv_msg)
@@ -68,3 +80,18 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
     def msg_getaddr(self, _msg: GetAddrOntMessage):
         reply = AddrOntMessage(self.magic)
         self.connection.enqueue_msg(reply)
+
+    @abstractmethod
+    def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
+        pass
+
+    @abstractmethod
+    def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
+        """
+        set the transaction contents in the connection transaction service.
+        since some buffers needs to be copied while others should not, this handler was added.
+        avoid calling transaction_service.set_transactions_contents directly from this class or its siblings.
+        :param tx_hash: the transaction hash
+        :param tx_content: the transaction contents buffer
+        """
+        pass

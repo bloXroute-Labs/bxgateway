@@ -23,38 +23,47 @@ class OntGatewayNode(AbstractGatewayNode):
     def __init__(self, opts, node_ssl_service: NodeSSLService):
         super(OntGatewayNode, self).__init__(opts, node_ssl_service)
 
+        self.block_processing_service = OntBlockProcessingService(self)
+
         self.message_converter = block_msg_converter_factory.create_ont_message_converter(
-            self.opts.blockchain_net_magic, self.opts
+            self.opts.blockchain_net_magic,
+            self.opts
         )
         self.consensus_message_converter = consensus_msg_converter_factory.create_ont_consensus_message_converter(
             self.opts.blockchain_net_magic, self.opts
         )
 
-        self.block_processing_service = OntBlockProcessingService(self)
         self.neutrality_service = OntNeutralityService(self)
 
         self.current_block_height = 0
         self.current_block_hash = NULL_ONT_BLOCK_HASH
 
-    def update_current_block_height(self, new_block_height: int, new_block_hash: OntObjectHash):
-        if new_block_height >= self.current_block_height:
-            self.current_block_height = new_block_height
-            self.current_block_hash = new_block_hash
-
-    def build_blockchain_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> \
-        AbstractGatewayBlockchainConnection:
+    def build_blockchain_connection(
+        self, socket_connection: AbstractSocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
         return OntNodeConnection(socket_connection, self)
 
     def build_relay_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> AbstractRelayConnection:
         return OntRelayConnection(socket_connection, self)
 
-    def build_remote_blockchain_connection(self, socket_connection: AbstractSocketConnectionProtocol) -> \
-        AbstractGatewayBlockchainConnection:
+    def build_remote_blockchain_connection(
+        self, socket_connection: AbstractSocketConnectionProtocol
+    ) -> AbstractGatewayBlockchainConnection:
         return OntRemoteConnection(socket_connection, self)
 
     def build_block_queuing_service(self) -> AbstractBlockQueuingService:
         return OntBlockQueuingService(self)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
-        block_cleanup_service = OntNormalBlockCleanupService(self, self.network_num)
+        if self.opts.use_extensions:
+            from bxgateway.services.ont.ont_extension_block_cleanup_service import OntExtensionBlockCleanupService
+            block_cleanup_service = OntExtensionBlockCleanupService(self, self.network_num)
+        else:
+            block_cleanup_service = OntNormalBlockCleanupService(self, self.network_num)
         return block_cleanup_service
+
+    def update_current_block_height(self, new_block_height: int, new_block_hash: OntObjectHash):
+        if new_block_height >= self.current_block_height:
+            self.current_block_height = new_block_height
+            self.current_block_hash = new_block_hash
+

@@ -1,5 +1,5 @@
 from typing import List, TYPE_CHECKING, Union
-from time import time
+import time
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
@@ -13,7 +13,7 @@ from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
-from bxgateway import ont_constants
+from bxgateway import ont_constants, gateway_constants
 from bxgateway.connections.ont.ont_base_connection_protocol import OntBaseConnectionProtocol
 from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
 from bxgateway.messages.ont.get_blocks_ont_message import GetBlocksOntMessage
@@ -46,17 +46,25 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
             OntMessageType.GET_BLOCKS: self.msg_proxy_request,
             OntMessageType.GET_HEADERS: self.msg_get_headers,
             OntMessageType.GET_DATA: self.msg_get_data,
+            OntMessageType.REJECT: self.msg_reject,
             OntMessageType.HEADERS: self.msg_headers,
             OntMessageType.CONSENSUS: self.msg_consensus
         })
 
+        self.ping_interval_s: int = gateway_constants.BLOCKCHAIN_PING_INTERVAL_S
         self.connection.node.alarm_queue.register_alarm(
             self.block_cleanup_poll_interval_s,
             self._request_blocks_confirmation
         )
 
-        # self.requested_blocks_for_confirmation: ExpiringDict[Sha256Hash, float] = \
-        #     ExpiringDict(self.node.alarm_queue, 30 * 60)  # TODO: use constant
+        # TODO: do we need this logic? it doesn't exist in btc (only in eth)
+        # self.requested_blocks_for_confirmation: ExpiringDict[
+        #     Sha256Hash, float
+        # ] = ExpiringDict(
+        #     self.node.alarm_queue,
+        #     ont_constants.BLOCK_CONFIRMATION_REQUEST_CACHE_INTERVAL_S,
+        #     f"{str(self)}_ont_requested_blocks"
+        # )
 
     def msg_version(self, msg: VersionOntMessage) -> None:
         self.connection.on_connection_established()
@@ -227,6 +235,20 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                                                   )
 
         self.node.block_processing_service._process_and_broadcast_compressed_block(bx_block, self.connection, block_info, block_hash)
+
+    def msg_reject(self, msg):
+        """
+        Handle REJECT message from Bitcoin node
+        :param msg: REJECT message
+        """
+
+        # Send inv message to the send in case of rejected block
+        # remaining sync communication will proxy to remote blockchain node
+        if msg.message() == OntMessageType.BLOCK:
+            inv_msg = InvOntMessage(
+                magic=self.magic, inv_vects=[(InventoryOntType.MSG_BLOCK, msg.obj_hash())]
+            )
+            self.node.send_msg_to_node(inv_msg)
 
     def send_ping(self):
         ping_msg = PingOntMessage(magic=self.magic, height=self.node.current_block_height)

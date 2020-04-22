@@ -25,7 +25,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None):
+    def tx_to_bx_txs(self, tx_msg, network_num: int, quota_type: Optional[QuotaType] = None):
         """
         Converts blockchain transactions message to internal transaction message
 

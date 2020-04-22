@@ -65,7 +65,6 @@ def get_txid(buffer: Union[memoryview, bytearray]) -> Tuple[OntObjectHash, int]:
 
     _, size = ont_varint_to_int(buffer, off)
     off += size
-
     return OntObjectHash(buf=crypto.double_sha256(buffer[:off]), length=ont_constants.ONT_HASH_LEN), off
 
 

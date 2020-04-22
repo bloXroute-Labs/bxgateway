@@ -7,6 +7,7 @@ class OntMessageType:
     PONG = b"pong"
     GET_HEADERS = b"getheaders"
     HEADERS = b"headers"
+    REJECT = b"reject"
     INVENTORY = b"inv"
     GET_DATA = b"getdata"
     BLOCK = b"block"

@@ -23,17 +23,21 @@ class OntBlockProcessingService(BlockProcessingService):
 
     def process_block_broadcast(self, msg, connection: AbstractRelayConnection):
         is_consensus_msg, = struct.unpack_from("?", msg.blob()[8:9])
-        if is_consensus_msg != self._node.opts.is_consensus:
+        if is_consensus_msg and not self._node.opts.is_consensus:
             return
         super().process_block_broadcast(msg, connection)
 
     def retry_broadcast_recovered_blocks(self, connection):
         if self._node.block_recovery_service.recovered_blocks and self._node.opts.has_fully_updated_tx_service:
             for msg in self._node.block_recovery_service.recovered_blocks:
-                if self._node.opts.is_consensus:
+                is_consensus_msg, = struct.unpack_from("?", msg[8:9])
+                if is_consensus_msg and self._node.opts.is_consensus:
                     self._handle_decrypted_consensus_block(msg, connection, recovered=True)
-                else:
+                elif not is_consensus_msg:
                     self._handle_decrypted_block(msg, connection, recovered=True)
+                else:
+                    # TODO what should we do
+                    pass
 
             self._node.block_recovery_service.clean_up_recovered_blocks()
 
@@ -44,6 +48,9 @@ class OntBlockProcessingService(BlockProcessingService):
             return self._handle_decrypted_consensus_block(bx_block, connection, encrypted_block_hash_hex, recovered)
         elif not is_consensus_msg:
             return super()._handle_decrypted_block(bx_block, connection, encrypted_block_hash_hex, recovered)
+        else:
+            # TODO what should we do
+            pass
 
     def _handle_decrypted_consensus_block(self, bx_block: memoryview, connection: AbstractRelayConnection,
                                           encrypted_block_hash_hex: Optional[str] = None, recovered: bool = False):

@@ -30,7 +30,7 @@ FULL_BLOCK_BYTES_HEX = "dab5bffa626c6f636b00000000000000e40c00008a8332a900000020
 
 def get_sample_block():
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(root_dir, "sample_block.txt")) as sample_file:
+    with open(os.path.join(root_dir, "btc_sample_block.txt")) as sample_file:
         btc_block = sample_file.read().strip("\n")
     buf = bytearray(convert.hex_to_bytes(btc_block))
     parsed_block = BlockBtcMessage(buf=buf)
@@ -39,7 +39,7 @@ def get_sample_block():
 
 def get_segwit_block():
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(root_dir, "segwit_block.txt")) as sample_file:
+    with open(os.path.join(root_dir, "btc_segwit_sample_block.txt")) as sample_file:
         btc_block = sample_file.read().strip("\n")
     block = convert.hex_to_bytes(btc_block)
     buf = bytearray(BTC_HDR_COMMON_OFF + len(block))
@@ -211,6 +211,26 @@ class BtcMessageConverterTests(AbstractTestCase):
         ref_block, _, unknown_tx_sids, unknown_tx_hashes = self.btc_message_converter.bx_block_to_block(
             bx_block, self.tx_service
         )
+        self.assertEqual(len(unknown_tx_hashes), 0)
+        self.assertEqual(len(unknown_tx_sids), 0)
+        self.assertEqual(
+            parsed_block.rawbytes().tobytes(), ref_block.rawbytes().tobytes()
+        )
+
+    @multi_setup()
+    def test_full_compression(self):
+        parsed_block = get_sample_block()
+        transactions = parsed_block.txns()[:]
+        random.shuffle(transactions)
+        for short_id, txn in enumerate(transactions):
+            bx_tx_hash = btc_messages_util.get_txid(txn)
+            self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
+            self.tx_service.set_transaction_contents(bx_tx_hash, txn)
+        bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
+        ref_block, ref_lock_info, unknown_tx_sids, unknown_tx_hashes = self.btc_message_converter.bx_block_to_block(
+            bx_block, self.tx_service
+        )
+        self.assertEqual(len(block_info.short_ids), block_info.txn_count, "all txs were compressed")
         self.assertEqual(len(unknown_tx_hashes), 0)
         self.assertEqual(len(unknown_tx_sids), 0)
         self.assertEqual(

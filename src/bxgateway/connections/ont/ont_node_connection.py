@@ -10,6 +10,9 @@ if TYPE_CHECKING:
 
 
 class OntNodeConnection(AbstractGatewayBlockchainConnection):
+    """
+    bloXroute gateway <=> blockchain node connection class.
+    """
 
     def __init__(self, sock: AbstractSocketConnectionProtocol, node: "AbstractGatewayNode"):
         super(OntNodeConnection, self).__init__(sock, node)

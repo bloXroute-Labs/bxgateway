@@ -10,17 +10,17 @@ from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert, crypto
 
-from bxgateway import btc_constants
-from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
-from bxgateway.messages.btc.inventory_btc_message import InventoryType
-from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+from bxgateway import ont_constants
+from bxgateway.messages.ont.block_ont_message import BlockOntMessage
+from bxgateway.messages.ont.inventory_ont_message import InventoryOntType
+from bxgateway.services.ont.abstract_ont_block_cleanup_service import AbstractOntBlockCleanupService
+from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.testing.abstract_block_cleanup_service_test import AbstractBlockCleanupServiceTest
 
 logger = logging.get_logger(__name__)
 
 
-class AbstractBtcBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
+class AbstractOntBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -28,23 +28,23 @@ class AbstractBtcBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
 
     def _get_sample_block(self, file_path):
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(file_path))))
-        with open(os.path.join(root_dir, "btc_sample_block.txt")) as sample_file:
-            btc_block = sample_file.read().strip("\n")
-        buf = bytearray(convert.hex_to_bytes(btc_block))
-        parsed_block = BlockBtcMessage(buf=buf)
+        with open(os.path.join(root_dir, "ont_sample_block.txt")) as sample_file:
+            ont_block = sample_file.read().strip("\n")
+        buf = bytearray(convert.hex_to_bytes(ont_block))
+        parsed_block = BlockOntMessage(buf=buf)
         return parsed_block
 
     def _test_mark_blocks_and_request_cleanup(self):
-        marked_block = BtcObjectHash(binary=helpers.generate_bytearray(btc_constants.BTC_SHA_HASH_LEN))
-        prev_block = BtcObjectHash(binary=helpers.generate_bytearray(btc_constants.BTC_SHA_HASH_LEN))
+        marked_block = OntObjectHash(binary=helpers.generate_bytearray(ont_constants.ONT_HASH_LEN))
+        prev_block = OntObjectHash(binary=helpers.generate_bytearray(ont_constants.ONT_HASH_LEN))
         tracked_blocks = []
         self.cleanup_service.on_new_block_received(marked_block, prev_block)
         self.transaction_service.track_seen_short_ids(marked_block, [])
         for _ in range(self.block_confirmations_count - 1):
-            tracked_block = BtcObjectHash(binary=helpers.generate_bytearray(btc_constants.BTC_SHA_HASH_LEN))
+            tracked_block = OntObjectHash(binary=helpers.generate_bytearray(ont_constants.ONT_HASH_LEN))
             self.transaction_service.track_seen_short_ids(tracked_block, [])
             tracked_blocks.append(tracked_block)
-        unmarked_block = BtcObjectHash(binary=helpers.generate_bytearray(btc_constants.BTC_SHA_HASH_LEN))
+        unmarked_block = OntObjectHash(binary=helpers.generate_bytearray(ont_constants.ONT_HASH_LEN))
         self.assertIsNone(self.cleanup_service.last_confirmed_block)
         self.cleanup_service.mark_blocks_and_request_cleanup([marked_block, *tracked_blocks])
         self.assertEqual(marked_block, self.cleanup_service.last_confirmed_block)
@@ -53,29 +53,29 @@ class AbstractBtcBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
         self.assertEqual(marked_block, self.cleanup_service.last_confirmed_block)
         msg = self.node.send_to_node_messages.pop(-1)
         self.assertEqual(1, msg.count())
-        self.assertEqual((InventoryType.MSG_BLOCK, marked_block), next(iter(msg)))
+        self.assertEqual((InventoryOntType.MSG_BLOCK, marked_block), next(iter(msg)))
 
     def _test_block_cleanup(self):
         block_msg = self._get_sample_block(self._get_file_path())
-        transactions = block_msg.txns()[:]
-        block_hash = typing.cast(BtcObjectHash, block_msg.block_hash())
+        transactions = block_msg.txns()
+        block_hash = typing.cast(OntObjectHash, block_msg.block_hash())
         random.shuffle(transactions)
         short_len = int(len(transactions) * 0.9)
         transactions_short = transactions[:short_len]
         unknown_transactions = transactions[short_len:]
         transaction_hashes = []
         for idx, tx in enumerate(transactions_short):
-            tx_hash = BtcObjectHash(
+            tx_hash = OntObjectHash(
                 buf=crypto.double_sha256(tx),
-                length=btc_constants.BTC_SHA_HASH_LEN
+                length=ont_constants.ONT_HASH_LEN
             )
             transaction_hashes.append(tx_hash)
             self.transaction_service.set_transaction_contents(tx_hash, tx)
             self.transaction_service.assign_short_id(tx_hash, idx + 1)
         for idx, tx in enumerate(unknown_transactions):
-            tx_hash = BtcObjectHash(
+            tx_hash = OntObjectHash(
                 buf=crypto.double_sha256(tx),
-                length=btc_constants.BTC_SHA_HASH_LEN
+                length=ont_constants.ONT_HASH_LEN
             )
             transaction_hashes.append(tx_hash)
             if idx % 2 == 0:
@@ -91,7 +91,7 @@ class AbstractBtcBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
         pass
 
     @abstractmethod
-    def _get_cleanup_service(self) -> AbstractBtcBlockCleanupService:
+    def _get_cleanup_service(self) -> AbstractOntBlockCleanupService:
         pass
 
     @abstractmethod

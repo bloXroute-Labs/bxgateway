@@ -8,6 +8,7 @@ from bxcommon.utils import crypto
 from bxgateway import log_messages
 from bxgateway import ont_constants
 from bxutils import logging
+from bxutils.logging import LogLevel
 
 logger = logging.get_logger(__name__)
 
@@ -69,18 +70,12 @@ class OntMessage(AbstractMessage):
 
     def rawbytes(self) -> memoryview:
         assert self.buf is not None
-        if self._payload_len is None:
-            # pyre-fixme[6]: Expected `Union[array.array[int], bytearray, bytes,
-            #  memoryview, mmap.mmap]` for 2nd param but got `Optional[bytearray]`.
-            self._payload_len, = struct.unpack_from("<L", self.buf, 16)
-        assert self._payload_len is not None
         # pyre-fixme[6]: Expected `int` for 1st param but got `Optional[int]`.
         # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytearray]`.
-        if self._payload_len + ont_constants.ONT_HDR_COMMON_OFF == len(self.buf):
+        if self.payload_len() + ont_constants.ONT_HDR_COMMON_OFF == len(self.buf):
             return self._memoryview
         else:
-            # pyre-fixme[6]: Expected `int` for 1st param but got `Optional[int]`.
-            return self._memoryview[0:self._payload_len + ont_constants.ONT_HDR_COMMON_OFF]
+            return self._memoryview[0:self.payload_len() + ont_constants.ONT_HDR_COMMON_OFF]
 
     def magic(self) -> int:
         if self._magic is None:
@@ -123,3 +118,6 @@ class OntMessage(AbstractMessage):
         if self._checksum is None:
             self._checksum = self.buf[ont_constants.ONT_HEADER_MINUS_CHECKSUM:ont_constants.ONT_HDR_COMMON_OFF]
         return self._checksum
+
+    def log_level(self):
+        return LogLevel.INFO

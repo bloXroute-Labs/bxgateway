@@ -10,8 +10,9 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
-# TODO: implement msg_tx
 class OntRelayConnection(AbstractRelayConnection):
 
     def __init__(self, sock: AbstractSocketConnectionProtocol, node: "AbstractGatewayNode"):
         super(OntRelayConnection, self).__init__(sock, node)
+
+    # TODO: implement msg_tx
