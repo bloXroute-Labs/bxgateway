@@ -15,13 +15,13 @@ from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.memory_utils import SpecialTuple
 from bxcommon.utils import memory_utils
-from bxcommon.services import extension_cleanup_service_helpers, normal_cleanup_service_helpers
+from bxcommon.services import extension_cleanup_service_helpers
 
 from bxgateway import btc_constants
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
 
-import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
+import task_pool_executor as tpe
 
 if TYPE_CHECKING:
     from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
 
-def create_block_confirmation_cleanup_task() -> tpe.BlockConfirmationCleanupTask:  # pyre-ignore
+def create_block_confirmation_cleanup_task() -> tpe.BlockConfirmationCleanupTask:
     return tpe.BlockConfirmationCleanupTask()
 
 
@@ -93,19 +93,28 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
             block_hash=block_hash,
             short_ids=short_ids,
             unknown_tx_hashes=(
-                Sha256Hash(convert.hex_to_bytes(tx_hash.hex_string())) for tx_hash in cleanup_task.unknown_tx_hashes())
+                Sha256Hash(convert.hex_to_bytes(tx_hash.hex_string()))
+                for tx_hash in cleanup_task.unknown_tx_hashes()
+            )
         )
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
-        return memory_utils.add_special_objects(self.block_cleanup_tasks, self.block_confirmation_cleanup_tasks, ids)
+        return memory_utils.add_special_objects(
+            self.block_cleanup_tasks, self.block_confirmation_cleanup_tasks, ids
+        )
 
-    def _create_block_cleanup_task(self) -> tpe.BtcBlockCleanupTask:  # pyre-ignore
+    def _create_block_cleanup_task(self) -> tpe.BtcBlockCleanupTask:
         return tpe.BtcBlockCleanupTask(self.MINIMAL_SUB_TASK_TX_COUNT)
 
-    def contents_cleanup(self,
-                         transaction_service: TransactionService,
-                         block_confirmation_message: BlockConfirmationMessage
-                         ):
-        extension_cleanup_service_helpers.contents_cleanup(transaction_service,
-                                                           block_confirmation_message,
-                                                           self.block_confirmation_cleanup_tasks)
+    # pyre-fixme[14]: `contents_cleanup` overrides method defined in
+    #  `AbstractBlockCleanupService` inconsistently.
+    def contents_cleanup(
+        self,
+        transaction_service: TransactionService,
+        block_confirmation_message: BlockConfirmationMessage
+    ):
+        extension_cleanup_service_helpers.contents_cleanup(
+            transaction_service,
+            block_confirmation_message,
+            self.block_confirmation_cleanup_tasks
+        )

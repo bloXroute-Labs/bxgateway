@@ -17,6 +17,8 @@ class OntNormalBlockCleanupService(AbstractOntBlockCleanupService):
     def clean_block_transactions(self, block_msg: BlockOntMessage, transaction_service: TransactionService) -> None:
         raise NotImplementedError()
 
+    # pyre-fixme[14]: `contents_cleanup` overrides method defined in
+    #  `AbstractBlockCleanupService` inconsistently.
     def contents_cleanup(self, transaction_service: TransactionService,
                          block_confirmation_message: BlockConfirmationMessage):
         raise NotImplementedError()

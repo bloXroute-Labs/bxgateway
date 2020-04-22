@@ -56,7 +56,9 @@ class AbstractBlockQueuingService(
         self._blocks: ExpiringDict[
             Sha256Hash, Optional[TBlockMessage]
         ] = ExpiringDict(
-            node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "block_queuing_service_blocks"
         )
 
         self._blocks_seen_by_blockchain_node: ExpiringSet[
@@ -64,6 +66,7 @@ class AbstractBlockQueuingService(
         ] = ExpiringSet(
             node.alarm_queue,
             gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S,
+            "block_queuing_service_blocks_seen",
         )
 
     def __len__(self):
@@ -177,11 +180,11 @@ class AbstractBlockQueuingService(
     def send_block_to_node(
         self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None
     ) -> None:
-        if block_msg is None:
-            block_msg = self._blocks[block_hash]
-
         if not self.node.should_process_block_hash(block_hash):
             return
+
+        if block_msg is None:
+            block_msg = self._blocks[block_hash]
 
         logger.info("Forwarding block {} to blockchain node.", block_hash)
 

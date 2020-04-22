@@ -1,4 +1,8 @@
+from typing import Union, List
+
+from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import eth_constants
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
@@ -82,3 +86,14 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
                      request.get_msg,
                      request.attempts)
         self.msg_proxy_request(request.get_msg)
+
+    def _build_get_blocks_message_for_block_confirmation(
+        self, hashes: List[Sha256Hash]
+    ) -> AbstractMessage:
+        pass
+
+    def _set_transaction_contents(
+        self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]
+    ) -> None:
+        pass
+

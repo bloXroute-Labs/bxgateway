@@ -16,6 +16,7 @@ class NotFoundOntMessage(OntMessage):
             self.buf = buf
 
             off = ont_constants.ONT_HDR_COMMON_OFF
+            # pyre-fixme[16]: `Optional` has no attribute `get_little_endian`.
             buf[off:off + ont_constants.ONT_HASH_LEN] = block_hash.get_little_endian()
             off += ont_constants.ONT_HASH_LEN
 

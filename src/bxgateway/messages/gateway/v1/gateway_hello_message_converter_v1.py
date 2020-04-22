@@ -55,4 +55,5 @@ class GatewayHelloMessageConverterV1(AbstractMessageConverter):
         raise NotImplementedError()
 
 
+# pyre-fixme[45]: Cannot instantiate abstract class `GatewayHelloMessageConverterV1`.
 gateway_hello_message_converter_v1 = GatewayHelloMessageConverterV1()

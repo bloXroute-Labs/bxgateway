@@ -23,7 +23,7 @@ from bxgateway.abstract_message_converter import BlockDecompressionResult
 from bxutils import logging
 
 
-import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
+import task_pool_executor as tpe
 
 logger = logging.get_logger(__name__)
 
@@ -126,8 +126,8 @@ class OntExtensionMessageConverter(AbstractOntMessageConverter):
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
         return memory_utils.add_special_objects(self.compression_tasks, self.decompression_tasks, ids=ids)
 
-    def _create_compression_task(self) -> tpe.OntBlockCompressionTask:  # pyre-ignore
+    def _create_compression_task(self) -> tpe.OntBlockCompressionTask:
         return tpe.OntBlockCompressionTask(self._default_block_size, self.MINIMAL_SUB_TASK_TX_COUNT)
 
-    def _create_decompression_task(self) -> tpe.OntBlockDecompressionTask:  # pyre-ignore
+    def _create_decompression_task(self) -> tpe.OntBlockDecompressionTask:
         return tpe.OntBlockDecompressionTask(self._default_block_size, self.MINIMAL_SUB_TASK_TX_COUNT)

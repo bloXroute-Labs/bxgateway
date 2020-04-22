@@ -66,6 +66,7 @@ class AbstractGatewayNode(AbstractNode):
     __metaclass__ = ABCMeta
 
     NODE_TYPE = NodeType.EXTERNAL_GATEWAY
+    # pyre-fixme[8]: Attribute has type `Type[AbstractRelayConnection]`; used as `None`.
     RELAY_CONNECTION_CLS: ClassVar[Type[AbstractRelayConnection]] = None
 
     node_conn: Optional[AbstractGatewayBlockchainConnection] = None
@@ -113,7 +114,11 @@ class AbstractGatewayNode(AbstractNode):
         self.node_msg_queue = BlockchainMessageQueue(opts.blockchain_message_ttl)
         self.remote_node_msg_queue = BlockchainMessageQueue(opts.remote_blockchain_message_ttl)
 
-        self.blocks_seen = ExpiringSet(self.alarm_queue, gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S)
+        self.blocks_seen = ExpiringSet(
+            self.alarm_queue,
+            gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S,
+            "gateway_blocks_seen"
+        )
         self.in_progress_blocks = BlockEncryptedCache(self.alarm_queue)
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
         self.neutrality_service = NeutralityService(self)
@@ -164,11 +169,13 @@ class AbstractGatewayNode(AbstractNode):
 
         self._block_from_node_handling_times = ExpiringDict(
             self.alarm_queue,
-            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S
+            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S,
+            f"gateway_block_from_node_handling_times",
         )
         self._block_from_bdn_handling_times = ExpiringDict(
             self.alarm_queue,
-            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S
+            gateway_constants.BLOCK_HANDLING_TIME_EXPIRATION_TIME_S,
+            f"gateway_block_from_bdn_handling_times",
         )
 
         self.schedule_blockchain_liveliness_check(self.opts.initial_liveliness_check)
@@ -177,8 +184,11 @@ class AbstractGatewayNode(AbstractNode):
         self.opts.has_fully_updated_tx_service = False
         self.alarm_queue.register_alarm(constants.TX_SERVICE_SYNC_PROGRESS_S, self.sync_tx_services)
 
-        self.block_cleanup_processed_blocks = ExpiringSet(self.alarm_queue,
-                                                          gateway_constants.BLOCK_CONFIRMATION_EXPIRE_TIME_S)
+        self.block_cleanup_processed_blocks = ExpiringSet(
+            self.alarm_queue,
+            gateway_constants.BLOCK_CONFIRMATION_EXPIRE_TIME_S,
+            "gateway_block_cleanup_processed_blocks"
+        )
 
         self.message_converter: Optional[AbstractMessageConverter] = None
         self.account_id: Optional[str] = extensions_factory.get_account_id(
@@ -390,6 +400,7 @@ class AbstractGatewayNode(AbstractNode):
         ))
         if self.remote_blockchain_ip is not None and self.remote_blockchain_port is not None:
             peers.append(ConnectionPeerInfo(
+                # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[str]`.
                 IpEndpoint(self.remote_blockchain_ip, self.remote_blockchain_port),
                 ConnectionType.REMOTE_BLOCKCHAIN_NODE)
             )
@@ -444,8 +455,9 @@ class AbstractGatewayNode(AbstractNode):
         """
         Sends a message to the blockchain node this is connected to.
         """
-        if self.node_conn is not None:
-            self.node_conn.enqueue_msg(msg)
+        node_conn = self.node_conn
+        if node_conn is not None:
+            node_conn.enqueue_msg(msg)
         else:
             logger.trace("Adding message to local node's message queue: {}", msg)
             self.node_msg_queue.append(msg)
@@ -454,8 +466,9 @@ class AbstractGatewayNode(AbstractNode):
         """
         Sends a message to remote connected blockchain node.
         """
-        if self.remote_node_conn is not None:
-            self.remote_node_conn.enqueue_msg(msg)
+        remote_node_conn = self.remote_node_conn
+        if remote_node_conn is not None:
+            remote_node_conn.enqueue_msg(msg)
         else:
             logger.trace("Adding message to remote node's message queue: {}", msg)
             self.remote_node_msg_queue.append(msg)
@@ -477,8 +490,8 @@ class AbstractGatewayNode(AbstractNode):
             sdn_http_service.submit_peer_connection_event,
             NodeEventType.BLOCKCHAIN_NODE_CONN_ESTABLISHED,
             self.opts.node_id,
-            self.node_conn.peer_ip,
-            self.node_conn.peer_port
+            connection.peer_ip,
+            connection.peer_port
         )
 
     def on_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection):
@@ -515,8 +528,8 @@ class AbstractGatewayNode(AbstractNode):
             sdn_http_service.submit_peer_connection_event,
             NodeEventType.REMOTE_BLOCKCHAIN_CONN_ESTABLISHED,
             self.opts.node_id,
-            self.remote_node_conn.peer_ip,
-            self.remote_node_conn.peer_port
+            connection.peer_ip,
+            connection.peer_port
         )
 
     def on_remote_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection):
@@ -633,7 +646,8 @@ class AbstractGatewayNode(AbstractNode):
             result = False
             reason = "Tx sync in progress"
 
-        if self.node_conn is None or not self.node_conn.is_active():
+        node_conn = self.node_conn
+        if node_conn is None or not node_conn.is_active():
             result = False
             reason = "No blockchain connection"
 
@@ -644,10 +658,12 @@ class AbstractGatewayNode(AbstractNode):
                 reason
             )
             if block_hash is not None:
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.ENC_BLOCK_GATEWAY_IGNORE_NO_BLOCKCHAIN,
-                                                          network_num=self.network_num,
-                                                          more_info=reason)
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.ENC_BLOCK_GATEWAY_IGNORE_NO_BLOCKCHAIN,
+                    network_num=self.network_num,
+                    more_info=reason
+                )
 
         return result
 
@@ -841,6 +857,11 @@ class AbstractGatewayNode(AbstractNode):
 
             # check the network latency using the thread pool
             self.requester.send_threaded_request(
+                # pyre-fixme[6]: Expected `(...) -> None` for 1st param but got
+                #  `BoundMethod[typing.Callable(AbstractGatewayNode._find_best_relay_peers)[[Named(self,
+                #  AbstractGatewayNode), Named(potential_relay_peers,
+                #  List[OutboundPeerModel])], List[OutboundPeerModel]],
+                #  AbstractGatewayNode]`.
                 self._find_best_relay_peers,
                 potential_relay_peers,
                 done_callback=self._register_potential_relay_peers_from_future

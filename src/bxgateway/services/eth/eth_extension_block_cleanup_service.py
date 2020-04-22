@@ -1,7 +1,7 @@
 import time
 from typing import TYPE_CHECKING, Iterable
 
-import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
+import task_pool_executor as tpe
 
 from bxcommon.messages.bloxroute.block_confirmation_message import BlockConfirmationMessage
 from bxcommon.services import extension_cleanup_service_helpers
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
 
-def create_cleanup_task() -> tpe.BlockConfirmationCleanupTask:  # pyre-ignore
+def create_cleanup_task() -> tpe.BlockConfirmationCleanupTask:
     return tpe.BlockConfirmationCleanupTask()
 
 
@@ -75,6 +75,8 @@ class EthExtensionBlockCleanupService(AbstractEthBlockCleanupService):
                                                                 short_id_count_before_cleanup,
                                                                 short_id_count_after_cleanup)
 
+    # pyre-fixme[14]: `contents_cleanup` overrides method defined in
+    #  `AbstractBlockCleanupService` inconsistently.
     def contents_cleanup(
             self,
             transaction_service: TransactionService,

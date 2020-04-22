@@ -26,6 +26,8 @@ class AddrOntMessage(OntMessage):
                 timestamp, service_type, host_ip, sync_port, cons_port, pid = addr
                 struct.pack_into("<QQ", buf, off, timestamp, service_type)
                 off += ont_constants.ONT_ADDR_TIME_AND_SERV_LEN
+                # pyre-fixme[6]: Expected `Union[typing.Iterable[int], bytes]` for
+                #  2nd param but got `Optional[bytearray]`.
                 buf[off:off + ont_constants.ONT_IP_ADDR_SIZE] = ipaddr_to_ontbytearray(host_ip)
                 off += ont_constants.ONT_IP_ADDR_SIZE
                 struct.pack_into("<HHQ", buf, off, sync_port, cons_port, pid)

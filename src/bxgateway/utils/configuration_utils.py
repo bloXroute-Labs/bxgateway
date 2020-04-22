@@ -69,11 +69,15 @@ def update_node_config(node: AbstractNode):
     if log_config_model is not None:
         try:
             if log_config_model.log_level is not None:
+                # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[str]`.
                 compare_and_update(log_level.from_string(log_config_model.log_level),
                                    project_root_logger.level,
                                    setter=functools.partial(log_config.set_level, node.opts.logger_names),
                                    item="log_level")
             if log_config_model.log_level_overrides is not None:
+                # pyre-fixme[6]: Expected `Dict[str,
+                #  typing.Union[log_level.LogLevel, str]]` for 1st param but got
+                #  `Dict[str, str]`.
                 log_config.set_log_levels(log_config_model.log_level_overrides)
         except (AttributeError, KeyError):
             logger.warning(log_messages.INVALID_CONFIG_LOG_LEVEL, log_config_model.log_level)

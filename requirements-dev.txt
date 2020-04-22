@@ -1,4 +1,4 @@
 pylint==2.4.3
 coverage==4.3.4
 mock==2.0.0
-pyre-check==0.0.27
+pyre-check==0.0.46

@@ -74,6 +74,8 @@ class BtcNormalBlockCleanupService(AbstractBtcBlockCleanupService):
             unknown_tx_hashes=block_unknown_tx_hashes
         )
 
+    # pyre-fixme[14]: `contents_cleanup` overrides method defined in
+    #  `AbstractBlockCleanupService` inconsistently.
     def contents_cleanup(self,
                          transaction_service: TransactionService,
                          block_confirmation_message: BlockConfirmationMessage

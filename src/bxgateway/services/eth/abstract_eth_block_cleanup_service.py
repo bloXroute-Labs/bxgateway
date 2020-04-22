@@ -20,6 +20,7 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
     Service for managing block cleanup.
     """
 
+    # pyre-fixme[11]: Annotation `EthGatewayNode` is not defined as a type.
     def __init__(self, node: "EthGatewayNode", network_num: int):
         """
         Constructor

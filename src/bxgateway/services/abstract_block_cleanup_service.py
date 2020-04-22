@@ -17,6 +17,7 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
     Service for managing block cleanup.
     """
 
+    # pyre-fixme[11]: Annotation `AbstractGatewayNode` is not defined as a type.
     def __init__(self, node: "AbstractGatewayNode", network_num: int):
         """
         Constructor
@@ -24,6 +25,7 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
         :param network_num: network number
         """
 
+        # pyre-fixme[11]: Annotation `AbstractGatewayNode` is not defined as a type.
         self.node: "AbstractGatewayNode" = node
         self.network_num: int = network_num
 
@@ -122,6 +124,7 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
     def process_cleanup_message(
             self,
             msg: AbstractCleanupMessage,
+            # pyre-fixme[11]: Annotation `AbstractGatewayNode` is not defined as a type.
             node: "AbstractGatewayNode",
     ):
         block_cleanup = msg.MESSAGE_TYPE == BloxrouteMessageType.BLOCK_CONFIRMATION

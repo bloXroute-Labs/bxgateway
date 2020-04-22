@@ -25,7 +25,7 @@ from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.utils.errors import message_conversion_error
 from bxgateway.abstract_message_converter import BlockDecompressionResult
 
-import task_pool_executor as tpe  # pyre-ignore for now, figure this out later (stub file or Python wrapper?)
+import task_pool_executor as tpe
 
 logger = logging.get_logger(__name__)
 
@@ -35,7 +35,7 @@ class ExtensionCompactBlockRecoveryData(NamedTuple):
     mapping_task: tpe.BtcCompactBlockMappingTask
 
 
-def create_recovered_transactions() -> VectorProxy[tpe.InputBytes, memoryview]:  # pyre-ignore
+def create_recovered_transactions() -> VectorProxy[tpe.InputBytes, memoryview]:
     encoder = ObjectEncoder(
         lambda input_bytes: memoryview(input_bytes), lambda buf: tpe.InputBytes(buf)
     )
@@ -138,10 +138,12 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         self.decompression_tasks.return_task(tsk)
         return BlockDecompressionResult(btc_block_msg, block_info, unknown_tx_sids, unknown_tx_hashes)
 
-    def compact_block_to_bx_block(  # pyre-ignore
-            self,
-            compact_block: CompactBlockBtcMessage,
-            transaction_service: ExtensionTransactionService
+    # pyre-fixme[14]: `compact_block_to_bx_block` overrides method defined in
+    #  `AbstractBtcMessageConverter` inconsistently.
+    def compact_block_to_bx_block(
+        self,
+        compact_block: CompactBlockBtcMessage,
+        transaction_service: ExtensionTransactionService
     ) -> CompactBlockCompressionResult:
         compress_start_datetime = datetime.utcnow()
         tsk = self.compact_mapping_tasks.borrow_task()
@@ -215,29 +217,32 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         )
 
     def _extension_recovered_compact_block_to_bx_block(
-            self,
-            mapping_result: CompactBlockCompressionResult,
-            recovery_item: ExtensionCompactBlockRecoveryData
+        self,
+        mapping_result: CompactBlockCompressionResult,
+        recovery_item: ExtensionCompactBlockRecoveryData
     ) -> CompactBlockCompressionResult:
         mapping_task = recovery_item.mapping_task
-        compression_task: tpe.BtcCompactBlockCompressionTask = mapping_task.compression_task()  # pyre-ignore
-        compression_task.add_recovered_transactions(mapping_result.recovered_transactions.vector)  # pyre-ignore
+        compression_task: tpe.BtcCompactBlockCompressionTask = mapping_task.compression_task()
+        # pyre-fixme[16]: `List` has no attribute `vector`.
+        compression_task.add_recovered_transactions(mapping_result.recovered_transactions.vector)
         mapping_block_info = mapping_result.block_info
         try:
             task_pool_proxy.run_task(compression_task)
         except tpe.AggregatedException as e:
             self.compact_mapping_tasks.return_task(mapping_task)
-            # pyre-ignore
+            # pyre-fixme[16]: `Optional` has no attribute `block_hash`.
             raise message_conversion_error.btc_compact_block_compression_error(mapping_block_info.block_hash, e)
         bx_block = memoryview(compression_task.bx_block())
-        block_hash = mapping_block_info.block_hash  # pyre-ignore
+        block_hash = mapping_block_info.block_hash
         txn_count = compression_task.txn_count()
         compressed_block_hash = compression_task.compressed_block_hash().hex_string()
         prev_block_hash = compression_task.prev_block_hash().hex_string()
         short_ids = compression_task.short_ids()
         compress_end_datetime = datetime.utcnow()
-        compress_start_datetime = mapping_block_info.start_datetime  # pyre-ignore
-        original_size = mapping_block_info.original_size  # pyre-ignore
+        # pyre-fixme[16]: `Optional` has no attribute `start_datetime`.
+        compress_start_datetime = mapping_block_info.start_datetime
+        # pyre-fixme[16]: `Optional` has no attribute `original_size`.
+        original_size = mapping_block_info.original_size
         compressed_size = len(bx_block)
         block_info = BlockInfo(
             block_hash,
@@ -255,11 +260,13 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
         self.compact_mapping_tasks.return_task(mapping_task)
         return CompactBlockCompressionResult(True, block_info, bx_block, None, [], [])
 
-    def _create_compression_task(self) -> tpe.BtcBlockCompressionTask:  # pyre-ignore
+    def _create_compression_task(self) -> tpe.BtcBlockCompressionTask:
         return tpe.BtcBlockCompressionTask(self._default_block_size, self.MINIMAL_SUB_TASK_TX_COUNT)
 
-    def _create_decompression_task(self) -> tpe.BtcBlockDecompressionTask:  # pyre-ignore
-        return tpe.BtcBlockDecompressionTask(self._default_block_size, self.MINIMAL_SUB_TASK_TX_COUNT)
+    def _create_decompression_task(self) -> tpe.BtcBlockDecompressionTask:
+        return tpe.BtcBlockDecompressionTask(
+            self._default_block_size, self.MINIMAL_SUB_TASK_TX_COUNT
+        )
 
-    def _create_compact_mapping_task(self) -> tpe.BtcCompactBlockMappingTask:  # pyre-ignore
+    def _create_compact_mapping_task(self) -> tpe.BtcCompactBlockMappingTask:
         return tpe.BtcCompactBlockMappingTask(self._default_block_size)

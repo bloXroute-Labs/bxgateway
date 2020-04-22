@@ -163,6 +163,7 @@ class EthGatewayNode(AbstractGatewayNode):
             remote_protocol = TransportLayerProtocol.UDP if self._is_in_remote_discovery() else \
                 TransportLayerProtocol.TCP
             peers.append(ConnectionPeerInfo(
+                # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[str]`.
                 IpEndpoint(self.remote_blockchain_ip, self.remote_blockchain_port),
                 ConnectionType.REMOTE_BLOCKCHAIN_NODE,
                 remote_protocol
@@ -277,6 +278,7 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def log_closed_connection(self, connection: AbstractConnection):
         if isinstance(connection, EthNodeConnection):
+            # pyre-fixme[22]: The cast is redundant.
             eth_node_connection = cast(EthNodeConnection, connection)
             connection_status = connection.connection_protocol.connection_status
 
@@ -286,7 +288,11 @@ class EthGatewayNode(AbstractGatewayNode):
                             eth_node_connection.peer_ip, eth_node_connection.peer_port, eth_node_connection)
             elif connection_status.disconnect_message_received:
                 logger.info("Connection to Ethereum node failed. Disconnect reason: '{}'. {} Connection details: {}.",
+                            # pyre-fixme[6]: Expected `int` for 1st param but got
+                            #  `Optional[int]`.
                             self._get_disconnect_reason_description(connection_status.disconnect_reason),
+                            # pyre-fixme[6]: Expected `int` for 1st param but got
+                            #  `Optional[int]`.
                             self._get_disconnect_reason_instruction(connection_status.disconnect_reason),
                             connection)
             elif not connection_status.auth_message_received and not connection_status.auth_ack_message_received:

@@ -68,7 +68,10 @@ class PushBlockQueuingService(
     ) -> None:
         super().push(block_hash, block_msg, waiting_for_recovery)
 
-        if not waiting_for_recovery and self._is_node_ready_to_accept_blocks():
+        if (
+            not waiting_for_recovery
+            and self._is_node_ready_to_accept_blocks()
+        ):
             assert block_msg is not None
             if self._can_send_block_message(block_hash, block_msg):
                 self.send_block_to_node(block_hash, block_msg)
@@ -96,8 +99,9 @@ class PushBlockQueuingService(
             # if this is the first item in the queue then cancel alarm for
             # block recovery timeout and send block
             if len(self._block_queue) > 0 and self._block_queue[0][0] == block_hash:
-                assert self._last_alarm_id is not None
-                self.node.alarm_queue.unregister_alarm(self._last_alarm_id)
+                last_alarm_id = self._last_alarm_id
+                assert last_alarm_id is not None
+                self.node.alarm_queue.unregister_alarm(last_alarm_id)
                 self._schedule_alarm_for_next_item()
 
     def mark_blocks_seen_by_blockchain_node(
@@ -129,13 +133,17 @@ class PushBlockQueuingService(
             block_hash, block_msg
         )
         self._last_block_sent_time = time.time()
-        # pyre-ignore
+        # pyre-fixme[6]: Expected `TBlockMessage` for 2nd param but got
+        #  `Optional[Variable[TBlockMessage (bound to
+        #  bxcommon.messages.abstract_message.AbstractMessage)]]`.
         self.on_block_sent(block_hash, block_msg)
 
     def remove_from_queue(self, block_hash: Sha256Hash) -> int:
         index = super().remove_from_queue(block_hash)
 
         if index is 0 and self._last_alarm_id is not None:
+            # pyre-fixme[6]: Expected `AlarmId` for 1st param but got
+            #  `Optional[AlarmId]`.
             self.node.alarm_queue.unregister_alarm(self._last_alarm_id)
             self._schedule_alarm_for_next_item()
 
@@ -171,8 +179,9 @@ class PushBlockQueuingService(
         This method should be called after adding blocks to the
         set of previous blocks.
         """
-        if self._last_alarm_id:
-            self.node.alarm_queue.unregister_alarm(self._last_alarm_id)
+        last_alarm_id = self._last_alarm_id
+        if last_alarm_id:
+            self.node.alarm_queue.unregister_alarm(last_alarm_id)
         self._schedule_alarm_for_next_item()
 
     def _schedule_alarm_for_next_item(self) -> None:
@@ -308,8 +317,9 @@ class PushBlockQueuingService(
             if currrent_time - timestamp < self.node.opts.blockchain_message_ttl:
                 return
 
-            if block_queue_start_len == len(self._block_queue) and self._last_alarm_id is not None:
-                self.node.alarm_queue.unregister_alarm(self._last_alarm_id)
+            last_alarm_id = self._last_alarm_id
+            if block_queue_start_len == len(self._block_queue) and last_alarm_id is not None:
+                self.node.alarm_queue.unregister_alarm(last_alarm_id)
                 self._schedule_alarm_for_next_item()
 
             del self._block_queue[0]
@@ -317,5 +327,6 @@ class PushBlockQueuingService(
 
     def _is_node_ready_to_accept_blocks(self) -> bool:
         return (
+            # pyre-fixme[16]: `Optional` has no attribute `is_active`.
             self.node.node_conn is not None and self.node.node_conn.is_active()
         )

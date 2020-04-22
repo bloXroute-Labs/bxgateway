@@ -16,8 +16,13 @@ class SendCompactBtcMessage(BtcMessage):
     ON_FLAG_LEN = 1
     VERSION_LEN = 8
 
+    # pyre-fixme[9]: magic has type `int`; used as `None`.
+    # pyre-fixme[9]: on_flag has type `bool`; used as `None`.
+    # pyre-fixme[9]: version has type `int`; used as `None`.
+    # pyre-fixme[9]: buf has type `memoryview`; used as `None`.
     def __init__(self, magic: int = None, on_flag: bool = None, version: int = None, buf: memoryview = None):
         if buf is None:
+            # pyre-fixme[9]: buf has type `memoryview`; used as `bytearray`.
             buf = bytearray(BTC_HDR_COMMON_OFF + self.ON_FLAG_LEN + self.VERSION_LEN)
 
             off = BTC_HDR_COMMON_OFF
@@ -42,6 +47,7 @@ class SendCompactBtcMessage(BtcMessage):
             off = BTC_HDR_COMMON_OFF
             self._on_flag, = struct.unpack_from("<B", self.buf, off)
 
+        # pyre-fixme[7]: Expected `bool` but got `None`.
         return self._on_flag
 
     def version(self) -> int:
@@ -49,4 +55,5 @@ class SendCompactBtcMessage(BtcMessage):
             off = BTC_HDR_COMMON_OFF + self.ON_FLAG_LEN
             self._version, = struct.unpack_from("<Q", self.buf, off)
 
+        # pyre-fixme[7]: Expected `int` but got `None`.
         return self._version

@@ -74,6 +74,7 @@ class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
             self.version()
 
         assert self._prev_block is not None
+        # pyre-fixme[7]: Expected `BtcObjectHash` but got `Optional[BtcObjectHash]`.
         return self._prev_block
 
     def merkle_root(self):
@@ -132,6 +133,7 @@ class BlockBtcMessage(BtcMessage, AbstractBlockMessage):
             header = self._memoryview[BTC_HDR_COMMON_OFF:BTC_HDR_COMMON_OFF + BTC_BLOCK_HDR_SIZE]
             raw_hash = crypto.bitcoin_hash(header)
             self._hash_val = BtcObjectHash(buf=raw_hash, length=BTC_SHA_HASH_LEN)
+        # pyre-fixme[7]: Expected `BtcObjectHash` but got `None`.
         return self._hash_val
 
     @staticmethod

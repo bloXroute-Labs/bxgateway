@@ -2,7 +2,6 @@ import datetime
 import time
 from typing import Iterable, Optional, TYPE_CHECKING
 
-from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
@@ -63,7 +62,11 @@ class BlockProcessingService:
 
     def __init__(self, node):
         self._node: AbstractGatewayNode = node
-        self._holds = ExpiringDict(node.alarm_queue, node.opts.blockchain_block_hold_timeout_s)
+        self._holds = ExpiringDict(
+            node.alarm_queue,
+            node.opts.blockchain_block_hold_timeout_s,
+            f"block_processing_holds"
+        )
 
     def place_hold(self, block_hash, connection):
         """
@@ -187,8 +190,11 @@ class BlockProcessingService:
                                             end_date_time=datetime.datetime.utcnow(),
                                             network_num=connection.network_num,
                                             more_info=stats_format.timespan(decrypt_start_timestamp, time.time()))
-                self._handle_decrypted_block(block, connection,
-                                             encrypted_block_hash_hex=convert.bytes_to_hex(block_hash.binary))
+                self._handle_decrypted_block(
+                    block,
+                    connection,
+                    encrypted_block_hash_hex=convert.bytes_to_hex(block_hash.binary)
+                )
             else:
                 block_stats.add_block_event(msg,
                                             BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
@@ -197,11 +203,13 @@ class BlockProcessingService:
             connection.log_trace("Received encrypted block. Storing.")
             self._node.in_progress_blocks.add_ciphertext(block_hash, cipherblob)
             block_received_message = BlockReceivedMessage(block_hash)
-            conns = self._node.broadcast(block_received_message, self, connection_types=[ConnectionType.GATEWAY])
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.ENC_BLOCK_SENT_BLOCK_RECEIPT,
-                                                      network_num=connection.network_num,
-                                                      more_info=stats_format.connections(conns))
+            conns = self._node.broadcast(block_received_message, connection, connection_types=[ConnectionType.GATEWAY])
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.ENC_BLOCK_SENT_BLOCK_RECEIPT,
+                network_num=connection.network_num,
+                more_info=stats_format.connections(conns)
+            )
 
     def process_block_key(self, msg, connection: AbstractRelayConnection):
         """
@@ -237,8 +245,10 @@ class BlockProcessingService:
                                                           network_num=connection.network_num,
                                                           more_info=stats_format.timespan(decrypt_start_timestamp,
                                                                                           time.time()))
-                self._handle_decrypted_block(block, connection,
-                                             encrypted_block_hash_hex=convert.bytes_to_hex(block_hash.binary))
+                self._handle_decrypted_block(
+                    block, connection,
+                    encrypted_block_hash_hex=convert.bytes_to_hex(block_hash.binary)
+                )
             else:
                 block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
@@ -283,8 +293,10 @@ class BlockProcessingService:
         :param connection: receiving connection (AbstractBlockchainConnection)
         """
         block_hash = block_message.block_hash()
+        message_converter = self._node.message_converter
+        assert message_converter is not None
         try:
-            bx_block, block_info = self._node.message_converter.block_to_bx_block(
+            bx_block, block_info = message_converter.block_to_bx_block(
                 block_message, self._node.get_tx_service()
             )
         except MessageConversionError as e:
@@ -297,25 +309,29 @@ class BlockProcessingService:
             connection.log_error(log_messages.BLOCK_COMPRESSION_FAIL, e.msg_hash, e)
             return
 
-        block_stats.add_block_event_by_block_hash(block_hash,
-                                                  BlockStatEventType.BLOCK_COMPRESSED,
-                                                  start_date_time=block_info.start_datetime,
-                                                  end_date_time=block_info.end_datetime,
-                                                  network_num=connection.network_num,
-                                                  prev_block_hash=block_info.prev_block_hash,
-                                                  original_size=block_info.original_size,
-                                                  txs_count=block_info.txn_count,
-                                                  blockchain_network=self._node.opts.blockchain_protocol,
-                                                  blockchain_protocol=self._node.opts.blockchain_network,
-                                                  matching_block_hash=block_info.compressed_block_hash,
-                                                  matching_block_type=StatBlockType.COMPRESSED.value,
-                                                  more_info="Compression: {}->{} bytes, {}, {}; Tx count: {}".format(
-                                                      block_info.original_size,
-                                                      block_info.compressed_size,
-                                                      stats_format.percentage(block_info.compression_rate),
-                                                      stats_format.duration(block_info.duration_ms),
-                                                      block_info.txn_count)
-                                                  )
+        compression_rate = block_info.compression_rate
+        assert compression_rate is not None
+        block_stats.add_block_event_by_block_hash(
+            block_hash,
+            BlockStatEventType.BLOCK_COMPRESSED,
+            start_date_time=block_info.start_datetime,
+            end_date_time=block_info.end_datetime,
+            network_num=connection.network_num,
+            prev_block_hash=block_info.prev_block_hash,
+            original_size=block_info.original_size,
+            txs_count=block_info.txn_count,
+            blockchain_network=self._node.opts.blockchain_protocol,
+            blockchain_protocol=self._node.opts.blockchain_network,
+            matching_block_hash=block_info.compressed_block_hash,
+            matching_block_type=StatBlockType.COMPRESSED.value,
+            more_info="Compression: {}->{} bytes, {}, {}; Tx count: {}".format(
+                block_info.original_size,
+                block_info.compressed_size,
+                stats_format.percentage(compression_rate),
+                stats_format.duration(block_info.duration_ms),
+                block_info.txn_count
+            )
+        )
         if self._node.opts.dump_short_id_mapping_compression:
             mapping = {}
             for short_id in block_info.short_ids:
@@ -342,15 +358,23 @@ class BlockProcessingService:
         connection.node.neutrality_service.propagate_block_to_network(bx_block, connection, block_info)
         self._node.get_tx_service().track_seen_short_ids_delayed(block_hash, block_info.short_ids)
 
-    def _handle_decrypted_block(self, bx_block: memoryview, connection: AbstractConnection,
-                                encrypted_block_hash_hex: bool = None, recovered: bool = False):
+    def _handle_decrypted_block(
+        self,
+        bx_block: memoryview,
+        connection: AbstractRelayConnection,
+        encrypted_block_hash_hex: Optional[str] = None,
+        recovered: bool = False
+    ):
         transaction_service = self._node.get_tx_service()
+        message_converter = self._node.message_converter
+        assert message_converter is not None
 
         # TODO: determine if a real block or test block. Discard if test block.
         if self._node.node_conn or self._node.remote_node_conn:
             try:
-                block_message, block_info, unknown_sids, unknown_hashes = \
-                    self._node.message_converter.bx_block_to_block(bx_block, transaction_service)
+                (
+                    block_message, block_info, unknown_sids, unknown_hashes
+                ) = message_converter.bx_block_to_block(bx_block, transaction_service)
             except MessageConversionError as e:
                 block_stats.add_block_event_by_block_hash(
                     e.msg_hash,
@@ -410,23 +434,29 @@ class BlockProcessingService:
             connection.log_info("Successfully recovered block {}.", block_hash)
 
         if block_message is not None:
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_SUCCESS,
-                                                      start_date_time=block_info.start_datetime,
-                                                      end_date_time=block_info.end_datetime,
-                                                      network_num=connection.network_num,
-                                                      prev_block_hash=block_info.prev_block_hash,
-                                                      original_size=block_info.original_size,
-                                                      compressed_size=block_info.compressed_size,
-                                                      txs_count=block_info.txn_count,
-                                                      blockchain_network=self._node.opts.blockchain_protocol,
-                                                      blockchain_protocol=self._node.opts.blockchain_network,
-                                                      matching_block_hash=block_info.compressed_block_hash,
-                                                      matching_block_type=StatBlockType.COMPRESSED.value,
-                                                      more_info="Compression rate {}, Decompression time {}, "
-                                                                "Queued behind {} blocks".format(
-                                                          stats_format.percentage(block_info.compression_rate),
-                                                          stats_format.duration(block_info.duration_ms),
-                                                          len(self._node.block_queuing_service)))
+            compression_rate = block_info.compression_rate
+            assert compression_rate is not None
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_DECOMPRESSED_SUCCESS,
+                start_date_time=block_info.start_datetime,
+                end_date_time=block_info.end_datetime,
+                network_num=connection.network_num,
+                prev_block_hash=block_info.prev_block_hash,
+                original_size=block_info.original_size,
+                compressed_size=block_info.compressed_size,
+                txs_count=block_info.txn_count,
+                blockchain_network=self._node.opts.blockchain_protocol,
+                blockchain_protocol=self._node.opts.blockchain_network,
+                matching_block_hash=block_info.compressed_block_hash,
+                matching_block_type=StatBlockType.COMPRESSED.value,
+                more_info="Compression rate {}, Decompression time {}, "
+                          "Queued behind {} blocks".format(
+                    stats_format.percentage(compression_rate),
+                    stats_format.duration(block_info.duration_ms),
+                    len(self._node.block_queuing_service)
+                )
+            )
 
             self._on_block_decompressed(block_message)
             if recovered or block_hash in self._node.block_queuing_service:

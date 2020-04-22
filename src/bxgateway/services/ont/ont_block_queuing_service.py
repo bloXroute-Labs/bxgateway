@@ -80,10 +80,12 @@ class OntBlockQueuingService(
         )
 
     def update_recovered_block(
-        self, block_hash: OntObjectHash, block_msg: BlockOntMessage
+        self, block_hash: Sha256Hash, block_msg: BlockOntMessage
     ):
         if block_hash not in self._blocks:
             return
+
+        block_hash = cast(OntObjectHash, block_hash)
 
         self._blocks_waiting_for_recovery[block_hash] = False
         self.store_block_data(block_hash, block_msg)
@@ -96,14 +98,14 @@ class OntBlockQueuingService(
         self.node.send_msg_to_node(inv_msg)
 
     def mark_blocks_seen_by_blockchain_node(
-        self, block_hashes: List[OntObjectHash]
+        self, block_hashes: List[Sha256Hash]
     ):
         for block_hash in block_hashes:
             self.mark_block_seen_by_blockchain_node(block_hash)
 
     def mark_block_seen_by_blockchain_node(
         self,
-        block_hash: OntObjectHash,
+        block_hash: Sha256Hash,
         block_message: Optional[BlockOntMessage] = None,
     ):
         self._blocks_seen_by_blockchain_node.add(block_hash)

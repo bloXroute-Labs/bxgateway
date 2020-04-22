@@ -55,13 +55,19 @@ class EthBlockQueuingService(
         self.block_checking_alarms = {}
         self.block_repeat_count = defaultdict(int)
         self._block_parts = ExpiringDict(
-            node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_parts",
         )
         self._block_hashes_by_height = ExpiringDict(
-            node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_hashes_by_heights",
         )
         self._height_by_block_hash = ExpiringDict(
-            node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_height_by_hash"
         )
 
     def build_block_header_message(
@@ -79,7 +85,6 @@ class EthBlockQueuingService(
             block_header_bytes
         )
 
-    # pyre-ignore
     def send_block_to_node(
         self, block_hash: Sha256Hash, block_msg: Optional[InternalEthBlockInfo],
     ) -> None:
@@ -118,6 +123,8 @@ class EthBlockQueuingService(
                     block_hash, new_block_msg
                 )
 
+    # pyre-fixme[14]: `get_previous_block_hash_from_message` overrides method defined in
+    #  `PushBlockQueuingService` inconsistently.
     def get_previous_block_hash_from_message(
         self, block_message: NewBlockEthProtocolMessage
     ) -> Sha256Hash:
@@ -130,6 +137,8 @@ class EthBlockQueuingService(
         block_parts = self._block_parts[block_hash]
         return BlockBodiesEthProtocolMessage.from_body_bytes(block_parts.block_body_bytes)
 
+    # pyre-fixme[14]: `on_block_sent` overrides method defined in
+    #  `PushBlockQueuingService` inconsistently.
     def on_block_sent(
         self, block_hash: Sha256Hash, _block_message: NewBlockEthProtocolMessage
     ):
@@ -143,7 +152,6 @@ class EthBlockQueuingService(
                 block_hash,
             )
 
-    # pyre-ignore
     def push(
         self,
         block_hash: Sha256Hash,
@@ -163,7 +171,6 @@ class EthBlockQueuingService(
         super().store_block_data(block_hash, block_msg)
         self._store_block_parts(block_hash, block_msg)
 
-    # pyre-ignore
     def mark_block_seen_by_blockchain_node(
         self,
         block_hash: Sha256Hash,

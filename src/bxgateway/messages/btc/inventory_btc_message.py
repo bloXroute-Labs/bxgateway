@@ -73,8 +73,10 @@ class InventoryBtcMessage(BtcMessage):
         off = btc_constants.BTC_HDR_COMMON_OFF
         num_items, size = btc_messages_util.btc_varint_to_int(self.buf, off)
         off += size
+        # pyre-fixme[16]: `InventoryBtcMessage` has no attribute `_num_items`.
         self._num_items = num_items
 
+        # pyre-fixme[16]: `InventoryBtcMessage` has no attribute `_items`.
         self._items = list()
         for _ in range(num_items):
             inv_type, = struct.unpack_from("<L", self.buf, off)

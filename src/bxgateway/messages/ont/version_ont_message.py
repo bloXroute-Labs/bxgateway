@@ -17,6 +17,7 @@ class VersionOntMessage(OntMessage):
                  services=ont_constants.ONT_NODE_SERVICES, buf: Optional[bytearray] = None):
 
         if buf is None:
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
             buf = bytearray(ont_constants.ONT_VERSION_MSG_LEN + len(soft_version))
             self.buf = buf
 
@@ -25,8 +26,10 @@ class VersionOntMessage(OntMessage):
             off += ont_constants.ONT_VERSION_VER_SERV_TIME_LEN
             struct.pack_into("<HHH", buf, off, sync_port, http_info_port, cons_port)
             off += ont_constants.ONT_VERSION_PORTS_LEN
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
             struct.pack_into("<32sQQB?%dp" % (len(soft_version) + 1,), buf, off, cap, nonce,
                              start_height, relay, is_consensus, soft_version)
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
             off += ont_constants.ONT_VERSION_LOAD_LEN + len(soft_version)
 
             super().__init__(magic, self.MESSAGE_TYPE, off - ont_constants.ONT_HDR_COMMON_OFF, buf)

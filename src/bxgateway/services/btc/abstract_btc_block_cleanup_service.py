@@ -17,6 +17,7 @@ class AbstractBtcBlockCleanupService(AbstractBlockCleanupService):
     Service for managing block cleanup.
     """
 
+    # pyre-fixme[11]: Annotation `BtcGatewayNode` is not defined as a type.
     def __init__(self, node: "BtcGatewayNode", network_num: int):
         """
         Constructor

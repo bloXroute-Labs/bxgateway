@@ -30,4 +30,5 @@ class FeeFilterBtcMessage(BtcMessage):
         if self._fee_rate is None:
             self._fee_rate = struct.unpack_from("<Q", self.buf, btc_constants.BTC_HDR_COMMON_OFF)[0]
 
+        # pyre-fixme[7]: Expected `int` but got `None`.
         return self._fee_rate

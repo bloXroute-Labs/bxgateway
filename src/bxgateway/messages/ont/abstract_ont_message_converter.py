@@ -75,13 +75,18 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
         """
         pass
 
+    # pyre-fixme[14]: `bx_tx_to_tx` overrides method defined in
+    #  `AbstractMessageConverter` inconsistently.
     def bx_tx_to_tx(self, tx_msg: TxMessage):
+        # pyre-fixme[6]: Expected `bytes` for 1st param but got `memoryview`.
         buf = bytearray(ont_constants.ONT_HDR_COMMON_OFF) + tx_msg.tx_val()
         raw_ont_tx_msg = OntMessage(self._ont_magic, TxOntMessage.MESSAGE_TYPE, len(tx_msg.tx_val()), buf)
         ont_tx_msg = TxOntMessage(buf=raw_ont_tx_msg.buf)
 
         return ont_tx_msg
 
+    # pyre-fixme[14]: `tx_to_bx_txs` overrides method defined in
+    #  `AbstractMessageConverter` inconsistently.
     def tx_to_bx_txs(self, ont_tx_msg: TxOntMessage, network_num: int, quota_type: Optional[QuotaType] = None):
         tx_msg = TxMessage(ont_tx_msg.tx_hash(), network_num, tx_val=ont_tx_msg.tx(), quota_type=quota_type)
 

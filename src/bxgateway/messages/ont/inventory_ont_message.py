@@ -21,19 +21,28 @@ class InvOntMessage(OntMessage):
                  blocks: Optional[List[OntObjectHash]] = None, buf: Optional[bytearray] = None):
         if buf is None:
             buf = bytearray(ont_constants.ONT_HDR_COMMON_OFF + ont_constants.ONT_CHAR_LEN + ont_constants.ONT_INT_LEN +
+                            # pyre-fixme[6]: Expected `Sized` for 1st param but got
+                            #  `Optional[List[OntObjectHash]]`.
                             ont_constants.ONT_HASH_LEN * len(blocks))
             self.buf = buf
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got
+            #  `Optional[List[OntObjectHash]]`.
             self.blocks_len = len(blocks)
 
             off = ont_constants.ONT_HDR_COMMON_OFF
             if isinstance(inv_type, InventoryOntType):
                 struct.pack_into("<B", buf, off, inv_type.value)
             else:
+                # pyre-fixme[6]: Expected `Union[typing.Iterable[int], bytes]` for
+                #  2nd param but got `Optional[bytes]`.
                 buf[off: off + ont_constants.ONT_CHAR_LEN] = inv_type
             off += ont_constants.ONT_CHAR_LEN
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got
+            #  `Optional[List[OntObjectHash]]`.
             struct.pack_into("<L", buf, off, len(blocks))
             off += ont_constants.ONT_INT_LEN
 
+            # pyre-fixme[16]: `Optional` has no attribute `__iter__`.
             for block in blocks:
                 buf[off:off + ont_constants.ONT_HASH_LEN] = block.get_big_endian()
                 off += ont_constants.ONT_HASH_LEN
@@ -65,10 +74,14 @@ class InvOntMessage(OntMessage):
             self._len_blocks, = struct.unpack_from("<L", self.buf, off)
             off += ont_constants.ONT_INT_LEN
             self._block_hashes = []
+            # pyre-fixme[6]: Expected `int` for 1st param but got `Optional[int]`.
             for _ in range(self._len_blocks):
+                # pyre-fixme[16]: `Optional` has no attribute `append`.
                 self._block_hashes.append(OntObjectHash(buf=self.buf, offset=off, length=ont_constants.ONT_HASH_LEN))
                 off += ont_constants.ONT_HASH_LEN
 
         assert self._inv_type is not None
         assert self._block_hashes is not None
+        # pyre-fixme[7]: Expected `Tuple[int, List[OntObjectHash]]` but got
+        #  `Tuple[Optional[int], Optional[List[OntObjectHash]]]`.
         return self._inv_type, self._block_hashes

@@ -47,6 +47,7 @@ class RPCRequestHandler:
     async def handle_request(self, request: Request) -> Response:
         self.request_id = ""
         try:
+            # pyre-fixme[16]: Callable `headers` has no attribute `__getitem__`.
             content_type = request.headers[self.CONTENT_TYPE]
         except KeyError:
             raise HTTPBadRequest(text=f"Request must have a {self.CONTENT_TYPE} header!")
@@ -60,8 +61,9 @@ class RPCRequestHandler:
         method = None
         try:
             method = payload[self.REQUEST_METHOD]
-            method = RpcRequestType[method.upper()]  # pyre-ignore
+            method = RpcRequestType[method.upper()]
         except KeyError:
+            # pyre-fixme[25]: Assertion will always fail.
             if method is None:
                 raise HTTPBadRequest(text=f"RPC request does not contain a method!")
             else:

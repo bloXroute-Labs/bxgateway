@@ -19,6 +19,8 @@ class ConsensusOntMessage(OntMessage):
                  cur_hash: Optional[OntObjectHash] = None, buf: Optional[bytearray] = None):
 
         if buf is None:
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
             buf = bytearray(ont_constants.ONT_HDR_COMMON_OFF + len(data) + len(signature) + 119 +
                             ont_constants.ONT_VARINT_MAX_LEN * 2)
             self.buf = buf
@@ -26,18 +28,31 @@ class ConsensusOntMessage(OntMessage):
             off = ont_constants.ONT_HDR_COMMON_OFF
             struct.pack_into("<I", buf, off, version)
             off += ont_constants.ONT_INT_LEN
+            # pyre-fixme[16]: `Optional` has no attribute `get_little_endian`.
             buf[off:off + ont_constants.ONT_HASH_LEN] = prev_hash.get_little_endian()
             off += ont_constants.ONT_HASH_LEN
             struct.pack_into("<IHI", buf, off, height, bookkeeper_index, int(time.time()))
             off += ont_constants.ONT_CONS_HEIGHT_BKINDEX_TIME_LEN
 
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
             off += pack_int_to_ont_varint(len(data), buf, off)
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
+            # pyre-fixme[6]: Expected `Union[typing.Iterable[int], bytes]` for 2nd
+            #  param but got `Optional[bytes]`.
             buf[off:off + len(data)] = data
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
             off += len(data)
+            # pyre-fixme[6]: Expected `Union[typing.Iterable[int], bytes]` for 2nd
+            #  param but got `Optional[bytes]`.
             buf[off:off + ont_constants.ONT_CONS_OWNER_LEN] = owner
             off += ont_constants.ONT_CONS_OWNER_LEN
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
             off += pack_int_to_ont_varint(len(signature), buf, off)
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
+            # pyre-fixme[6]: Expected `Union[typing.Iterable[int], bytes]` for 2nd
+            #  param but got `Optional[bytes]`.
             buf[off:off + len(signature)] = signature
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got `Optional[bytes]`.
             off += len(signature)
             struct.pack_into("<Q", buf, off, peer_id)
             off += ont_constants.ONT_LONG_LONG_LEN

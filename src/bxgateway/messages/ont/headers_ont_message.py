@@ -12,7 +12,10 @@ class HeadersOntMessage(OntMessage):
 
     def __init__(self, magic: Optional[int] = None, headers: Optional[list] = None, buf: Optional[bytearray] = None):
         if buf is None:
+            # pyre-fixme[6]: Expected `Sized` for 1st param but got
+            #  `Optional[List[typing.Any]]`.
             headers_length = len(headers)
+            # pyre-fixme[16]: `Optional` has no attribute `__getitem__`.
             header_length = len(headers[0])
             buf = bytearray(ont_constants.ONT_HDR_COMMON_OFF + headers_length * header_length +
                             ont_constants.ONT_INT_LEN)
@@ -21,6 +24,7 @@ class HeadersOntMessage(OntMessage):
             off = ont_constants.ONT_HDR_COMMON_OFF
             struct.pack_into("<L", buf, off, headers_length)
             off += ont_constants.ONT_INT_LEN
+            # pyre-fixme[16]: `Optional` has no attribute `__iter__`.
             for header in headers:
                 buf[off:off + len(header)] = header
                 off += len(header)
@@ -50,6 +54,7 @@ class HeadersOntMessage(OntMessage):
                 off += consensus_payload_length + size
                 off += ont_constants.ONT_BLOCK_NEXT_BOOKKEEPER_LEN
                 header = self._memoryview[header_start_index:off]
+                # pyre-fixme[16]: Optional type has no attribute `append`.
                 self._headers.append(header)
                 bookkeepers_length, size = ont_varint_to_int(self.buf, off)
                 off += size
@@ -62,4 +67,5 @@ class HeadersOntMessage(OntMessage):
                     sig_length, size = ont_varint_to_int(self.buf, off)
                     off += size + sig_length
         assert isinstance(self._headers, List)
+        # pyre-fixme[7]: Expected `List[memoryview]` but got `None`.
         return self._headers

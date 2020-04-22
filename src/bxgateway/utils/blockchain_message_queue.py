@@ -42,5 +42,8 @@ class BlockchainMessageQueue:
             self._queue.clear()
 
     def _has_queue_expired(self) -> bool:
-        return self._first_item_insertion_time is not None and \
-               time.time() - self._first_item_insertion_time > self._time_to_live
+        first_item_insertion_time = self._first_item_insertion_time
+        return (
+            first_item_insertion_time is not None and
+            time.time() - first_item_insertion_time > self._time_to_live
+        )

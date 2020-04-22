@@ -6,6 +6,7 @@ from bxgateway.utils.eth import crypto_utils
 from bxcommon.utils.object_hash import Sha256Hash
 
 
+# pyre-fixme[13]: Attribute `number` is never initialized.
 class BlockHeader(rlp.Serializable):
     FIXED_LENGTH_FIELD_OFFSET = 2 * eth_constants.BLOCK_HASH_LEN + eth_constants.ADDRESS_LEN + 3 * eth_constants.MERKLE_ROOT_LEN + eth_constants.BLOOM_LEN + 9
 
