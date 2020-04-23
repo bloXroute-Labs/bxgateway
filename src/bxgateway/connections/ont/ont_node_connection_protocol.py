@@ -46,7 +46,6 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
             OntMessageType.GET_BLOCKS: self.msg_proxy_request,
             OntMessageType.GET_HEADERS: self.msg_get_headers,
             OntMessageType.GET_DATA: self.msg_get_data,
-            OntMessageType.REJECT: self.msg_reject,
             OntMessageType.HEADERS: self.msg_headers,
             OntMessageType.CONSENSUS: self.msg_consensus
         })
@@ -147,7 +146,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
     def msg_consensus(self, msg: ConsensusOntMessage):
         if not self.node.opts.is_consensus:
             return
-        if msg.consensus_data_type() != 0:
+        if msg.consensus_data_type() != ont_constants.BLOCK_PROPOSAL_CONSENSUS_MESSAGE_TYPE:
             return
 
         block_hash = msg.block_hash()
@@ -235,20 +234,6 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                                                   )
 
         self.node.block_processing_service._process_and_broadcast_compressed_block(bx_block, self.connection, block_info, block_hash)
-
-    def msg_reject(self, msg):
-        """
-        Handle REJECT message from Bitcoin node
-        :param msg: REJECT message
-        """
-
-        # Send inv message to the send in case of rejected block
-        # remaining sync communication will proxy to remote blockchain node
-        if msg.message() == OntMessageType.BLOCK:
-            inv_msg = InvOntMessage(
-                magic=self.magic, inv_vects=[(InventoryOntType.MSG_BLOCK, msg.obj_hash())]
-            )
-            self.node.send_msg_to_node(inv_msg)
 
     def send_ping(self):
         ping_msg = PingOntMessage(magic=self.magic, height=self.node.current_block_height)

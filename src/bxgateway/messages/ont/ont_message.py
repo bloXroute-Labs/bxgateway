@@ -8,7 +8,6 @@ from bxcommon.utils import crypto
 from bxgateway import log_messages
 from bxgateway import ont_constants
 from bxutils import logging
-from bxutils.logging import LogLevel
 
 logger = logging.get_logger(__name__)
 
@@ -118,6 +117,3 @@ class OntMessage(AbstractMessage):
         if self._checksum is None:
             self._checksum = self.buf[ont_constants.ONT_HEADER_MINUS_CHECKSUM:ont_constants.ONT_HDR_COMMON_OFF]
         return self._checksum
-
-    def log_level(self):
-        return LogLevel.INFO
