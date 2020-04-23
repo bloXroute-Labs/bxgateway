@@ -69,9 +69,9 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 self._request_blocks_confirmation
             )
 
-        if eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S > 0:
+        if self.tracked_block_cleanup_interval_s > 0:
             self.connection.node.alarm_queue.register_alarm(
-                eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S,
+                self.tracked_block_cleanup_interval_s,
                 self._tracked_block_cleanup
             )
 
@@ -308,15 +308,3 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 skip=0,
                 reverse=0
             )
-
-    def _tracked_block_cleanup(self):
-        if not self.connection.is_alive():
-            return None
-        node = self.connection.node
-        tx_service = node.get_tx_service()
-        block_queuing_service = self.node.block_queuing_service
-        tracked_blocks = tx_service.get_oldest_tracked_block(0)
-        for depth, block_hash in enumerate(block_queuing_service.iterate_recent_block_hashes()):
-            if depth > node.network.block_confirmations_count and block_hash in tracked_blocks:
-                self.node.block_cleanup_service.block_cleanup_request(block_hash)
-        return eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S

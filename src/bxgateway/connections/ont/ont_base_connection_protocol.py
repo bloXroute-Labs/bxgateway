@@ -5,6 +5,7 @@ from typing import List, Union
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import ont_constants
+from bxgateway import gateway_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.messages.ont.addr_ont_message import AddrOntMessage
@@ -23,7 +24,11 @@ logger = logging.get_logger(__name__)
 
 class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
     def __init__(self, connection: AbstractGatewayBlockchainConnection):
-        super(OntBaseConnectionProtocol, self).__init__(connection)
+        super(OntBaseConnectionProtocol, self).__init__(
+            connection,
+            tracked_block_cleanup_interval_s=ont_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S,
+            block_cleanup_poll_interval_s=ont_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S
+                                                        )
         self.node = typing.cast("bxgateway.connections.ont.ont_gateway_node.OntGatewayNode", connection.node)
         self.magic = self.node.opts.blockchain_net_magic
         self.version = self.node.opts.blockchain_version

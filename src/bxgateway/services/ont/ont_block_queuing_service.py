@@ -1,11 +1,12 @@
-from typing import List, Union, Optional, cast, TYPE_CHECKING
+from typing import List, Union, Optional, cast, TYPE_CHECKING, Set, Iterator
 
+from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-from bxgateway import ont_constants
+from bxgateway import ont_constants, gateway_constants
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
 from bxgateway.messages.ont.headers_ont_message import HeadersOntMessage
@@ -34,9 +35,18 @@ class OntBlockQueuingService(
     """
     Blocks sent to blockchain node only upon request
     """
+
+    _block_hashes_by_height: ExpiringDict[int, Sha256Hash]
+    _highest_block_number: int = 0
+
     def __init__(self, node: "AbstractGatewayNode"):
         super().__init__(node)
         self.node: "OntGatewayNode" = cast("OntGatewayNode", node)
+        self._block_hashes_by_height = ExpiringDict(
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "ont_block_queue_hashes_by_heights",
+        )
 
     def build_block_header_message(
         self, block_hash: Sha256Hash, block_message: BlockOntMessage
@@ -203,3 +213,46 @@ class OntBlockQueuingService(
                 return index
 
         return -1
+
+    def store_block_data(
+            self,
+            block_hash: Sha256Hash,
+            block_msg: BlockOntMessage
+    ):
+        block_height = block_msg.height()
+        if block_height > self._highest_block_number:
+            self._highest_block_number = block_height
+        self._block_hashes_by_height[block_height]= block_hash
+        super().store_block_data(block_hash, block_msg)
+
+    def iterate_block_hashes_starting_from_hash(
+            self,
+            block_hash: Sha256Hash,
+            max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        """
+        iterate over cached blocks headers in descending order
+        :param block_hash: starting block hash
+        :param max_count: max number of elements to return
+        :return: Iterator of block hashes in descending order
+        """
+        block_hash_ = block_hash
+        for _ in range(max_count):
+            if block_hash_ and block_hash_ in self._blocks:
+                yield block_hash_
+                block_msg = self._blocks[block_hash_]
+                assert block_msg is not None
+                block_hash_ = block_msg.prev_block_hash()
+            else:
+                break
+
+    def iterate_recent_block_hashes(
+            self,
+            max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        """
+        :param max_count:
+        :return: Iterator[Sha256Hash] in descending order (last -> first)
+        """
+        if self._highest_block_number not in self._block_hashes_by_height:
+            return iter([])
+        block_hash = self._block_hashes_by_height[self._highest_block_number]
+        return self.iterate_block_hashes_starting_from_hash(block_hash, max_count=max_count)

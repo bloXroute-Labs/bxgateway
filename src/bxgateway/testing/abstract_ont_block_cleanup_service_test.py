@@ -52,8 +52,7 @@ class AbstractOntBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
         self.assertFalse(self.cleanup_service.is_marked_for_cleanup(unmarked_block))
         self.assertEqual(marked_block, self.cleanup_service.last_confirmed_block)
         msg = self.node.send_to_node_messages.pop(-1)
-        self.assertEqual(1, msg.count())
-        self.assertEqual((InventoryOntType.MSG_BLOCK, marked_block), next(iter(msg)))
+        self.assertEqual((InventoryOntType.MSG_BLOCK.value, marked_block), msg.inv_type())
 
     def _test_block_cleanup(self):
         block_msg = self._get_sample_block(self._get_file_path())

@@ -10,6 +10,7 @@ from typing import (
     TYPE_CHECKING,
     List,
     NamedTuple,
+    Iterator
 )
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
@@ -259,3 +260,8 @@ class AbstractBlockQueuingService(
         if block_hash in self._blocks:
             del self._blocks[block_hash]
         return index
+
+    def iterate_recent_block_hashes(
+            self,
+            max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        raise NotImplementedError

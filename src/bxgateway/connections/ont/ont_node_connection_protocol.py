@@ -52,19 +52,19 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
         })
 
         self.ping_interval_s: int = gateway_constants.BLOCKCHAIN_PING_INTERVAL_S
-        self.connection.node.alarm_queue.register_alarm(
-            self.block_cleanup_poll_interval_s,
-            self._request_blocks_confirmation
-        )
 
-        # TODO: do we need this logic? it doesn't exist in btc (only in eth)
-        # self.requested_blocks_for_confirmation: ExpiringDict[
-        #     Sha256Hash, float
-        # ] = ExpiringDict(
-        #     self.node.alarm_queue,
-        #     ont_constants.BLOCK_CONFIRMATION_REQUEST_CACHE_INTERVAL_S,
-        #     f"{str(self)}_ont_requested_blocks"
-        # )
+        # TODO: re-enable when  block cleanup polling is supported
+        # if self.block_cleanup_poll_interval_s > 0:
+        #     self.connection.node.alarm_queue.register_alarm(
+        #         self.block_cleanup_poll_interval_s,
+        #         self._request_blocks_confirmation
+        #     )
+
+        if self.tracked_block_cleanup_interval_s > 0:
+            self.connection.node.alarm_queue.register_alarm(
+                self.tracked_block_cleanup_interval_s,
+                self._tracked_block_cleanup
+            )
 
     def msg_version(self, msg: VersionOntMessage) -> None:
         self.connection.on_connection_established()
@@ -258,17 +258,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
         return constants.CANCEL_ALARMS
 
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
-        # TODO: this is temporary, still need to check all the hashes from the input
-        return GetBlocksOntMessage(self.magic, 1, NULL_ONT_BLOCK_HASH, hashes[0])
-        # block_hash = hashes[0]
-        # for block_hash in hashes:
-        #     last_attempt = self.requested_blocks_for_confirmation.contents.get(block_hash, 0)
-        #     if time() - last_attempt > \
-        #             self.block_cleanup_poll_interval_s * 5:  # TODO: use constant
-        #         break
-        #
-        # self.requested_blocks_for_confirmation.add(block_hash, time())
-        # return GetHeadersOntMessage(self.magic, 1, NULL_ONT_BLOCK_HASH, hashes[0])
+        raise NotImplementedError
 
     def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
         # TODO: need to check transaction contents

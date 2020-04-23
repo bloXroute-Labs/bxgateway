@@ -55,12 +55,15 @@ class OntGatewayNode(AbstractGatewayNode):
         return OntBlockQueuingService(self)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
-        if self.opts.use_extensions:
-            from bxgateway.services.ont.ont_extension_block_cleanup_service import OntExtensionBlockCleanupService
-            block_cleanup_service = OntExtensionBlockCleanupService(self, self.network_num)
-        else:
-            block_cleanup_service = OntNormalBlockCleanupService(self, self.network_num)
-        return block_cleanup_service
+        return OntNormalBlockCleanupService(self, self.network_num)
+
+        # TODO: return ExtensionBlockCleanupService once implemented
+        # if self.opts.use_extensions:
+        #     from bxgateway.services.ont.ont_extension_block_cleanup_service import OntExtensionBlockCleanupService
+        #     block_cleanup_service = OntExtensionBlockCleanupService(self, self.network_num)
+        # else:
+        #     block_cleanup_service = OntNormalBlockCleanupService(self, self.network_num)
+        # return block_cleanup_service
 
     def update_current_block_height(self, new_block_height: int, new_block_hash: OntObjectHash):
         if new_block_height >= self.current_block_height:
