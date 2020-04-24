@@ -1,6 +1,6 @@
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
-from bxcommon.utils.expiring_set import ExpiringSet
+from bxcommon.rpc import rpc_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection

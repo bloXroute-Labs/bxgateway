@@ -25,4 +25,3 @@ class AbstractGatewayRpcRequest(AbstractRpcRequest):
     @abstractmethod
     async def process_request(self) -> Response:
         pass
-

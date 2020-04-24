@@ -2,11 +2,11 @@ from typing import TYPE_CHECKING, Union, List, Dict, Any
 from aiohttp.web_response import Response
 from aiohttp.web_exceptions import HTTPOk
 
-from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
-from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractGatewayRpcRequest
 from bxutils.encoding.json_encoder import EnhancedJSONEncoder
 
+from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractGatewayRpcRequest
+from bxcommon.rpc.rpc_request_type import RpcRequestType
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode

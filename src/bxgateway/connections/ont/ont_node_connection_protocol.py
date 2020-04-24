@@ -7,7 +7,7 @@ from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessag
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
 from bxcommon.utils import crypto
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
-from bxcommon.utils.expiring_dict import ExpiringDict
+from bxcommon.rpc import rpc_constants
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
