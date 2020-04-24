@@ -3,11 +3,11 @@ import struct
 from bxutils.logging.log_level import LogLevel
 
 from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway import btc_constants
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class RejectBtcMessage(BtcMessage):

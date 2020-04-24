@@ -3,19 +3,18 @@ from typing import TYPE_CHECKING, Union, List, Dict, Any
 from aiohttp.web_response import Response
 from aiohttp.web_exceptions import HTTPOk
 
-from bxutils.encoding.json_encoder import EnhancedJSONEncoder
-
-from bxgateway.rpc.requests.abstract_rpc_request import AbstractRpcRequest
-from bxgateway.rpc.rpc_request_type import RpcRequestType
-from bxgateway.utils.logging.status import status_log
-from bxgateway.rpc import rpc_constants
+from bxcommon.rpc import rpc_constants
+from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
+from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractGatewayRpcRequest
+from bxgateway.utils.logging.status import status_log
+from bxutils.encoding.json_encoder import EnhancedJSONEncoder
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
-class GatewayStatusRpcRequest(AbstractRpcRequest):
+class GatewayStatusRpcRequest(AbstractGatewayRpcRequest):
     DETAILS_LEVEL = rpc_constants.DETAILS_LEVEL_PARAMS_KEY
     help = {
         "params": "Optional - {}: {}.".format(

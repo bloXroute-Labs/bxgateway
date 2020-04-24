@@ -3,11 +3,11 @@ from abc import abstractmethod
 from bxutils import logging
 
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import Sha256Hash
 
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, InventoryType
-from bxgateway.utils.btc.btc_object_hash import Sha256Hash
 
 logger = logging.get_logger(__name__)
 

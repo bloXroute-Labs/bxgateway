@@ -9,6 +9,7 @@ from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.node_event_model import NodeEventType
@@ -37,6 +38,7 @@ from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
+from bxcommon.rpc import rpc_constants
 from bxgateway.rpc.gateway_rpc_server import GatewayRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
@@ -343,13 +345,13 @@ class AbstractGatewayNode(AbstractNode):
     async def init(self) -> None:
         await super(AbstractGatewayNode, self).init()
         try:
-            await asyncio.wait_for(self._rpc_server.start(), gateway_constants.RPC_SERVER_INIT_TIMEOUT_S)
+            await asyncio.wait_for(self._rpc_server.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S)
         except Exception as e:
             logger.error(log_messages.RPC_INITIALIZATION_FAIL, e, exc_info=True)
 
     async def close(self):
         try:
-            await asyncio.wait_for(self._rpc_server.stop(), gateway_constants.RPC_SERVER_STOP_TIMEOUT_S)
+            await asyncio.wait_for(self._rpc_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
         except Exception as e:
             logger.error(log_messages.RPC_CLOSE_FAIL, e, exc_info=True)
         await super(AbstractGatewayNode, self).close()
@@ -580,9 +582,9 @@ class AbstractGatewayNode(AbstractNode):
         self.enqueue_connection(outbound_peer.ip, outbound_peer.port, ConnectionType.REMOTE_BLOCKCHAIN_NODE)
 
     def on_block_seen_by_blockchain_node(
-        self,
-        block_hash: Sha256Hash,
-        block_message: Optional[AbstractMessage] = None
+            self,
+            block_hash: Sha256Hash,
+            block_message: Optional[AbstractBlockMessage] = None
     ):
         self.blocks_seen.add(block_hash)
         recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
@@ -594,6 +596,11 @@ class AbstractGatewayNode(AbstractNode):
             block_hash,
             block_message
         )
+
+        self.log_blocks_network_content(self.network_num, block_message)
+
+    def log_blocks_network_content(self, network_num: int, block_msg) -> None:
+        pass
 
     def post_block_cleanup_tasks(
         self,

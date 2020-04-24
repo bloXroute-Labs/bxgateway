@@ -102,7 +102,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         short_id = msg.short_id()
         tx_hash = msg.tx_hash()
         network_num = msg.network_num()
-        tx_val = msg.tx_val()
 
         attempt_recovery = False
 

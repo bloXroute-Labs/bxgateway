@@ -9,12 +9,12 @@ from bxutils.logging.log_level import LogLevel
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert, crypto
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 
 from bxgateway import ont_constants
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InventoryOntType
 from bxgateway.services.ont.abstract_ont_block_cleanup_service import AbstractOntBlockCleanupService
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.testing.abstract_block_cleanup_service_test import AbstractBlockCleanupServiceTest
 
 logger = logging.get_logger(__name__)

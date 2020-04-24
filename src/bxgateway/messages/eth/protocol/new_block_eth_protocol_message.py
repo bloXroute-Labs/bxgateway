@@ -191,7 +191,6 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
         # pyre-fixme[7]: Expected `int` but got `Optional[int]`.
         return self._number
 
-
     def txns(self) -> List[Transaction]:
         txns = self.get_block().transactions
         assert txns is not None

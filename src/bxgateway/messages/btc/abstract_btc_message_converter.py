@@ -5,12 +5,11 @@ import time
 
 from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.services.transaction_service import TransactionService
-from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import crypto, convert
+from bxcommon.utils.blockchain_utils.bdn_tx_to_bx_tx import bdn_tx_to_bx_tx
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.proxy.vector_proxy import VectorProxy
-from bxgateway.messages.btc import btc_messages_util
 
 from bxgateway import btc_constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
@@ -154,12 +153,4 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
             network_num: int,
             quota_type: Optional[QuotaType] = None
     ) -> TxMessage:
-        if isinstance(raw_tx, bytes):
-            raw_tx = bytearray(raw_tx)
-        try:
-            tx_hash = btc_messages_util.get_txid(raw_tx)
-        except IndexError:
-            raise ValueError(f"Invalid raw transaction provided!")
-        return TxMessage(
-            message_hash=tx_hash, network_num=network_num, tx_val=raw_tx, quota_type=quota_type
-        )
+        return bdn_tx_to_bx_tx(raw_tx, network_num, quota_type)

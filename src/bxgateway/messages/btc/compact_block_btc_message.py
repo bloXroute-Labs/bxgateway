@@ -4,13 +4,13 @@ from typing import List, Dict
 from bxcommon.constants import UL_INT_SIZE_IN_BYTES
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.btc.btc_common_util import btc_varint_to_int
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN, \
     BTC_COMPACT_BLOCK_SHORT_ID_LEN, BTC_SHORT_NONCE_SIZE, BTC_VARINT_MIN_SIZE
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import pack_int_to_btc_varint, btc_varint_to_int, get_next_tx_size, \
-    pack_block_header
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+from bxgateway.messages.btc.btc_messages_util import pack_int_to_btc_varint, get_next_tx_size, pack_block_header
 
 
 class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
@@ -194,3 +194,6 @@ class CompactBlockBtcMessage(BtcMessage, AbstractBlockMessage):
                 self._pre_filled_transactions[index] = buf
 
         return self._pre_filled_transactions
+
+    def txns(self) -> List[str]:
+        return [tx.hex() for tx in self.short_ids()]

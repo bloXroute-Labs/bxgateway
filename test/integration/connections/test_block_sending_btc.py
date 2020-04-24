@@ -2,21 +2,20 @@ import time
 
 from mock import patch, MagicMock
 
-from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
-
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.btc import btc_common_util
 from bxcommon.utils.buffers.output_buffer import OutputBuffer
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 
 from bxgateway.gateway_constants import NeutralityPolicy
-from bxgateway.messages.btc import btc_messages_util
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
+from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 from bxgateway.testing.mocks.mock_btc_messages import btc_block, RealBtcBlocks
 
 
@@ -28,7 +27,7 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
     def _populate_transaction_services(self, block):
         if len(block.txns()) > 0:
             first_transaction = block.txns()[0]
-            first_transaction_hash = btc_messages_util.get_txid(first_transaction)
+            first_transaction_hash = btc_common_util.get_txid(first_transaction)
             self.node1.get_tx_service().assign_short_id(first_transaction_hash, 1)
             self.node1.get_tx_service().set_transaction_contents(first_transaction_hash, first_transaction)
             self.node2.get_tx_service().assign_short_id(first_transaction_hash, 1)

@@ -123,6 +123,8 @@ class EthBlockQueuingService(
                     block_hash, new_block_msg
                 )
 
+        self.node.log_blocks_network_content(self.node.network_num, block_msg)
+
     # pyre-fixme[14]: `get_previous_block_hash_from_message` overrides method defined in
     #  `PushBlockQueuingService` inconsistently.
     def get_previous_block_hash_from_message(

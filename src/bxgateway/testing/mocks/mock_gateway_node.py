@@ -22,7 +22,7 @@ from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBt
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
 from bxutils.services.node_ssl_service import NodeSSLService
 

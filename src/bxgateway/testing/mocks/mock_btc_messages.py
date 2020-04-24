@@ -2,12 +2,12 @@ import time
 
 from bxcommon.constants import LISTEN_ON_IP_ADDRESS
 from bxcommon.utils import crypto, convert
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage, TxIn, TxOut
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class RealBtcBlocks:

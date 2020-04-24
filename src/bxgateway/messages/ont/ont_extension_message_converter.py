@@ -7,6 +7,7 @@ from bxcommon.utils import convert
 from bxcommon.utils.proxy import task_pool_proxy
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.utils import memory_utils
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxcommon.utils.memory_utils import SpecialTuple
 from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 from bxcommon.utils.object_hash import Sha256Hash
@@ -17,7 +18,6 @@ from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMes
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.errors import message_conversion_error
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.abstract_message_converter import BlockDecompressionResult
 
 from bxutils import logging

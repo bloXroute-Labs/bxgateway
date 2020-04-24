@@ -3,12 +3,12 @@ from typing import Optional, List, Union
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 
 from bxgateway import ont_constants
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.ont_message_type import OntMessageType
 from bxgateway.messages.ont.ont_messages_util import ont_varint_to_int, pack_int_to_ont_varint, get_txid
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 class BlockOntMessage(OntMessage, AbstractBlockMessage):

@@ -3,10 +3,10 @@ from aiohttp.web_exceptions import HTTPOk
 
 from bxcommon.connections.connection_type import ConnectionType
 
-from bxgateway.rpc.requests.abstract_rpc_request import AbstractRpcRequest
+from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractGatewayRpcRequest
 
 
-class GatewayPeersRpcRequest(AbstractRpcRequest):
+class GatewayPeersRpcRequest(AbstractGatewayRpcRequest):
 
     help = {
         "params": "",

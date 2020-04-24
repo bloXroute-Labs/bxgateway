@@ -2,11 +2,11 @@ import struct
 from typing import Optional
 
 from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway import ont_constants
 from bxgateway.messages.ont import ont_messages_util
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.ont_message_type import OntMessageType
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 class TxOntMessage(OntMessage):

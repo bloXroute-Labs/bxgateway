@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import Optional
+from typing import Optional, List
 
 import rlp
 
@@ -7,6 +7,7 @@ from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.abstract_eth_message import AbstractEthMessage
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
+from bxgateway.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
 from bxgateway.utils.eth import rlp_utils, crypto_utils
@@ -28,7 +29,7 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
 
     fields = [
         ("header", BlockHeader),
-        ("transactions", rlp.sedes.binary),
+        ("transactions", rlp.sedes.CountableList(Transaction)),
         ("uncles", rlp.sedes.CountableList(BlockHeader)),
         ("chain_difficulty", rlp.sedes.big_endian_int),
         ("block_number", rlp.sedes.big_endian_int)
@@ -351,3 +352,6 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
         Validates unpacked content.
         """
         raise NotImplementedError()
+
+    def txns(self) -> List[Transaction]:
+        return self.get_field_value("transactions")

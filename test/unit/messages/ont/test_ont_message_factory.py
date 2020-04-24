@@ -4,6 +4,7 @@ from bxcommon.exceptions import PayloadLenError, ChecksumError
 from bxcommon.test_utils.helpers import create_input_buffer_with_bytes
 from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.messages.ont.addr_ont_message import AddrOntMessage
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
@@ -21,7 +22,6 @@ from bxgateway.messages.ont.tx_ont_message import TxOntMessage
 from bxgateway.messages.ont.ver_ack_ont_message import VerAckOntMessage
 from bxgateway.messages.ont.version_ont_message import VersionOntMessage
 from bxgateway.ont_constants import ONT_HEADER_MINUS_CHECKSUM, ONT_HDR_COMMON_OFF
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 class OntMessageFactoryTest(MessageFactoryTestCase):

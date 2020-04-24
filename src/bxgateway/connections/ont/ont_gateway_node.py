@@ -1,4 +1,5 @@
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -12,7 +13,6 @@ from bxgateway.services.ont.ont_block_processing_service import OntBlockProcessi
 from bxgateway.services.ont.ont_block_queuing_service import OntBlockQueuingService
 from bxgateway.services.ont.ont_neutrality_service import OntNeutralityService
 from bxgateway.services.ont.ont_normal_block_cleanup_service import OntNormalBlockCleanupService
-from bxgateway.utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
 from bxutils.services.node_ssl_service import NodeSSLService
 
 import bxgateway.messages.ont.ont_message_converter_factory as block_msg_converter_factory

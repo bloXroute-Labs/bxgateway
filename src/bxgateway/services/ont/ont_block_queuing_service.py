@@ -2,6 +2,7 @@ from typing import List, Union, Optional, cast, TYPE_CHECKING, Set, Iterator
 
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -15,7 +16,6 @@ from bxgateway.messages.ont.inventory_ont_message import InventoryOntType
 from bxgateway.services.abstract_block_queuing_service import (
     AbstractBlockQueuingService,
 )
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxutils import logging
 
 if TYPE_CHECKING:

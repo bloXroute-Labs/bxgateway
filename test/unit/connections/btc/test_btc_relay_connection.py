@@ -19,6 +19,7 @@ from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxcommon.utils.crypto import symmetric_encrypt, SHA256_HASH_LEN
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
@@ -30,7 +31,6 @@ from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 

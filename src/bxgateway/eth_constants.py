@@ -1,4 +1,5 @@
 import sys
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 
 P2P_PROTOCOL_VERSION = 4
 ETH_PROTOCOL_VERSION = 63
@@ -57,7 +58,7 @@ AUTH_MSG_VERSION = 4
 MAX_NONCE = 2 ** 256 - 1
 
 SHA3_LEN_BYTES = 32
-SHA3_LEN_BITS = 256
+SHA3_LEN_BITS = eth_common_constants.SHA3_LEN_BITS
 
 BLOCK_HASH_LEN = 32
 ADDRESS_LEN = 20

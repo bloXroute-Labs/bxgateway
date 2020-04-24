@@ -2,10 +2,9 @@ import time
 
 from bxcommon.messages.bloxroute.block_confirmation_message import BlockConfirmationMessage
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
-from bxgateway.messages.ont import ont_messages_util
-from bxcommon.utils import convert, crypto
+from bxcommon.utils import crypto
 from bxgateway.services.ont.abstract_ont_block_cleanup_service import AbstractOntBlockCleanupService
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType

@@ -9,6 +9,8 @@ from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils import convert, crypto
+from bxcommon.utils.blockchain_utils.btc import btc_common_util
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.services.transaction_service import TransactionService
@@ -20,8 +22,6 @@ from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage, BtcMessage
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
-from bxgateway.messages.btc import btc_messages_util
 from bxgateway.testing.mocks import mock_btc_messages
 
 COMPACT_BLOCK_BYTES_HEX = "dab5bffa636d706374626c6f636b000003010000eb318d3e0000002011bf3e2bd32bfa7393f12481053311721563a44b2d70f82d016892d8ddc1bf68abce352f93a8863c211964ba40440b98d85bd45765904c31f08f2489afcb9eadca67dc5cffff7f20010000009c93473e3cd9419e0aa51da22d1277f6029f689d84f33b55f255f74a02dca40e69616cfcb4c2363ea0f7ce1115b1f26bb52f3ad616eeb21f0712f57c414c07693fb416451c010002000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0d01660101082f454233322e302fffffffff012afe052a01000000232102a0f2d61a2b8cf7dc750d36914e4834ec6f5bb5a7f9979305ae4a687c3a152626ac00000000"
@@ -204,7 +204,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         random.shuffle(transactions_short)
         transactions_short = transactions_short[:int(len(transactions_short) * 0.9)]
         for short_id, txn in enumerate(transactions_short):
-            bx_tx_hash = btc_messages_util.get_txid(txn)
+            bx_tx_hash = btc_common_util.get_txid(txn)
             self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
             self.tx_service.set_transaction_contents(bx_tx_hash, txn)
         bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
@@ -223,7 +223,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         transactions = parsed_block.txns()[:]
         random.shuffle(transactions)
         for short_id, txn in enumerate(transactions):
-            bx_tx_hash = btc_messages_util.get_txid(txn)
+            bx_tx_hash = btc_common_util.get_txid(txn)
             self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
             self.tx_service.set_transaction_contents(bx_tx_hash, txn)
         bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
@@ -245,7 +245,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         random.shuffle(transactions_short)
 
         for short_id, txn in enumerate(transactions_short):
-            bx_tx_hash = btc_messages_util.get_txid(txn)
+            bx_tx_hash = btc_common_util.get_txid(txn)
             self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
             self.tx_service.set_transaction_contents(bx_tx_hash, txn)
         bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
@@ -289,7 +289,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         index = 0
         for idx, tx in enumerate(recovered_block.txns()):
             if index % 2 == 0:
-                tx_hash = btc_messages_util.get_txid(tx)
+                tx_hash = btc_common_util.get_txid(tx)
                 self.tx_service.assign_short_id(tx_hash, idx + 1)
                 self.tx_service.set_transaction_contents(tx_hash, tx)
             else:
@@ -326,7 +326,7 @@ class BtcMessageConverterTests(AbstractTestCase):
             tx_service = TransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
         if self.txns:
             for idx, txn in enumerate(self.txns):
-                sha = btc_messages_util.get_txid(txn)
+                sha = btc_common_util.get_txid(txn)
                 if idx % 2 == 0:
                     tx_service.assign_short_id(sha, self.short_ids[int(idx/2)])
                     tx_service.set_transaction_contents(sha, txn)

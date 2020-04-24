@@ -1,10 +1,11 @@
 import struct
 
+from bxcommon.utils.blockchain_utils.btc.btc_common_util import btc_varint_to_int
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, pack_int_to_btc_varint
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+from bxgateway.messages.btc.btc_messages_util import pack_int_to_btc_varint
 
 
 class DataBtcMessage(BtcMessage):

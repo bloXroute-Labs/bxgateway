@@ -1,3 +1,5 @@
+from bxcommon.utils.blockchain_utils.ont import ont_common_constants
+
 ONT_MAGIC_NUMBERS = {
     "mainnet": 0x8C77AB60,
     "polaris": 0x2D8829DF
@@ -14,7 +16,7 @@ STARTUP_SOFT_VERSION = "bloxroute_ontology"
 ONT_HDR_COMMON_OFF = 24
 ONT_HEADER_MINUS_CHECKSUM = 20
 
-ONT_HASH_LEN = 32
+ONT_HASH_LEN = ont_common_constants.ONT_HASH_LEN
 ONT_BOOKKEEPER_LEN = 33
 ONT_BOOKKEEPER_AND_VARINT_LEN = 42
 ONT_NODE_ADDR_LEN = 44

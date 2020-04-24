@@ -1,7 +1,6 @@
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxcommon.utils.crypto import SHA256_HASH_LEN
-
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class ObjectHashTests(AbstractTestCase):

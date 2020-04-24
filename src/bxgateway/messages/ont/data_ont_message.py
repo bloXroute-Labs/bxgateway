@@ -1,9 +1,9 @@
 import struct
 from typing import Optional
 
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway import ont_constants
 from bxgateway.messages.ont.ont_message import OntMessage
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 class DataOntMessage(OntMessage):

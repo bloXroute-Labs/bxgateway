@@ -21,6 +21,7 @@ from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto, convert
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxcommon.utils.crypto import symmetric_encrypt, SHA256_HASH_LEN
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
@@ -33,8 +34,6 @@ import bxgateway.messages.ont.ont_message_converter_factory as converter_factory
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InvOntMessage, InventoryOntType
 from bxgateway.messages.ont.tx_ont_message import TxOntMessage
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
-from bxgateway.messages.ont import ont_messages_util
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 

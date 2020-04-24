@@ -1,7 +1,5 @@
-from typing import List
 
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway import eth_constants
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import (
     GetBlockBodiesEthProtocolMessage,
 )

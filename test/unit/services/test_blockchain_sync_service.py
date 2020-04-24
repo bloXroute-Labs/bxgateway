@@ -12,6 +12,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 
 from bxgateway import gateway_constants
 from bxgateway.connections.gateway_connection import GatewayConnection
@@ -22,7 +23,6 @@ from bxgateway.messages.gateway.blockchain_sync_request_message import Blockchai
 from bxgateway.messages.gateway.blockchain_sync_response_message import BlockchainSyncResponseMessage
 from bxgateway.services.blockchain_sync_service import BlockchainSyncService
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 @skip("Service is not currently used.")

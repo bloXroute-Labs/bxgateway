@@ -1,5 +1,4 @@
 from typing import List, TYPE_CHECKING, Union
-import time
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
@@ -7,6 +6,7 @@ from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
@@ -27,7 +27,6 @@ from bxgateway.messages.ont.pong_ont_message import PongOntMessage
 from bxgateway.messages.ont.ver_ack_ont_message import VerAckOntMessage
 from bxgateway.messages.ont.version_ont_message import VersionOntMessage
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
-from bxgateway.utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
 
 if TYPE_CHECKING:
     from bxgateway.connections.ont.ont_node_connection import OntNodeConnection

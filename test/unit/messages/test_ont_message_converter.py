@@ -8,6 +8,7 @@ from bxcommon.constants import DEFAULT_TX_MEM_POOL_BUCKET_SIZE
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils import crypto, convert
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxcommon.utils.crypto import SHA256_HASH_LEN
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
@@ -15,7 +16,6 @@ from bxcommon.services.extension_transaction_service import ExtensionTransaction
 import bxgateway.messages.ont.ont_message_converter_factory as converter_factory
 from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMessageConverter
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.messages.ont import ont_messages_util
 
 

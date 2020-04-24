@@ -83,3 +83,6 @@ class NewBlockHashesEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage)
 
     def prev_block_hash(self) -> Sha256Hash:
         raise NotImplementedError()
+
+    def txns(self):
+        raise NotImplementedError()

@@ -4,8 +4,8 @@ from typing import Set, List, Optional
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import Sha256Hash
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
-from bxgateway.utils.btc.btc_object_hash import Sha256Hash
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
 

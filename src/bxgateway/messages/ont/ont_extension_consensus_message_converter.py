@@ -7,6 +7,7 @@ from typing import Tuple
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxcommon.utils.proxy import task_pool_proxy
 from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 from bxgateway import ont_constants
@@ -14,7 +15,6 @@ from bxgateway.messages.ont.abstract_ont_consensus_message_converter import Abst
 from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.errors import message_conversion_error
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
