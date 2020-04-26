@@ -109,20 +109,28 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
         block_hash_number_pairs = []
         for block_hash, block_number in msg.get_block_hash_number_pairs():
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_ANNOUNCED_BY_BLOCKCHAIN_NODE,
-                                                      network_num=self.connection.network_num,
-                                                      more_info="Protocol: {}, Network: {}. {}".format(
-                                                          self.node.opts.blockchain_protocol,
-                                                          self.node.opts.blockchain_network,
-                                                          msg.extra_stats_data()
-                                                      ))
+            block_height = self.node.block_queuing_service.get_block_height(block_hash)
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_ANNOUNCED_BY_BLOCKCHAIN_NODE,
+                network_num=self.connection.network_num,
+                more_info="Protocol: {}, Network: {}. {}".format(
+                    self.node.opts.blockchain_protocol,
+                    self.node.opts.blockchain_network,
+                    msg.extra_stats_data()
+                ),
+                block_height=block_height,
+            )
 
             if block_hash in self.node.blocks_seen.contents:
                 self.node.on_block_seen_by_blockchain_node(block_hash)
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
-                                                          network_num=self.connection.network_num)
+                block_height = self.node.block_queuing_service.get_block_height(block_hash)
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
+                    network_num=self.connection.network_num,
+                    block_height=block_height,
+                )
                 self.connection.log_info(
                     "Ignoring duplicate block {} from local blockchain node.",
                     block_hash
@@ -261,14 +269,18 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             self._pending_new_blocks_parts.remove_item(ready_block_hash)
 
             if self.is_valid_block_timestamp(new_block_msg):
-                block_stats.add_block_event_by_block_hash(ready_block_hash,
-                                                          BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
-                                                          network_num=self.connection.network_num,
-                                                          more_info="Protocol: {}, Network: {}. {}".format(
-                                                              self.node.opts.blockchain_protocol,
-                                                              self.node.opts.blockchain_network,
-                                                              new_block_msg.extra_stats_data()
-                                                          ))
+                block_height = self.node.block_queuing_service.get_block_height(ready_block_hash)
+                block_stats.add_block_event_by_block_hash(
+                    ready_block_hash,
+                    BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
+                    network_num=self.connection.network_num,
+                    more_info="Protocol: {}, Network: {}. {}".format(
+                        self.node.opts.blockchain_protocol,
+                        self.node.opts.blockchain_network,
+                        new_block_msg.extra_stats_data()
+                    ),
+                    block_height=block_height,
+                )
                 self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
                     ready_block_hash, new_block_msg
                 )

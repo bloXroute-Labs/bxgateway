@@ -378,6 +378,12 @@ class EthBlockQueuingService(
             and self._highest_block_number != 0
         )
 
+    def get_block_height(self, block_hash: Sha256Hash) -> Optional[int]:
+        block_height: Optional[int] = None
+        if block_hash and block_hash in self._height_by_block_hash:
+            block_height = self._height_by_block_hash[block_hash]
+        return block_height
+
     def _store_block_parts(
         self, block_hash: Sha256Hash, block_message: InternalEthBlockInfo
     ):
