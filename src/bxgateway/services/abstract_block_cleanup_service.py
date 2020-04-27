@@ -8,6 +8,7 @@ from bxcommon.utils.blockchain_utils.btc.btc_object_hash import Sha256Hash
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
+from bxcommon import constants
 
 logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
@@ -107,8 +108,24 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
     ) -> None:
         pass
 
-    @abstractmethod
     def block_cleanup_request(self, block_hash: Sha256Hash) -> None:
+        if not self.is_marked_for_cleanup(block_hash):
+            self._block_hash_marked_for_cleanup.add(block_hash)
+            self.last_confirmed_block = block_hash
+            if block_hash in self.node.block_queuing_service._blocks:
+                # self.clean_block_transactions_from_block_queue(block_hash)
+                self.node.alarm_queue.register_alarm(
+                    constants.MIN_SLEEP_TIMEOUT,
+                    self.clean_block_transactions_from_block_queue,
+                    block_hash)
+
+            elif self.node.node_conn is not None:
+                self._request_block(block_hash)
+            else:
+                logger.debug("Block cleanup for '{}' failed. No connection to node.", repr(block_hash))
+
+    @abstractmethod
+    def clean_block_transactions_from_block_queue(self, block_hash: Sha256Hash):
         pass
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
@@ -143,3 +160,7 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
         logger.debug("Processing cleanup message: {}", message_hash)
         node.block_cleanup_processed_blocks.add(message_hash)
         self.contents_cleanup(transaction_service, msg)
+
+    @abstractmethod
+    def _request_block(self, block_hash: Sha256Hash):
+        pass

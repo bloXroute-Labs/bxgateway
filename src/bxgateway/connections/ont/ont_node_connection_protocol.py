@@ -58,12 +58,6 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
         #         self._request_blocks_confirmation
         #     )
 
-        if self.tracked_block_cleanup_interval_s > 0:
-            self.connection.node.alarm_queue.register_alarm(
-                self.tracked_block_cleanup_interval_s,
-                self._tracked_block_cleanup
-            )
-
     def msg_version(self, msg: VersionOntMessage) -> None:
         self.connection.on_connection_established()
         reply = VerAckOntMessage(self.magic, self.is_consensus)

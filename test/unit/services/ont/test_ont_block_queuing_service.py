@@ -40,3 +40,10 @@ class OntBlockQueuingServiceTest(AbstractTestCase):
         buf = bytearray(convert.hex_to_bytes(ont_block))
         parsed_block = BlockOntMessage(buf=buf)
         return parsed_block
+
+    def test_tracked_block_cleanup(self):
+        self.node.block_queuing_service = self.block_queuing_service
+        tx_service = self.node.get_tx_service()
+        for block_hash in self.block_queuing_service.iterate_recent_block_hashes(10):
+            tx_service.track_seen_short_ids(block_hash, [])
+        self.node._tracked_block_cleanup()

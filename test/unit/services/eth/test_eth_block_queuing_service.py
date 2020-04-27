@@ -146,3 +146,17 @@ class EthBlockQueuingServiceTest(AbstractTestCase):
             self.block_queuing_service._highest_block_number])[0]
         self.assertIsNotNone(self.block_queuing_service.get_block_body_from_message(last_block_hash))
         self.assertIsNone(self.block_queuing_service.get_block_body_from_message(bytes(64)))
+
+    def test_tracked_block_cleanup(self):
+
+        from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlockCleanupService
+        self.node.block_cleanup_service = EthNormalBlockCleanupService(self.node, 1)
+        self.node.block_queuing_service = self.block_queuing_service
+        tx_service = self.node.get_tx_service()
+        for block_hash in self.block_queuing_service.iterate_recent_block_hashes(
+                self.node.network.block_confirmations_count + 2):
+            tx_service.track_seen_short_ids(block_hash, [])
+
+        self.node.block_cleanup_service.block_cleanup_request = MagicMock()
+        self.node._tracked_block_cleanup()
+        self.node.block_cleanup_service.block_cleanup_request.assert_called_once()

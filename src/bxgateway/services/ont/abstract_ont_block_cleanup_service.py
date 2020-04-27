@@ -32,27 +32,6 @@ class AbstractOntBlockCleanupService(AbstractBlockCleanupService):
 
         super(AbstractOntBlockCleanupService, self).__init__(node=node, network_num=network_num)
 
-    def block_cleanup_request(self, block_hash: Sha256Hash) -> None:
-        if not self.is_marked_for_cleanup(block_hash):
-            self._block_hash_marked_for_cleanup.add(block_hash)
-            self.last_confirmed_block = block_hash
-            if block_hash in self.node.block_queuing_service._blocks:
-                self.node.alarm_queue.register_alarm(
-                    constants.MIN_SLEEP_TIMEOUT,
-                    self.clean_block_transactions_from_block_queue,
-                    block_hash)
-
-            elif self.node.node_conn is not None:
-                block_request_message = GetDataOntMessage(
-                    magic=self.node.opts.blockchain_net_magic,
-                    inv_type=InventoryOntType.MSG_BLOCK.value,
-                    block=block_hash
-                )
-                self.node.send_msg_to_node(block_request_message)
-                logger.trace("Received block cleanup request: {}", block_hash)
-            else:
-                logger.debug("Block cleanup for '{}' failed. No connection to node.", repr(block_hash))
-
     @abstractmethod
     def clean_block_transactions(
             self,
@@ -70,3 +49,12 @@ class AbstractOntBlockCleanupService(AbstractBlockCleanupService):
             transaction_service=self.node.get_tx_service(),
             block_msg=block_msg
         )
+
+    def _request_block(self, block_hash: Sha256Hash) -> None:
+        block_request_message = GetDataOntMessage(
+            magic=self.node.opts.blockchain_net_magic,
+            inv_type=InventoryOntType.MSG_BLOCK.value,
+            block=block_hash
+        )
+        self.node.send_msg_to_node(block_request_message)
+        logger.trace("Received block cleanup request: {}", block_hash)

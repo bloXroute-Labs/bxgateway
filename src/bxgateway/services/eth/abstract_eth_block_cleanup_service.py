@@ -30,25 +30,6 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
 
         super(AbstractEthBlockCleanupService, self).__init__(node=node, network_num=network_num)
 
-    def block_cleanup_request(self, block_hash: Sha256Hash) -> None:
-        if not self.is_marked_for_cleanup(block_hash):
-            self._block_hash_marked_for_cleanup.add(block_hash)
-            self.last_confirmed_block = block_hash
-            if block_hash in self.node.block_queuing_service._block_parts:
-                self.node.alarm_queue.register_alarm(
-                    constants.MIN_SLEEP_TIMEOUT,
-                    self.clean_block_transactions_from_block_queue,
-                    block_hash)
-
-            elif self.node.node_conn is not None:
-                connection_protocol =\
-                    typing.cast("bxgateway.connections.eth.eth_node_connection_protocol.EthNodeConnectionProtocol",
-                                self.node.node_conn.connection_protocol)
-                connection_protocol.request_block_body([block_hash])
-                logger.trace("Block cleanup request for {}", block_hash)
-            else:
-                logger.debug("Block cleanup for '{}' failed. No connection to node.", repr(block_hash))
-
     def clean_block_transactions(
             self,
             block_msg: NewBlockEthProtocolMessage,
@@ -82,3 +63,10 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
             transaction_service: TransactionService
          ) -> None:
         pass
+
+    def _request_block(self, block_hash: Sha256Hash):
+        connection_protocol = \
+            typing.cast("bxgateway.connections.eth.eth_node_connection_protocol.EthNodeConnectionProtocol",
+                        self.node.node_conn.connection_protocol)
+        connection_protocol.request_block_body([block_hash])
+        logger.trace("Block cleanup request for {}", block_hash)

@@ -69,12 +69,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 self._request_blocks_confirmation
             )
 
-        if self.tracked_block_cleanup_interval_s > 0:
-            self.connection.node.alarm_queue.register_alarm(
-                self.tracked_block_cleanup_interval_s,
-                self._tracked_block_cleanup
-            )
-
         self.requested_blocks_for_confirmation: ExpiringDict[
             Sha256Hash, float
         ] = ExpiringDict(

@@ -17,11 +17,12 @@ from bxutils.services.node_ssl_service import NodeSSLService
 
 import bxgateway.messages.ont.ont_message_converter_factory as block_msg_converter_factory
 import bxgateway.messages.ont.ont_consensus_message_converter_factory as consensus_msg_converter_factory
+from bxgateway import ont_constants
 
 
 class OntGatewayNode(AbstractGatewayNode):
     def __init__(self, opts, node_ssl_service: NodeSSLService):
-        super(OntGatewayNode, self).__init__(opts, node_ssl_service)
+        super(OntGatewayNode, self).__init__(opts, node_ssl_service, ont_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S)
 
         self.block_processing_service = OntBlockProcessingService(self)
 

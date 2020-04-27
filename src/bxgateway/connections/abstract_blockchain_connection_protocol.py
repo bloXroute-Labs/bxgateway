@@ -28,10 +28,8 @@ class AbstractBlockchainConnectionProtocol:
             self,
             connection: AbstractGatewayBlockchainConnection,
             block_cleanup_poll_interval_s: int = gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S,
-            tracked_block_cleanup_interval_s: int = gateway_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S
     ):
         self.block_cleanup_poll_interval_s = block_cleanup_poll_interval_s
-        self.tracked_block_cleanup_interval_s = tracked_block_cleanup_interval_s
         self.connection = connection
 
     def msg_tx(self, msg):
@@ -108,6 +106,7 @@ class AbstractBlockchainConnectionProtocol:
         node.on_block_seen_by_blockchain_node(block_hash, msg)
         node.block_processing_service.queue_block_for_processing(msg, self.connection)
         gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
+        node.block_queuing_service.store_block_data(block_hash, msg)
         return
 
     def msg_proxy_request(self, msg):
@@ -150,19 +149,6 @@ class AbstractBlockchainConnectionProtocol:
             self.connection.log_debug("Sending block confirmation request. Last confirmed block: {}, hashes: {}",
                                       last_confirmed_block, hashes[:gateway_constants.LOGGING_LIMIT_ITEM_COUNT])
         return self.block_cleanup_poll_interval_s
-
-    def _tracked_block_cleanup(self):
-        if not self.connection.is_alive():
-            return None
-        node = self.connection.node
-        tx_service = node.get_tx_service()
-        block_queuing_service = self.node.block_queuing_service
-        tracked_blocks = tx_service.get_oldest_tracked_block(0)
-        for depth, block_hash in enumerate(block_queuing_service.iterate_recent_block_hashes()):
-            if depth > node.network.block_confirmations_count and block_hash in tracked_blocks:
-                node.block_cleanup_service.block_cleanup_request(block_hash)
-        return self.tracked_block_cleanup_interval_s
-
 
     @abstractmethod
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
