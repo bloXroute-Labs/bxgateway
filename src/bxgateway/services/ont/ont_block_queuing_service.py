@@ -1,4 +1,4 @@
-from typing import List, Union, Optional, cast, TYPE_CHECKING, Set, Iterator
+from typing import List, Union, Optional, cast, TYPE_CHECKING, Iterator
 
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
@@ -26,7 +26,7 @@ logger = logging.get_logger(__name__)
 
 
 class OntBlockQueuingService(
-    # pyre-fixme[24]: Type parameter `Union[BlockOntMessage, ConsensusOntMessage]` violates constraints on
+    # pyre-fixme[24]: Type parameter `Union[BlockOntMessage, OntConsensusMessage]` violates constraints on
     #  `Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
     #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]`
     #  in generic type `AbstractBlockQueuingService`.
@@ -57,13 +57,13 @@ class OntBlockQueuingService(
 
     # pyre-fixme[14]: `bxgateway.services.ont.ont_block_queuing_service.OntBlockQueuingService.push`
     #  overrides method defined in `AbstractBlockQueuingService` inconsistently.
-    #  Parameter of type `Union[BlockOntMessage, ConsensusOntMessage]` is not a supertype of the
+    #  Parameter of type `Union[BlockOntMessage, OntConsensusMessage]` is not a supertype of the
     #  overridden parameter `Optional[Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
     #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]]`.
     def push(
         self,
         block_hash: Sha256Hash,
-        # pyre-fixme[9]: block_msg is declared to have type `Union[BlockOntMessage, ConsensusOntMessage]`
+        # pyre-fixme[9]: block_msg is declared to have type `Union[BlockOntMessage, OntConsensusMessage]`
         #  but is used as type `None`.
         block_msg: Union[BlockOntMessage, OntConsensusMessage] = None,
         waiting_for_recovery: bool = False,
@@ -72,7 +72,7 @@ class OntBlockQueuingService(
             return
         # pyre-fixme[6]: Expected `Optional[Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
         #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]]` for 2nd positional only
-        #  parameter to call `AbstractBlockQueuingService.push` but got `Union[BlockOntMessage, ConsensusOntMessage]`.
+        #  parameter to call `AbstractBlockQueuingService.push` but got `Union[BlockOntMessage, OntConsensusMessage]`.
         super().push(block_hash, block_msg, waiting_for_recovery)
         logger.debug("Added block {} to queuing service", block_hash)
         self._clean_block_queue()
@@ -94,8 +94,8 @@ class OntBlockQueuingService(
                     blocks=[block_hash],
                 )
                 self.node.send_msg_to_node(inv_msg)
-        # pyre-fixme[25]: `block_msg` has type `ConsensusOntMessage`,
-        #  assertion `not isinstance(block_msg, bxgateway.messages.ont.consensus_ont_message.ConsensusOntMessage)`
+        # pyre-fixme[25]: `block_msg` has type `OntConsensusMessage`,
+        #  assertion `not isinstance(block_msg, bxgateway.messages.ont.consensus_ont_message.OntConsensusMessage)`
         #  will always fail.
         elif isinstance(block_msg, OntConsensusMessage):
             if block_hash in self._blocks and not waiting_for_recovery:
@@ -118,10 +118,9 @@ class OntBlockQueuingService(
                         ),
                     )
 
-
     # pyre-fixme[14]: `bxgateway.services.ont.ont_block_queuing_service.OntBlockQueuingService.send_block_to_node`
     #  overrides method defined in `AbstractBlockQueuingService` inconsistently. Parameter of
-    #  type `Optional[Union[BlockOntMessage, ConsensusOntMessage]]` is not a supertype of the overridden parameter
+    #  type `Optional[Union[BlockOntMessage, OntConsensusMessage]]` is not a supertype of the overridden parameter
     #  `Optional[Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
     #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]]`.
     def send_block_to_node(
@@ -150,16 +149,12 @@ class OntBlockQueuingService(
     def update_recovered_block(
         self, block_hash: Sha256Hash, block_msg: Union[BlockOntMessage, OntConsensusMessage]
     ):
-        if block_hash not in self._blocks:
+        if block_hash not in self._blocks or block_hash not in self._blocks_waiting_for_recovery:
             return
 
         block_hash = cast(OntObjectHash, block_hash)
 
         self._blocks_waiting_for_recovery[block_hash] = False
-        # pyre-fixme[6]: Expected `Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
-        #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]` for 2nd positional only
-        #  parameter to call `AbstractBlockQueuingService.store_block_data`
-        #  but got `Union[BlockOntMessage, ConsensusOntMessage]`.
         self.store_block_data(block_hash, block_msg)
         if isinstance(block_msg, BlockOntMessage):
             self.node.update_current_block_height(block_msg.height(), block_hash)
@@ -169,8 +164,8 @@ class OntBlockQueuingService(
                 blocks=[block_hash],
             )
             self.node.send_msg_to_node(inv_msg)
-        # pyre-fixme[25]: `block_msg` has type `ConsensusOntMessage`,
-        #  assertion `not isinstance(block_msg, bxgateway.messages.ont.consensus_ont_message.ConsensusOntMessage)`
+        # pyre-fixme[25]: `block_msg` has type `OntConsensusMessage`,
+        #  assertion `not isinstance(block_msg, bxgateway.messages.ont.consensus_ont_message.OntConsensusMessage)`
         #  will always fail.
         elif isinstance(block_msg, OntConsensusMessage):
             self.node.send_msg_to_node(block_msg)
@@ -183,7 +178,7 @@ class OntBlockQueuingService(
 
     # pyre-fixme[14]: `bxgateway.services.ont.ont_block_queuing_service.OntBlockQueuingService.mark_block_seen_by_
     #  blockchain_node` overrides method defined in `AbstractBlockQueuingService` inconsistently.
-    #  Parameter of type `Optional[Union[BlockOntMessage, ConsensusOntMessage]]` is not a supertype of the overridden
+    #  Parameter of type `Optional[Union[BlockOntMessage, OntConsensusMessage]]` is not a supertype of the overridden
     #  parameter `Optional[Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
     #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]]`.
     def mark_block_seen_by_blockchain_node(
@@ -217,12 +212,17 @@ class OntBlockQueuingService(
     def store_block_data(
             self,
             block_hash: Sha256Hash,
-            block_msg: BlockOntMessage
+            block_msg: Union[BlockOntMessage, OntConsensusMessage]
     ):
-        block_height = block_msg.height()
-        if block_height > self._highest_block_number:
-            self._highest_block_number = block_height
-        self._block_hashes_by_height[block_height]= block_hash
+        if isinstance(block_msg, BlockOntMessage):
+            block_height = block_msg.height()
+            if block_height > self._highest_block_number:
+                self._highest_block_number = block_height
+            self._block_hashes_by_height[block_height] = block_hash
+        # pyre-fixme[6]: Expected `Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
+        #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]` for 2nd positional only
+        #  parameter to call `AbstractBlockQueuingService.store_block_data`
+        #  but got `Union[BlockOntMessage, OntConsensusMessage]`.
         super().store_block_data(block_hash, block_msg)
 
     def iterate_block_hashes_starting_from_hash(
