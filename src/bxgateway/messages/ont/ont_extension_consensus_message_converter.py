@@ -2,25 +2,34 @@ import time
 import typing
 import task_pool_executor as tpe
 from datetime import datetime
-from typing import Tuple
+from typing import Tuple, Optional, Set
+from collections import deque
 
+from bxutils import logging
+
+from bxcommon.utils.memory_utils import SpecialTuple
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.services.transaction_service import TransactionService
-from bxcommon.utils import convert
+from bxcommon.utils import convert, memory_utils
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxcommon.utils.proxy import task_pool_proxy
 from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
+
 from bxgateway import ont_constants
-from bxgateway.messages.ont.abstract_ont_consensus_message_converter import AbstractOntConsensusMessageConverter
-from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
+from bxgateway.abstract_message_converter import BlockDecompressionResult
+from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMessageConverter
+from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.errors import message_conversion_error
-from bxutils import logging
+from bxgateway.messages.ont import ont_normal_consensus_message_converter
+from bxgateway.messages.ont import abstract_ont_message_converter
+
 
 logger = logging.get_logger(__name__)
 
 
-class OntExtensionConsensusMessageConverter(AbstractOntConsensusMessageConverter):
+class OntExtensionConsensusMessageConverter(AbstractOntMessageConverter):
 
     DEFAULT_BLOCK_SIZE = ont_constants.ONT_DEFAULT_BLOCK_SIZE
     MINIMAL_SUB_TASK_TX_COUNT = ont_constants.ONT_MINIMAL_SUB_TASK_TX_COUNT
@@ -29,9 +38,10 @@ class OntExtensionConsensusMessageConverter(AbstractOntConsensusMessageConverter
         super(OntExtensionConsensusMessageConverter, self).__init__(ont_magic)
         self._default_block_size = self.DEFAULT_BLOCK_SIZE
         self.compression_tasks = TaskQueueProxy(self._create_compression_task)
+        self.decompression_tasks = TaskQueueProxy(self._create_decompression_task)
 
     def block_to_bx_block(
-            self, block_msg: ConsensusOntMessage, tx_service: TransactionService
+            self, block_msg: OntConsensusMessage, tx_service: TransactionService
     ) -> Tuple[memoryview, BlockInfo]:
         compress_start_datetime = datetime.utcnow()
         compress_start_timestamp = time.time()
@@ -66,5 +76,62 @@ class OntExtensionConsensusMessageConverter(AbstractOntConsensusMessageConverter
         self.compression_tasks.return_task(tsk)
         return block, block_info
 
-    def _create_compression_task(self) -> tpe.ConsensusOntBlockCompressionTask:
-        return tpe.ConsensusOntBlockCompressionTask(self._default_block_size, self.MINIMAL_SUB_TASK_TX_COUNT)
+    def bx_block_to_block(
+            self, bx_block_msg: memoryview, tx_service: ExtensionTransactionService
+    ) -> BlockDecompressionResult:
+        decompress_start_datetime = datetime.utcnow()
+        decompress_start_timestamp = time.time()
+        tsk = self.decompression_tasks.borrow_task()
+        tsk.init(tpe.InputBytes(bx_block_msg), tx_service.proxy)
+        try:
+            task_pool_proxy.run_task(tsk)
+        except tpe.AggregatedException as e:
+            self.decompression_tasks.return_task(tsk)
+            header_info = ont_normal_consensus_message_converter.parse_bx_block_header(bx_block_msg, deque())
+            raise message_conversion_error.btc_block_decompression_error(header_info.block_hash, e)
+        total_tx_count = tsk.tx_count()
+        unknown_tx_hashes = [Sha256Hash(bytearray(unknown_tx_hash.binary()))
+                             for unknown_tx_hash in tsk.unknown_tx_hashes()]
+        unknown_tx_sids = tsk.unknown_tx_sids()
+        block_hash = OntObjectHash(
+            binary=convert.hex_to_bytes(tsk.block_hash().hex_string())
+        )
+        if tsk.success():
+            ont_block_msg = OntConsensusMessage(buf=memoryview(tsk.block_message()))
+            logger.debug(
+                "Successfully parsed block broadcast message. {} transactions "
+                "in block {}",
+                total_tx_count,
+                block_hash
+            )
+        else:
+            ont_block_msg = None
+            logger.debug(
+                "Block recovery needed for {}. Missing {} sids, {} tx hashes. "
+                "Total txs in block: {}",
+                block_hash,
+                len(unknown_tx_sids),
+                len(unknown_tx_hashes),
+                total_tx_count
+            )
+        block_info = abstract_ont_message_converter.get_block_info(
+            bx_block_msg,
+            block_hash,
+            tsk.short_ids(),
+            decompress_start_datetime,
+            decompress_start_timestamp,
+            total_tx_count,
+            ont_block_msg
+        )
+        self.decompression_tasks.return_task(tsk)
+        return BlockDecompressionResult(ont_block_msg, block_info, unknown_tx_sids, unknown_tx_hashes)
+
+    def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:
+        return memory_utils.add_special_objects(self.compression_tasks, self.decompression_tasks, ids=ids)
+
+    def _create_compression_task(self) -> tpe.OntConsensusBlockCompressionTask:
+        return tpe.OntConsensusBlockCompressionTask(self._default_block_size, self.MINIMAL_SUB_TASK_TX_COUNT)
+
+    def _create_decompression_task(self) -> tpe.OntConsensusBlockDecompressionTask:
+        return tpe.OntConsensusBlockDecompressionTask(self._default_block_size, self.MINIMAL_SUB_TASK_TX_COUNT)
+

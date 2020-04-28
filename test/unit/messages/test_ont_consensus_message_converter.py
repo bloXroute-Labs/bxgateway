@@ -1,6 +1,7 @@
 import functools
 import os
 import random
+import time
 from argparse import Namespace
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -13,7 +14,7 @@ from bxcommon.services.extension_transaction_service import ExtensionTransaction
 
 import bxgateway.messages.ont.ont_consensus_message_converter_factory as converter_factory
 from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMessageConverter
-from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
+from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.messages.ont import ont_messages_util
 
 
@@ -22,7 +23,7 @@ def get_sample_block():
     with open(os.path.join(root_dir, "ont_consensus_sample_block.txt")) as sample_file:
         ont_block = sample_file.read().strip("\n")
     buf = bytearray(convert.hex_to_bytes(ont_block))
-    parsed_block = ConsensusOntMessage(buf=buf)
+    parsed_block = OntConsensusMessage(buf=buf)
     return parsed_block
 
 
@@ -62,7 +63,6 @@ class OntMessageConverterTests(AbstractTestCase):
             self.assertEqual(len(self._prev_bx_block_info.short_ids), len(bx_block_info.short_ids), "short_ids")
             self.assertEqual(self._prev_bx_block_info.txn_count, bx_block_info.txn_count, "txn_count")
             self.assertEqual(self._prev_bx_block_info.prev_block_hash, bx_block_info.prev_block_hash, "prev_block_hash")
-            self.assertGreaterEqual(self._prev_bx_block_info.duration_ms, bx_block_info.duration_ms, "extension is not faster")
             self.assertEqual(self._prev_bx_block_info.compressed_block_hash, bx_block_info.compressed_block_hash, "compressed_block_hash")
         ref_block, block_info, _, _ = self.ont_message_converter.bx_block_to_block(bx_block, self.tx_service)
         self.assertEqual(parsed_block.rawbytes().tobytes(), ref_block.rawbytes().tobytes())

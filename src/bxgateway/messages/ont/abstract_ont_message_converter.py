@@ -12,7 +12,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import ont_constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
-from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
+from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.tx_ont_message import TxOntMessage
 from bxgateway.utils.block_info import BlockInfo
@@ -25,7 +25,7 @@ def get_block_info(
         decompress_start_datetime: datetime,
         decompress_start_timestamp: float,
         total_tx_count: Optional[int] = None,
-        ont_block_msg: Optional[Union[BlockOntMessage, ConsensusOntMessage]] = None
+        ont_block_msg: Optional[Union[BlockOntMessage, OntConsensusMessage]] = None
 ) -> BlockInfo:
     if ont_block_msg is not None:
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block))

@@ -9,7 +9,7 @@ from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import ont_constants, gateway_constants
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
-from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
+from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.messages.ont.headers_ont_message import HeadersOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InvOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InventoryOntType
@@ -30,7 +30,7 @@ class OntBlockQueuingService(
     #  `Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
     #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]`
     #  in generic type `AbstractBlockQueuingService`.
-    AbstractBlockQueuingService[Union[BlockOntMessage, ConsensusOntMessage], HeadersOntMessage]
+    AbstractBlockQueuingService[Union[BlockOntMessage, OntConsensusMessage], HeadersOntMessage]
 ):
     """
     Blocks sent to blockchain node only upon request
@@ -65,7 +65,7 @@ class OntBlockQueuingService(
         block_hash: Sha256Hash,
         # pyre-fixme[9]: block_msg is declared to have type `Union[BlockOntMessage, ConsensusOntMessage]`
         #  but is used as type `None`.
-        block_msg: Union[BlockOntMessage, ConsensusOntMessage] = None,
+        block_msg: Union[BlockOntMessage, OntConsensusMessage] = None,
         waiting_for_recovery: bool = False,
     ):
         if self.node.opts.is_consensus and isinstance(block_msg, BlockOntMessage):
@@ -97,7 +97,7 @@ class OntBlockQueuingService(
         # pyre-fixme[25]: `block_msg` has type `ConsensusOntMessage`,
         #  assertion `not isinstance(block_msg, bxgateway.messages.ont.consensus_ont_message.ConsensusOntMessage)`
         #  will always fail.
-        elif isinstance(block_msg, ConsensusOntMessage):
+        elif isinstance(block_msg, OntConsensusMessage):
             if block_hash in self._blocks and not waiting_for_recovery:
                 logger.info("Sending consensus message with block hash {} to blockchain node", block_hash)
                 # self.node.block_queuing_service.send_block_to_node(block_hash)
@@ -127,7 +127,7 @@ class OntBlockQueuingService(
     def send_block_to_node(
         self,
         block_hash: Sha256Hash,
-        block_msg: Optional[Union[BlockOntMessage, ConsensusOntMessage]] = None,
+        block_msg: Optional[Union[BlockOntMessage, OntConsensusMessage]] = None,
     ):
         if block_hash not in self._blocks:
             return
@@ -148,7 +148,7 @@ class OntBlockQueuingService(
         self.remove_from_queue(block_hash)
 
     def update_recovered_block(
-        self, block_hash: Sha256Hash, block_msg: Union[BlockOntMessage, ConsensusOntMessage]
+        self, block_hash: Sha256Hash, block_msg: Union[BlockOntMessage, OntConsensusMessage]
     ):
         if block_hash not in self._blocks:
             return
@@ -172,7 +172,7 @@ class OntBlockQueuingService(
         # pyre-fixme[25]: `block_msg` has type `ConsensusOntMessage`,
         #  assertion `not isinstance(block_msg, bxgateway.messages.ont.consensus_ont_message.ConsensusOntMessage)`
         #  will always fail.
-        elif isinstance(block_msg, ConsensusOntMessage):
+        elif isinstance(block_msg, OntConsensusMessage):
             self.node.send_msg_to_node(block_msg)
 
     def mark_blocks_seen_by_blockchain_node(
@@ -189,7 +189,7 @@ class OntBlockQueuingService(
     def mark_block_seen_by_blockchain_node(
         self,
         block_hash: Sha256Hash,
-        block_message: Optional[Union[BlockOntMessage, ConsensusOntMessage]] = None,
+        block_message: Optional[Union[BlockOntMessage, OntConsensusMessage]] = None,
     ):
         self._blocks_seen_by_blockchain_node.add(block_hash)
 

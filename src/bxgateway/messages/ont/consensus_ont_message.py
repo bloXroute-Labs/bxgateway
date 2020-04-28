@@ -19,7 +19,7 @@ class ConsensusMsgPayload:
     payload: str
 
 
-class ConsensusOntMessage(OntMessage):
+class OntConsensusMessage(OntMessage):
     MESSAGE_TYPE = OntMessageType.CONSENSUS
 
     def __init__(self, magic: Optional[int] = None, version: Optional[int] = None,
@@ -81,7 +81,7 @@ class ConsensusOntMessage(OntMessage):
         self._consensus_data_json = json.loads(self._consensus_data_str)
         off += self._consensus_data_full_len
         self._owner_and_signature = self._memoryview[off:]
-        self._consensus_data_type = next(iter(self._consensus_data_json.values()))
+        self._consensus_data_type = self._consensus_data_json["type"]
         if self._consensus_data_type == 0:
             encoded_payload = model_loader.load_model(ConsensusMsgPayload, self._consensus_data_json)
             self._consensus_data_len = encoded_payload.len
@@ -207,7 +207,7 @@ class ConsensusOntMessage(OntMessage):
     def prev_block_hash(self) -> OntObjectHash:
         if not self._parsed:
             self.parse_message()
-        assert isinstance(self._prev_block, OntObjectHash)
+        assert isinstance(self._prev_block, OntObjectHash), f"{self._prev_block} is {type(self._prev_block)}"
         # pyre-fixme[7]: Expected `OntObjectHash` but got `None`.
         return self._prev_block
 

@@ -7,7 +7,7 @@ from bxcommon.utils import crypto
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.messages.ont.addr_ont_message import AddrOntMessage
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
-from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
+from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.messages.ont.get_addr_ont_message import GetAddrOntMessage
 from bxgateway.messages.ont.get_blocks_ont_message import GetBlocksOntMessage
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
@@ -44,8 +44,8 @@ class OntMessageFactoryTest(MessageFactoryTestCase):
         self.get_message_preview_successfully(AddrOntMessage(self.MAGIC, [(int(time.time()), 123, "127.0.0.1",
                                                                            20300, 20200, 1234)]),
                                               AddrOntMessage.MESSAGE_TYPE, 52)
-        self.get_message_preview_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, bytes(20)),
-                                              ConsensusOntMessage.MESSAGE_TYPE, 24)
+        self.get_message_preview_successfully(OntConsensusMessage(self.MAGIC, self.VERSION, bytes(20)),
+                                              OntConsensusMessage.MESSAGE_TYPE, 24)
 
         self.get_message_preview_successfully(
             InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]),
@@ -90,8 +90,8 @@ class OntMessageFactoryTest(MessageFactoryTestCase):
         self.create_message_successfully(GetAddrOntMessage(self.MAGIC), GetAddrOntMessage)
         self.create_message_successfully(AddrOntMessage(self.MAGIC, [(int(time.time()), 123, "127.0.0.1", 20300,
                                                                       20200, 1234)]), AddrOntMessage)
-        self.create_message_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, bytes(20)),
-                                         ConsensusOntMessage)
+        self.create_message_successfully(OntConsensusMessage(self.MAGIC, self.VERSION, bytes(20)),
+                                         OntConsensusMessage)
         self.create_message_successfully(InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]),
                                          InvOntMessage)
         self.create_message_successfully(GetDataOntMessage(self.MAGIC, 1, self.HASH), GetDataOntMessage)

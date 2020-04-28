@@ -4,7 +4,7 @@ from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.abstract_message_factory import AbstractMessageFactory
 from bxgateway.messages.ont.addr_ont_message import AddrOntMessage
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
-from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
+from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.messages.ont.get_addr_ont_message import GetAddrOntMessage
 from bxgateway.messages.ont.get_blocks_ont_message import GetBlocksOntMessage
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
@@ -29,7 +29,7 @@ class _OntMessageFactory(AbstractMessageFactory):
         OntMessageType.ADDRESS: AddrOntMessage,
         OntMessageType.PING: PingOntMessage,
         OntMessageType.PONG: PongOntMessage,
-        OntMessageType.CONSENSUS: ConsensusOntMessage,
+        OntMessageType.CONSENSUS: OntConsensusMessage,
         OntMessageType.INVENTORY: InvOntMessage,
         OntMessageType.GET_DATA: GetDataOntMessage,
         OntMessageType.GET_HEADERS: GetHeadersOntMessage,

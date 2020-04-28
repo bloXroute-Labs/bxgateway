@@ -15,7 +15,7 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxgateway import ont_constants, gateway_constants
 from bxgateway.connections.ont.ont_base_connection_protocol import OntBaseConnectionProtocol
-from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
+from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.messages.ont.get_blocks_ont_message import GetBlocksOntMessage
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
 from bxgateway.messages.ont.get_headers_ont_message import GetHeadersOntMessage
@@ -136,7 +136,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                                   OntObjectHash(buf=raw_hash, length=ont_constants.ONT_HASH_LEN))
         self.connection.enqueue_msg(reply)
 
-    def msg_consensus(self, msg: ConsensusOntMessage):
+    def msg_consensus(self, msg: OntConsensusMessage):
         if not self.node.opts.is_consensus:
             return
         if msg.consensus_data_type() != ont_constants.BLOCK_PROPOSAL_CONSENSUS_MESSAGE_TYPE:
