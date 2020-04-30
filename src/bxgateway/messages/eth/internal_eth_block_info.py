@@ -32,7 +32,7 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
         ("transactions", rlp.sedes.CountableList(Transaction)),
         ("uncles", rlp.sedes.CountableList(BlockHeader)),
         ("chain_difficulty", rlp.sedes.big_endian_int),
-        ("block_number", rlp.sedes.big_endian_int)
+        ("number", rlp.sedes.big_endian_int)
     ]
 
     def __init__(self, msg_bytes, *args, **kwargs):
