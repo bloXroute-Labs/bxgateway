@@ -8,7 +8,7 @@ from bxutils.logging.log_level import LogLevel
 
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
-from bxcommon.utils import convert, crypto
+from bxcommon.utils import convert
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 
 from bxgateway import ont_constants
@@ -16,6 +16,7 @@ from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InventoryOntType
 from bxgateway.services.ont.abstract_ont_block_cleanup_service import AbstractOntBlockCleanupService
 from bxgateway.testing.abstract_block_cleanup_service_test import AbstractBlockCleanupServiceTest
+from bxgateway.messages.ont import ont_messages_util
 
 logger = logging.get_logger(__name__)
 
@@ -64,18 +65,12 @@ class AbstractOntBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
         unknown_transactions = transactions[short_len:]
         transaction_hashes = []
         for idx, tx in enumerate(transactions_short):
-            tx_hash = OntObjectHash(
-                buf=crypto.double_sha256(tx),
-                length=ont_constants.ONT_HASH_LEN
-            )
+            tx_hash, _ = ont_messages_util.get_txid(tx)
             transaction_hashes.append(tx_hash)
             self.transaction_service.set_transaction_contents(tx_hash, tx)
             self.transaction_service.assign_short_id(tx_hash, idx + 1)
         for idx, tx in enumerate(unknown_transactions):
-            tx_hash = OntObjectHash(
-                buf=crypto.double_sha256(tx),
-                length=ont_constants.ONT_HASH_LEN
-            )
+            tx_hash, _= ont_messages_util.get_txid(tx)
             transaction_hashes.append(tx_hash)
             if idx % 2 == 0:
                 self.transaction_service.set_transaction_contents(tx_hash, tx)

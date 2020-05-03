@@ -1,5 +1,5 @@
 import typing
-from typing import Iterable
+from typing import Iterable, TYPE_CHECKING
 from abc import abstractmethod
 
 from bxutils import logging
@@ -10,7 +10,9 @@ from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxcommon import constants
+
+if TYPE_CHECKING:
+    from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 
 logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
@@ -20,7 +22,6 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
     Service for managing block cleanup.
     """
 
-    # pyre-fixme[11]: Annotation `EthGatewayNode` is not defined as a type.
     def __init__(self, node: "EthGatewayNode", network_num: int):
         """
         Constructor

@@ -1,6 +1,5 @@
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
-from bxcommon.rpc import rpc_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -56,15 +55,12 @@ class OntGatewayNode(AbstractGatewayNode):
         return OntBlockQueuingService(self)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
-        return OntNormalBlockCleanupService(self, self.network_num)
-
-        # TODO: return ExtensionBlockCleanupService once implemented
-        # if self.opts.use_extensions:
-        #     from bxgateway.services.ont.ont_extension_block_cleanup_service import OntExtensionBlockCleanupService
-        #     block_cleanup_service = OntExtensionBlockCleanupService(self, self.network_num)
-        # else:
-        #     block_cleanup_service = OntNormalBlockCleanupService(self, self.network_num)
-        # return block_cleanup_service
+        if self.opts.use_extensions:
+            from bxgateway.services.ont.ont_extension_block_cleanup_service import OntExtensionBlockCleanupService
+            block_cleanup_service = OntExtensionBlockCleanupService(self, self.network_num)
+        else:
+            block_cleanup_service = OntNormalBlockCleanupService(self, self.network_num)
+        return block_cleanup_service
 
     def update_current_block_height(self, new_block_height: int, new_block_hash: OntObjectHash):
         if new_block_height >= self.current_block_height:

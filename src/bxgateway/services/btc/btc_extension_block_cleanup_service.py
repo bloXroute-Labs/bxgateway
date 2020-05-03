@@ -74,7 +74,7 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
                 "block_hash": repr(block_hash),
                 "unknown_tx_hashes_count": unknown_tx_hashes_count,
                 "short_ids_count": short_ids_count,
-                "block_transactions_count": cleanup_task.tx_count(),
+                "block_transactions_count": cleanup_task.txn_count(),
                 "start_datetime": start_datetime,
                 "end_datetime": end_datetime,
                 "task_init_time": init_time - start_time,

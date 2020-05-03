@@ -1,5 +1,3 @@
-from unittest import skip
-
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService, TransactionService
 from bxcommon.test_utils import helpers
 
@@ -7,7 +5,7 @@ from bxgateway.services.ont.abstract_ont_block_cleanup_service import AbstractOn
 from bxgateway.services.ont.ont_extension_block_cleanup_service import OntExtensionBlockCleanupService
 from bxgateway.testing.abstract_ont_block_cleanup_service_test import AbstractOntBlockCleanupServiceTest
 
-@skip("not yet implemented")
+
 class OntExtensionBlockCleanupServiceTest(AbstractOntBlockCleanupServiceTest):
 
     def setUp(self) -> None:
