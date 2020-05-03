@@ -11,13 +11,18 @@ from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxcommon.utils import performance_utils
+from bxcommon import constants
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
+from bxutils.logging.log_record_type import LogRecordType
+
 
 logger = logging.get_logger(__name__)
+msg_handling_logger = logging.get_logger(LogRecordType.MessageHandlingTroubleshooting, __name__)
 
 
 class AbstractBlockchainConnectionProtocol:
@@ -36,13 +41,19 @@ class AbstractBlockchainConnectionProtocol:
         """
         Handle a TX message by broadcasting to the entire network
         """
+        # TODO: remove profiling
+        handler_start = time.time()
+        tx_service_time = 0
+        tx_service = self.connection.node.get_tx_service()
         bx_tx_messages = self.connection.node.message_converter.tx_to_bx_txs(
             msg, self.connection.network_num, self.connection.node.default_tx_quota_type
         )
-
+        parsing_end_time = time.time()
         for (bx_tx_message, tx_hash, tx_bytes) in bx_tx_messages:
-            if self.connection.node.get_tx_service().has_transaction_contents(tx_hash) or \
-                    self.connection.node.get_tx_service().removed_transaction(tx_hash):
+            tx_work_start = time.time()
+            seen_tx = tx_service.has_transaction_contents(tx_hash) or tx_service.removed_transaction(tx_hash)
+            tx_service_time += tx_work_start - time.time()
+            if seen_tx:
                 tx_stats.add_tx_by_hash_event(tx_hash,
                                               TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                               self.connection.network_num,
@@ -63,10 +74,22 @@ class AbstractBlockchainConnectionProtocol:
                                               self.connection.network_num,
                                               peers=map(lambda conn: (stats_format.connection(conn)),
                                                         broadcast_peers))
+                tx_work_start = time.time()
                 self._set_transaction_contents(tx_hash, tx_bytes)
+                tx_service_time += tx_work_start - time.time()
             else:
                 logger.trace("Tx Message: {} from BlockchainNode was dropped, no upstream relay connection available",
                              tx_hash)
+        performance_utils.log_operation_duration(
+            msg_handling_logger,
+            "msg_tx",
+            handler_start,
+            constants.MSG_HANDLERS_CYCLE_DURATION_WARN_THRESHOLD_S,
+            connection=self,
+            tx_count=len(bx_tx_messages),
+            parsing_time=parsing_end_time-handler_start,
+            tx_service_time=tx_service_time
+        )
 
     def msg_block(self, msg: AbstractBlockMessage):
         """
