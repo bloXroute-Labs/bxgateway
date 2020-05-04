@@ -31,11 +31,14 @@ class AbstractBtcBlockCleanupService(AbstractBlockCleanupService):
             self,
             block_hash: Sha256Hash
     ) -> None:
-        block_msg = self.node.block_queuing_service._blocks[block_hash]
-        self.node.block_cleanup_service.clean_block_transactions(
-            transaction_service=self.node.get_tx_service(),
-            block_msg=block_msg
-        )
+        if block_hash in self.node.block_queuing_service._blocks:
+            block_msg = self.node.block_queuing_service._blocks[block_hash]
+            self.node.block_cleanup_service.clean_block_transactions(
+                transaction_service=self.node.get_tx_service(),
+                block_msg=block_msg
+            )
+        else:
+            logger.debug("block cleanup from queuing service failed, block is no longer tracked {}", block_hash)
 
     @abstractmethod
     def clean_block_transactions(

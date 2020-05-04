@@ -113,7 +113,6 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
             self._block_hash_marked_for_cleanup.add(block_hash)
             self.last_confirmed_block = block_hash
             if block_hash in self.node.block_queuing_service._blocks:
-                # self.clean_block_transactions_from_block_queue(block_hash)
                 self.node.alarm_queue.register_alarm(
                     constants.MIN_SLEEP_TIMEOUT,
                     self.clean_block_transactions_from_block_queue,

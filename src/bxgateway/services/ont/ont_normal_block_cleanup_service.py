@@ -65,7 +65,7 @@ class OntNormalBlockCleanupService(AbstractOntBlockCleanupService):
                                                                 short_id_count_before_cleanup,
                                                                 short_id_count_after_cleanup)
 
-        self._block_hash_marked_for_cleanup.remove(block_hash)
+        self._block_hash_marked_for_cleanup.discard(block_hash)
         self.node.post_block_cleanup_tasks(
             block_hash=block_hash,
             short_ids=block_short_ids,

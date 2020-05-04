@@ -50,7 +50,7 @@ class EthExtensionBlockCleanupService(AbstractEthBlockCleanupService):
             block_hash, transaction_service.network_num, tx_hashes=transactions_list, sids=sids
         )
         self.contents_cleanup(transaction_service, confirmation_msg)
-        self._block_hash_marked_for_cleanup.remove(block_hash)
+        self._block_hash_marked_for_cleanup.discard(block_hash)
         end_time = time.time()
         duration = end_time - start_time
         logger.debug(

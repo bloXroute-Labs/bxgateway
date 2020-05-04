@@ -88,7 +88,7 @@ class BtcExtensionBlockCleanupService(AbstractBtcBlockCleanupService):
             }
         )
         self.block_cleanup_tasks.return_task(cleanup_task)
-        self._block_hash_marked_for_cleanup.remove(block_hash)
+        self._block_hash_marked_for_cleanup.discard(block_hash)
         self.node.post_block_cleanup_tasks(
             block_hash=block_hash,
             short_ids=short_ids,
