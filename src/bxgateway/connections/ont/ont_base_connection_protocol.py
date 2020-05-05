@@ -2,6 +2,7 @@ import typing
 from abc import abstractmethod
 from typing import List, Union
 
+from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import ont_constants
@@ -46,17 +47,19 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                         self.node.opts.http_info_port, self.node.opts.consensus_port,
                                         ont_constants.STARTUP_CAP, self.node.opts.blockchain_nonce, 0,
                                         self.node.opts.relay, self.node.opts.is_consensus,
-                                        ont_constants.STARTUP_SOFT_VERSION.encode("utf-8"),
+                                        f"{gateway_constants.GATEWAY_PEER_NAME} "
+                                        f"{self.node.opts.source_version}".encode(constants.DEFAULT_TEXT_ENCODING),
                                         self.node.opts.blockchain_services)
         connection.enqueue_msg(version_msg)
 
-    def msg_block(self, msg):
+    # pyre-fixme[14]: `msg_block` overrides method defined in
+    #  `AbstractBlockchainConnectionProtocol` inconsistently.
+    def msg_block(self, msg: BlockOntMessage):
         block_hash = msg.block_hash()
 
         if not self.node.should_process_block_hash(block_hash):
             return
 
-        # TODO: block_cleanup_service
         if self.node.block_cleanup_service.is_marked_for_cleanup(block_hash):
             self.connection.log_trace("Marked block for cleanup: {}", block_hash)
             self.node.block_cleanup_service.clean_block_transactions(
@@ -66,9 +69,9 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         else:
             super().msg_block(msg)
 
-        # After receiving block message sending INV message for the same block to Bitcoin node
-        # This is needed to update Synced Headers value of the gateway peer on the Bitcoin node
-        # If Synced Headers is not up-to-date than Bitcoin node does not push compact blocks to the gateway
+        # After receiving block message sending INV message for the same block to Ontology node
+        # This is needed to update Synced Headers value of the gateway peer on the Ontology node
+        # If Synced Headers is not up-to-date than Ontology node does not push compact blocks to the gateway
         inv_msg = InvOntMessage(magic=self.node.opts.blockchain_net_magic,
                                 inv_type=InventoryOntType.MSG_BLOCK, blocks=[block_hash])
         self.node.send_msg_to_node(inv_msg)

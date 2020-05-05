@@ -42,15 +42,17 @@ class TxOntMessage(OntMessage):
                 .format(self.version(),
                         len(self.rawbytes()),
                         convert.bytes_to_hex(self.tx_hash().binary),
-                        convert.bytes_to_hex(
-                            self.rawbytes().tobytes())))
+                        convert.bytes_to_hex(self.rawbytes().tobytes())
+                        )
+                )
 
     def version(self) -> int:
         if self._version is None:
             off = ont_constants.ONT_HDR_COMMON_OFF
             self._version, = struct.unpack_from("<B", self.buf, off)
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._version
+        version = self._version
+        assert isinstance(version, int)
+        return version
 
     def tx(self) -> bytearray:
         return self.payload()
@@ -58,5 +60,6 @@ class TxOntMessage(OntMessage):
     def tx_hash(self) -> OntObjectHash:
         if self._tx_hash is None:
             self._tx_hash, _ = ont_messages_util.get_txid(self.payload())
-        # pyre-fixme[7]: Expected `OntObjectHash` but got `None`.
-        return self._tx_hash
+        tx_hash = self._tx_hash
+        assert isinstance(tx_hash, OntObjectHash)
+        return tx_hash

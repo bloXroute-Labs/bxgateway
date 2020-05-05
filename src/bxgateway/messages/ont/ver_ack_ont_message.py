@@ -32,5 +32,6 @@ class VerAckOntMessage(OntMessage):
             off = ont_constants.ONT_HDR_COMMON_OFF
             self._is_consensus, = struct.unpack_from("<?", self.buf, off)
 
-        # pyre-fixme[7]: Expected `bool` but got `None`.
-        return self._is_consensus
+        is_consensus = self._is_consensus
+        assert isinstance(is_consensus, bool)
+        return is_consensus

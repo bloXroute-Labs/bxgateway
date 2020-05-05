@@ -10,12 +10,12 @@ from bxutils import logging
 from bxutils.encoding.json_encoder import EnhancedJSONEncoder
 
 from bxcommon import constants
-from bxcommon.utils import convert, crypto
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.compact_block_short_ids_serializer import BlockOffsets
 from bxcommon.services.transaction_service import TransactionService
-from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils import convert, crypto
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
+from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import ont_constants
 from bxgateway.abstract_message_converter import BlockDecompressionResult
@@ -122,7 +122,7 @@ def build_ont_block(block_pieces: Deque[Union[bytearray, memoryview]]) -> OntCon
                                              bytes(consensus_data_payload)
                                          ).decode(constants.DEFAULT_TEXT_ENCODING))
     consensus_msg_payload = json.dumps(consensus_data, cls=EnhancedJSONEncoder, separators=(",", ":"))
-    ont_block += bytearray(consensus_msg_payload.encode("utf-8"))
+    ont_block += bytearray(consensus_msg_payload.encode(constants.DEFAULT_TEXT_ENCODING))
     ont_block += block_pieces[len(block_pieces) - 1]
     return OntConsensusMessage(buf=ont_block)
 

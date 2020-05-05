@@ -1,8 +1,9 @@
 from typing import List, Union, Optional, cast, TYPE_CHECKING, Iterator
 
-from bxcommon.utils.expiring_dict import ExpiringDict
+from bxcommon.exceptions import ChecksumError
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
+from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -80,7 +81,12 @@ class OntBlockQueuingService(
         if block_msg is None:
             return
 
-        block_msg.validate_payload(block_msg.buf, block_msg.unpack(block_msg.buf))
+        try:
+            block_msg.validate_payload(block_msg.buf, block_msg.unpack(block_msg.buf))
+        except ChecksumError:
+            logger.debug("Encountered checksum error, which can be caused by duplicate transaction. "
+                         "Stop processing block {}", block_hash)
+            return
         block_hash = cast(OntObjectHash, block_hash)
 
         if isinstance(block_msg, BlockOntMessage):
@@ -128,7 +134,7 @@ class OntBlockQueuingService(
         block_hash: Sha256Hash,
         block_msg: Optional[Union[BlockOntMessage, OntConsensusMessage]] = None,
     ):
-        if block_hash not in self._blocks:
+        if block_hash not in self._blocks or block_hash not in self._blocks_waiting_for_recovery:
             return
 
         waiting_for_recovery = self._blocks_waiting_for_recovery[block_hash]
@@ -198,7 +204,7 @@ class OntBlockQueuingService(
         """
         this is similar to the one in abstract_block_queuing_service, with `if block_hash not in self._blocks` removed
         """
-        logger.trace("Removing block {} from queue.")
+        logger.trace("Removing block {} from queue.", block_hash)
 
         for index in range(len(self._block_queue)):
             if self._block_queue[index][0] == block_hash:

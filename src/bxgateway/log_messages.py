@@ -151,7 +151,7 @@ PAYLOAD_LENGTH_MISMATCH = LogMessage(
 PACKET_CHECKSUM_MISMATCH = LogMessage(
     "G-000028",
     GENERAL_CATEGORY,
-    "Checksum (%s) for packet doesn't match ({}): {}"
+    "Checksum ({}) for packet doesn't match ({}): {}"
 )
 BLOCK_COMPRESSION_FAIL = LogMessage(
     "G-000029",

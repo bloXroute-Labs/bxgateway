@@ -29,6 +29,8 @@ PID_FILE_NAME = "bxgateway.pid"
 def convert_net_magic(magic):
     if magic in btc_constants.BTC_MAGIC_NUMBERS:
         return btc_constants.BTC_MAGIC_NUMBERS[magic]
+    elif magic in ont_constants.ONT_MAGIC_NUMBERS:
+        return ont_constants.ONT_MAGIC_NUMBERS[magic]
     else:
         return int(magic)
 

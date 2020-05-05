@@ -18,7 +18,8 @@ class DataOntMessage(OntMessage):
             struct.pack_into("<B", buf, off, length)
             off += ont_constants.ONT_CHAR_LEN
 
-            # pyre-fixme[16]: `Optional` has no attribute `get_big_endian`.
+            assert hash_start is not None
+            assert hash_stop is not None
             buf[off:off + ont_constants.ONT_HASH_LEN] = hash_start.get_big_endian()
             off += ont_constants.ONT_HASH_LEN
             buf[off:off + ont_constants.ONT_HASH_LEN] = hash_stop.get_big_endian()
@@ -35,12 +36,15 @@ class DataOntMessage(OntMessage):
         self._hash_start = self._hash_stop = None
 
     def hash_start(self) -> OntObjectHash:
-        return OntObjectHash(buf=self.buf,
-                             offset=ont_constants.ONT_HDR_COMMON_OFF + self.payload_len() -
-                                    2 * ont_constants.ONT_HASH_LEN,
-                             length=ont_constants.ONT_HASH_LEN)
+        return OntObjectHash(
+            buf=self.buf,
+            offset=ont_constants.ONT_HDR_COMMON_OFF + self.payload_len() - 2 * ont_constants.ONT_HASH_LEN,
+            length=ont_constants.ONT_HASH_LEN
+        )
 
     def hash_stop(self) -> OntObjectHash:
-        return OntObjectHash(buf=self.buf,
-                             offset=ont_constants.ONT_HDR_COMMON_OFF + self.payload_len() - ont_constants.ONT_HASH_LEN,
-                             length=ont_constants.ONT_HASH_LEN)
+        return OntObjectHash(
+            buf=self.buf,
+            offset=ont_constants.ONT_HDR_COMMON_OFF + self.payload_len() - ont_constants.ONT_HASH_LEN,
+            length=ont_constants.ONT_HASH_LEN
+        )

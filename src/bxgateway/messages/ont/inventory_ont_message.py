@@ -74,14 +74,14 @@ class InvOntMessage(OntMessage):
             self._len_blocks, = struct.unpack_from("<L", self.buf, off)
             off += ont_constants.ONT_INT_LEN
             self._block_hashes = []
-            # pyre-fixme[6]: Expected `int` for 1st param but got `Optional[int]`.
-            for _ in range(self._len_blocks):
+            len_blocks = self._len_blocks
+            assert isinstance(len_blocks, int)
+            for _ in range(len_blocks):
                 # pyre-fixme[16]: `Optional` has no attribute `append`.
                 self._block_hashes.append(OntObjectHash(buf=self.buf, offset=off, length=ont_constants.ONT_HASH_LEN))
                 off += ont_constants.ONT_HASH_LEN
 
-        assert self._inv_type is not None
-        assert self._block_hashes is not None
-        # pyre-fixme[7]: Expected `Tuple[int, List[OntObjectHash]]` but got
-        #  `Tuple[Optional[int], Optional[List[OntObjectHash]]]`.
-        return self._inv_type, self._block_hashes
+        inv_type, block_hashes = self._inv_type, self._block_hashes
+        assert isinstance(inv_type, int)
+        assert isinstance(block_hashes, list)
+        return inv_type, block_hashes

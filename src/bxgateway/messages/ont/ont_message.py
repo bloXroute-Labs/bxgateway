@@ -23,8 +23,6 @@ class OntMessage(AbstractMessage):
         #  param but got `Optional[bytearray]`.
         self._memoryview = memoryview(buf)
 
-        # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[int]`.
-        magic_num = magic if magic not in ont_constants.ONT_MAGIC_NUMBERS else ont_constants.ONT_MAGIC_NUMBERS[magic]
         # pyre-fixme[6]: Expected `int` for 1st param but got `Optional[int]`.
         checksum = crypto.double_sha256(self._memoryview[ont_constants.ONT_HDR_COMMON_OFF:payload_len +
                                         ont_constants.ONT_HDR_COMMON_OFF])
@@ -32,12 +30,12 @@ class OntMessage(AbstractMessage):
         off = 0
         # pyre-fixme[6]: Expected `Union[array.array[typing.Any], bytearray,
         #  memoryview, mmap.mmap]` for 2nd param but got `Optional[bytearray]`.
-        struct.pack_into("<L12sL", buf, off, magic_num, command, payload_len)
+        struct.pack_into("<L12sL", buf, off, magic, command, payload_len)
         off += ont_constants.ONT_HEADER_MINUS_CHECKSUM
         # pyre-fixme[16]: `Optional` has no attribute `__setitem__`.
         buf[off:off + ont_constants.ONT_MSG_CHECKSUM_LEN] = checksum[0:4]
 
-        self._magic = magic_num
+        self._magic = magic
         self._command = command
         self._payload_len = payload_len
         self._payload = None
@@ -56,12 +54,16 @@ class OntMessage(AbstractMessage):
     def validate_payload(cls, buf, unpacked_args):
         command, _magic, checksum, payload_length = unpacked_args
         if payload_length != len(buf) - cls.HEADER_LENGTH:
-            logger.error(log_messages.PAYLOAD_LENGTH_MISMATCH, payload_length, len(buf))
-            raise PayloadLenError("Payload length error raised")
+            error_message = log_messages.PAYLOAD_LENGTH_MISMATCH.text.format(payload_length, len(buf))
+            logger.error(error_message)
+            raise PayloadLenError(error_message)
         ref_checksum = crypto.double_sha256(buf[cls.HEADER_LENGTH:cls.HEADER_LENGTH + payload_length])[0:4]
         if checksum != ref_checksum:
-            logger.error(log_messages.PACKET_CHECKSUM_MISMATCH, checksum, ref_checksum, buf)
-            raise ChecksumError("Checksum error raised", buf)
+            error_message = log_messages.PACKET_CHECKSUM_MISMATCH.text.format(
+                bytearray(checksum), ref_checksum, repr(buf)
+            )
+            logger.error(error_message)
+            raise ChecksumError(error_message, buf)
 
     @classmethod
     def initialize_class(cls, cls_type, buf, unpacked_args):
@@ -82,7 +84,9 @@ class OntMessage(AbstractMessage):
             # pyre-fixme[6]: Expected `Union[array.array[int], bytearray, bytes,
             #  memoryview, mmap.mmap]` for 2nd param but got `Optional[bytearray]`.
             self._magic, = struct.unpack_from("<L", self.buf)
-        return self._magic
+        magic = self._magic
+        assert magic is not None
+        return magic
 
     def command(self) -> bytes:
         if self._command is None:
@@ -90,9 +94,9 @@ class OntMessage(AbstractMessage):
             # pyre-fixme[6]: Expected `Union[array.array[int], bytearray, bytes,
             #  memoryview, mmap.mmap]` for 2nd param but got `Optional[bytearray]`.
             self._command = struct.unpack_from("<12s", self.buf, 4)[0].rstrip(MSG_NULL_BYTE)
-        assert self._payload_len is not None
-        # pyre-fixme[7]: Expected `bytes` but got `Optional[bytes]`.
-        return self._command
+        command = self._command
+        assert command is not None
+        return command
 
     def payload_len(self) -> int:
         if self._payload_len is None:
@@ -100,9 +104,9 @@ class OntMessage(AbstractMessage):
             # pyre-fixme[6]: Expected `Union[array.array[int], bytearray, bytes,
             #  memoryview, mmap.mmap]` for 2nd param but got `Optional[bytearray]`.
             self._payload_len, = struct.unpack_from("<L", self.buf, 16)
-        assert self._payload_len is not None
-        # pyre-fixme[7]: Expected `int` but got `Optional[int]`.
-        return self._payload_len
+        payload_len = self._payload_len
+        assert payload_len is not None
+        return payload_len
 
     def payload(self) -> bytearray:
         if self._payload is None:
@@ -110,8 +114,9 @@ class OntMessage(AbstractMessage):
             # pyre-fixme[16]: `Optional` has no attribute `__getitem__`.
             self._payload = self.buf[ont_constants.ONT_HDR_COMMON_OFF:self.payload_len() +
                                      ont_constants.ONT_HDR_COMMON_OFF]
-        # pyre-fixme[7]: Expected `bytearray` but got `None`.
-        return self._payload
+        payload = self._payload
+        assert isinstance(payload, bytearray)
+        return payload
 
     def checksum(self):
         if self._checksum is None:

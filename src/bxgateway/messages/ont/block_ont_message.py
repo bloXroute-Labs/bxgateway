@@ -156,16 +156,17 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
             self._tx_offset = off
             self._txn_header = self._memoryview[0:self._tx_offset]
 
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._version
+        version = self._version
+        assert isinstance(version, int)
+        return version
 
     def prev_block_hash(self) -> OntObjectHash:
         if not self._parsed:
             self.parse_message()
 
-        assert self._prev_block is not None
-        # pyre-fixme[7]: Expected `OntObjectHash` but got `Optional[OntObjectHash]`.
-        return self._prev_block
+        prev_block = self._prev_block
+        assert prev_block is not None
+        return prev_block
 
     def timestamp(self) -> int:
         """
@@ -179,24 +180,24 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
     def txn_count(self) -> int:
         if not self._parsed:
             self.parse_message()
-        assert isinstance(self._txn_count, int)
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._txn_count
+        txn_count = self._txn_count
+        assert isinstance(txn_count, int)
+        return txn_count
 
     def txn_offset(self) -> int:
         if not self._parsed:
             self.parse_message()
-        assert isinstance(self._tx_offset, int)
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._tx_offset
+        tx_offset = self._tx_offset
+        assert isinstance(tx_offset, int)
+        return tx_offset
 
     def txn_header(self) -> memoryview:
         if not self._parsed:
             self.parse_message()
             self._txn_header = self._memoryview[0:self._tx_offset]
-        assert self._txn_header is not None
-        # pyre-fixme[7]: Expected `memoryview` but got `None`.
-        return self._txn_header
+        txn_header = self._txn_header
+        assert isinstance(txn_header, memoryview)
+        return txn_header
 
     def txns(self) -> List[memoryview]:
         if self._txns is None:
@@ -219,16 +220,16 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
                 start += off
             self._merkle_root = OntObjectHash(self._memoryview[start:], 0, ont_constants.ONT_HASH_LEN)
             self._merkle_root_memoryview = self._memoryview[start:start + ont_constants.ONT_HASH_LEN]
-        assert isinstance(self._txns, list)
-        # pyre-fixme[7]: Expected `List[memoryview]` but got `None`.
-        return self._txns
+        txns = self._txns
+        assert isinstance(txns, list)
+        return txns
 
     def block_header_offset(self) -> int:
         if not self._parsed:
             self.parse_message()
-        assert isinstance(self._header_offset, int)
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._header_offset
+        header_offset = self._header_offset
+        assert isinstance(header_offset, int)
+        return header_offset
 
     def block_hash(self) -> OntObjectHash:
         if self._hash_val is None:
@@ -238,34 +239,35 @@ class BlockOntMessage(OntMessage, AbstractBlockMessage):
             header = self._memoryview[ont_constants.ONT_HDR_COMMON_OFF:self._header_offset]
             raw_hash = crypto.double_sha256(header)
             self._hash_val = OntObjectHash(buf=raw_hash, length=ont_constants.ONT_HASH_LEN)
-        assert isinstance(self._hash_val, OntObjectHash)
-        # pyre-fixme[7]: Expected `OntObjectHash` but got `None`.
-        return self._hash_val
+        hash_val = self._hash_val
+        assert isinstance(hash_val, OntObjectHash)
+        return hash_val
 
     def header(self) -> memoryview:
         if self._header_with_program is None:
             self.parse_message()
-        assert self._header_with_program is not None
-        # pyre-fixme[7]: Expected `memoryview` but got `None`.
-        return self._header_with_program
+        header_with_program = self._header_with_program
+        assert isinstance(header_with_program, memoryview)
+        return header_with_program
 
     def height(self) -> int:
         if self._height is None:
             self.parse_message()
-        assert self._height is not None
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._height
+        height = self._height
+        assert isinstance(height, int)
+        return height
 
     def merkle_root(self) -> memoryview:
         if self._merkle_root_memoryview is None:
             self.txns()
-        assert self._merkle_root_memoryview is not None
-        # pyre-fixme[7]: Expected `memoryview` but got `None`.
-        return self._merkle_root_memoryview
+        merkle_root_memoryview = self._merkle_root_memoryview
+        assert isinstance(merkle_root_memoryview, memoryview)
+        return merkle_root_memoryview
 
     def version(self) -> int:
         if self._version is None:
             off = ont_constants.ONT_HDR_COMMON_OFF
             self._version, = struct.unpack_from("<I", self.buf, off)
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._version
+        version = self._version
+        assert isinstance(version, int)
+        return version

@@ -1,7 +1,6 @@
 import struct
 from typing import cast, Optional
 
-from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType

@@ -13,12 +13,12 @@ from bxcommon.utils.proxy.task_queue_proxy import TaskQueueProxy
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import ont_constants
+from bxgateway.abstract_message_converter import BlockDecompressionResult
 from bxgateway.messages.ont import ont_normal_message_converter
 from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMessageConverter, get_block_info
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.errors import message_conversion_error
-from bxgateway.abstract_message_converter import BlockDecompressionResult
 
 from bxutils import logging
 

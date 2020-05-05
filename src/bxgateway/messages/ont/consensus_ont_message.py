@@ -82,7 +82,7 @@ class OntConsensusMessage(OntMessage):
         off += self._consensus_data_full_len
         self._owner_and_signature = self._memoryview[off:]
         self._consensus_data_type = self._consensus_data_json["type"]
-        if self._consensus_data_type == 0:
+        if self._consensus_data_type == ont_constants.BLOCK_PROPOSAL_CONSENSUS_MESSAGE_TYPE:
             encoded_payload = model_loader.load_model(ConsensusMsgPayload, self._consensus_data_json)
             self._consensus_data_len = encoded_payload.len
             self._decoded_payload = memoryview(base64.b64decode(encoded_payload.payload))
@@ -126,8 +126,9 @@ class OntConsensusMessage(OntMessage):
         self._txn_header = buf[:off]
         txns = []
         start = self._tx_offset
-        # pyre-fixme[6]: Expected `int` for 1st positional only parameter to call `range.__init__` but got `None`.
-        for _ in range(self._txn_count):
+        txn_count = self._txn_count
+        assert isinstance(txn_count, int)
+        for _ in range(txn_count):
             _, off = get_txid(buf[start:])
             sig_length, size = ont_varint_to_int(buf[start:], off)
             off += size
@@ -144,79 +145,79 @@ class OntConsensusMessage(OntMessage):
     def block_start_len_memoryview(self) -> memoryview:
         if self._block_start_len_memoryview is None:
             self.parse_message()
-        assert self._block_start_len_memoryview is not None
-        # pyre-fixme[7]: Expected `memoryview` but got `None`.
-        return self._block_start_len_memoryview
+        block_start_len_memoryview = self._block_start_len_memoryview
+        assert isinstance(block_start_len_memoryview, memoryview)
+        return block_start_len_memoryview
 
     def consensus_payload_header(self) -> memoryview:
         if self._consensus_payload_header is None:
             self.parse_message()
-        assert self._consensus_payload_header is not None
-        # pyre-fixme[7]: Expected `memoryview` but got `None`.
-        return self._consensus_payload_header
+        consensus_payload_header = self._consensus_payload_header
+        assert isinstance(consensus_payload_header, memoryview)
+        return consensus_payload_header
 
     def consensus_data_len(self) -> int:
         if not self._parsed:
             self.parse_message()
-        assert isinstance(self._consensus_data_len, int)
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._consensus_data_len
+        consensus_data_len = self._consensus_data_len
+        assert isinstance(consensus_data_len, int)
+        return consensus_data_len
 
     def consensus_data_type(self) -> int:
         if not self._parsed:
             self.parse_message()
-        assert isinstance(self._consensus_data_type, int)
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._consensus_data_type
+        consensus_data_type = self._consensus_data_type
+        assert isinstance(consensus_data_type, int)
+        return consensus_data_type
 
     def txn_count(self) -> int:
         if not self._parsed:
             self.parse_message()
-        assert isinstance(self._txn_count, int)
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._txn_count
+        txn_count = self._txn_count
+        assert isinstance(txn_count, int)
+        return txn_count
 
     def txn_header(self) -> memoryview:
         if self._txn_header is None:
             self.parse_message()
-        assert self._txn_header is not None
-        # pyre-fixme[7]: Expected `memoryview` but got `None`.
-        return self._txn_header
+        txn_header = self._txn_header
+        assert isinstance(txn_header, memoryview)
+        return txn_header
 
     def txns(self) -> List[memoryview]:
         if not self._parsed:
             self.parse_message()
-        assert isinstance(self._block_start_txns, list)
-        # pyre-fixme[7]: Expected `List[memoryview]` but got `None`.
-        return self._block_start_txns
+        block_start_txns = self._block_start_txns
+        assert isinstance(block_start_txns, list)
+        return block_start_txns
 
     def payload_tail(self) -> memoryview:
         if self._payload_tail is None:
             self.parse_message()
-        assert self._payload_tail is not None
-        # pyre-fixme[7]: Expected `memoryview` but got `None`.
-        return self._payload_tail
+        payload_tail = self._payload_tail
+        assert isinstance(payload_tail, memoryview)
+        return payload_tail
 
     def block_hash(self) -> OntObjectHash:
         if not self._parsed:
             self.parse_message()
-        assert isinstance(self._hash_val, OntObjectHash)
-        # pyre-fixme[7]: Expected `OntObjectHash` but got `None`.
-        return self._hash_val
+        hash_val = self._hash_val
+        assert isinstance(hash_val, OntObjectHash)
+        return hash_val
 
     def prev_block_hash(self) -> OntObjectHash:
         if not self._parsed:
             self.parse_message()
-        assert isinstance(self._prev_block, OntObjectHash), f"{self._prev_block} is {type(self._prev_block)}"
-        # pyre-fixme[7]: Expected `OntObjectHash` but got `None`.
-        return self._prev_block
+        prev_block = self._prev_block
+        assert isinstance(prev_block, OntObjectHash), f"{prev_block} is {type(prev_block)}"
+        return prev_block
 
     def owner_and_signature(self) -> memoryview:
         if self._owner_and_signature is None:
             self.parse_message()
-        assert self._owner_and_signature is not None
-        # pyre-fixme[7]: Expected `memoryview` but got `None`.
-        return self._owner_and_signature
+        owner_and_signature = self._owner_and_signature
+        assert isinstance(owner_and_signature, memoryview)
+        return owner_and_signature
 
     def timestamp(self) -> int:
         pass

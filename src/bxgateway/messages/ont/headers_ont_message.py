@@ -66,6 +66,6 @@ class HeadersOntMessage(OntMessage):
                 for _ in range(sig_data_length):
                     sig_length, size = ont_varint_to_int(self.buf, off)
                     off += size + sig_length
-        assert isinstance(self._headers, List)
-        # pyre-fixme[7]: Expected `List[memoryview]` but got `None`.
-        return self._headers
+        headers = self._headers
+        assert isinstance(headers, List)
+        return headers
