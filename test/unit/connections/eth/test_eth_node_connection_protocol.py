@@ -361,7 +361,6 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.node.send_to_node_messages.clear()
         self.sut.msg_proxy_request = MagicMock()
 
-        # within allowed interval of
         block_height_bytes = block_heights[-1] + 4
         block_height_bytes = block_height_bytes.to_bytes(8, "big")
 
@@ -370,17 +369,6 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         )
         self.sut.msg_get_block_headers(message)
 
-        self.sut.msg_proxy_request.assert_called_once()
-        self.assertEqual(0, len(self.node.send_to_node_messages))
-
-        self.sut.msg_proxy_request.reset_mock()
-
-        block_height_bytes = block_heights[-1] + eth_constants.ALLOWED_BLOCK_HEIGHT_DISCREPANCY + 1
-        block_height_bytes = block_height_bytes.to_bytes(8, "big")
-        message = GetBlockHeadersEthProtocolMessage(
-            None, block_height_bytes, 1, 0, 0
-        )
-        self.sut.msg_get_block_headers(message)
         self.sut.msg_proxy_request.assert_not_called()
         self.assertEqual(1, len(self.node.send_to_node_messages))
         headers_sent = self.node.send_to_node_messages[0]

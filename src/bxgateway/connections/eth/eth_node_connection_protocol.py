@@ -21,7 +21,6 @@ from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import Ge
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
 from bxgateway.utils.eth import crypto_utils
-from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
 from bxutils import logging
 from bxgateway import log_messages
 from bxgateway import eth_constants
@@ -164,9 +163,10 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         if self._waiting_checkpoint_headers_request:
             super(EthNodeConnectionProtocol, self).msg_get_block_headers(msg)
         else:
-            processed = self.node.block_processing_service.try_process_get_block_headers_request(msg)
+            processed = self.node.block_processing_service.try_process_get_block_headers_request(
+                msg
+            )
             if not processed:
-                self.node.requested_remote_headers_queue.append(RemoteHeaderRequest(get_msg=msg, attempts=0))
                 self.msg_proxy_request(msg)
 
     def msg_get_block_bodies(self, msg: GetBlockBodiesEthProtocolMessage):

@@ -19,14 +19,17 @@ class EthBlockProcessingService(BlockProcessingService):
         self, msg: GetBlockHeadersEthProtocolMessage
     ) -> bool:
 
+        block_queuing_service = self._node.block_queuing_service
         block_hash = msg.get_block_hash()
-        is_future_block = False
+
         if block_hash is not None:
             logger.trace(
                 "Checking for headers by hash ({}) in local block cache...",
                 block_hash,
             )
-            requested_block_hashes = self._node.block_queuing_service.get_block_hashes_starting_from_hash(
+            (
+                success, requested_block_hashes
+            ) = block_queuing_service.get_block_hashes_starting_from_hash(
                 block_hash,
                 msg.get_amount(),
                 msg.get_skip(),
@@ -40,13 +43,14 @@ class EthBlockProcessingService(BlockProcessingService):
                     "in local block cache",
                     block_number,
                 )
-                requested_block_hashes = self._node.block_queuing_service.get_block_hashes_starting_from_height(
+                (
+                    success, requested_block_hashes
+                ) = block_queuing_service.get_block_hashes_starting_from_height(
                     block_number,
                     msg.get_amount(),
                     msg.get_skip(),
                     bool(msg.get_reverse()),
                 )
-                is_future_block = self._node.block_queuing_service.is_future_block(block_number)
             else:
                 logger.debug(
                     "Unexpectedly, request for headers did not contain "
@@ -54,34 +58,23 @@ class EthBlockProcessingService(BlockProcessingService):
                 )
                 return False
 
-        if is_future_block:
-            logger.debug(
-                "Completing sync  with Ethereum node. Future block "
-                "was requested, so returning empty headers."
+        if success:
+            return block_queuing_service.try_send_headers_to_node(
+                requested_block_hashes
             )
-        elif not requested_block_hashes:
+        else:
             logger.trace(
                 "Could not find requested block hashes. "
                 "Forwarding to remote blockchain connection."
             )
             return False
 
-        return self._node.block_queuing_service.try_send_headers_to_node(
-            requested_block_hashes
-        )
-
     def try_process_get_block_bodies_request(
         self, msg: GetBlockBodiesEthProtocolMessage
     ) -> bool:
         block_hashes = msg.get_block_hashes()
+        logger.trace("Checking for bodies in local block cache...")
 
-        if len(block_hashes) == 1:
-            block_hash = Sha256Hash(block_hashes[0])
-
-            logger.trace("Checking for bodies in local block cache...")
-
-            return self._node.block_queuing_service.try_send_body_to_node(
-                block_hash
-            )
-
-        return False
+        return self._node.block_queuing_service.try_send_bodies_to_node(
+            block_hashes
+        )

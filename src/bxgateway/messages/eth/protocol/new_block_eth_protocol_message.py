@@ -29,7 +29,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
 
         self._block_header = None
         self._block_body = None
-        self._block_hash = None
+        self._block_hash: Optional[Sha256Hash] = None
         self._timestamp = None
         self._chain_difficulty = None
         self._number: Optional[int] = None
@@ -117,8 +117,9 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             raw_hash = crypto_utils.keccak_hash(self.block_header())
             self._block_hash = Sha256Hash(raw_hash)
 
-        # pyre-fixme[7]: Expected `Sha256Hash` but got `None`.
-        return self._block_hash
+        block_hash = self._block_hash
+        assert block_hash is not None
+        return block_hash
 
     def prev_block_hash(self) -> Sha256Hash:
         _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)

@@ -490,6 +490,9 @@ class EthMessagesTests(AbstractTestCase):
         # verify that field values are correct after deserialization
         self._verify_field_values(msg_cls, msg_deserialized, *args)
 
+        # verify message serializes
+        print(msg)
+
         self.assertEqual(msg.msg_type, msg_cls.msg_type)
         self.assertEqual(msg.msg_type, msg_deserialized.msg_type)
 
