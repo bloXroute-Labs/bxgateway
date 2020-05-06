@@ -13,6 +13,8 @@ from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.notification_message import NotificationMessage, NotificationCode
+from bxcommon.models.entity_type_model import EntityType
+from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -137,9 +139,9 @@ class AbstractRelayConnectionTest(AbstractTestCase):
 
     @patch("bxgateway.connections.abstract_relay_connection.AbstractRelayConnection.log")
     def test_msg_notification(self, log):
-        notification_msg = NotificationMessage(NotificationCode.QUOTA_DEPLETED_TX_BLOCKED,
-                                               helpers.generate_object_hash().binary.hex()
-                                               )
+        args_list = ["10", str(QuotaType.FREE_DAILY_QUOTA.value), str(EntityType.TRANSACTION.value), "100"]
+        args = ",".join(args_list)
+        notification_msg = NotificationMessage(NotificationCode.QUOTA_FILL_STATUS, args)
         log.assert_not_called()
         self.connection.msg_notify(notification_msg)
         log.assert_called_once()

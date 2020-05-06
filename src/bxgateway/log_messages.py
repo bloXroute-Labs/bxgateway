@@ -1,6 +1,6 @@
 from bxutils.logging_messages_utils import LogMessage
 from bxutils.log_message_categories import REQUEST_RESPONSE_CATEGORY, CONNECTION_PROBLEM_CATEGORY, NETWORK_CATEGORY, \
-    GENERAL_CATEGORY, PROCESSING_FAILED_CATEGORY, LOGGING_CATEGORY
+    GENERAL_CATEGORY, PROCESSING_FAILED_CATEGORY, LOGGING_CATEGORY, NOTIFICATION_FROM_RELAY_CATEGORY
 
 NO_GATEWAY_PEERS = LogMessage(
     "G-000000",
@@ -239,4 +239,9 @@ SET_SOCKET_BUFFER_SIZE = LogMessage(
     "G-000045",
     NETWORK_CATEGORY,
     "Socket buffer size set was unsuccessful, and was instead set to {}. Reverting to: {}"
+)
+NOTIFICATION_FROM_RELAY = LogMessage(
+    "G-000046",
+    NOTIFICATION_FROM_RELAY_CATEGORY,
+    "Notification from Relay: {}"
 )
