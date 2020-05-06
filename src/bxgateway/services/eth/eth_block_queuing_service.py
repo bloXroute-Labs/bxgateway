@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator, cast
+from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator, cast, Tuple
 
 from bxcommon import constants
 from bxcommon.utils.alarm_queue import AlarmId
@@ -200,43 +200,94 @@ class EthBlockQueuingService(
                 ).discard(block_hash)
         return index
 
-    def try_send_body_to_node(self, block_hash: Sha256Hash) -> bool:
-        if block_hash not in self._blocks:
-            return False
+    def try_send_bodies_to_node(self, block_hashes: List[Sha256Hash]) -> bool:
+        """
+        Creates and sends block bodies to blockchain connection.
+        """
+        bodies = []
+        for block_hash in block_hashes:
+            if block_hash not in self._blocks:
+                logger.debug("{} was not found in queue. Aborting.", block_hash)
+                return False
 
-        block_message = self._blocks[block_hash]
-        if block_message is None:
-            return False
+            block_message = self._blocks[block_hash]
+            if block_message is None:
+                logger.debug("{} was not ready in the queue. Aborting", block_hash)
+                return False
 
-        if block_hash in self._block_parts:
-            block_body_bytes = self._block_parts[block_hash].block_body_bytes
-        else:
-            block_body_bytes = (
-                block_message.to_new_block_parts().block_body_bytes
+            if block_hash in self._block_parts:
+                block_body_bytes = self._block_parts[block_hash].block_body_bytes
+            else:
+                block_body_bytes = (
+                    block_message.to_new_block_parts().block_body_bytes
+                )
+
+            partial_message = BlockBodiesEthProtocolMessage.from_body_bytes(
+                block_body_bytes
+            )
+            block_bodies = partial_message.get_blocks()
+            assert len(block_bodies) == 1
+            bodies.append(block_bodies[0])
+
+            height = self._height_by_block_hash.contents.get(block_hash, None)
+            logger.debug(
+                "Appending {} body ({}) for sending to blockchain node.",
+                block_hash,
+                height
             )
 
-        block_body_msg = BlockBodiesEthProtocolMessage.from_body_bytes(
-            block_body_bytes
-        )
-        self.node.send_msg_to_node(block_body_msg)
-        height = self._height_by_block_hash.contents.get(block_hash, None)
-        block_stats.add_block_event_by_block_hash(
-            block_hash,
-            BlockStatEventType.BLOCK_HEADER_SENT_TO_BLOCKCHAIN_NODE,
-            network_num=self.node.network_num,
-            block_height=height,
-        )
+        full_message = BlockBodiesEthProtocolMessage(None, bodies)
+        self.node.send_msg_to_node(full_message)
+        return True
+
+    def try_send_headers_to_node(self, block_hashes: List[Sha256Hash]) -> bool:
+        """
+        Creates and sends a block headers message to blockchain connection.
+
+        In most cases, this method should be called with block hashes that are confirmed to
+        exist in the block queuing service, but contains checks for safety for otherwise,
+        and aborts the function if any headers are not found.
+        """
+        headers = []
+        for block_hash in block_hashes:
+            if block_hash not in self._blocks:
+                logger.debug("{} was not found in queue. Aborting.", block_hash)
+                return False
+
+            block_message = self._blocks[block_hash]
+            if block_message is None:
+                logger.debug("{} was not ready in the queue. Aborting", block_hash)
+                return False
+
+            partial_headers_message = self.build_block_header_message(
+                block_hash, block_message
+            )
+            block_headers = partial_headers_message.get_block_headers()
+            assert len(block_headers) == 1
+            headers.append(block_headers[0])
+
+            height = self._height_by_block_hash.contents.get(block_hash, None)
+            logger.debug(
+                "Appending {} header ({}) for sending to blockchain node.",
+                block_hash,
+                height
+            )
+
+        full_header_message = BlockHeadersEthProtocolMessage(None, headers)
+        self.node.send_msg_to_node(full_header_message)
         return True
 
     def get_block_hashes_starting_from_hash(
         self, block_hash: Sha256Hash, max_count: int, skip: int, reverse: bool
-    ) -> List[Sha256Hash]:
+    ) -> Tuple[bool, List[Sha256Hash]]:
         """
         Finds up to max_count block hashes in queue that we still have headers
         and block messages queued up for.
+
+        Returns (success, [found_hashes])
         """
         if block_hash not in self._blocks:
-            return []
+            return False, []
 
         starting_height = self._height_by_block_hash[block_hash]
         logger.trace(
@@ -250,18 +301,20 @@ class EthBlockQueuingService(
 
     def get_block_hashes_starting_from_height(
         self, block_height: int, max_count: int, skip: int, reverse: bool,
-    ) -> List[Sha256Hash]:
+    ) -> Tuple[bool, List[Sha256Hash]]:
         """
-        Peforms a 'best-effort' search for block hashes.
+        Performs a 'best-effort' search for block hashes.
 
-        Gives up if any of the requested blocks are missing or if a fork
-        is detected in the chain.
-
-        Ethereum might request headers for blocks in the future.
-        This is not currently supported.
+        Gives up if a fork is detected in the requested section of the chain.
+        Gives up if a block is requested below the most recent block that's
+        not tracked by this service.
+        Returns as many blocks as possible if some of the blocks requested
+        are in the future and have no been produced yet.
 
         The resulting list starts at `block_height`, and is ascending if
         reverse=False, and descending if reverse=True.
+
+        Returns (success, [found_hashes])
         """
         block_hashes: List[Sha256Hash] = []
         height = block_height
@@ -286,23 +339,32 @@ class EthBlockQueuingService(
                     max_count,
                     block_height,
                 )
-                return []
+                return False, []
+
 
             block_hashes.append(
                 next(iter(self._block_hashes_by_height[height]))
             )
             height += (1 + skip) * multiplier
 
-        # Abort if not all requested block hashes can be found
+        # If a block is requested too far in the past, abort and fallback
+        # to remote blockchain sync
+        if (
+            height < self._highest_block_number
+            and height not in self._block_hashes_by_height
+            and max_count != len(block_hashes)
+        ):
+            return False, []
+
+        # Ok, Ethereum expects as many hashes as node contains.
         if max_count != len(block_hashes):
             logger.trace(
                 "Could not find all {} requested block hashes. Only got {}.",
                 max_count,
                 len(block_hashes),
             )
-            return []
 
-        return block_hashes
+        return True, block_hashes
 
     def iterate_block_hashes_starting_from_hash(
             self,
@@ -337,44 +399,6 @@ class EthBlockQueuingService(
             logger.debug(f"iterating over queued blocks starting for a possible fork {block_hash}")
 
         return self.iterate_block_hashes_starting_from_hash(block_hash, max_count=max_count)
-
-    def try_send_headers_to_node(self, block_hashes: List[Sha256Hash]) -> bool:
-        headers = []
-        for block_hash in block_hashes:
-            if block_hash not in self._blocks:
-                return False
-
-            block_message = self._blocks[block_hash]
-            if block_message is None:
-                return False
-
-            partial_headers_message = self.build_block_header_message(
-                block_hash, block_message
-            )
-            block_headers = partial_headers_message.get_block_headers()
-            assert len(block_headers) == 1
-            headers.append(block_headers[0])
-
-        full_header_message = BlockHeadersEthProtocolMessage(None, headers)
-        self.node.send_msg_to_node(full_header_message)
-        return True
-
-    def is_future_block(self, block_number: int) -> bool:
-        """
-        Determines if a block number is far enough in the future to
-        skip checking with the remote blockchain node.
-
-        During Ethereum's sync, it will request a block header in the future
-        to check if we are ahead of it.
-        """
-        allowed_block_height = (
-            self._highest_block_number
-            + eth_constants.ALLOWED_BLOCK_HEIGHT_DISCREPANCY
-        )
-        return (
-            block_number > allowed_block_height
-            and self._highest_block_number != 0
-        )
 
     def _store_block_parts(
         self, block_hash: Sha256Hash, block_message: InternalEthBlockInfo

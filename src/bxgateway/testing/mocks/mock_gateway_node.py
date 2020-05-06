@@ -23,7 +23,6 @@ from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingServ
 from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
 from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
-from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
 from bxutils.services.node_ssl_service import NodeSSLService
 
 
@@ -64,7 +63,6 @@ class MockGatewayNode(AbstractGatewayNode):
         else:
             self._tx_service = TransactionService(self, self.network_num)
         self.opts.has_fully_updated_tx_service = True
-        self.requested_remote_headers_queue: Deque[RemoteHeaderRequest] = deque()
         self.requester = MagicMock()
         self.node_conn = MagicMock()
         self.node_conn.is_active = MagicMock(return_value=True)

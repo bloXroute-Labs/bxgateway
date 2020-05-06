@@ -1,5 +1,6 @@
 import rlp
 
+from bxcommon.utils import convert
 from bxutils.logging.log_level import LogLevel
 
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
@@ -13,7 +14,16 @@ class GetBlockBodiesEthProtocolMessage(EthProtocolMessage):
     fields = [("block_hashes", rlp.sedes.CountableList(rlp.sedes.binary))]
 
     def __repr__(self):
-        return f"GetBlockBodiesEthProtocolMessage<bodies_count: {len(self.get_block_hashes())}>"
+        requested_hashes = self.get_field_value("block_hashes")
+        request_repr = list(requested_hashes[:1])
+        if len(requested_hashes) > 1:
+            request_repr.append(requested_hashes[-1])
+        request_repr = map(convert.bytes_to_hex, request_repr)
+        return (
+            f"GetBlockBodiesEthProtocolMessage<"
+            f"bodies_count: {len(requested_hashes)}, "
+            f"hashes: [{'...'.join([requested_hash for requested_hash in request_repr])}]>"
+        )
 
     def get_block_hashes(self):
         if self._memory_view is None:

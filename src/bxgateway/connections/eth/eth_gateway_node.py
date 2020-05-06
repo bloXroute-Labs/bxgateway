@@ -32,7 +32,6 @@ from bxgateway.services.push_block_queuing_service import PushBlockQueuingServic
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
-from bxgateway.utils.eth.remote_header_request import RemoteHeaderRequest
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
 from bxutils import logging
 from bxgateway import log_messages
@@ -84,9 +83,6 @@ class EthGatewayNode(AbstractGatewayNode):
 
         self.block_processing_service: EthBlockProcessingService = EthBlockProcessingService(self)
         self.block_queuing_service: EthBlockQueuingService = EthBlockQueuingService(self)
-
-        # queue to track header requests to remote blockchain node
-        self.requested_remote_headers_queue: Deque[RemoteHeaderRequest] = deque()
 
         # List of know total difficulties, tuples of values (block hash, total difficulty)
         self._last_known_difficulties = deque(maxlen=eth_constants.LAST_KNOWN_TOTAL_DIFFICULTIES_MAX_COUNT)

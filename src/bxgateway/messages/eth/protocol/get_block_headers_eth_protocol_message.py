@@ -6,8 +6,6 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import eth_constants
 from bxutils.logging.log_level import LogLevel
 
-from bxcommon.utils import convert
-
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 
