@@ -8,15 +8,18 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test, AsyncMock
 from bxcommon.utils import convert
 
-from bxgateway.testing.mocks.mock_rpc_request import MockRPCRequest
-from bxgateway.rpc.rpc_request_handler import RpcGatewayRequestHandler
-
-from bxgateway.messages.eth import eth_message_converter
 from bxgateway.messages.btc import btc_normal_message_converter
+from bxgateway.messages.eth import eth_message_converter
+from bxgateway.rpc.gateway_rpc_server import GatewayRpcServer
+from bxgateway.rpc.rpc_request_handler import RpcGatewayRequestHandler
+from bxgateway.testing.mocks.mock_rpc_request import MockRPCRequest
 
 
 MISSING_CONTENT_TYPE_REQUEST = MockRPCRequest(headers={}, json_body="")
-BAD_CONTENT_TYPE_REQUEST = MockRPCRequest(headers={RpcGatewayRequestHandler.CONTENT_TYPE: "application/json"}, json_body="")
+BAD_CONTENT_TYPE_REQUEST = MockRPCRequest(
+    headers={RpcGatewayRequestHandler.CONTENT_TYPE: "application/json"},
+    json_body=""
+)
 BAD_JSON_BODY_REQUEST = MockRPCRequest(
     headers={RpcGatewayRequestHandler.CONTENT_TYPE: RpcGatewayRequestHandler.PLAIN},
     json_body="bad json: bad data"
@@ -35,6 +38,10 @@ OK_RPC_REQUEST = MockRPCRequest(
         id="some id",
         params=dict(transaction=convert.bytes_to_hex(helpers.generate_bytes(150)))
     ))
+)
+PROMETHEUS_METRICS_RPC_REQUEST = MockRPCRequest(
+    headers={RpcGatewayRequestHandler.CONTENT_TYPE: RpcGatewayRequestHandler.PLAIN},
+    json_body=""
 )
 
 
@@ -56,6 +63,7 @@ class RpcGatewayRequestHandlerTest(AbstractTestCase):
 
     def setUp(self) -> None:
         self.handler = RpcGatewayRequestHandler(MagicMock())
+        self.rpc_server = GatewayRpcServer(MagicMock())
         self.blxr_tx_request_mock = MockBlxrTxRequest()
 
         def get_rpc_request(hdlr, request_type):
@@ -70,6 +78,7 @@ class RpcGatewayRequestHandlerTest(AbstractTestCase):
         await test_raises(HTTPBadRequest, self.handler.handle_request, BAD_JSON_BODY_REQUEST)
         await test_raises(HTTPBadRequest, self.handler.handle_request, BAD_RPC_REQUEST)
         await self.handler.handle_request(OK_RPC_REQUEST)
+        await self.rpc_server.handle_metrics(PROMETHEUS_METRICS_RPC_REQUEST)
         self.blxr_tx_request_mock.mock.process_request.assert_called_once()
 
 

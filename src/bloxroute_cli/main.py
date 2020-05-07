@@ -22,7 +22,7 @@ from bxcommon.rpc.rpc_request_type import RpcRequestType
 COMMANDS_HELP = [
     "{:<18} exit the CLI.".format("exit"),
     "{:<18} print detailed help.".format("help"),
-    "{:<18} send a transactions to the bloXroute BDN.".format("blxr_tx"),
+    "{:<18} send transaction to the bloXroute BDN.".format("blxr_tx"),
     "{:<18} get the status of the bloXroute Gateway.".format("gateway_status"),
     "{:<18} get the memory stats of the bloXroute Gateway.".format("memory"),
     "{:<18} shutdown the Gateway server.".format("stop"),

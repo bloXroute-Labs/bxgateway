@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
 class GatewayStopRpcRequest(AbstractGatewayRpcRequest):
     help = {
-        "params": "NA",
-        "description": "Shutdown request to the gateway"
+        "params": "",
+        "description": "shutdown request to the gateway"
     }
 
     def __init__(

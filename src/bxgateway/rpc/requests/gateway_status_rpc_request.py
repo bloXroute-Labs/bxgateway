@@ -17,9 +17,8 @@ if TYPE_CHECKING:
 class GatewayStatusRpcRequest(AbstractGatewayRpcRequest):
     DETAILS_LEVEL = rpc_constants.DETAILS_LEVEL_PARAMS_KEY
     help = {
-        "params": "Optional - {}: {}.".format(
-            DETAILS_LEVEL, list(GatewayStatusDetailsLevel.__members__.keys())
-        )
+        "params": f"Optional - {DETAILS_LEVEL}: {list(GatewayStatusDetailsLevel.__members__.keys())}.",
+        "description": "return status of the bloXroute Gateway"
     }
 
     def __init__(
