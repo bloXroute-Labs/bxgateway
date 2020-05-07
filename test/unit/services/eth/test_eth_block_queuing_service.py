@@ -1,18 +1,7 @@
-from mock import MagicMock, Mock
-
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils import helpers
-
-from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import \
     BlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import \
     BlockHeadersEthProtocolMessage
-from bxgateway.services.eth.eth_block_queuing_service import (
-    EthBlockQueuingService,
-)
-from bxgateway.testing.mocks import mock_eth_messages
-from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from mock import MagicMock, Mock
 
 from bxcommon.test_utils import helpers
