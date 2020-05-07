@@ -238,17 +238,18 @@ class EthGatewayNode(AbstractGatewayNode):
 
         return block_total_difficulty
 
-    def log_requested_remote_blocks(self, block_hashes: List[memoryview]) -> None:
+    def log_requested_remote_blocks(self, block_hashes: List[Sha256Hash]) -> None:
         if self._skip_remote_block_requests_stats_count > 0:
             self._skip_remote_block_requests_stats_count -= 1
         else:
             for block_hash in block_hashes:
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.REMOTE_BLOCK_REQUESTED_BY_GATEWAY,
-                                                          network_num=self.network_num,
-                                                          more_info="Protocol: {}, Network: {}".format(
-                                                              self.opts.blockchain_protocol,
-                                                              self.opts.blockchain_network))
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.REMOTE_BLOCK_REQUESTED_BY_GATEWAY,
+                    network_num=self.network_num,
+                    more_info=f"Protocol: {self.opts.blockchain_protocol}, "
+                              f"Network: {self.opts.blockchain_network}"
+                )
             self._requested_remote_blocks_queue.append(block_hashes)
 
     def log_received_remote_blocks(self, blocks_count: int) -> None:

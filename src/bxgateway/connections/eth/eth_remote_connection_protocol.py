@@ -46,7 +46,10 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
             "Received unexpected get block bodies message from remote "
             "blockchain node for {} blocks: {}. Replying with empty block bodies.",
             len(block_hashes),
-            ", ".join([convert.bytes_to_hex(block_hash) for block_hash in block_hashes[:10]]))
+            ", ".join(
+                [convert.bytes_to_hex(block_hash.binary) for block_hash in block_hashes[:10]]
+            )
+        )
         empty_block_bodies_msg = BlockBodiesEthProtocolMessage(None, [])
         self.connection.enqueue_msg(empty_block_bodies_msg)
 
