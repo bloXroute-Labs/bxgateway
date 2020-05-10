@@ -4,6 +4,7 @@ from typing import List, TYPE_CHECKING, Union
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import NULL_BTC_BLOCK_HASH
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -21,7 +22,6 @@ from bxgateway.messages.btc.inventory_btc_message import GetDataBtcMessage, Inve
 from bxgateway.messages.btc.send_compact_btc_message import SendCompactBtcMessage
 from bxgateway.messages.btc.ver_ack_btc_message import VerAckBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
-from bxgateway.utils.btc.btc_object_hash import NULL_BTC_BLOCK_HASH
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 
 if TYPE_CHECKING:

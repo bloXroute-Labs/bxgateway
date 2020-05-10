@@ -1,10 +1,10 @@
 import struct
 from typing import Tuple, Optional, Union
 
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway import ont_constants
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.ont_message_type import OntMessageType
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 class GetDataOntMessage(OntMessage):
@@ -24,7 +24,7 @@ class GetDataOntMessage(OntMessage):
                 #  2nd param but got `Optional[bytes]`.
                 buf[off: off + ont_constants.ONT_CHAR_LEN] = inv_type
             off += ont_constants.ONT_CHAR_LEN
-            # pyre-fixme[16]: `Optional` has no attribute `get_big_endian`.
+            assert block is not None
             buf[off:off + ont_constants.ONT_HASH_LEN] = block.get_big_endian()
             off += ont_constants.ONT_HASH_LEN
 
@@ -46,6 +46,7 @@ class GetDataOntMessage(OntMessage):
             off += ont_constants.ONT_CHAR_LEN
             self._block = OntObjectHash(buf=self.buf, offset=off, length=ont_constants.ONT_HASH_LEN)
 
-        # pyre-fixme[7]: Expected `Tuple[int, OntObjectHash]` but got `Tuple[None,
-        #  None]`.
-        return self._inv_type, self._block
+        inv_type, block = self._inv_type, self._block
+        assert isinstance(inv_type, int)
+        assert isinstance(block, OntObjectHash)
+        return inv_type, block

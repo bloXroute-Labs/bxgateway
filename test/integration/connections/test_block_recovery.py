@@ -16,12 +16,12 @@ from bxcommon.models.transaction_info import TransactionInfo
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 
 from bxgateway import btc_constants, gateway_constants
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc import btc_message_converter_factory
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):

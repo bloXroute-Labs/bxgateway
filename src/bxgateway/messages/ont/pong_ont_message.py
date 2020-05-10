@@ -35,5 +35,6 @@ class PongOntMessage(OntMessage):
             else:
                 self._height, = struct.unpack_from("<Q", self.buf, ont_constants.ONT_HDR_COMMON_OFF)
 
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._height
+        height = self._height
+        assert isinstance(height, int)
+        return height

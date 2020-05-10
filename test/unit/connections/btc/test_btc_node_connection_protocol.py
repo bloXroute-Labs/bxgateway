@@ -4,6 +4,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 
 from bxgateway.btc_constants import NODE_WITNESS_SERVICE_FLAG, BTC_SHA_HASH_LEN
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
@@ -11,7 +12,6 @@ from bxgateway.connections.btc.btc_node_connection_protocol import BtcNodeConnec
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType, GetDataBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BtcNodeConnectionProtocolTest(AbstractTestCase):

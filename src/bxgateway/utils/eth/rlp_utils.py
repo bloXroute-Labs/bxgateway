@@ -2,7 +2,7 @@ import binascii
 from math import ceil
 from typing import List, Optional
 
-from bxcommon.exceptions import ParseError
+from bxcommon.utils.blockchain_utils.eth.eth_common_util import safe_ord, big_endian_to_int, consume_length_prefix
 
 """
 Utility functions to work with RLP (Recursive Length Prefix) encoding.
@@ -100,61 +100,6 @@ def get_length_prefix(length, offset):
         raise ValueError("Length greater than 256**8")
 
 
-def consume_length_prefix(rlp, start):
-    """Read a length prefix from an RLP string.
-
-    :param rlp: the rlp string to read from
-    :param start: the position at which to start reading
-    :returns: a tuple ``(type, length, end)``, where ``type`` is either ``str``
-              or ``list`` depending on the type of the following payload,
-              ``length`` is the length of the payload in bytes, and ``end`` is
-              the position of the first payload byte in the rlp string
-    """
-    if not isinstance(rlp, memoryview):
-        raise TypeError("Only memoryview is allowed for RLP content for best performance. Type provided was: {}"
-                        .format(type(rlp)))
-
-    if start is None:
-        raise ValueError("Argument start is required")
-
-    b0 = safe_ord(rlp[start])
-    if b0 < 128:  # single byte
-        return (str, 1, start)
-    elif b0 < 128 + 56:  # short string
-        if b0 - 128 == 1 and safe_ord(rlp[start + 1]) < 128:
-            raise ParseError("Encoded as short string although single byte was possible")
-        return (str, b0 - 128, start + 1)
-    elif b0 < 192:  # long string
-        ll = b0 - 128 - 56 + 1
-        if rlp[start + 1:start + 2] == b"\x00":
-            raise ParseError("Length starts with zero bytes")
-        l = big_endian_to_int(rlp[start + 1:start + 1 + ll])
-        if l < 56:
-            raise ParseError("Long string prefix used for short string")
-        return (str, l, start + 1 + ll)
-    elif b0 < 192 + 56:  # short list
-        return (list, b0 - 192, start + 1)
-    else:  # long list
-        ll = b0 - 192 - 56 + 1
-        if rlp[start + 1:start + 2] == b"\x00":
-            raise ParseError("Length starts with zero bytes")
-        l = big_endian_to_int(rlp[start + 1:start + 1 + ll])
-        if l < 56:
-            raise ParseError("Long list prefix used for short list")
-        return (list, l, start + 1 + ll)
-
-
-def big_endian_to_int(value):
-    """
-    Convert big endian to int
-
-    :param value: big ending value
-    :return: int value
-    """
-
-    return int.from_bytes(value, byteorder="big")
-
-
 def int_to_big_endian(value):
     """
     Converts int to big endian
@@ -165,20 +110,6 @@ def int_to_big_endian(value):
 
     byte_length = max(ceil(value.bit_length() / 8), 1)
     return (value).to_bytes(byte_length, byteorder="big")
-
-
-def safe_ord(c):
-    """
-    Returns an integer representing the Unicode code point of the character or int if int argument is passed
-
-    :param c: character or integer
-    :return: integer representing the Unicode code point of the character or int if int argument is passed
-    """
-
-    if isinstance(c, int):
-        return c
-    else:
-        return ord(c)
 
 
 def ascii_chr(value):

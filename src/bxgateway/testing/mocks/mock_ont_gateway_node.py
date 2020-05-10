@@ -9,6 +9,7 @@ from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketC
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.ont.ont_gateway_node import OntGatewayNode
@@ -18,7 +19,6 @@ from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueui
 from bxgateway.services.ont.abstract_ont_block_cleanup_service import AbstractOntBlockCleanupService
 from bxgateway.services.ont.ont_block_queuing_service import OntBlockQueuingService
 from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 from bxutils.services.node_ssl_service import NodeSSLService
 
 

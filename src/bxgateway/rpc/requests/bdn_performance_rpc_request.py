@@ -1,11 +1,10 @@
-from datetime import datetime
 from typing import Any, Dict, Optional
 
 from aiohttp.web_response import Response
 from aiohttp.web_exceptions import HTTPOk
 
 from bxcommon.utils.stats import stats_format
-from bxgateway.rpc.requests.abstract_rpc_request import AbstractRpcRequest
+from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractGatewayRpcRequest
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import (
     gateway_bdn_performance_stats_service,
     GatewayBdnPerformanceStatInterval,
@@ -15,7 +14,7 @@ BLOCKS_FROM_BDN = "blocks_from_bdn_percentage"
 TX_FROM_BDN = "transactions_from_bdn_percentage"
 
 
-class BdnPerformanceRpcRequest(AbstractRpcRequest):
+class BdnPerformanceRpcRequest(AbstractGatewayRpcRequest):
     help = {
         "params": "",
         "description": "return percentage of blocks/transactions first received from BDN rather than from p2p network"

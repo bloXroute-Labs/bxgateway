@@ -3,14 +3,15 @@ import struct
 from bxgateway.btc_constants import BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN, BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
-from bxgateway.messages.btc.btc_messages_util import btc_varint_to_int, pack_int_to_btc_varint
+from bxgateway.messages.btc.btc_messages_util import pack_int_to_btc_varint
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.btc.btc_common_util import btc_varint_to_int
 
 
 # A BlockHeader is the first 80 bytes of the corresponding block message payload
 # terminated by a null byte (\x00) to signify that there are no services.
 # FIXME, there's a lot of duplicate code between here and BlockBTCMessage
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BlockHeader(object):

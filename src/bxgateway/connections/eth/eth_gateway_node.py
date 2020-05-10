@@ -34,7 +34,7 @@ from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
 from bxutils import logging
-from bxgateway import log_messages
+from bxgateway import log_messages, eth_constants
 from bxutils.services.node_ssl_service import NodeSSLService
 
 logger = logging.get_logger(__name__)
@@ -64,7 +64,7 @@ class EthGatewayNode(AbstractGatewayNode):
     }
 
     def __init__(self, opts, node_ssl_service: NodeSSLService):
-        super(EthGatewayNode, self).__init__(opts, node_ssl_service)
+        super(EthGatewayNode, self).__init__(opts, node_ssl_service, eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S)
 
         self._node_public_key = None
         self._remote_public_key = None

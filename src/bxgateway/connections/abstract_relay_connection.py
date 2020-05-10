@@ -23,6 +23,7 @@ from bxgateway import log_messages
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxutils.logging import LogLevel
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -102,7 +103,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         short_id = msg.short_id()
         tx_hash = msg.tx_hash()
         network_num = msg.network_num()
-        tx_val = msg.tx_val()
 
         attempt_recovery = False
 
@@ -264,5 +264,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     def msg_cleanup(self, msg: AbstractCleanupMessage):
         self.node.block_cleanup_service.process_cleanup_message(msg, self.node)
 
-    def msg_notify(self, msg: NotificationMessage):
-        self.log(msg.level(), "Notification from Relay {}", msg.formatted_message())
+    def msg_notify(self, msg: NotificationMessage) -> None:
+        if msg.level() == LogLevel.WARNING or msg.level() == LogLevel.ERROR:
+            self.log(msg.level(), log_messages.NOTIFICATION_FROM_RELAY, msg.formatted_message())
+        else:
+            self.log(msg.level(), "Notification from Relay: {}", msg.formatted_message())

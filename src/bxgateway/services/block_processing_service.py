@@ -343,6 +343,8 @@ class BlockProcessingService:
 
         self._process_and_broadcast_compressed_block(bx_block, connection, block_info, block_hash)
 
+        self._node.log_blocks_network_content(self._node.network_num, block_message)
+
     def _process_and_broadcast_compressed_block(self,
                                                 bx_block,
                                                 connection: AbstractGatewayBlockchainConnection,

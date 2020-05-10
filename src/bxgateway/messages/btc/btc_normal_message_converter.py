@@ -14,6 +14,8 @@ from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.utils import crypto, convert
 from bxcommon.messages.bloxroute.compact_block_short_ids_serializer import BlockOffsets
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.utils.blockchain_utils.btc import btc_common_util
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import btc_constants
@@ -23,7 +25,6 @@ from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMes
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.utils.block_info import BlockInfo
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.utils.block_header_info import BlockHeaderInfo
 from bxgateway.messages.btc import btc_messages_util
@@ -66,7 +67,7 @@ def parse_bx_block_header(
     offset = block_header_size
 
     # Add header piece
-    txn_count, txn_count_size = btc_messages_util.btc_varint_to_int(bx_block, block_header_size)
+    txn_count, txn_count_size = btc_common_util.btc_varint_to_int(bx_block, block_header_size)
     offset += txn_count_size
     block_pieces.append(bx_block[block_offsets.block_begin_offset:offset])
     return BlockHeaderInfo(block_offsets, short_ids, short_ids_len, block_hash, offset, txn_count)
@@ -150,7 +151,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
 
         for tx in block_msg.txns():
 
-            tx_hash = btc_messages_util.get_txid(tx)
+            tx_hash = btc_common_util.get_txid(tx)
             short_id = tx_service.get_short_id(tx_hash)
             if short_id == constants.NULL_TX_SID:
                 buf.append(tx)

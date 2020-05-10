@@ -3,6 +3,9 @@ from typing import cast
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from mock import MagicMock
 
+from bxcommon.models.transaction_info import TransactionInfo
+from bxcommon.models.broadcast_message_type import BroadcastMessageType
+
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
@@ -11,12 +14,12 @@ from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.key_message import KeyMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
-from bxcommon.models.transaction_info import TransactionInfo
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxcommon.utils.crypto import symmetric_encrypt, SHA256_HASH_LEN
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
@@ -28,7 +31,6 @@ from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 import bxgateway.messages.btc.btc_message_converter_factory as converter_factory
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 
@@ -95,7 +97,8 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         key, ciphertext = symmetric_encrypt(bx_block)
         block_hash = crypto.double_sha256(ciphertext)
-        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "", True, ciphertext)
+        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "",
+                                             BroadcastMessageType.BLOCK, True, ciphertext)
 
         self.sut.msg_broadcast(broadcast_message)
 
@@ -127,8 +130,8 @@ class BtcRelayConnectionTest(AbstractTestCase):
                                                                                     unknown_sid_transaction_service)[0])
         unknown_key, unknown_cipher = symmetric_encrypt(unknown_short_id_block)
         unknown_block_hash = crypto.double_sha256(unknown_cipher)
-        unknown_message = BroadcastMessage(Sha256Hash(unknown_block_hash), self.TEST_NETWORK_NUM, "", True,
-                                           unknown_cipher)
+        unknown_message = BroadcastMessage(Sha256Hash(unknown_block_hash), self.TEST_NETWORK_NUM, "",
+                                           BroadcastMessageType.BLOCK, True, unknown_cipher)
         unknown_key_message = KeyMessage(Sha256Hash(unknown_block_hash), self.TEST_NETWORK_NUM, "", unknown_key)
 
         local_transaction_service = self.gateway_node.get_tx_service()
@@ -140,7 +143,8 @@ class BtcRelayConnectionTest(AbstractTestCase):
                                                                                   local_transaction_service)[0])
         known_key, known_cipher = symmetric_encrypt(known_short_id_block)
         known_block_hash = crypto.double_sha256(known_cipher)
-        known_message = BroadcastMessage(Sha256Hash(known_block_hash), self.TEST_NETWORK_NUM, "", True, known_cipher)
+        known_message = BroadcastMessage(Sha256Hash(known_block_hash), self.TEST_NETWORK_NUM, "",
+                                         BroadcastMessageType.BLOCK, True, known_cipher)
         known_key_message = KeyMessage(Sha256Hash(known_block_hash), self.TEST_NETWORK_NUM, "", known_key)
 
         self.sut.msg_broadcast(unknown_message)
@@ -176,7 +180,8 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         self.assertEqual(1, len(self.gateway_node.in_progress_blocks))
 
-        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "", True, ciphertext)
+        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "",
+                                             BroadcastMessageType.BLOCK, True, ciphertext)
         self.sut.msg_broadcast(broadcast_message)
 
         self._assert_block_sent(btc_block)
@@ -256,7 +261,9 @@ class BtcRelayConnectionTest(AbstractTestCase):
         key, ciphertext = symmetric_encrypt(bx_block)
         block_hash = crypto.double_sha256(ciphertext)
         key_message = KeyMessage(Sha256Hash(block_hash), DEFAULT_NETWORK_NUM, "", key)
-        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), DEFAULT_NETWORK_NUM, "", True, ciphertext)
+        broadcast_message = BroadcastMessage(Sha256Hash(block_hash), DEFAULT_NETWORK_NUM, "",
+                                             BroadcastMessageType.BLOCK, True, ciphertext)
+
 
         self.sut.msg_broadcast(broadcast_message)
 

@@ -5,7 +5,7 @@ from aiohttp.web_exceptions import HTTPOk
 from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import stats_format
 
-from bxgateway.rpc.requests.abstract_rpc_request import AbstractRpcRequest
+from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractGatewayRpcRequest
 
 
 TOTAL_MEM_USAGE = "total_mem_usage"
@@ -13,7 +13,7 @@ TOTAL_CACHED_TX = "total_cached_transactions"
 TOTAL_CACHED_TX_SIZE = "total_cached_transactions_size"
 
 
-class GatewayMemoryRpcRequest(AbstractRpcRequest):
+class GatewayMemoryRpcRequest(AbstractGatewayRpcRequest):
 
     help = {
         "params": "",

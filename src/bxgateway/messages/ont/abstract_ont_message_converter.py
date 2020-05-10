@@ -6,12 +6,13 @@ from typing import Optional, List, Tuple, Union
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.utils import crypto, convert
+from bxcommon.utils.blockchain_utils.bdn_tx_to_bx_tx import bdn_tx_to_bx_tx
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import ont_constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
-from bxgateway.messages.ont import ont_messages_util
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
+from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.tx_ont_message import TxOntMessage
 from bxgateway.utils.block_info import BlockInfo
@@ -24,7 +25,7 @@ def get_block_info(
         decompress_start_datetime: datetime,
         decompress_start_timestamp: float,
         total_tx_count: Optional[int] = None,
-        ont_block_msg: Optional[BlockOntMessage] = None
+        ont_block_msg: Optional[Union[BlockOntMessage, OntConsensusMessage]] = None
 ) -> BlockInfo:
     if ont_block_msg is not None:
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block))
@@ -98,12 +99,4 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
             network_num: int,
             quota_type: Optional[QuotaType] = None
     ) -> TxMessage:
-        if isinstance(raw_tx, bytes):
-            raw_tx = bytearray(raw_tx)
-        try:
-            tx_hash, _ = ont_messages_util.get_txid(raw_tx)
-        except IndexError:
-            raise ValueError(f"Invalid raw transaction provided!")
-        return TxMessage(
-            message_hash=tx_hash, network_num=network_num, tx_val=raw_tx, quota_type=quota_type
-        )
+        return bdn_tx_to_bx_tx(raw_tx, network_num, quota_type)

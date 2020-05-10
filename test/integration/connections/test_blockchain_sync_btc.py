@@ -2,6 +2,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 
 from bxgateway.connections.btc.btc_gateway_node import BtcGatewayNode
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
@@ -9,7 +10,6 @@ from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
 from bxgateway.messages.btc.data_btc_message import GetHeadersBtcMessage
 from bxgateway.messages.btc.headers_btc_message import HeadersBtcMessage
 from bxgateway.testing import spies
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class BlockchainSyncBtcTest(AbstractTestCase):

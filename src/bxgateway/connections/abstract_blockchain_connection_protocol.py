@@ -27,7 +27,8 @@ class AbstractBlockchainConnectionProtocol:
     def __init__(
             self,
             connection: AbstractGatewayBlockchainConnection,
-            block_cleanup_poll_interval_s: int = gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S):
+            block_cleanup_poll_interval_s: int = gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S,
+    ):
         self.block_cleanup_poll_interval_s = block_cleanup_poll_interval_s
         self.connection = connection
 
@@ -38,10 +39,10 @@ class AbstractBlockchainConnectionProtocol:
         bx_tx_messages = self.connection.node.message_converter.tx_to_bx_txs(
             msg, self.connection.network_num, self.connection.node.default_tx_quota_type
         )
-
+        tx_service = self.connection.node.get_tx_service()
         for (bx_tx_message, tx_hash, tx_bytes) in bx_tx_messages:
-            if self.connection.node.get_tx_service().has_transaction_contents(tx_hash) or \
-                    self.connection.node.get_tx_service().removed_transaction(tx_hash):
+            if tx_service.has_transaction_contents(tx_hash) or \
+                    tx_service.removed_transaction(tx_hash):
                 tx_stats.add_tx_by_hash_event(tx_hash,
                                               TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                               self.connection.network_num,
@@ -105,6 +106,7 @@ class AbstractBlockchainConnectionProtocol:
         node.on_block_seen_by_blockchain_node(block_hash, msg)
         node.block_processing_service.queue_block_for_processing(msg, self.connection)
         gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
+        node.block_queuing_service.store_block_data(block_hash, msg)
         return
 
     def msg_proxy_request(self, msg):

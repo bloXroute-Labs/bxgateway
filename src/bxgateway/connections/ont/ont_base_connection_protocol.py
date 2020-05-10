@@ -1,6 +1,12 @@
 import typing
+from abc import abstractmethod
+from typing import List, Union
 
+from bxcommon import constants
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import ont_constants
+from bxgateway import gateway_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.messages.ont.addr_ont_message import AddrOntMessage
@@ -19,7 +25,10 @@ logger = logging.get_logger(__name__)
 
 class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
     def __init__(self, connection: AbstractGatewayBlockchainConnection):
-        super(OntBaseConnectionProtocol, self).__init__(connection)
+        super(OntBaseConnectionProtocol, self).__init__(
+            connection,
+            block_cleanup_poll_interval_s=ont_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S
+                                                        )
         self.node = typing.cast("bxgateway.connections.ont.ont_gateway_node.OntGatewayNode", connection.node)
         self.magic = self.node.opts.blockchain_net_magic
         self.version = self.node.opts.blockchain_version
@@ -27,7 +36,6 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
         connection.hello_messages = ont_constants.ONT_HELLO_MESSAGES
         connection.header_size = ont_constants.ONT_HDR_COMMON_OFF
-
         connection.message_factory = ont_message_factory
         connection.message_handlers = {
             OntMessageType.PING: self.msg_ping,
@@ -39,7 +47,8 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                         self.node.opts.http_info_port, self.node.opts.consensus_port,
                                         ont_constants.STARTUP_CAP, self.node.opts.blockchain_nonce, 0,
                                         self.node.opts.relay, self.node.opts.is_consensus,
-                                        ont_constants.STARTUP_SOFT_VERSION.encode("utf-8"),
+                                        f"{gateway_constants.GATEWAY_PEER_NAME} "
+                                        f"{self.node.opts.source_version}".encode(constants.DEFAULT_TEXT_ENCODING),
                                         self.node.opts.blockchain_services)
         connection.enqueue_msg(version_msg)
 
@@ -51,8 +60,18 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         if not self.node.should_process_block_hash(block_hash):
             return
 
-        # TODO: block_cleanup_service
-        super().msg_block(msg)
+        if self.node.block_cleanup_service.is_marked_for_cleanup(block_hash):
+            self.connection.log_trace("Marked block for cleanup: {}", block_hash)
+            self.node.block_cleanup_service.clean_block_transactions(
+                transaction_service=self.node.get_tx_service(),
+                block_msg=msg
+            )
+        else:
+            super().msg_block(msg)
+
+        # After receiving block message sending INV message for the same block to Ontology node
+        # This is needed to update Synced Headers value of the gateway peer on the Ontology node
+        # If Synced Headers is not up-to-date than Ontology node does not push compact blocks to the gateway
         inv_msg = InvOntMessage(magic=self.node.opts.blockchain_net_magic,
                                 inv_type=InventoryOntType.MSG_BLOCK, blocks=[block_hash])
         self.node.send_msg_to_node(inv_msg)
@@ -68,3 +87,18 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
     def msg_getaddr(self, _msg: GetAddrOntMessage):
         reply = AddrOntMessage(self.magic)
         self.connection.enqueue_msg(reply)
+
+    @abstractmethod
+    def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
+        pass
+
+    @abstractmethod
+    def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
+        """
+        set the transaction contents in the connection transaction service.
+        since some buffers needs to be copied while others should not, this handler was added.
+        avoid calling transaction_service.set_transactions_contents directly from this class or its siblings.
+        :param tx_hash: the transaction hash
+        :param tx_content: the transaction contents buffer
+        """
+        pass

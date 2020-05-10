@@ -68,12 +68,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 self._request_blocks_confirmation
             )
 
-        if eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S > 0:
-            self.connection.node.alarm_queue.register_alarm(
-                eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S,
-                self._tracked_block_cleanup
-            )
-
         self.requested_blocks_for_confirmation: ExpiringDict[
             Sha256Hash, float
         ] = ExpiringDict(
@@ -108,20 +102,28 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
         block_hash_number_pairs = []
         for block_hash, block_number in msg.get_block_hash_number_pairs():
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_ANNOUNCED_BY_BLOCKCHAIN_NODE,
-                                                      network_num=self.connection.network_num,
-                                                      more_info="Protocol: {}, Network: {}. {}".format(
-                                                          self.node.opts.blockchain_protocol,
-                                                          self.node.opts.blockchain_network,
-                                                          msg.extra_stats_data()
-                                                      ))
+            block_height = self.node.block_queuing_service.get_block_height(block_hash)
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_ANNOUNCED_BY_BLOCKCHAIN_NODE,
+                network_num=self.connection.network_num,
+                more_info="Protocol: {}, Network: {}. {}".format(
+                    self.node.opts.blockchain_protocol,
+                    self.node.opts.blockchain_network,
+                    msg.extra_stats_data()
+                ),
+                block_height=block_height,
+            )
 
             if block_hash in self.node.blocks_seen.contents:
                 self.node.on_block_seen_by_blockchain_node(block_hash)
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
-                                                          network_num=self.connection.network_num)
+                block_height = self.node.block_queuing_service.get_block_height(block_hash)
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
+                    network_num=self.connection.network_num,
+                    block_height=block_height,
+                )
                 self.connection.log_info(
                     "Ignoring duplicate block {} from local blockchain node.",
                     block_hash
@@ -261,14 +263,18 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             self._pending_new_blocks_parts.remove_item(ready_block_hash)
 
             if self.is_valid_block_timestamp(new_block_msg):
-                block_stats.add_block_event_by_block_hash(ready_block_hash,
-                                                          BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
-                                                          network_num=self.connection.network_num,
-                                                          more_info="Protocol: {}, Network: {}. {}".format(
-                                                              self.node.opts.blockchain_protocol,
-                                                              self.node.opts.blockchain_network,
-                                                              new_block_msg.extra_stats_data()
-                                                          ))
+                block_height = self.node.block_queuing_service.get_block_height(ready_block_hash)
+                block_stats.add_block_event_by_block_hash(
+                    ready_block_hash,
+                    BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
+                    network_num=self.connection.network_num,
+                    more_info="Protocol: {}, Network: {}. {}".format(
+                        self.node.opts.blockchain_protocol,
+                        self.node.opts.blockchain_network,
+                        new_block_msg.extra_stats_data()
+                    ),
+                    block_height=block_height,
+                )
                 self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
                     ready_block_hash, new_block_msg
                 )
@@ -308,15 +314,3 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 skip=0,
                 reverse=0
             )
-
-    def _tracked_block_cleanup(self):
-        if not self.connection.is_alive():
-            return None
-        node = self.connection.node
-        tx_service = node.get_tx_service()
-        block_queuing_service = self.node.block_queuing_service
-        tracked_blocks = tx_service.get_oldest_tracked_block(0)
-        for depth, block_hash in enumerate(block_queuing_service.iterate_recent_block_hashes()):
-            if depth > node.network.block_confirmations_count and block_hash in tracked_blocks:
-                self.node.block_cleanup_service.block_cleanup_request(block_hash)
-        return eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S

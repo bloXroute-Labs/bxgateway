@@ -1,5 +1,9 @@
 import typing
+from abc import abstractmethod
+from typing import List, Union
 
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import btc_constants, gateway_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
@@ -81,3 +85,18 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         """
         reply = AddrBtcMessage(self.magic)
         self.connection.enqueue_msg(reply)
+
+    @abstractmethod
+    def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
+        pass
+
+    @abstractmethod
+    def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
+        """
+        set the transaction contents in the connection transaction service.
+        since some buffers needs to be copied while others should not, this handler was added.
+        avoid calling transaction_service.set_transactions_contents directly from this class or its siblings.
+        :param tx_hash: the transaction hash
+        :param tx_content: the transaction contents buffer
+        """
+        pass

@@ -29,6 +29,8 @@ PID_FILE_NAME = "bxgateway.pid"
 def convert_net_magic(magic):
     if magic in btc_constants.BTC_MAGIC_NUMBERS:
         return btc_constants.BTC_MAGIC_NUMBERS[magic]
+    elif magic in ont_constants.ONT_MAGIC_NUMBERS:
+        return ont_constants.ONT_MAGIC_NUMBERS[magic]
     else:
         return int(magic)
 
@@ -230,34 +232,6 @@ def get_opts() -> GatewayOpts:
                                  "when the flag is set to True",
                             type=convert.str_to_bool,
                             default=True)
-    default_rpc_port = config.get_env_default(GatewayStartArgs.GATEWAY_RPC_PORT)
-    arg_parser.add_argument(
-        "--rpc-port",
-        help=f"The Gateway RPC server port (default: {default_rpc_port})",
-        type=int,
-        default=default_rpc_port
-    )
-    default_rpc_host = config.get_env_default(GatewayStartArgs.GATEWAY_RPC_HOST)
-    arg_parser.add_argument(
-        "--rpc-host",
-        help=f"The Gateway RPC server port (default: {default_rpc_host})",
-        type=str,
-        default=default_rpc_host
-    )
-    default_rpc_user = config.get_env_default(GatewayStartArgs.GATEWAY_RPC_USER)
-    arg_parser.add_argument(
-        "--rpc-user",
-        help=f"The Gateway RPC server user (default: {default_rpc_user})",
-        type=str,
-        default=default_rpc_user
-    )
-    default_rpc_password = config.get_env_default(GatewayStartArgs.GATEWAY_RPC_PASSWORD)
-    arg_parser.add_argument(
-        "--rpc-password",
-        help=f"The Gateway RPC server user (default: {default_rpc_password})",
-        type=str,
-        default=default_rpc_password
-    )
     default_tx_quota_type = config.get_env_default(GatewayStartArgs.DEFAULT_TX_QUOTA_TYPE)
     arg_parser.add_argument(
         "--default-tx-quota-type",

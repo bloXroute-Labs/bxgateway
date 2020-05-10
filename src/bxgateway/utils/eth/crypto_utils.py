@@ -7,6 +7,7 @@ from Crypto.Hash import keccak
 from coincurve import PrivateKey, PublicKey
 
 from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.eth.eth_common_util import keccak_hash
 from bxgateway import eth_constants
 from bxgateway.utils.eth import rlp_utils
 
@@ -25,20 +26,6 @@ def sign(msg, private_key):
 
     pk = PrivateKey(private_key)
     return pk.sign_recoverable(msg, hasher=None)
-
-
-def keccak_hash(input):
-    """
-    Calculates SHA3 hash of the string
-    :param input: string to calculate hash from
-    :return: SHA3 hash
-    """
-
-    if not input:
-        raise ValueError("Input is required")
-
-    hash = keccak.new(digest_bits=eth_constants.SHA3_LEN_BITS, data=input)
-    return hash.digest()
 
 
 def get_sha3_calculator(input):

@@ -41,7 +41,8 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
     def __init__(self, connection, is_handshake_initiator, private_key, public_key):
         super(EthBaseConnectionProtocol, self).__init__(
             connection,
-            block_cleanup_poll_interval_s=eth_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S)
+            block_cleanup_poll_interval_s=eth_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S
+        )
 
         self.node = typing.cast("bxgateway.connections.eth.eth_gateway_node.EthGatewayNode", connection.node)
 

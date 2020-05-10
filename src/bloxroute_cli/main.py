@@ -13,18 +13,16 @@ from json import JSONDecodeError
 from typing import Optional, Union, Dict, List, Any
 from aiohttp import ClientSession, ClientResponse, ClientConnectorError, ContentTypeError, ClientConnectionError
 
-from bxgateway.rpc import rpc_constants
-from bxgateway.rpc.rpc_request_type import RpcRequestType
+from bxcommon.models.blockchain_protocol import BlockchainProtocol
+from bxcommon.models.url_scheme import UrlScheme
+from bxcommon.rpc import rpc_constants
+from bxcommon.rpc.rpc_request_type import RpcRequestType
 
-DEFAULT_RPC_PORT = 28332
-DEFAULT_RPC_HOST = "127.0.0.1"
-DEFAULT_RPC_USER = ""
-DEFAULT_RPC_PASSWORD = ""
 
 COMMANDS_HELP = [
     "{:<18} exit the CLI.".format("exit"),
     "{:<18} print detailed help.".format("help"),
-    "{:<18} send a transactions to the bloXroute BDN.".format("blxr_tx"),
+    "{:<18} send transaction to the bloXroute BDN.".format("blxr_tx"),
     "{:<18} get the status of the bloXroute Gateway.".format("gateway_status"),
     "{:<18} get the memory stats of the bloXroute Gateway.".format("memory"),
     "{:<18} shutdown the Gateway server.".format("stop"),
@@ -53,9 +51,10 @@ class ArgParserFile:
 
 class GatewayRpcClient:
 
-    def __init__(self, rpc_host: str, rpc_port: int, rpc_user: str, rpc_password: str):
+    def __init__(self, rpc_host: str, rpc_port: int, rpc_user: str, rpc_password: str, url_scheme: str):
         self._session = ClientSession()
-        self._rpc_url = f"http://{rpc_host}:{rpc_port}/"
+        self._rpc_url = rpc_constants.PUBLIC_API_URL.format(rpc_user) if url_scheme.lower() == UrlScheme.HTTPS.value \
+            else f"http://{rpc_host}:{rpc_port}/"
         self._encoded_auth = base64.b64encode(f"{rpc_user}:{rpc_password}".encode("utf-8")).decode("utf-8")
 
     async def __aenter__(self):
@@ -104,7 +103,12 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
     merged_opts.__dict__ = opts.__dict__.copy()
     if merged_opts.request_params is None and unrecognized_params:
         if merged_opts.command == RpcRequestType.BLXR_TX:
-            merged_opts.request_params = {rpc_constants.TRANSACTION_PARAMS_KEY: unrecognized_params[0]}
+            merged_opts.request_params = {
+                rpc_constants.TRANSACTION_PARAMS_KEY: unrecognized_params[0],
+                rpc_constants.ACCOUNT_ID_PARAMS_KEY: opts.rpc_user,
+                rpc_constants.BLOCKCHAIN_PROTOCOL_PARAMS_KEY: opts.blockchain_protocol,
+                rpc_constants.BLOCKCHAIN_NETWORK_PARAMS_KEY: opts.blockchain_network
+            }
         elif merged_opts.command == RpcRequestType.GATEWAY_STATUS:
             merged_opts.request_params = {rpc_constants.DETAILS_LEVEL_PARAMS_KEY: unrecognized_params[0]}
     return merged_opts
@@ -166,11 +170,14 @@ async def run_cli(
         rpc_port: int,
         rpc_user: str,
         rpc_password: str,
+        url_scheme: str,
         arg_parser: ArgumentParser,
         stdin_reader: StreamReader,
         stdout_writer: StreamWriter
 ) -> None:
-    async with GatewayRpcClient(rpc_host, rpc_port, rpc_user, rpc_password) as client:
+    async with GatewayRpcClient(
+            rpc_host, rpc_port, rpc_user, rpc_password, url_scheme,
+    ) as client:
         while True:
             stdout_writer.write(b">> ")
             await stdout_writer.drain()
@@ -227,32 +234,52 @@ def add_run_arguments(arg_parser: ArgumentParser) -> None:
         type=json.loads,
         default=None
     )
+    arg_parser.add_argument(
+        "--blockchain-protocol",
+        help="Blockchain protocol. e.g Ethereum, BitcoinCash. (default: Ethereum)",
+        type=str,
+        default=BlockchainProtocol.ETHEREUM.name
+    )
+    arg_parser.add_argument(
+        "--blockchain-network",
+        help="Blockchain network. e.g Mainnet, Ropsten, Rinkeby, and Testnet. (default: Mainnet)",
+        type=str,
+        default=rpc_constants.MAINNET_NETWORK_NAME
+    )
 
 
 def add_base_arguments(arg_parser: ArgumentParser) -> None:
     arg_parser.add_argument(
         "--rpc-host",
-        help="The Gateway RPC host (default: {}).".format(DEFAULT_RPC_HOST),
+        help="The Gateway RPC host (default: {}).".format(rpc_constants.DEFAULT_RPC_HOST),
         type=str,
-        default=DEFAULT_RPC_HOST
+        default=rpc_constants.DEFAULT_RPC_HOST
     )
     arg_parser.add_argument(
         "--rpc-port",
-        help="The Gateway RPC port (default: {}).".format(DEFAULT_RPC_PORT),
+        help="The Gateway RPC port (default: {}).".format(rpc_constants.DEFAULT_RPC_PORT),
         type=int,
-        default=DEFAULT_RPC_PORT
+        default=rpc_constants.DEFAULT_RPC_PORT
     )
     arg_parser.add_argument(
         "--rpc-user",
-        help=f"The Gateway RPC server user (default: {DEFAULT_RPC_USER})",
+        help=f"The Gateway RPC server username, account ID. Contact support@bloxroute.com for assistance. "
+             f"(default: {rpc_constants.DEFAULT_RPC_USER})",
         type=str,
-        default=DEFAULT_RPC_USER
+        default=rpc_constants.DEFAULT_RPC_USER
     )
     arg_parser.add_argument(
         "--rpc-password",
-        help=f"The Gateway RPC server password (default: {DEFAULT_RPC_PASSWORD})",
+        help=f"The Gateway RPC server password, secret key. (default: {rpc_constants.DEFAULT_RPC_PASSWORD})",
         type=str,
-        default=DEFAULT_RPC_PASSWORD
+        default=rpc_constants.DEFAULT_RPC_PASSWORD
+    )
+    arg_parser.add_argument(
+        "--url-scheme",
+        help=f"URL scheme in RPC request. Use bloXroute public API as RPC server if https, "
+             f"or use Gateway if http. (default: http)",
+        type=str,
+        default=UrlScheme.HTTP.value
     )
     arg_parser.add_argument(
         "--interactive-shell",
@@ -294,16 +321,23 @@ async def main():
         lambda: FlowControlMixin(), os.fdopen(sys.stdout.fileno(), "wb")
     )
     stdout_writer = StreamWriter(transport, protocol, None, cli_loop)
+    if opts.url_scheme.lower() == UrlScheme.HTTPS.value and (not opts.rpc_user or not opts.rpc_password):
+        stdout_writer.write("The use of https scheme and bloXroute public API requires the following two arguments: "
+                            "--rpc-user, --rpc-password.\n".encode("utf-8"))
+        exit(1)
     try:
 
         if opts.interactive_shell or len(params) == 0:
             await run_cli(
-                opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password, cli_parser, stdin_reader, stdout_writer
+                opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password, opts.url_scheme,
+                cli_parser, stdin_reader, stdout_writer
             )
         else:
             if "help" in sys.argv:
                 cli_parser.print_help(file=ArgParserFile(stdout_writer))
-            async with GatewayRpcClient(opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password) as client:
+            async with GatewayRpcClient(
+                    opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password, opts.url_scheme,
+            ) as client:
                 await parse_and_handle_command(cli_parser, stdout_writer, client)
     except (ClientConnectorError, ClientConnectionError, TimeoutError, CancelledError) as e:
         stdout_writer.write(f"Connection to RPC server is broken: {e}, exiting!\n".encode("utf-8"))

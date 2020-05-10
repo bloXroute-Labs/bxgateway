@@ -9,6 +9,7 @@ from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.node_event_model import NodeEventType
@@ -37,6 +38,7 @@ from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
+from bxcommon.rpc import rpc_constants
 from bxgateway.rpc.gateway_rpc_server import GatewayRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
@@ -95,8 +97,12 @@ class AbstractGatewayNode(AbstractNode):
     _block_from_node_handling_times: ExpiringDict[Sha256Hash, float]
     _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[float, str]]
 
-    def __init__(self, opts: Namespace, node_ssl_service: NodeSSLService):
-        super(AbstractGatewayNode, self).__init__(opts, node_ssl_service)
+    tracked_block_cleanup_interval_s: float
+
+    def __init__(self, opts: Namespace, node_ssl_service: NodeSSLService,
+                 tracked_block_cleanup_interval_s=constants.CANCEL_ALARMS):
+        super(AbstractGatewayNode, self).__init__(
+            opts, node_ssl_service)
         if opts.split_relays:
             opts.peer_transaction_relays = [
                 OutboundPeerModel(peer_relay.ip, peer_relay.port + 1, node_type=NodeType.RELAY_TRANSACTION)
@@ -199,6 +205,11 @@ class AbstractGatewayNode(AbstractNode):
             logger.error(log_messages.INVALID_ACCOUNT_ID)
             self.default_tx_quota_type = QuotaType.FREE_DAILY_QUOTA
         self._rpc_server = GatewayRpcServer(self)
+
+        self.tracked_block_cleanup_interval_s = tracked_block_cleanup_interval_s
+        if self.tracked_block_cleanup_interval_s > 0:
+            self.alarm_queue.register_alarm(self.tracked_block_cleanup_interval_s, self._tracked_block_cleanup,
+                                            alarm_name="tracked_blocks_cleanup")
 
         status_log.initialize(self.opts.use_extensions, self.opts.source_version, self.opts.external_ip,
                               self.opts.continent, self.opts.country, self.opts.should_update_source_version,
@@ -343,13 +354,13 @@ class AbstractGatewayNode(AbstractNode):
     async def init(self) -> None:
         await super(AbstractGatewayNode, self).init()
         try:
-            await asyncio.wait_for(self._rpc_server.start(), gateway_constants.RPC_SERVER_INIT_TIMEOUT_S)
+            await asyncio.wait_for(self._rpc_server.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S)
         except Exception as e:
             logger.error(log_messages.RPC_INITIALIZATION_FAIL, e, exc_info=True)
 
     async def close(self):
         try:
-            await asyncio.wait_for(self._rpc_server.stop(), gateway_constants.RPC_SERVER_STOP_TIMEOUT_S)
+            await asyncio.wait_for(self._rpc_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
         except Exception as e:
             logger.error(log_messages.RPC_CLOSE_FAIL, e, exc_info=True)
         await super(AbstractGatewayNode, self).close()
@@ -580,9 +591,9 @@ class AbstractGatewayNode(AbstractNode):
         self.enqueue_connection(outbound_peer.ip, outbound_peer.port, ConnectionType.REMOTE_BLOCKCHAIN_NODE)
 
     def on_block_seen_by_blockchain_node(
-        self,
-        block_hash: Sha256Hash,
-        block_message: Optional[AbstractMessage] = None
+            self,
+            block_hash: Sha256Hash,
+            block_message: Optional[AbstractBlockMessage] = None
     ):
         self.blocks_seen.add(block_hash)
         recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
@@ -594,6 +605,11 @@ class AbstractGatewayNode(AbstractNode):
             block_hash,
             block_message
         )
+
+        self.log_blocks_network_content(self.network_num, block_message)
+
+    def log_blocks_network_content(self, network_num: int, block_msg) -> None:
+        pass
 
     def post_block_cleanup_tasks(
         self,
@@ -937,3 +953,21 @@ class AbstractGatewayNode(AbstractNode):
                 )
 
         self.on_updated_peers(self._get_all_peers())
+
+    def _tracked_block_cleanup(self):
+        tx_service = self.get_tx_service()
+        block_queuing_service = self.block_queuing_service
+        if self.block_queuing_service is not None:
+            tracked_blocks_to_clean = []
+            tracked_blocks = tx_service.get_oldest_tracked_block(0)
+            recent_blocks = list(block_queuing_service.iterate_recent_block_hashes())
+            for depth, block_hash in enumerate(recent_blocks):
+                if depth > self.network.block_confirmations_count and block_hash in tracked_blocks:
+                    self.block_cleanup_service.block_cleanup_request(block_hash)
+                    tracked_blocks_to_clean.append(block_hash)
+            logger.trace(
+                "tracked block cleanup, request cleanup of {} blocks: {}, tracked blocks: {} recent blocks: {}",
+                len(tracked_blocks_to_clean), tracked_blocks_to_clean, tracked_blocks, recent_blocks)
+        else:
+            logger.warning("tracked block cleanup failed, block queuing service is not available")
+        return self.tracked_block_cleanup_interval_s

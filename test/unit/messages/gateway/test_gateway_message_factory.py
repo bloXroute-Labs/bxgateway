@@ -5,6 +5,7 @@ from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageT
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.btc.data_btc_message import GetBlocksBtcMessage
 from bxgateway.messages.gateway.block_propagation_request import BlockPropagationRequestMessage
@@ -14,7 +15,6 @@ from bxgateway.messages.gateway.blockchain_sync_response_message import Blockcha
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
-from bxgateway.utils.btc.btc_object_hash import BtcObjectHash
 
 
 class GatewayMessageFactoryTest(MessageFactoryTestCase):

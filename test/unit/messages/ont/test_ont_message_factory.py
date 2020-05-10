@@ -4,9 +4,10 @@ from bxcommon.exceptions import PayloadLenError, ChecksumError
 from bxcommon.test_utils.helpers import create_input_buffer_with_bytes
 from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.messages.ont.addr_ont_message import AddrOntMessage
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
-from bxgateway.messages.ont.consensus_ont_message import ConsensusOntMessage
+from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.messages.ont.get_addr_ont_message import GetAddrOntMessage
 from bxgateway.messages.ont.get_blocks_ont_message import GetBlocksOntMessage
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
@@ -21,7 +22,6 @@ from bxgateway.messages.ont.tx_ont_message import TxOntMessage
 from bxgateway.messages.ont.ver_ack_ont_message import VerAckOntMessage
 from bxgateway.messages.ont.version_ont_message import VersionOntMessage
 from bxgateway.ont_constants import ONT_HEADER_MINUS_CHECKSUM, ONT_HDR_COMMON_OFF
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 class OntMessageFactoryTest(MessageFactoryTestCase):
@@ -44,9 +44,8 @@ class OntMessageFactoryTest(MessageFactoryTestCase):
         self.get_message_preview_successfully(AddrOntMessage(self.MAGIC, [(int(time.time()), 123, "127.0.0.1",
                                                                            20300, 20200, 1234)]),
                                               AddrOntMessage.MESSAGE_TYPE, 52)
-        self.get_message_preview_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, self.HASH, 10, 2, bytes(10),
-                                                                  bytes(33), bytes(10), 1234, self.HASH),
-                                              ConsensusOntMessage.MESSAGE_TYPE, 141)
+        self.get_message_preview_successfully(OntConsensusMessage(self.MAGIC, self.VERSION, bytes(20)),
+                                              OntConsensusMessage.MESSAGE_TYPE, 24)
 
         self.get_message_preview_successfully(
             InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]),
@@ -91,9 +90,8 @@ class OntMessageFactoryTest(MessageFactoryTestCase):
         self.create_message_successfully(GetAddrOntMessage(self.MAGIC), GetAddrOntMessage)
         self.create_message_successfully(AddrOntMessage(self.MAGIC, [(int(time.time()), 123, "127.0.0.1", 20300,
                                                                       20200, 1234)]), AddrOntMessage)
-        self.create_message_successfully(ConsensusOntMessage(self.MAGIC, self.VERSION, self.HASH, 10, 2, bytes(10),
-                                                             bytes(33), bytes(10), 1234, self.HASH),
-                                         ConsensusOntMessage)
+        self.create_message_successfully(OntConsensusMessage(self.MAGIC, self.VERSION, bytes(20)),
+                                         OntConsensusMessage)
         self.create_message_successfully(InvOntMessage(self.MAGIC, InventoryOntType.MSG_TX, [self.HASH, self.HASH]),
                                          InvOntMessage)
         self.create_message_successfully(GetDataOntMessage(self.MAGIC, 1, self.HASH), GetDataOntMessage)

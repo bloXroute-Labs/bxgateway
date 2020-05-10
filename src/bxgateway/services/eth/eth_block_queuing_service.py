@@ -5,8 +5,6 @@ from bxcommon import constants
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
-from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
-from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import eth_constants, gateway_constants
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
@@ -122,6 +120,8 @@ class EthBlockQueuingService(
                 super(EthBlockQueuingService, self).send_block_to_node(
                     block_hash, new_block_msg
                 )
+
+        self.node.log_blocks_network_content(self.node.network_num, block_msg)
 
     # pyre-fixme[14]: `get_previous_block_hash_from_message` overrides method defined in
     #  `PushBlockQueuingService` inconsistently.
@@ -399,6 +399,12 @@ class EthBlockQueuingService(
             logger.debug(f"iterating over queued blocks starting for a possible fork {block_hash}")
 
         return self.iterate_block_hashes_starting_from_hash(block_hash, max_count=max_count)
+
+    def get_block_height(self, block_hash: Sha256Hash) -> Optional[int]:
+        block_height: Optional[int] = None
+        if block_hash and block_hash in self._height_by_block_hash:
+            block_height = self._height_by_block_hash[block_hash]
+        return block_height
 
     def _store_block_parts(
         self, block_hash: Sha256Hash, block_message: InternalEthBlockInfo

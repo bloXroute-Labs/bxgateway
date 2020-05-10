@@ -5,11 +5,11 @@ from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import crypto
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 
 from bxgateway.connections.ont.ont_base_connection_protocol import OntBaseConnectionProtocol
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.testing.mocks.mock_ont_gateway_node import MockOntGatewayNode
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 class OntConnectionProtocolTest(AbstractTestCase):

@@ -6,6 +6,7 @@ from typing import Tuple, Optional, Dict, NamedTuple, Set
 from bxutils import logging
 
 from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import Sha256Hash, BtcObjectHash
 from bxcommon.utils.object_encoder import ObjectEncoder
 from bxcommon.utils.proxy import task_pool_proxy
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
@@ -20,7 +21,6 @@ from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMes
     CompactBlockCompressionResult
 from bxgateway.messages.btc.compact_block_btc_message import CompactBlockBtcMessage
 from bxgateway.utils.block_info import BlockInfo
-from bxgateway.utils.btc.btc_object_hash import Sha256Hash, BtcObjectHash
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.utils.errors import message_conversion_error
 from bxgateway.abstract_message_converter import BlockDecompressionResult

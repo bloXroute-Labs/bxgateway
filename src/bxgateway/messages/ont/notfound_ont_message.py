@@ -1,9 +1,9 @@
 from typing import Optional
 
+from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway import ont_constants
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.ont_message_type import OntMessageType
-from bxgateway.utils.ont.ont_object_hash import OntObjectHash
 
 
 class NotFoundOntMessage(OntMessage):
@@ -16,7 +16,7 @@ class NotFoundOntMessage(OntMessage):
             self.buf = buf
 
             off = ont_constants.ONT_HDR_COMMON_OFF
-            # pyre-fixme[16]: `Optional` has no attribute `get_little_endian`.
+            assert block_hash is not None
             buf[off:off + ont_constants.ONT_HASH_LEN] = block_hash.get_little_endian()
             off += ont_constants.ONT_HASH_LEN
 
