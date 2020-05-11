@@ -66,8 +66,8 @@ class StatusLogTest(AbstractTestCase):
             MockSocketConnection(self.fileno4, self.node4, ip_address=self.ip4, port=self.port4), self.node4
         )
         self.conn4.CONNECTION_TYPE = ConnectionType.REMOTE_BLOCKCHAIN_NODE
-
-        initialize(False, self.source_version, self.ip_address, self.continent, self.country, False, self.account_id)
+        self.quota_level = 0
+        initialize(False, self.source_version, self.ip_address, self.continent, self.country, False, self.account_id, self.quota_level)
 
         path = config.get_data_file(STATUS_FILE_NAME)
         self.addCleanup(os.remove, path)
@@ -99,7 +99,7 @@ class StatusLogTest(AbstractTestCase):
     def test_on_update_one_connection(self):
         self.conn_pool.add(self.fileno1, self.ip1, self.port1, self.conn1)
         update(self.conn_pool, False, self.source_version, self.ip_address, self.continent, self.country, True,
-               self.account_id)
+               self.account_id, self.quota_level)
         summary_loaded, analysis_loaded, environment_loaded, network_loaded = self._load_status_file()
         block_relay_loaded = network_loaded.block_relays[0]
         self.assertEqual(0, len(network_loaded.transaction_relays))
@@ -122,7 +122,7 @@ class StatusLogTest(AbstractTestCase):
     def test_on_update_all_connections(self):
         self._add_connections()
         update(self.conn_pool, False, self.source_version, self.ip_address, self.continent, self.country, False,
-               self.account_id)
+               self.account_id, self.quota_level)
         summary_loaded, analysis_loaded, environment_loaded, network_loaded = self._load_status_file()
         block_relay_loaded = network_loaded.block_relays[0]
         transaction_relay_loaded = network_loaded.transaction_relays[0]
@@ -151,7 +151,7 @@ class StatusLogTest(AbstractTestCase):
 
     def test_on_check_extensions(self):
         initialize(True, self.source_version, self.ip_address, self.continent, self.country,
-                   False, self.account_id)
+                   False, self.account_id, self.quota_level)
         _, analysis_loaded, _, _ = self._load_status_file()
         self.assertNotEqual(analysis_loaded.extensions_check, ExtensionModulesState.UNAVAILABLE)
         self.assertEqual(type(analysis_loaded.extensions_check), ExtensionModulesState)
@@ -163,7 +163,7 @@ class StatusLogTest(AbstractTestCase):
         new_fileno3 = "10"
         self._add_connections()
         update(self.conn_pool, True, self.source_version, self.ip_address, self.continent, self.country, False,
-               self.account_id)
+               self.account_id, self.quota_level)
         summary_loaded, _, _, network_loaded = self._load_status_file()
         network_loaded.blockchain_nodes.clear()
         network_loaded.add_connection(ConnectionType.BLOCKCHAIN_NODE, new_desc3, new_fileno3)

@@ -17,8 +17,13 @@ class Summary:
     continent: Optional[str] = None
     country: Optional[str] = None
     update_required: bool = False
+    quota_level: Optional[str] = None
 
 
 def gateway_status_get_account_info(account_id: Optional[str]) -> str:
     return f"This gateway is associated to account: {account_id}" if account_id \
         else "This gateway is not registered to any account and is limited to the daily free quota"
+
+
+def gateway_status_get_quota_level(quota_level: Optional[int]) -> str:
+    return f"{quota_level}%"

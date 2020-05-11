@@ -13,6 +13,7 @@ from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.notification_message import NotificationMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.messages.validation.message_size_validation_settings import MessageSizeValidationSettings
+from bxcommon.models.notification_code import NotificationCode
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.utils import convert
 from bxcommon.utils import memory_utils
@@ -20,6 +21,7 @@ from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import log_messages
+from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
@@ -265,6 +267,15 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         self.node.block_cleanup_service.process_cleanup_message(msg, self.node)
 
     def msg_notify(self, msg: NotificationMessage) -> None:
+        if msg.notification_code() == NotificationCode.QUOTA_FILL_STATUS:
+            if self.node.quota_level != msg.quota_level():
+                self.node.quota_level = msg.quota_level()
+                self.node.alarm_queue.register_approx_alarm(2 * constants.MIN_SLEEP_TIMEOUT, constants.MIN_SLEEP_TIMEOUT,
+                                                       status_log.update_alarm_callback, self.node.connection_pool,
+                                                       self.node.opts.use_extensions, self.node.opts.source_version,
+                                                       self.node.opts.external_ip, self.node.opts.continent, self.node.opts.country,
+                                                       self.node.opts.should_update_source_version, self.node.account_id,
+                                                       self.node.quota_level)
         if msg.level() == LogLevel.WARNING or msg.level() == LogLevel.ERROR:
             self.log(msg.level(), log_messages.NOTIFICATION_FROM_RELAY, msg.formatted_message())
         else:

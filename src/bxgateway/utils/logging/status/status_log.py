@@ -40,7 +40,7 @@ gateway_status = Enum(
 
 
 def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
-               update_required: bool, account_id: Optional[str]) -> Diagnostics:
+               update_required: bool, account_id: Optional[str], quota_level: Optional[int]) -> Diagnostics:
     current_time = _get_current_time()
     summary = Summary(
         gateway_status=GatewayStatus.OFFLINE,
@@ -48,7 +48,8 @@ def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, cou
         continent=continent,
         country=country,
         update_required=update_required,
-        account_info=summary_status.gateway_status_get_account_info(account_id)
+        account_info=summary_status.gateway_status_get_account_info(account_id),
+        quota_level=summary_status.gateway_status_get_quota_level(quota_level)
     )
     assert summary.gateway_status is not None
     # pyre-fixme[16]: `Optional` has no attribute `value`.
@@ -64,16 +65,16 @@ def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, cou
 
 
 def get_diagnostics(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
-                    update_required: bool, account_id: Optional[str]) -> Diagnostics:
-    return _load_status_from_file(use_ext, src_ver, ip_address, continent, country, update_required, account_id)
+                    update_required: bool, account_id: Optional[str], quota_level: Optional[int]) -> Diagnostics:
+    return _load_status_from_file(use_ext, src_ver, ip_address, continent, country, update_required, account_id, quota_level)
 
 
 def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
-           update_required: bool, account_id: Optional[str]) -> Diagnostics:
+           update_required: bool, account_id: Optional[str], quota_level: Optional[int]) -> Diagnostics:
     path = config.get_data_file(STATUS_FILE_NAME)
     if not os.path.exists(path):
-        initialize(use_ext, src_ver, ip_address, continent, country, update_required, account_id)
-    diagnostics = _load_status_from_file(use_ext, src_ver, ip_address, continent, country, update_required, account_id)
+        initialize(use_ext, src_ver, ip_address, continent, country, update_required, account_id, quota_level)
+    diagnostics = _load_status_from_file(use_ext, src_ver, ip_address, continent, country, update_required, account_id, quota_level)
     analysis = diagnostics.analysis
     network = analysis.network
 
@@ -94,8 +95,9 @@ def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: s
 
 
 def update_alarm_callback(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: str, continent: str,
-                          country: str, update_required: bool, account_id: Optional[str]) -> None:
-    update(conn_pool, use_ext, src_ver, ip_address, continent, country, update_required, account_id)
+                          country: str, update_required: bool, account_id: Optional[str],
+                          quota_level: Optional[int]) -> None:
+    update(conn_pool, use_ext, src_ver, ip_address, continent, country, update_required, account_id, quota_level)
 
 
 def _check_extensions_validity(use_ext: bool, src_ver: str) -> ExtensionModulesState:
@@ -138,7 +140,7 @@ def _get_startup_param() -> str:
 
 
 def _load_status_from_file(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
-                           update_required: bool, account_id: Optional[str]) -> Diagnostics:
+                           update_required: bool, account_id: Optional[str], quota_level: Optional[int]) -> Diagnostics:
     path = config.get_data_file(STATUS_FILE_NAME)
     with open(path, "r", encoding="utf-8") as json_file:
         status_file = json_file.read()
@@ -147,7 +149,7 @@ def _load_status_from_file(use_ext: bool, src_ver: str, ip_address: str, contine
         diagnostics = model_loader.load_model(Diagnostics, model_dict)
     except JSONDecodeError:
         logger.warning(log_messages.STATUS_FILE_JSON_LOAD_FAIL, path)
-        diagnostics = initialize(use_ext, src_ver, ip_address, continent, country, update_required, account_id)
+        diagnostics = initialize(use_ext, src_ver, ip_address, continent, country, update_required, account_id, quota_level)
     return diagnostics
 
 
