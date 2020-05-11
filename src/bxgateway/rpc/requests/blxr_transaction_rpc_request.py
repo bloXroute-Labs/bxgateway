@@ -16,10 +16,12 @@ logger = logging.get_logger(__name__)
 class BlxrTransactionRpcRequest(AbstractRpcRequest):
     TRANSACTION = rpc_constants.TRANSACTION_PARAMS_KEY
     QUOTA_TYPE: str = "quota_type"
+    SYNCHRONOUS = rpc_constants.SYNCHRONOUS_PARAMS_KEY
     help = {
-        "params": f"[Required - {TRANSACTION}: [transaction payload in hex string format],"
+        "params": f"[Required - {TRANSACTION}: [transaction payload in hex string format]\n"
         f"Optional - {QUOTA_TYPE}: [{QuotaType.PAID_DAILY_QUOTA.name.lower()} for binding with a paid account"
-        f"(default) or {QuotaType.FREE_DAILY_QUOTA.name.lower()}]]"
+        f"(default) or {QuotaType.FREE_DAILY_QUOTA.name.lower()}]\n"
+        f"{SYNCHRONOUS}: [True (wait for response from the relay - default), False (don't wait for response)]"
     }
 
     def _process_message(self, network_num, account_id, quota_type, transaction_str):
