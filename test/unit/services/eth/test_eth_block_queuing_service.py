@@ -100,6 +100,28 @@ class EthBlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(self.block_hashes[10], hashes[0])
         self.assertEqual(self.block_hashes[4], hashes[1])
 
+    def test_get_block_hashes_from_hash_single_fork(self):
+        # create fork at block 19
+        block_message = InternalEthBlockInfo.from_new_block_msg(
+            mock_eth_messages.new_block_eth_protocol_message(21, 1019)
+        )
+        block_hash = block_message.block_hash()
+        self.block_queuing_service.push(block_hash, block_message)
+
+        success, hashes = self.block_queuing_service.get_block_hashes_starting_from_hash(
+            self.block_hashes[19], 1, 0, False
+        )
+        self.assertTrue(success)
+        self.assertEqual(1, len(hashes))
+        self.assertEqual(self.block_hashes[19], hashes[0])
+
+        # to contrast, by number fails
+        success, hashes = self.block_queuing_service.get_block_hashes_starting_from_height(
+            1019, 1, 0, False
+        )
+        self.assertFalse(success)
+        self.assertEqual(0, len(hashes))
+
     def test_get_block_hashes_from_height(self):
         success, hashes = self.block_queuing_service.get_block_hashes_starting_from_height(
             1019, 1, 0, False
