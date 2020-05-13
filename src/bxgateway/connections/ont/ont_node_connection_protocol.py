@@ -212,8 +212,8 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                                                   prev_block_hash=block_info.prev_block_hash,
                                                   original_size=block_info.original_size,
                                                   txs_count=block_info.txn_count,
-                                                  blockchain_network=self.node.opts.blockchain_protocol,
-                                                  blockchain_protocol=self.node.opts.blockchain_network,
+                                                  blockchain_network=self.node.opts.blockchain_network,
+                                                  blockchain_protocol=self.node.opts.blockchain_protocol,
                                                   matching_block_hash=block_info.compressed_block_hash,
                                                   matching_block_type=StatBlockType.COMPRESSED.value,
                                                   more_info="Consensus compression: {}->{} bytes, {}, {}; "
@@ -226,7 +226,8 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                                                   )
                                                   )
 
-        self.node.block_processing_service._process_and_broadcast_compressed_block(bx_block, self.connection, block_info, block_hash)
+        self.node.block_processing_service._process_and_broadcast_compressed_block(bx_block, self.connection,
+                                                                                   block_info, block_hash)
 
     def send_ping(self):
         ping_msg = PingOntMessage(magic=self.magic, height=self.node.current_block_height)
