@@ -113,6 +113,7 @@ class AbstractGatewayNode(AbstractNode):
             opts.peer_transaction_relays = []
 
         self.quota_level = 0
+        self.last_quota_level_notification_time = 0.0
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
         self.peer_transaction_relays = set(opts.peer_transaction_relays)
