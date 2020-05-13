@@ -3,6 +3,7 @@ from bxcommon.utils.cli import CommonOpts
 from bxcommon.utils import ip_resolver
 from typing import Union, List
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
+from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.utils.convert import hex_to_bytes
@@ -64,7 +65,6 @@ class GatewayOpts(CommonOpts):
     rpc_password: str
     default_tx_quota_type: QuotaType
     # Ontology specific
-    sync_port: int
     http_info_port: int
     consensus_port: int
     relay: bool
@@ -136,7 +136,6 @@ class GatewayOpts(CommonOpts):
         self.rpc_password = opts.rpc_password
         self.default_tx_quota_type = opts.default_tx_quota_type
         # Ontology specific
-        self.sync_port = opts.sync_port if opts.sync_port else opts.blockchain_port
         self.http_info_port = opts.http_info_port
         self.consensus_port = opts.consensus_port
         self.relay = opts.relay
@@ -145,7 +144,7 @@ class GatewayOpts(CommonOpts):
         self.is_docker = os.path.exists("/.dockerenv")
 
         # do rest of validation
-        if self.blockchain_protocol == "ethereum":
+        if self.blockchain_protocol == BlockchainProtocol.ETHEREUM.value:
             self.validate_eth_opts()
         if not self.cookie_file_path:
             self.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(

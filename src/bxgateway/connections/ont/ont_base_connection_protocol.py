@@ -43,7 +43,7 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             OntMessageType.GET_ADDRESS: self.msg_getaddr
         }
 
-        version_msg = VersionOntMessage(self.magic, self.version, self.node.opts.sync_port,
+        version_msg = VersionOntMessage(self.magic, self.version, self.node.opts.blockchain_port,
                                         self.node.opts.http_info_port, self.node.opts.consensus_port,
                                         ont_constants.STARTUP_CAP, self.node.opts.blockchain_nonce, 0,
                                         self.node.opts.relay, self.node.opts.is_consensus,
