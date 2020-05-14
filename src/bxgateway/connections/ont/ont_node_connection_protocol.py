@@ -238,7 +238,3 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
 
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
         raise NotImplementedError
-
-    def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
-        # TODO: need to check transaction contents
-        self.connection.node.get_tx_service().set_transaction_contents(tx_hash, tx_content)

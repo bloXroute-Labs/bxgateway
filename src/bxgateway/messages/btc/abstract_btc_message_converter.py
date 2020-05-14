@@ -139,7 +139,8 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
 
     # pyre-fixme[14]: `tx_to_bx_txs` overrides method defined in
     #  `AbstractMessageConverter` inconsistently.
-    def tx_to_bx_txs(self, btc_tx_msg, network_num, quota_type: Optional[QuotaType] = None):
+    def tx_to_bx_txs(self, btc_tx_msg, network_num, quota_type: Optional[QuotaType] = None) -> \
+            List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         if not isinstance(btc_tx_msg, TxBtcMessage):
             raise TypeError("tx_msg is expected to be of type TxBTCMessage")
 

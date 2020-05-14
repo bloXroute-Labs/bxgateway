@@ -280,10 +280,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 )
                 self.node.block_processing_service.queue_block_for_processing(new_block_msg, self.connection)
 
-    def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
-        _tx_content = tx_content if isinstance(tx_content, bytearray) else bytearray(tx_content)
-        self.connection.node.get_tx_service().set_transaction_contents(tx_hash, _tx_content)
-
     def _request_blocks_confirmation(self):
         # TODO: remove unused method
         try:

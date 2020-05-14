@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Tuple, Optional, List, Set, Union, NamedTuple
 
 from bxcommon.messages.abstract_message import AbstractMessage
+
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.utils.object_hash import Sha256Hash, convert
@@ -25,7 +26,8 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def tx_to_bx_txs(self, tx_msg, network_num: int, quota_type: Optional[QuotaType] = None):
+    def tx_to_bx_txs(self, tx_msg, network_num: int, quota_type: Optional[QuotaType] = None) -> \
+            List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         """
         Converts blockchain transactions message to internal transaction message
 

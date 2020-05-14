@@ -88,7 +88,8 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
 
     # pyre-fixme[14]: `tx_to_bx_txs` overrides method defined in
     #  `AbstractMessageConverter` inconsistently.
-    def tx_to_bx_txs(self, ont_tx_msg: TxOntMessage, network_num: int, quota_type: Optional[QuotaType] = None):
+    def tx_to_bx_txs(self, ont_tx_msg: TxOntMessage, network_num: int, quota_type: Optional[QuotaType] = None) -> \
+            List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         tx_msg = TxMessage(ont_tx_msg.tx_hash(), network_num, tx_val=ont_tx_msg.tx(), quota_type=quota_type)
 
         return [(tx_msg, ont_tx_msg.tx_hash(), ont_tx_msg.tx())]

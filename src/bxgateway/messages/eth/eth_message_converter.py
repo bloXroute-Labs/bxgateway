@@ -2,7 +2,7 @@ import datetime
 import struct
 import time
 from collections import deque
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional, Union, List
 
 from bxutils import logging
 from bxcommon import constants
@@ -28,7 +28,8 @@ logger = logging.get_logger(__name__)
 
 class EthMessageConverter(AbstractMessageConverter):
 
-    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None):
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None) ->\
+            List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         """
         Converts Ethereum transactions message to array of internal transaction messages
 

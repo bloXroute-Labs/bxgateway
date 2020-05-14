@@ -138,7 +138,8 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         blockchain_node_tx_msg = TransactionsEthProtocolMessage(None, blockchain_node_txs)
 
         self.tx_blockchain_connection_protocol.msg_tx(blockchain_node_tx_msg)
-
+        time.time = MagicMock(return_value=time.time() + 1)
+        self.node.alarm_queue.fire_alarms()
         bx_tx_message = self.node.message_converter.tx_to_bx_txs(blockchain_node_tx_msg, 1)
         for (msg, tx_hash, tx_bytes) in bx_tx_message:
             relay_full_message = TxMessage(message_hash=tx_hash, network_num=1, short_id=1, tx_val=tx_bytes)
