@@ -213,7 +213,7 @@ class _GatewayTransactionStatsService(
                     interval_data.total_bdn_transactions_processed),
             "average_bdn_tx_process_time_after_ext_ms":
                 utils.safe_divide(
-                    interval_data.total_node_transactions_process_time_after_broadcast_ms,
+                    interval_data.total_bdn_transactions_process_time_after_ext_ms,
                     interval_data.total_bdn_transactions_processed),
 
             "total_node_transactions_processed": interval_data.total_node_transactions_processed,
