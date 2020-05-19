@@ -39,14 +39,14 @@ class BlxrTransactionRpcRequest(AbstractRpcRequest):
             short_id = tx_service.get_short_id(tx_hash)
             tx_stats.add_tx_by_hash_event(
                 tx_hash,
-                TransactionStatEventType.BDN_TX_RECEIVED_FROM_RPC_REQUEST_IGNORE_SEEN,
+                TransactionStatEventType.TX_RECEIVED_FROM_RPC_REQUEST_IGNORE_SEEN,
                 network_num,
                 account_id=account_id, short_id=short_id
             )
             raise HTTPBadRequest(text=f"Transaction [{tx_hash} was already seen!")
         tx_stats.add_tx_by_hash_event(
             tx_hash,
-            TransactionStatEventType.BDN_TX_RECEIVED_FROM_RPC_REQUEST,
+            TransactionStatEventType.TX_RECEIVED_FROM_RPC_REQUEST,
             network_num,
             account_id=account_id
         )
