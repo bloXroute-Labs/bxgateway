@@ -1,7 +1,7 @@
 from typing import Dict, TYPE_CHECKING, Type
 
 from bxcommon.rpc.rpc_request_handler import RpcRequestHandler
-from bxcommon.rpc.requests.blxr_transaction_rpc_request import BlxrTransactionRpcRequest
+from bxgateway.rpc.requests.blxr_transaction_rpc_request import BlxrTransactionRpcRequest
 from bxgateway.rpc.requests.bdn_performance_rpc_request import BdnPerformanceRpcRequest
 from bxgateway.rpc.requests.gateway_status_rpc_request import GatewayStatusRpcRequest
 from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcRequest

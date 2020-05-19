@@ -24,7 +24,7 @@ class BlxrTransactionRpcRequest(AbstractRpcRequest):
         f"{SYNCHRONOUS}: [True (wait for response from the relay - default), False (don't wait for response)]"
     }
 
-    def _process_message(self, network_num, account_id, quota_type, transaction_str):
+    async def process_message(self, network_num, account_id, quota_type, transaction_str):
         try:
             message_converter = self._node.message_converter
             assert message_converter is not None, "Invalid server state!"
