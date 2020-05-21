@@ -1,7 +1,7 @@
 from typing import Dict, TYPE_CHECKING, Type
 
 from bxcommon.rpc.rpc_request_handler import RpcRequestHandler
-from bxgateway.rpc.requests.blxr_transaction_rpc_request import BlxrTransactionRpcRequest
+from bxgateway.rpc.requests.blxr_transaction_rpc_request import BlxrTransactionGatewayRpcRequest
 from bxgateway.rpc.requests.bdn_performance_rpc_request import BdnPerformanceRpcRequest
 from bxgateway.rpc.requests.gateway_status_rpc_request import GatewayStatusRpcRequest
 from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcRequest
@@ -31,7 +31,7 @@ class RpcGatewayRequestHandler(RpcRequestHandler):
         #  as type `Dict[RpcRequestType, Type[typing.Union[BdnPerformanceRpcRequest, BlxrTransactionRpcRequest,
         #  GatewayMemoryRpcRequest, GatewayPeersRpcRequest, GatewayStatusRpcRequest, GatewayStopRpcRequest]]]
         self._request_handlers: Dict[RpcRequestType, Type[AbstractGatewayRpcRequest]] = {
-            RpcRequestType.BLXR_TX: BlxrTransactionRpcRequest,
+            RpcRequestType.BLXR_TX: BlxrTransactionGatewayRpcRequest,
             RpcRequestType.GATEWAY_STATUS: GatewayStatusRpcRequest,
             RpcRequestType.STOP: GatewayStopRpcRequest,
             RpcRequestType.MEMORY: GatewayMemoryRpcRequest,

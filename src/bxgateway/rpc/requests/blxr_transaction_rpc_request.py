@@ -7,24 +7,19 @@ from bxcommon.rpc import rpc_constants
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractRpcRequest
+from bxcommon.rpc.requests.blxr_transaction_rpc_request import BlxrTransactionRpcRequest
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
 
-class BlxrTransactionRpcRequest(AbstractRpcRequest):
-    TRANSACTION = rpc_constants.TRANSACTION_PARAMS_KEY
-    QUOTA_TYPE: str = "quota_type"
-    SYNCHRONOUS = rpc_constants.SYNCHRONOUS_PARAMS_KEY
+class BlxrTransactionGatewayRpcRequest(BlxrTransactionRpcRequest):
     help = {
-        "params": f"[Required - {TRANSACTION}: [transaction payload in hex string format]\n"
-        f"Optional - {QUOTA_TYPE}: [{QuotaType.PAID_DAILY_QUOTA.name.lower()} for binding with a paid account"
-        f"(default) or {QuotaType.FREE_DAILY_QUOTA.name.lower()}]\n"
-        f"{SYNCHRONOUS}: [True (wait for response from the relay - default), False (don't wait for response)]"
+        "params": f"[Required - {BlxrTransactionRpcRequest.TRANSACTION}: [transaction payload in hex string format]\n"
+        f"{BlxrTransactionRpcRequest.SYNCHRONOUS}: [True (wait for response from the relay - default), False (don't wait for response)]"
     }
 
-    async def process_message(self, network_num, account_id, quota_type, transaction_str):
+    def _process_message(self, network_num, account_id, quota_type, transaction_str):
         try:
             message_converter = self._node.message_converter
             assert message_converter is not None, "Invalid server state!"
