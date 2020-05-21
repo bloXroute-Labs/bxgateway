@@ -98,7 +98,8 @@ class AbstractBlockchainConnectionProtocol:
             total_duration_ms,
             duration_before_broadcast_ms,
             duration_broadcast_ms,
-            duration_set_content_ms
+            duration_set_content_ms,
+            len(pending_txs_to_set)
         )
 
         performance_utils.log_operation_duration(

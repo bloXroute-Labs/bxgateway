@@ -152,12 +152,13 @@ class _GatewayTransactionStatsService(
         interval_data.total_bdn_transactions_process_time_after_ext_ms += processing_time_after_ext_ms
 
     def log_processed_node_transaction(self,
-                                             total_duration_ms: float,
-                                             duration_before_broadcast_ms: float,
-                                             duration_broadcast_ms: float,
-                                             duration_set_content_ms: float):
+                                       total_duration_ms: float,
+                                       duration_before_broadcast_ms: float,
+                                       duration_broadcast_ms: float,
+                                       duration_set_content_ms: float,
+                                       count: int):
         interval_data = cast(GatewayTransactionStatInterval, self.interval_data)
-        interval_data.total_node_transactions_processed += 1
+        interval_data.total_node_transactions_processed += count
         interval_data.total_node_transactions_process_time_ms += total_duration_ms
         interval_data.total_node_transactions_process_time_before_broadcast_ms += duration_before_broadcast_ms
         interval_data.total_node_transactions_process_time_broadcast_ms += duration_broadcast_ms
