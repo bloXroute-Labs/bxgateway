@@ -1,28 +1,34 @@
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
-from aiohttp.web_response import Response
-from aiohttp.web_exceptions import HTTPOk
-
+from bxcommon.rpc.json_rpc_response import JsonRpcResponse
+from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.utils.stats import stats_format
-from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractGatewayRpcRequest
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import (
     gateway_bdn_performance_stats_service,
     GatewayBdnPerformanceStatInterval,
 )
 
+if TYPE_CHECKING:
+    # noinspection PyUnresolvedReferences
+    # pylint: disable=ungrouped-imports,cyclic-import
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+
 BLOCKS_FROM_BDN = "blocks_from_bdn_percentage"
 TX_FROM_BDN = "transactions_from_bdn_percentage"
 
 
-class BdnPerformanceRpcRequest(AbstractGatewayRpcRequest):
+class BdnPerformanceRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {
         "params": "",
         "description": "return percentage of blocks/transactions first received from BDN rather than from p2p network"
         "in the previous 15 minute interval",
     }
 
-    async def process_request(self) -> Response:
-        return self._format_response(self._calc_bdn_performance_stats(), HTTPOk)
+    def validate_params(self) -> None:
+        pass
+
+    async def process_request(self) -> JsonRpcResponse:
+        return self.ok(self._calc_bdn_performance_stats())
 
     def _calc_bdn_performance_stats(self) -> Dict[str, Any]:
         stats = {}

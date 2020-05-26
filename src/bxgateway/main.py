@@ -118,8 +118,6 @@ def get_opts() -> GatewayOpts:
                             ),
                             default="",
                             nargs="*")
-    arg_parser.add_argument("--sync-tx-service", help="sync tx service in gateway", type=convert.str_to_bool,
-                            default=True)
 
     # Bitcoin specific
     arg_parser.add_argument("--blockchain-version", help="Bitcoin protocol version", type=int)
@@ -226,11 +224,13 @@ def get_opts() -> GatewayOpts:
         type=int,
         default=gateway_constants.CONFIG_UPDATE_INTERVAL_S
     )
-    arg_parser.add_argument("--require-blockchain-connection",
-                            help="Close gateway if connection with blockchain node can't be established "
-                                 "when the flag is set to True",
-                            type=convert.str_to_bool,
-                            default=True)
+    arg_parser.add_argument(
+        "--require-blockchain-connection",
+        help="Close gateway if connection with blockchain node can't be established "
+             "when the flag is set to True",
+        type=convert.str_to_bool,
+        default=True
+    )
     default_tx_quota_type = config.get_env_default(GatewayStartArgs.DEFAULT_TX_QUOTA_TYPE)
     arg_parser.add_argument(
         "--default-tx-quota-type",
@@ -238,6 +238,24 @@ def get_opts() -> GatewayOpts:
         type=QuotaType.from_string,
         choices=list(QuotaType),
         default=default_tx_quota_type
+    )
+    arg_parser.add_argument(
+        "--ws",
+        help=f"Enable RPC websockets server (default: False)",
+        type=convert.str_to_bool,
+        default=False
+    )
+    arg_parser.add_argument(
+        "--ws-host",
+        help=f"Websockets server listening host (default: {gateway_constants.WS_DEFAULT_PORT})",
+        type=str,
+        default=gateway_constants.WS_DEFAULT_HOST
+    )
+    arg_parser.add_argument(
+        "--ws-port",
+        help=f"Websockets server listening port (default: {gateway_constants.WS_DEFAULT_PORT}",
+        type=int,
+        default=gateway_constants.WS_DEFAULT_PORT
     )
 
     opts = GatewayOpts(cli.parse_arguments(arg_parser))

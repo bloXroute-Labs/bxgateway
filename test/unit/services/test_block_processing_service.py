@@ -2,6 +2,7 @@ import time
 
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
@@ -22,7 +23,7 @@ from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 class BlockHoldingServiceTest(AbstractTestCase):
 
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000))
+        self.node = MockGatewayNode(gateway_helpers.get_gateway_opts(8000))
         self.sut = BlockProcessingService(self.node)
 
         self.node.block_processing_service = self.sut

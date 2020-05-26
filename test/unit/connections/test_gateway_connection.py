@@ -1,6 +1,7 @@
 from mock import MagicMock
 from collections import defaultdict
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.connections.connection_pool import ConnectionPool
 from bxcommon.connections.connection_state import ConnectionState
@@ -27,7 +28,7 @@ from bxgateway.services.neutrality_service import NeutralityService
 
 def create_node(ip=LOCALHOST, port=8000) -> AbstractGatewayNode:
     node = MagicMock(spec=AbstractGatewayNode)
-    node.opts = helpers.get_gateway_opts(port, external_ip=ip)
+    node.opts = gateway_helpers.get_gateway_opts(port, external_ip=ip)
     node.connection_pool = ConnectionPool()
     node.connection_exists = node.connection_pool.has_connection
     node.network_num = node.opts.blockchain_network_num
@@ -46,8 +47,8 @@ def create_node(ip=LOCALHOST, port=8000) -> AbstractGatewayNode:
 
 def create_connection(port: int, node: AbstractGatewayNode, ip=LOCALHOST, **kwargs) -> GatewayConnection:
     connection = helpers.create_connection(GatewayConnection, node=node,
-                                           node_opts=helpers.get_gateway_opts(node.opts.external_port, external_ip=ip,
-                                                                              **kwargs),
+                                           node_opts=gateway_helpers.get_gateway_opts(node.opts.external_port, external_ip=ip,
+                                                                                                        **kwargs),
                                            port=port,
                                            **kwargs)
     return connection

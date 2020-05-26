@@ -1,5 +1,7 @@
 import time
 import os
+
+from bxgateway.testing import gateway_helpers
 from bxcommon.utils import convert
 
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -16,7 +18,7 @@ from bxcommon import constants
 class BtcBlockQueuingServiceTest(AbstractTestCase):
     def setUp(self):
         self.node = MockGatewayNode(
-            helpers.get_gateway_opts(8000, max_block_interval=0)
+            gateway_helpers.get_gateway_opts(8000, max_block_interval=0)
         )
 
         self.node_connection = Mock()

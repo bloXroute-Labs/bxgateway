@@ -2,6 +2,7 @@ import time
 
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
@@ -23,8 +24,8 @@ def _block_with_timestamp(timestamp):
 class EthConnectionProtocolTest(AbstractTestCase):
 
     def setUp(self):
-        opts = helpers.get_gateway_opts(8000, include_default_eth_args=True,
-                                 track_detailed_sent_messages=True)
+        opts = gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True,
+                                                                  track_detailed_sent_messages=True)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
 

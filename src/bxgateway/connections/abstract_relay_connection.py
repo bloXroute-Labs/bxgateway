@@ -23,6 +23,8 @@ from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import log_messages, gateway_constants
+from bxgateway.feed.unconfirmed_transaction_feed import UnconfirmedTransactionFeed, \
+    TransactionFeedEntry
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
@@ -141,9 +143,19 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                                           is_compact_transaction=is_compact)
             return
 
-        tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER,
-                                      network_num, short_id, peer=stats_format.connection(self),
-                                      is_compact_transaction=msg.is_compact())
+        if tx_contents:
+            self.node.feed_manager.publish_to_feed(
+                UnconfirmedTransactionFeed.NAME,
+                TransactionFeedEntry(tx_hash, tx_contents)
+            )
+        tx_stats.add_tx_by_hash_event(
+            tx_hash,
+            TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER,
+            network_num,
+            short_id,
+            peer=stats_format.connection(self),
+            is_compact_transaction=msg.is_compact()
+        )
         gateway_transaction_stats_service.log_transaction_from_relay(tx_hash,
                                                                      short_id is not None,
                                                                      msg.is_compact())

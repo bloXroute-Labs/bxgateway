@@ -2,6 +2,7 @@ import struct
 
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxgateway import eth_constants
@@ -43,7 +44,7 @@ NETWORK_NUM = 1
 class EthNodeConnectionProtocolTest(AbstractTestCase):
     def setUp(self) -> None:
 
-        opts = helpers.get_gateway_opts(8000, include_default_eth_args=True)
+        opts = gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True)
 
         self.node = MockGatewayNode(opts)
 

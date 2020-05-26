@@ -3,6 +3,7 @@ import time
 
 from mock import patch, MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import LOCALHOST
@@ -38,9 +39,9 @@ class NeutralityServiceTest(AbstractTestCase):
     MOCK_CONNECTION = mock_connection(connection_type=ConnectionType.EXTERNAL_GATEWAY)
 
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000,
-                                                             include_default_btc_args=True,
-                                                             include_default_eth_args=True))
+        self.node = MockGatewayNode(gateway_helpers.get_gateway_opts(8000,
+                                                                                       include_default_btc_args=True,
+                                                                                       include_default_eth_args=True))
         self.neutrality_service = NeutralityService(self.node)
         self.node.neutrality_service = self.neutrality_service
 

@@ -245,3 +245,13 @@ NOTIFICATION_FROM_RELAY = LogMessage(
     NOTIFICATION_FROM_RELAY_CATEGORY,
     "Notification from Relay: {}"
 )
+WS_INITIALIZATION_FAIL = LogMessage(
+    "G-000047",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to initialize Gateway Websockets server: {}."
+)
+WS_CLOSE_FAIL = LogMessage(
+    "G-000048",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to close Gateway Websockets server: {}."
+)

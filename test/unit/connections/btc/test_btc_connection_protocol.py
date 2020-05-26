@@ -2,6 +2,7 @@ import time
 
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
@@ -19,7 +20,7 @@ class BtcConnectionProtocolTest(AbstractTestCase):
     HASH = BtcObjectHash(binary=crypto.double_sha256(b"123"))
 
     def setUp(self):
-        opts = helpers.get_gateway_opts(8000, include_default_btc_args=True)
+        opts = gateway_helpers.get_gateway_opts(8000, include_default_btc_args=True)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         self.node = MockGatewayNode(opts)

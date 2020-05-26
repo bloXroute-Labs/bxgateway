@@ -3,6 +3,7 @@ from typing import Type
 import time
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -16,10 +17,10 @@ class OntBlockPropagationTest(AbstractGatewayIntegrationTest):
         return OntGatewayNode
 
     def gateway_opts_1(self) -> Namespace:
-        return helpers.get_gateway_opts(9000, sync_tx_service=False, include_default_ont_args=True)
+        return gateway_helpers.get_gateway_opts(9000, sync_tx_service=False, include_default_ont_args=True)
 
     def gateway_opts_2(self) -> Namespace:
-        return helpers.get_gateway_opts(9001, sync_tx_service=False, include_default_ont_args=True)
+        return gateway_helpers.get_gateway_opts(9001, sync_tx_service=False, include_default_ont_args=True)
 
     def test_transaction_propagation(self):
         initial_message = TxOntMessage(

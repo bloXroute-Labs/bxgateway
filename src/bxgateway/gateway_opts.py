@@ -32,7 +32,6 @@ class GatewayOpts(CommonOpts):
     encrypt_blocks: bool
     peer_relays: List[OutboundPeerModel]
     test_mode: str
-    sync_tx_service: bool
     blockchain_version: int
     blockchain_nonce: int
     blockchain_net_magic: int
@@ -59,11 +58,8 @@ class GatewayOpts(CommonOpts):
     initial_liveliness_check: int
     config_update_interval: int
     require_blockchain_connection: bool
-    rpc_port: int
-    rpc_host: str
-    rpc_user: str
-    rpc_password: str
     default_tx_quota_type: QuotaType
+    should_update_source_version: bool
     # Ontology specific
     http_info_port: int
     consensus_port: int
@@ -72,12 +68,18 @@ class GatewayOpts(CommonOpts):
 
     # ENV
     is_docker: bool
+    ws: bool
+    ws_host: str
+    ws_port: int
 
     def __init__(self, opts: Namespace):
 
         super().__init__(opts)
 
         if not opts.blockchain_network:
+            # node_cache dependencies should be untangled
+            # pyre-fixme [6]: Expected `CommonOpts` for 1st positional only
+            #  parameter to call `node_cache.read` but got `Namespace`
             cache_file_info = node_cache.read(opts)
             if cache_file_info is not None:
                 self.blockchain_network = cache_file_info.blockchain_network
@@ -103,7 +105,6 @@ class GatewayOpts(CommonOpts):
         self.encrypt_blocks = opts.encrypt_blocks
         self.peer_relays = opts.peer_relays
         self.test_mode = opts.test_mode
-        self.sync_tx_service = opts.sync_tx_service
         self.blockchain_version = opts.blockchain_version
         self.blockchain_nonce = opts.blockchain_nonce
         self.blockchain_net_magic = opts.blockchain_net_magic
@@ -130,10 +131,6 @@ class GatewayOpts(CommonOpts):
         self.initial_liveliness_check = opts.initial_liveliness_check
         self.config_update_interval = opts.config_update_interval
         self.require_blockchain_connection = opts.require_blockchain_connection
-        self.rpc_port = opts.rpc_port
-        self.rpc_host = opts.rpc_host
-        self.rpc_user = opts.rpc_user
-        self.rpc_password = opts.rpc_password
         self.default_tx_quota_type = opts.default_tx_quota_type
         # Ontology specific
         self.http_info_port = opts.http_info_port
@@ -142,6 +139,20 @@ class GatewayOpts(CommonOpts):
         self.is_consensus = opts.is_consensus
 
         self.is_docker = os.path.exists("/.dockerenv")
+        self.ws = opts.ws
+        self.ws_host = opts.ws_host
+        self.ws_port = opts.ws_port
+
+        # set by node runner
+        self.blockchain_block_interval = 0
+        self.blockchain_ignore_block_interval_count = 0
+        self.blockchain_block_recovery_timeout_s = 0
+        self.blockchain_block_hold_timeout_s = 0
+        self.enable_network_content_logs = False
+        self.should_update_source_version = False
+
+        # set after initialization
+        self.peer_transaction_relays = []
 
         # do rest of validation
         if self.blockchain_protocol == BlockchainProtocol.ETHEREUM.value:

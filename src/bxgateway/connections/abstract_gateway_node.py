@@ -1,7 +1,6 @@
 import asyncio
 import time
 from abc import ABCMeta, abstractmethod
-from argparse import Namespace
 from concurrent.futures import Future
 from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, cast
 
@@ -39,7 +38,10 @@ from bxgateway.connections.abstract_gateway_blockchain_connection import Abstrac
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxcommon.rpc import rpc_constants
-from bxgateway.rpc.gateway_rpc_server import GatewayRpcServer
+from bxgateway.feed.feed_manager import FeedManager
+from bxgateway.feed.unconfirmed_transaction_feed import UnconfirmedTransactionFeed
+from bxgateway.gateway_opts import GatewayOpts
+from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
 from bxgateway.services.block_processing_service import BlockProcessingService
@@ -51,6 +53,7 @@ from bxgateway.utils.blockchain_message_queue import BlockchainMessageQueue
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxgateway.rpc.ws.ws_server import WsServer
 from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
 from bxutils.ssl.extensions import extensions_factory
@@ -99,10 +102,16 @@ class AbstractGatewayNode(AbstractNode):
 
     tracked_block_cleanup_interval_s: float
 
-    def __init__(self, opts: Namespace, node_ssl_service: NodeSSLService,
-                 tracked_block_cleanup_interval_s=constants.CANCEL_ALARMS):
+    def __init__(
+        self,
+        opts: GatewayOpts,
+        node_ssl_service: NodeSSLService,
+        tracked_block_cleanup_interval_s=constants.CANCEL_ALARMS
+    ):
         super(AbstractGatewayNode, self).__init__(
-            opts, node_ssl_service)
+            opts, node_ssl_service
+        )
+        self.opts: GatewayOpts = opts
         if opts.split_relays:
             opts.peer_transaction_relays = [
                 OutboundPeerModel(peer_relay.ip, peer_relay.port + 1, node_type=NodeType.RELAY_TRANSACTION)
@@ -186,8 +195,8 @@ class AbstractGatewayNode(AbstractNode):
             f"gateway_block_from_bdn_handling_times",
         )
 
-        self.schedule_blockchain_liveliness_check(self.opts.initial_liveliness_check)
-        self.schedule_relay_liveliness_check(self.opts.initial_liveliness_check)
+        self.schedule_blockchain_liveliness_check(opts.initial_liveliness_check)
+        self.schedule_relay_liveliness_check(opts.initial_liveliness_check)
 
         self.opts.has_fully_updated_tx_service = False
         self.alarm_queue.register_alarm(constants.TX_SERVICE_SYNC_PROGRESS_S, self.sync_tx_services)
@@ -206,16 +215,26 @@ class AbstractGatewayNode(AbstractNode):
         if self.default_tx_quota_type == QuotaType.PAID_DAILY_QUOTA and self.account_id is None:
             logger.error(log_messages.INVALID_ACCOUNT_ID)
             self.default_tx_quota_type = QuotaType.FREE_DAILY_QUOTA
-        self._rpc_server = GatewayRpcServer(self)
+
+        self.feed_manager = FeedManager()
+        self._rpc_server = GatewayHttpRpcServer(self)
+        self._ws_server = WsServer(opts.ws_host, opts.ws_port, self.feed_manager, self)
+        self.init_live_feeds()
 
         self.tracked_block_cleanup_interval_s = tracked_block_cleanup_interval_s
         if self.tracked_block_cleanup_interval_s > 0:
             self.alarm_queue.register_alarm(self.tracked_block_cleanup_interval_s, self._tracked_block_cleanup,
                                             alarm_name="tracked_blocks_cleanup")
 
-        status_log.initialize(self.opts.use_extensions, self.opts.source_version, self.opts.external_ip,
-                              self.opts.continent, self.opts.country, self.opts.should_update_source_version,
-                              self.account_id, self.quota_level)
+        status_log.initialize(
+            self.opts.use_extensions,
+            str(self.opts.source_version),
+            self.opts.external_ip,
+            self.opts.continent, self.opts.country,
+            self.opts.should_update_source_version,
+            self.account_id,
+            self.quota_level
+        )
 
     @abstractmethod
     def build_blockchain_connection(
@@ -253,6 +272,9 @@ class AbstractGatewayNode(AbstractNode):
         gateway_bdn_performance_stats_service.set_node(self)
         self.alarm_queue.register_alarm(gateway_bdn_performance_stats_service.interval,
                                         self.send_bdn_performance_stats)
+
+    def init_live_feeds(self) -> None:
+        self.feed_manager.register_feed(UnconfirmedTransactionFeed())
 
     def send_bdn_performance_stats(self) -> int:
         relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)
@@ -355,16 +377,31 @@ class AbstractGatewayNode(AbstractNode):
 
     async def init(self) -> None:
         await super(AbstractGatewayNode, self).init()
-        try:
-            await asyncio.wait_for(self._rpc_server.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S)
-        except Exception as e:
-            logger.error(log_messages.RPC_INITIALIZATION_FAIL, e, exc_info=True)
+        if self.opts.rpc:
+            try:
+                await asyncio.wait_for(
+                    self._rpc_server.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
+                )
+            except Exception as e:
+                logger.error(log_messages.RPC_INITIALIZATION_FAIL, e, exc_info=True)
+
+        if self.opts.ws:
+            try:
+                await asyncio.wait_for(
+                    self._ws_server.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
+                )
+            except Exception as e:
+                logger.error(log_messages.WS_INITIALIZATION_FAIL, e, exc_info=True)
 
     async def close(self):
         try:
             await asyncio.wait_for(self._rpc_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
         except Exception as e:
             logger.error(log_messages.RPC_CLOSE_FAIL, e, exc_info=True)
+        try:
+            await asyncio.wait_for(self._ws_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
+        except Exception as e:
+            logger.error(log_messages.WS_CLOSE_FAIL, e, exc_info=True)
         await super(AbstractGatewayNode, self).close()
 
     def send_request_for_relay_peers(self):
@@ -788,8 +825,10 @@ class AbstractGatewayNode(AbstractNode):
         for network in self.opts.blockchain_networks:
             if network.network_num == self.network_num:
                 return network
-        raise EnvironmentError(f"Unexpectedly did not find network num {self.network} in set of blockchain networks: "
-                               f"{self.opts.blockchain_networks}")
+        raise EnvironmentError(
+            f"Unexpectedly did not find network num {self.network_num} in set of blockchain networks: "
+            f"{self.opts.blockchain_networks}"
+        )
 
     def sync_tx_services(self):
         logger.info("Starting to sync transaction state with BDN.")

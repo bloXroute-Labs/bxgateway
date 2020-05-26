@@ -1,3 +1,4 @@
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon import constants
 from bxcommon.constants import LOCALHOST
@@ -24,14 +25,14 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
         self.reinitialize_gateways(self.gateway_1_opts(), self.gateway_2_opts())
 
     def gateway_1_opts(self):
-        return helpers.get_gateway_opts(9000, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
-                                        sync_tx_service=False,
-                                        include_default_btc_args=True)
+        return gateway_helpers.get_gateway_opts(9000, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
+                                                                  sync_tx_service=False,
+                                                                  include_default_btc_args=True)
 
     def gateway_2_opts(self):
-        return helpers.get_gateway_opts(9001, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
-                                        sync_tx_service=False,
-                                        include_default_btc_args=True)
+        return gateway_helpers.get_gateway_opts(9001, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
+                                                                  sync_tx_service=False,
+                                                                  include_default_btc_args=True)
 
     def reinitialize_gateways(self, opts1, opts2):
         node_ssl_service = MockNodeSSLService(BtcGatewayNode.NODE_TYPE, MagicMock())

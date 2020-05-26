@@ -2,6 +2,7 @@ import time
 
 from mock import patch, MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.messages.bloxroute import protocol_version
@@ -29,9 +30,9 @@ from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 class AbstractRelayConnectionTest(AbstractTestCase):
 
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000,
-                                                             include_default_btc_args=True,
-                                                             include_default_eth_args=True))
+        self.node = MockGatewayNode(gateway_helpers.get_gateway_opts(8000,
+                                                                                       include_default_btc_args=True,
+                                                                                       include_default_eth_args=True))
 
         self.connection = AbstractRelayConnection(
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node

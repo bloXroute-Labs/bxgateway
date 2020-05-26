@@ -1,6 +1,7 @@
 import time
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -21,9 +22,9 @@ from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import Tr
 class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000,
-                                                             include_default_btc_args=True,
-                                                             include_default_eth_args=True))
+        self.node = MockGatewayNode(gateway_helpers.get_gateway_opts(8000,
+                                                                                       include_default_btc_args=True,
+                                                                                       include_default_eth_args=True))
 
         self.relay_connection = AbstractRelayConnection(
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node

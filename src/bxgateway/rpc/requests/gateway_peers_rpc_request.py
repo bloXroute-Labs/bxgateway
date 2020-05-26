@@ -1,29 +1,39 @@
-from aiohttp.web_response import Response
-from aiohttp.web_exceptions import HTTPOk
+from typing import TYPE_CHECKING
 
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.rpc.json_rpc_response import JsonRpcResponse
+from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 
-from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractGatewayRpcRequest
+if TYPE_CHECKING:
+    # noinspection PyUnresolvedReferences
+    # pylint: disable=ungrouped-imports,cyclic-import
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
-class GatewayPeersRpcRequest(AbstractGatewayRpcRequest):
-
+class GatewayPeersRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {
         "params": "",
         "description": "return gateway connected peers"
     }
 
-    async def process_request(self) -> Response:
+    def validate_params(self) -> None:
+        pass
+
+    async def process_request(self) -> JsonRpcResponse:
         data = []
-        connection_pool = self._node.connection_pool
-        connections = \
-            list(connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)) + \
-            list(connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)) + \
-            list(connection_pool.get_by_connection_type(ConnectionType.REMOTE_BLOCKCHAIN_NODE)) + \
-            list(connection_pool.get_by_connection_type(ConnectionType.GATEWAY))
+        connection_pool = self.node.connection_pool
+        connections = (
+            list(connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE))
+            + list(connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL))
+            + list(connection_pool.get_by_connection_type(ConnectionType.REMOTE_BLOCKCHAIN_NODE))
+            + list(connection_pool.get_by_connection_type(ConnectionType.GATEWAY))
+        )
         for conn in connections:
-            connection_type = \
-                ConnectionType.GATEWAY if conn.CONNECTION_TYPE in ConnectionType.GATEWAY else conn.CONNECTION_TYPE
+            connection_type = (
+                ConnectionType.GATEWAY
+                if conn.CONNECTION_TYPE in ConnectionType.GATEWAY
+                else conn.CONNECTION_TYPE
+            )
             data.append(
                 {
                     "id": conn.peer_id,
@@ -31,7 +41,7 @@ class GatewayPeersRpcRequest(AbstractGatewayRpcRequest):
                     "addr": repr(conn.endpoint),
                     "direction": str(conn.direction),
                     "state": str(conn.state),
-                 }
+                }
             )
 
-        return self._format_response(data, HTTPOk)
+        return self.ok(data)

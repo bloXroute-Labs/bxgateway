@@ -3,6 +3,7 @@ from unittest import skip
 
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.connections.connection_pool import ConnectionPool
 from bxcommon.connections.connection_state import ConnectionState
@@ -34,7 +35,7 @@ class BlockchainPassThroughServiceTest(AbstractTestCase):
     HASHES = [HASH1, HASH2]
 
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000))
+        self.node = MockGatewayNode(gateway_helpers.get_gateway_opts(8000))
         self.node.connection_pool = ConnectionPool()
         self.blockchain_sync_service = BlockchainSyncService(self.node, {
             BtcMessageType.GET_HEADERS: BtcMessageType.HEADERS

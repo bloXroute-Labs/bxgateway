@@ -4,6 +4,7 @@ import struct
 
 import rlp
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon import constants
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
@@ -29,7 +30,8 @@ from bxgateway.testing.mocks import mock_eth_messages
 class EthMessageConverterTests(AbstractTestCase):
 
     def setUp(self):
-        self.tx_service = TransactionService(MockNode(helpers.get_gateway_opts(8000)), 0)
+        self.tx_service = TransactionService(MockNode(
+            gateway_helpers.get_gateway_opts(8000)), 0)
         self.message_parser = EthMessageConverter()
         self.test_network_num = 12345
 

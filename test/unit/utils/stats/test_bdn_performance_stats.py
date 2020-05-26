@@ -1,6 +1,7 @@
 import time
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
@@ -38,16 +39,17 @@ def _block_with_timestamp(timestamp):
 
 class GatewayTransactionStatsServiceTest(AbstractTestCase):
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_eth_args=True),
-                                    block_queueing_cls=MagicMock())
+        self.node = MockGatewayNode(
+            gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True),
+            block_queueing_cls=MagicMock())
         self.node.message_converter = EthMessageConverter()
         self.node.block_processing_service = BlockProcessingService(self.node)
 
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
         dummy_public_key = crypto_utils.private_to_public_key(dummy_private_key)
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
-        eth_opts = helpers.get_gateway_opts(1234, include_default_eth_args=True,
-                                            pub_key=convert.bytes_to_hex(dummy_public_key))
+        eth_opts = gateway_helpers.get_gateway_opts(1234, include_default_eth_args=True,
+                                                                      pub_key=convert.bytes_to_hex(dummy_public_key))
         self.eth_node = EthGatewayNode(eth_opts, node_ssl_service)
         self.node.node_conn = EthNodeConnection(
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.eth_node)

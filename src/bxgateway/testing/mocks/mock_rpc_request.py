@@ -2,7 +2,7 @@ import json
 from typing import Dict, Any, Optional
 
 
-class MockRPCRequest:
+class MockRpcRequest:
 
     def __init__(self, headers: Dict[str, Any], json_body: str, text: Optional[str] = None):
         self.headers = headers
