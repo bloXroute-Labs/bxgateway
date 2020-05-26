@@ -1,5 +1,7 @@
 from argparse import Namespace
 from typing import Type
+import time
+from mock import MagicMock
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
@@ -26,6 +28,10 @@ class OntBlockPropagationTest(AbstractGatewayIntegrationTest):
         transaction_hash = initial_message.tx_hash()
 
         self.gateway_1_receive_message_from_blockchain(initial_message)
+
+        time.time = MagicMock(return_value=time.time() + 1)
+        self.gateway_1.alarm_queue.fire_alarms()
+
         self.assertTrue(self.gateway_1._tx_service.has_transaction_contents(transaction_hash))
         self.assertFalse(self.gateway_1._tx_service.has_transaction_short_id(transaction_hash))
 

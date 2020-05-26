@@ -289,9 +289,6 @@ class EthBlockQueuingService(
         if block_hash not in self._blocks:
             return False, []
 
-        if max_count == 1:
-            return True, [block_hash]
-
         starting_height = self._height_by_block_hash[block_hash]
         logger.trace(
             "Found block {} had height {}. Continuing...",

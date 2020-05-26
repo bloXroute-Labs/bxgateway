@@ -1,10 +1,11 @@
 import time
 from abc import ABCMeta, abstractmethod
-from typing import List, Union
+from typing import List
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils import performance_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -16,8 +17,10 @@ from bxgateway.connections.abstract_gateway_blockchain_connection import Abstrac
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
+from bxutils.logging.log_record_type import LogRecordType
 
 logger = logging.get_logger(__name__)
+msg_handling_logger = logging.get_logger(LogRecordType.MessageHandlingTroubleshooting, __name__)
 
 
 class AbstractBlockchainConnectionProtocol:
@@ -25,9 +28,9 @@ class AbstractBlockchainConnectionProtocol:
     connection: AbstractGatewayBlockchainConnection
 
     def __init__(
-            self,
-            connection: AbstractGatewayBlockchainConnection,
-            block_cleanup_poll_interval_s: int = gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S,
+        self,
+        connection: AbstractGatewayBlockchainConnection,
+        block_cleanup_poll_interval_s: int = gateway_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S,
     ):
         self.block_cleanup_poll_interval_s = block_cleanup_poll_interval_s
         self.connection = connection
@@ -36,19 +39,32 @@ class AbstractBlockchainConnectionProtocol:
         """
         Handle a TX message by broadcasting to the entire network
         """
+        start_time = time.time()
+        txn_count = 0
+
         bx_tx_messages = self.connection.node.message_converter.tx_to_bx_txs(
             msg, self.connection.network_num, self.connection.node.default_tx_quota_type
         )
+
         tx_service = self.connection.node.get_tx_service()
-        for (bx_tx_message, tx_hash, tx_bytes) in bx_tx_messages:
-            if tx_service.has_transaction_contents(tx_hash) or \
-                    tx_service.removed_transaction(tx_hash):
+
+        broadcast_start_time = time.time()
+
+        pending_txs_to_set = []
+
+        for bx_tx_message, tx_hash, tx_cache_key, tx_bytes, tx_seen_flag in tx_service.process_bx_tx_messages(
+            bx_tx_messages):
+            txn_count += 1
+
+            if tx_seen_flag:
                 tx_stats.add_tx_by_hash_event(tx_hash,
                                               TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                               self.connection.network_num,
                                               peer=stats_format.connection(self.connection))
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
                 continue
+            else:
+                pending_txs_to_set.append((tx_hash, tx_bytes, tx_cache_key))
 
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE,
                                           self.connection.network_num, peer=stats_format.connection(self.connection))
@@ -63,10 +79,41 @@ class AbstractBlockchainConnectionProtocol:
                                               self.connection.network_num,
                                               peers=map(lambda conn: (stats_format.connection(conn)),
                                                         broadcast_peers))
-                self._set_transaction_contents(tx_hash, tx_bytes)
             else:
                 logger.trace("Tx Message: {} from BlockchainNode was dropped, no upstream relay connection available",
                              tx_hash)
+
+        set_content_start_time = time.time()
+
+        tx_service.set_transactions_contents(pending_txs_to_set)
+
+        end_time = time.time()
+
+        total_duration_ms = (end_time - start_time) * 1000
+        duration_before_broadcast_ms = (broadcast_start_time - start_time) * 1000
+        duration_broadcast_ms = (set_content_start_time - broadcast_start_time) * 1000
+        duration_set_content_ms = (end_time - set_content_start_time) * 1000
+
+        gateway_transaction_stats_service.log_processed_node_transaction(
+            total_duration_ms,
+            duration_before_broadcast_ms,
+            duration_broadcast_ms,
+            duration_set_content_ms,
+            len(pending_txs_to_set)
+        )
+
+        performance_utils.log_operation_duration(
+            msg_handling_logger,
+            "Process single transaction from Blockchain",
+            start_time,
+            gateway_constants.BLOCKCHAIN_TX_PROCESSING_TIME_WARNING_THRESHOLD_S,
+            connection=self,
+            message=msg,
+            total_duration_ms=total_duration_ms,
+            duration_before_broadcast_ms=duration_before_broadcast_ms,
+            duration_broadcast_ms=duration_broadcast_ms,
+            duration_set_content_ms=duration_set_content_ms
+        )
 
     def msg_block(self, msg: AbstractBlockMessage):
         """
@@ -138,7 +185,7 @@ class AbstractBlockchainConnectionProtocol:
         tracked_blocks = node.get_tx_service().get_oldest_tracked_block(node.network.block_confirmations_count)
 
         if last_confirmed_block is not None and len(tracked_blocks) <= node.network.block_confirmations_count + \
-                gateway_constants.BLOCK_CLEANUP_REQUEST_EXPECTED_ADDITIONAL_TRACKED_BLOCKS:
+            gateway_constants.BLOCK_CLEANUP_REQUEST_EXPECTED_ADDITIONAL_TRACKED_BLOCKS:
             hashes = [last_confirmed_block]
             hashes.extend(tracked_blocks)
         else:
@@ -152,15 +199,4 @@ class AbstractBlockchainConnectionProtocol:
 
     @abstractmethod
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
-        pass
-
-    @abstractmethod
-    def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
-        """
-        set the transaction contents in the connection transaction service.
-        since some buffers needs to be copied while others should not, this handler was added.
-        avoid calling transaction_service.set_transactions_contents directly from this class or its siblings.
-        :param tx_hash: the transaction hash
-        :param tx_content: the transaction contents buffer
-        """
         pass

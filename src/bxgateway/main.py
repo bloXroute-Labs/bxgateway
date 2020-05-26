@@ -148,7 +148,6 @@ def get_opts() -> GatewayOpts:
 
     # Ontology specific
     # TODO: Remove test only arguments
-    arg_parser.add_argument("--sync-port", help="Ontology sync port, the --nodeport value from ontology cli", type=int)
     arg_parser.add_argument("--http-info-port", help="(TEST ONLY)Ontology http server port to view node information",
                             type=int, default=config.get_env_default(GatewayStartArgs.HTTP_INFO_PORT))
     arg_parser.add_argument("--consensus-port", help="Ontology consensus port", type=int,

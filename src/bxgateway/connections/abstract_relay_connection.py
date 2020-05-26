@@ -1,3 +1,4 @@
+import time
 from abc import ABCMeta
 from typing import TYPE_CHECKING
 
@@ -13,21 +14,28 @@ from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.notification_message import NotificationMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.messages.validation.message_size_validation_settings import MessageSizeValidationSettings
+from bxcommon.models.entity_type_model import EntityType
+from bxcommon.models.notification_code import NotificationCode
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
-from bxcommon.utils import convert
+from bxcommon.utils import convert, performance_utils
 from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-from bxgateway import log_messages
+from bxgateway import log_messages, gateway_constants
+from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxutils import logging
 from bxutils.logging import LogLevel
+from bxutils.logging import LogRecordType
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+
+msg_handling_logger = logging.get_logger(LogRecordType.MessageHandlingTroubleshooting, __name__)
 
 
 class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
@@ -94,20 +102,29 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         """
         Handle transactions receive from bloXroute network.
         """
+
+        start_time = time.time()
+
         if ConnectionType.RELAY_TRANSACTION not in self.CONNECTION_TYPE:
             self.log_error(log_messages.UNEXPECTED_TX_MESSAGE, msg)
             return
 
         tx_service = self.node.get_tx_service()
 
-        short_id = msg.short_id()
         tx_hash = msg.tx_hash()
+        short_id = msg.short_id()
+        tx_contents = msg.tx_val()
+        is_compact = msg.is_compact()
         network_num = msg.network_num()
-
         attempt_recovery = False
 
-        if not short_id and tx_service.has_transaction_short_id(tx_hash) and \
-                tx_service.has_transaction_contents(tx_hash) and not tx_service.removed_transaction(tx_hash):
+        ext_start_time = time.time()
+
+        processing_result = tx_service.process_gateway_transaction_from_bdn(tx_hash, short_id, tx_contents, is_compact)
+
+        ext_end_time = time.time()
+
+        if processing_result.ignore_seen:
             gateway_transaction_stats_service.log_duplicate_transaction_from_relay()
             tx_stats.add_tx_by_hash_event(tx_hash,
                                           TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
@@ -116,14 +133,12 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             self.log_trace("Transaction has already been seen: {}", tx_hash)
             return
 
-        existing_short_ids = tx_service.get_short_ids(tx_hash)
-        if (tx_service.has_transaction_contents(tx_hash) or msg.is_compact()) \
-                and short_id and short_id in existing_short_ids:
-            gateway_transaction_stats_service.log_duplicate_transaction_from_relay(msg.is_compact())
+        if processing_result.existing_short_id:
+            gateway_transaction_stats_service.log_duplicate_transaction_from_relay(is_compact)
             tx_stats.add_tx_by_hash_event(tx_hash,
                                           TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
                                           network_num, short_id, peer=stats_format.connection(self),
-                                          is_compact_transaction=msg.is_compact())
+                                          is_compact_transaction=is_compact)
             return
 
         tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER,
@@ -133,8 +148,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                                                                      short_id is not None,
                                                                      msg.is_compact())
 
-        if short_id and short_id not in existing_short_ids:
-            tx_service.assign_short_id(tx_hash, short_id)
+        if processing_result.assigned_short_id:
             was_missing = self.node.block_recovery_service.check_missing_sid(short_id)
             attempt_recovery |= was_missing
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SHORT_ID_STORED_BY_GATEWAY,
@@ -144,12 +158,11 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SHORT_ID_EMPTY_IN_MSG_FROM_RELAY,
                                           network_num, short_id, peer=stats_format.connection(self))
 
-        if not msg.is_compact() and tx_service.has_transaction_contents(tx_hash):
+        if not is_compact and processing_result.existing_contents:
             gateway_transaction_stats_service.log_redundant_transaction_content()
 
-        if not msg.is_compact() and not tx_service.has_transaction_contents(tx_hash):
+        if processing_result.set_content:
             self.log_trace("Adding hash value to tx service and forwarding it to node")
-            tx_service.set_transaction_contents(tx_hash, msg.tx_val())
             gateway_bdn_performance_stats_service.log_tx_from_bdn()
             attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
@@ -166,6 +179,33 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         if attempt_recovery:
             self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
+
+        end_time = time.time()
+
+        total_duration_ms = (end_time - start_time) * 1000
+        duration_before_ext_ms = (ext_start_time - start_time) * 1000
+        duration_ext_ms = (ext_end_time - ext_start_time) * 1000
+        duration_after_ext_ms = (end_time - ext_end_time) * 1000
+
+        gateway_transaction_stats_service.log_processed_bdn_transaction(
+            total_duration_ms,
+            duration_before_ext_ms,
+            duration_ext_ms,
+            duration_after_ext_ms
+        )
+
+        performance_utils.log_operation_duration(
+            msg_handling_logger,
+            "Process single transaction from BDN",
+            start_time,
+            gateway_constants.BDN_TX_PROCESSING_TIME_WARNING_THRESHOLD_S,
+            connection=self,
+            message=msg,
+            total_duration_ms=total_duration_ms,
+            duration_before_ext_ms=duration_before_ext_ms,
+            duration_ext_ms=duration_ext_ms,
+            duration_after_ext_ms=duration_after_ext_ms
+        )
 
     def msg_txs(self, msg: TxsMessage):
         if ConnectionType.RELAY_TRANSACTION not in self.CONNECTION_TYPE:
@@ -265,6 +305,25 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         self.node.block_cleanup_service.process_cleanup_message(msg, self.node)
 
     def msg_notify(self, msg: NotificationMessage) -> None:
+        if msg.notification_code() == NotificationCode.QUOTA_FILL_STATUS:
+            seconds_since_last_quota_notification = time.time() - self.node.last_quota_level_notification_time
+            if seconds_since_last_quota_notification < gateway_constants.QUOTA_NOTIFICATION_IGNORE_REPEAT_WINDOW_S:
+                return
+
+            self.node.last_quota_level_notification_time = time.time()
+            args_list = msg.raw_message().split(",")
+            entity_type = EntityType(int(args_list[2]))
+            quota_level = int(args_list[0])
+            if entity_type == EntityType.TRANSACTION and self.node.quota_level != quota_level:
+                self.node.quota_level = quota_level
+                self.node.alarm_queue.register_approx_alarm(
+                    2 * constants.MIN_SLEEP_TIMEOUT, constants.MIN_SLEEP_TIMEOUT, status_log.update_alarm_callback,
+                    self.node.connection_pool, self.node.opts.use_extensions, self.node.opts.source_version,
+                    self.node.opts.external_ip, self.node.opts.continent, self.node.opts.country,
+                    self.node.opts.should_update_source_version, self.node.account_id,
+                    self.node.quota_level
+                )
+
         if msg.level() == LogLevel.WARNING or msg.level() == LogLevel.ERROR:
             self.log(msg.level(), log_messages.NOTIFICATION_FROM_RELAY, msg.formatted_message())
         else:

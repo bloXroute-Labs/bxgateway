@@ -1,3 +1,6 @@
+import time
+from mock import MagicMock
+
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -231,6 +234,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         blockchain_node_tx_msg = TransactionsEthProtocolMessage(None, blockchain_node_txs)
 
         self.blockchain_connection_protocol.msg_tx(blockchain_node_tx_msg)
+
+        time.time = MagicMock(return_value=time.time() + 1)
+        self.node.alarm_queue.fire_alarms()
 
         bx_tx_message = self.node.message_converter.tx_to_bx_txs(blockchain_node_tx_msg, 1)
         for (msg, tx_hash, tx_bytes) in bx_tx_message:

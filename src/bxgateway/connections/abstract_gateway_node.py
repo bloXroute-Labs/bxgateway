@@ -112,6 +112,8 @@ class AbstractGatewayNode(AbstractNode):
         else:
             opts.peer_transaction_relays = []
 
+        self.quota_level = 0
+        self.last_quota_level_notification_time = 0.0
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
         self.peer_transaction_relays = set(opts.peer_transaction_relays)
@@ -213,7 +215,7 @@ class AbstractGatewayNode(AbstractNode):
 
         status_log.initialize(self.opts.use_extensions, self.opts.source_version, self.opts.external_ip,
                               self.opts.continent, self.opts.country, self.opts.should_update_source_version,
-                              self.account_id)
+                              self.account_id, self.quota_level)
 
     @abstractmethod
     def build_blockchain_connection(
@@ -434,7 +436,7 @@ class AbstractGatewayNode(AbstractNode):
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
                                                self.opts.external_ip, self.opts.continent, self.opts.country,
-                                               self.opts.should_update_source_version, self.account_id)
+                                               self.opts.should_update_source_version, self.account_id, self.quota_level)
         if self.is_local_blockchain_address(ip, port):
             return self.build_blockchain_connection(socket_connection)
         elif self.remote_blockchain_ip == ip and self.remote_blockchain_port == port:
@@ -560,7 +562,7 @@ class AbstractGatewayNode(AbstractNode):
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
                                                self.opts.external_ip, self.opts.continent, self.opts.country,
-                                               self.opts.should_update_source_version, self.account_id)
+                                               self.opts.should_update_source_version, self.account_id, self.quota_level)
         if connection_type in ConnectionType.GATEWAY:
             self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
                                                  self.opts.node_id,

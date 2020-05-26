@@ -7,19 +7,16 @@ from bxcommon.rpc import rpc_constants
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractRpcRequest
+from bxcommon.rpc.requests.blxr_transaction_rpc_request import BlxrTransactionRpcRequest
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
 
-class BlxrTransactionRpcRequest(AbstractRpcRequest):
-    TRANSACTION = rpc_constants.TRANSACTION_PARAMS_KEY
-    QUOTA_TYPE: str = "quota_type"
+class BlxrTransactionGatewayRpcRequest(BlxrTransactionRpcRequest):
     help = {
-        "params": f"[Required - {TRANSACTION}: [transaction payload in hex string format],"
-        f"Optional - {QUOTA_TYPE}: [{QuotaType.PAID_DAILY_QUOTA.name.lower()} for binding with a paid account"
-        f"(default) or {QuotaType.FREE_DAILY_QUOTA.name.lower()}]]"
+        "params": f"[Required - {BlxrTransactionRpcRequest.TRANSACTION}: [transaction payload in hex string format]\n"
+        f"{BlxrTransactionRpcRequest.SYNCHRONOUS}: [True (wait for response from the relay - default), False (don't wait for response)]"
     }
 
     def _process_message(self, network_num, account_id, quota_type, transaction_str):
@@ -37,14 +34,14 @@ class BlxrTransactionRpcRequest(AbstractRpcRequest):
             short_id = tx_service.get_short_id(tx_hash)
             tx_stats.add_tx_by_hash_event(
                 tx_hash,
-                TransactionStatEventType.BDN_TX_RECEIVED_FROM_RPC_REQUEST_IGNORE_SEEN,
+                TransactionStatEventType.TX_RECEIVED_FROM_RPC_REQUEST_IGNORE_SEEN,
                 network_num,
                 account_id=account_id, short_id=short_id
             )
             raise HTTPBadRequest(text=f"Transaction [{tx_hash} was already seen!")
         tx_stats.add_tx_by_hash_event(
             tx_hash,
-            TransactionStatEventType.BDN_TX_RECEIVED_FROM_RPC_REQUEST,
+            TransactionStatEventType.TX_RECEIVED_FROM_RPC_REQUEST,
             network_num,
             account_id=account_id
         )

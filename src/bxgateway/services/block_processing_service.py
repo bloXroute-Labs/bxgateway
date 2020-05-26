@@ -320,8 +320,8 @@ class BlockProcessingService:
             prev_block_hash=block_info.prev_block_hash,
             original_size=block_info.original_size,
             txs_count=block_info.txn_count,
-            blockchain_network=self._node.opts.blockchain_protocol,
-            blockchain_protocol=self._node.opts.blockchain_network,
+            blockchain_network=self._node.opts.blockchain_network,
+            blockchain_protocol=self._node.opts.blockchain_protocol,
             matching_block_hash=block_info.compressed_block_hash,
             matching_block_type=StatBlockType.COMPRESSED.value,
             more_info="Compression: {}->{} bytes, {}, {}; Tx count: {}".format(
@@ -417,8 +417,8 @@ class BlockProcessingService:
                                                       original_size=block_info.original_size,
                                                       compressed_size=block_info.compressed_size,
                                                       txs_count=block_info.txn_count,
-                                                      blockchain_network=self._node.opts.blockchain_protocol,
-                                                      blockchain_protocol=self._node.opts.blockchain_network,
+                                                      blockchain_network=self._node.opts.blockchain_network,
+                                                      blockchain_protocol=self._node.opts.blockchain_protocol,
                                                       matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
                                                       more_info=stats_format.duration(block_info.duration_ms))
@@ -448,8 +448,8 @@ class BlockProcessingService:
                 original_size=block_info.original_size,
                 compressed_size=block_info.compressed_size,
                 txs_count=block_info.txn_count,
-                blockchain_network=self._node.opts.blockchain_protocol,
-                blockchain_protocol=self._node.opts.blockchain_network,
+                blockchain_network=self._node.opts.blockchain_network,
+                blockchain_protocol=self._node.opts.blockchain_protocol,
                 matching_block_hash=block_info.compressed_block_hash,
                 matching_block_type=StatBlockType.COMPRESSED.value,
                 more_info="Compression rate {}, Decompression time {}, "
@@ -487,8 +487,8 @@ class BlockProcessingService:
                                                       original_size=block_info.original_size,
                                                       compressed_size=block_info.compressed_size,
                                                       txs_count=block_info.txn_count,
-                                                      blockchain_network=self._node.opts.blockchain_protocol,
-                                                      blockchain_protocol=self._node.opts.blockchain_network,
+                                                      blockchain_network=self._node.opts.blockchain_network,
+                                                      blockchain_protocol=self._node.opts.blockchain_protocol,
                                                       matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
                                                       more_info="{} sids, {} hashes".format(

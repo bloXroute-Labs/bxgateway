@@ -103,8 +103,13 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
     merged_opts.__dict__ = opts.__dict__.copy()
     if merged_opts.request_params is None and unrecognized_params:
         if merged_opts.command == RpcRequestType.BLXR_TX:
+            transaction_payload = unrecognized_params[0]
+            synchronous = str(True)
+            if len(unrecognized_params) > 1:
+                synchronous = unrecognized_params[1]
             merged_opts.request_params = {
-                rpc_constants.TRANSACTION_PARAMS_KEY: unrecognized_params[0],
+                rpc_constants.TRANSACTION_PARAMS_KEY: transaction_payload,
+                rpc_constants.SYNCHRONOUS_PARAMS_KEY: synchronous,
                 rpc_constants.ACCOUNT_ID_PARAMS_KEY: opts.rpc_user,
                 rpc_constants.BLOCKCHAIN_PROTOCOL_PARAMS_KEY: opts.blockchain_protocol,
                 rpc_constants.BLOCKCHAIN_NETWORK_PARAMS_KEY: opts.blockchain_network

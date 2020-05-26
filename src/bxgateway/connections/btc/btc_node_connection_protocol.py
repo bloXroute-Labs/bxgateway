@@ -275,5 +275,3 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             hash_stop=NULL_BTC_BLOCK_HASH
         )
 
-    def _set_transaction_contents(self, tx_hash: Sha256Hash, tx_content: Union[memoryview, bytearray]) -> None:
-        self.connection.node.get_tx_service().set_transaction_contents(tx_hash, tx_content)
