@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from bxcommon.utils.cli import CommonOpts
 from bxcommon.utils import ip_resolver
-from typing import Union, List
+from typing import Union, List, Optional
+from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -60,6 +61,9 @@ class GatewayOpts(CommonOpts):
     require_blockchain_connection: bool
     default_tx_quota_type: QuotaType
     should_update_source_version: bool
+    account_id: Optional[str]
+    account_model: Optional[BdnAccountModelBase]
+
     # Ontology specific
     http_info_port: int
     consensus_port: int
@@ -132,6 +136,9 @@ class GatewayOpts(CommonOpts):
         self.config_update_interval = opts.config_update_interval
         self.require_blockchain_connection = opts.require_blockchain_connection
         self.default_tx_quota_type = opts.default_tx_quota_type
+        self.account_id = opts.account_id
+        self.account_model = opts.account_model
+        
         # Ontology specific
         self.http_info_port = opts.http_info_port
         self.consensus_port = opts.consensus_port

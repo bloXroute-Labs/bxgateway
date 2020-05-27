@@ -15,6 +15,7 @@ from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.models.quota_type_model import QuotaType
+from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.network_direction import NetworkDirection
@@ -101,6 +102,7 @@ class AbstractGatewayNode(AbstractNode):
     _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[float, str]]
 
     tracked_block_cleanup_interval_s: float
+    account_model: Optional[BdnAccountModelBase]
 
     def __init__(
         self,
@@ -120,6 +122,11 @@ class AbstractGatewayNode(AbstractNode):
             opts.outbound_peers += opts.peer_transaction_relays
         else:
             opts.peer_transaction_relays = []
+
+        if opts.account_model:
+            self.account_model = opts.account_model
+        else:
+            self.account_model = None
 
         self.quota_level = 0
         self.last_quota_level_notification_time = 0.0
