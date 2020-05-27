@@ -1,7 +1,7 @@
 import asyncio
 import json
 from typing import Any
-
+from asyncio.exceptions import TimeoutError
 import websockets
 
 from bxgateway.gateway_opts import GatewayOpts
@@ -88,7 +88,7 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
             self.assertTrue(parsed_response.result)
 
             publish()
-            with self.assertRaises(asyncio.futures.TimeoutError):
+            with self.assertRaises(TimeoutError):
                 await asyncio.wait_for(ws.recv(), 0.1)
 
     @async_test

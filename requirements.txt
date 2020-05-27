@@ -1,4 +1,4 @@
-pympler==0.5
+pympler==0.8
 requests==2.22.0
 # TODO: consider upgrade independent of bxapi
 websockets==7.0

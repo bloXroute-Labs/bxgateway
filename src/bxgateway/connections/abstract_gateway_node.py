@@ -1,4 +1,5 @@
 import asyncio
+from asyncio.exceptions import CancelledError
 import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Future
@@ -403,11 +404,11 @@ class AbstractGatewayNode(AbstractNode):
     async def close(self):
         try:
             await asyncio.wait_for(self._rpc_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
-        except Exception as e:
+        except (Exception, CancelledError) as e:
             logger.error(log_messages.RPC_CLOSE_FAIL, e, exc_info=True)
         try:
             await asyncio.wait_for(self._ws_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
-        except Exception as e:
+        except (Exception, CancelledError) as e:
             logger.error(log_messages.WS_CLOSE_FAIL, e, exc_info=True)
         await super(AbstractGatewayNode, self).close()
 
