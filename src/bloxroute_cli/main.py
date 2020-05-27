@@ -53,7 +53,7 @@ class GatewayRpcClient:
 
     def __init__(self, rpc_host: str, rpc_port: int, rpc_user: str, rpc_password: str, url_scheme: str):
         self._session = ClientSession()
-        self._rpc_url = rpc_constants.PUBLIC_API_URL.format(rpc_user) if url_scheme.lower() == UrlScheme.HTTPS.value \
+        self._rpc_url = rpc_constants.CLOUD_API_URL.format(rpc_user) if url_scheme.lower() == UrlScheme.HTTPS.value \
             else f"http://{rpc_host}:{rpc_port}/"
         self._encoded_auth = base64.b64encode(f"{rpc_user}:{rpc_password}".encode("utf-8")).decode("utf-8")
 
