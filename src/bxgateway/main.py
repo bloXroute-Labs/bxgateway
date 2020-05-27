@@ -240,6 +240,18 @@ def get_opts() -> GatewayOpts:
         default=default_tx_quota_type
     )
     arg_parser.add_argument(
+        "--account-id",
+        help="Account ID. Contact support@bloxroute.com for more information.",  # TODO: empty string as default?
+        type=str,
+        default=""
+    )
+    arg_parser.add_argument(
+        "--account-model",
+        help="Account model.",  # TODO: FIX THIS
+        type=str,
+        default=""
+    )
+    arg_parser.add_argument(
         "--ws",
         help=f"Enable RPC websockets server (default: False)",
         type=convert.str_to_bool,
