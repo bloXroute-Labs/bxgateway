@@ -4,7 +4,7 @@ from asyncio import Future
 from typing import TYPE_CHECKING, Dict, Any, NamedTuple, Optional, Tuple
 
 from bxcommon.rpc.abstract_rpc_handler import AbstractRpcHandler
-from bxcommon.rpc.json_rpc_request import JsonRpcRequest
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.rpc.rpc_request_type import RpcRequestType
@@ -36,7 +36,7 @@ class Subscription(NamedTuple):
 class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", str, str]):
     feed_manager: FeedManager
     subscriptions: Dict[str, Subscription]
-    subscribed_messages: 'asyncio.Queue[JsonRpcRequest]'
+    subscribed_messages: 'asyncio.Queue[BxJsonRpcRequest]'
 
     def __init__(self, node: "AbstractGatewayNode", feed_manager: FeedManager) -> None:
         super().__init__(node)
@@ -59,7 +59,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", str, str]
     async def parse_request(self, request: str) -> Dict[str, Any]:
         return json.loads(request)
 
-    def get_request_handler(self, request: JsonRpcRequest) -> AbstractRpcRequest:
+    def get_request_handler(self, request: BxJsonRpcRequest) -> AbstractRpcRequest:
         if request.method == RpcRequestType.SUBSCRIBE:
             return self._subscribe_request_factory(request, self.node)
         elif request.method == RpcRequestType.UNSUBSCRIBE:
@@ -71,14 +71,14 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", str, str]
     def serialize_response(self, response: JsonRpcResponse) -> str:
         return response.to_jsons()
 
-    async def get_next_subscribed_message(self) -> JsonRpcRequest:
+    async def get_next_subscribed_message(self) -> BxJsonRpcRequest:
         return await self.subscribed_messages.get()
 
     async def handle_subscription(self, subscriber: Subscriber) -> None:
         while True:
             notification = await subscriber.receive()
             # subscription notifications are sent as JSONRPC requests
-            next_message = JsonRpcRequest(
+            next_message = BxJsonRpcRequest(
                 None,
                 RpcRequestType.SUBSCRIBE,
                 {
@@ -110,14 +110,14 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", str, str]
         return None
 
     def _subscribe_request_factory(
-        self, request: JsonRpcRequest, node: "AbstractGatewayNode"
+        self, request: BxJsonRpcRequest, node: "AbstractGatewayNode"
     ) -> AbstractRpcRequest:
         return SubscribeRpcRequest(
             request, node, self.feed_manager, self._on_new_subscriber
         )
 
     def _unsubscribe_request_factory(
-        self, request: JsonRpcRequest, node: "AbstractGatewayNode"
+        self, request: BxJsonRpcRequest, node: "AbstractGatewayNode"
     ) -> AbstractRpcRequest:
         return UnsubscribeRpcRequest(
             request, node, self.feed_manager, self._on_unsubscribe

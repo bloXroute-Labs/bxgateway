@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Callable, Optional, Tuple
 
-from bxcommon.rpc.json_rpc_request import JsonRpcRequest
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.rpc.rpc_errors import RpcInvalidParams
@@ -21,7 +21,7 @@ class UnsubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
 
     def __init__(
         self,
-        request: JsonRpcRequest,
+        request: BxJsonRpcRequest,
         node: "AbstractGatewayNode",
         feed_manager: FeedManager,
         unsubscribe_handler: Callable[[str], Optional[str]]

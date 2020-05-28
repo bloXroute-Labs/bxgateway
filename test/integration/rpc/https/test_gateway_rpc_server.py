@@ -2,7 +2,7 @@ from aiohttp import ClientSession
 
 from bxcommon import constants
 from bxcommon.rpc import rpc_constants
-from bxcommon.rpc.json_rpc_request import JsonRpcRequest
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.helpers import async_test
@@ -25,7 +25,7 @@ class GatewayRpcServerTest(AbstractGatewayRpcIntegrationTest):
     def get_gateway_opts(self) -> GatewayOpts:
         return gateway_helpers.get_gateway_opts(8000, rpc_port=self.rpc_port)
 
-    async def request(self, req: JsonRpcRequest) -> JsonRpcResponse:
+    async def request(self, req: BxJsonRpcRequest) -> JsonRpcResponse:
         async with ClientSession() as session:
             async with session.post(
                 self.rpc_url,

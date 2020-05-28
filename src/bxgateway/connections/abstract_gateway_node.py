@@ -46,8 +46,10 @@ from bxgateway.connections.abstract_relay_connection import AbstractRelayConnect
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxcommon.rpc import rpc_constants
 from bxgateway.feed.feed_manager import FeedManager
+from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 from bxgateway.feed.unconfirmed_transaction_feed import UnconfirmedTransactionFeed
 from bxgateway.gateway_opts import GatewayOpts
+from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
@@ -233,6 +235,7 @@ class AbstractGatewayNode(AbstractNode):
         self.feed_manager = FeedManager()
         self._rpc_server = GatewayHttpRpcServer(self)
         self._ws_server = WsServer(opts.ws_host, opts.ws_port, self.feed_manager, self)
+        self._eth_ws_subscriber = EthWsSubscriber(opts.eth_ws_uri, self.feed_manager, self._tx_service)
         self.init_live_feeds()
 
         self.tracked_block_cleanup_interval_s = tracked_block_cleanup_interval_s
@@ -289,6 +292,9 @@ class AbstractGatewayNode(AbstractNode):
 
     def init_live_feeds(self) -> None:
         self.feed_manager.register_feed(UnconfirmedTransactionFeed())
+        eth_ws_uri = self.opts.eth_ws_uri
+        if eth_ws_uri is not None:
+            self.feed_manager.register_feed(PendingTransactionFeed())
 
     def send_bdn_performance_stats(self) -> int:
         relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)
@@ -407,6 +413,13 @@ class AbstractGatewayNode(AbstractNode):
             except Exception as e:
                 logger.error(log_messages.WS_INITIALIZATION_FAIL, e, exc_info=True)
 
+        try:
+            await asyncio.wait_for(
+                self._eth_ws_subscriber.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
+            )
+        except Exception as e:
+            logger.error(log_messages.ETH_WS_INITIALIZATION_FAIL, e, exc_info=True)
+
     async def close(self):
         try:
             await asyncio.wait_for(self._rpc_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
@@ -416,6 +429,10 @@ class AbstractGatewayNode(AbstractNode):
             await asyncio.wait_for(self._ws_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
         except (Exception, CancelledError) as e:
             logger.error(log_messages.WS_CLOSE_FAIL, e, exc_info=True)
+        try:
+            await asyncio.wait_for(self._eth_ws_subscriber.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
+        except Exception as e:
+            logger.error(log_messages.ETH_WS_CLOSE_FAIL, e, exc_info=True)
         await super(AbstractGatewayNode, self).close()
 
     def send_request_for_relay_peers(self):

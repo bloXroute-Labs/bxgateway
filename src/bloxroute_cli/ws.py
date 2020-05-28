@@ -3,7 +3,7 @@ import asyncio
 import websockets
 
 from bxcommon import constants
-from bxcommon.rpc.json_rpc_request import JsonRpcRequest
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 
 """
@@ -17,7 +17,7 @@ async def main():
     ws_uri = f"ws://{constants.LOCALHOST}:28333"
     async with websockets.connect(ws_uri) as ws:
         await ws.send(
-            JsonRpcRequest(
+            BxJsonRpcRequest(
                 "2", RpcRequestType.SUBSCRIBE, ["unconfirmedTxs", {}]
             ).to_jsons()
         )

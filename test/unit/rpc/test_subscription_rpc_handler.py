@@ -2,7 +2,7 @@ import asyncio
 from asyncio import Future
 
 from bxgateway.testing import gateway_helpers
-from bxcommon.rpc.json_rpc_request import JsonRpcRequest
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.rpc_errors import RpcInvalidParams
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -31,7 +31,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
     async def test_subscribe_to_feed(self):
         feed = Feed("foo")
         self.feed_manager.register_feed(feed)
-        subscribe_request = JsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo", {}])
+        subscribe_request = BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo", {}])
 
         rpc_handler = self.rpc.get_request_handler(subscribe_request)
         self.assertIsInstance(rpc_handler, SubscribeRpcRequest)
@@ -45,7 +45,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         self.assertEqual(1, len(self.rpc.subscriptions))
         self.assertIn(subscriber_id, self.rpc.subscriptions)
 
-        next_message_task: Future[JsonRpcRequest] = asyncio.ensure_future(
+        next_message_task: Future[BxJsonRpcRequest] = asyncio.ensure_future(
             self.rpc.get_next_subscribed_message()
         )
         await asyncio.sleep(0)
@@ -68,7 +68,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         feed = Feed("foo")
         feed.FIELDS = ["field1", "field2", "field3"]
         self.feed_manager.register_feed(feed)
-        subscribe_request = JsonRpcRequest(
+        subscribe_request = BxJsonRpcRequest(
             "1",
             RpcRequestType.SUBSCRIBE,
             ["foo", {"include": ["field1", "field4"]}]
@@ -83,7 +83,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         feed = Feed("foo")
         feed.FIELDS = ["field1", "field2", "field3"]
         self.feed_manager.register_feed(feed)
-        subscribe_request = JsonRpcRequest(
+        subscribe_request = BxJsonRpcRequest(
             "1",
             RpcRequestType.SUBSCRIBE,
             ["foo", {"include": ["field1", "field2"]}]
@@ -93,7 +93,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         result = await rpc_handler.process_request()
         subscriber_id = result.result
 
-        next_message_task: Future[JsonRpcRequest] = asyncio.ensure_future(
+        next_message_task: Future[BxJsonRpcRequest] = asyncio.ensure_future(
             self.rpc.get_next_subscribed_message()
         )
 
@@ -128,9 +128,9 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         self.feed_manager.register_feed(feed3)
 
         subscribe_requests = [
-            JsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo1", {}]),
-            JsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo2", {}]),
-            JsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo3", {}])
+            BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo1", {}]),
+            BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo2", {}]),
+            BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo3", {}])
         ]
         subscriber_ids = []
         for subscribe_request in subscribe_requests:
@@ -138,7 +138,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
             result = await rpc_handler.process_request()
             subscriber_ids.append(result.result)
 
-        next_message_task: Future[JsonRpcRequest] = asyncio.ensure_future(
+        next_message_task: Future[BxJsonRpcRequest] = asyncio.ensure_future(
             self.rpc.get_next_subscribed_message()
         )
         await asyncio.sleep(0)
@@ -176,13 +176,13 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         feed = Feed("foo")
         self.feed_manager.register_feed(feed)
 
-        subscribe_request = JsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo", {}])
+        subscribe_request = BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo", {}])
         rpc_handler = self.rpc.get_request_handler(subscribe_request)
         result = await rpc_handler.process_request()
         subscriber_id = result.result
 
         # message is received
-        next_message_task: Future[JsonRpcRequest] = asyncio.ensure_future(
+        next_message_task: Future[BxJsonRpcRequest] = asyncio.ensure_future(
             self.rpc.get_next_subscribed_message()
         )
         await asyncio.sleep(0)
@@ -192,12 +192,12 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         await asyncio.sleep(0)  # subscriber publishes to queue
         self.assertTrue(next_message_task.done())
 
-        unsubscribe_request = JsonRpcRequest("1", RpcRequestType.UNSUBSCRIBE, [subscriber_id])
+        unsubscribe_request = BxJsonRpcRequest("1", RpcRequestType.UNSUBSCRIBE, [subscriber_id])
         rpc_handler = self.rpc.get_request_handler(unsubscribe_request)
         result = await rpc_handler.process_request()
         self.assertTrue(result.result)
 
-        next_message_task: Future[JsonRpcRequest] = asyncio.ensure_future(
+        next_message_task: Future[BxJsonRpcRequest] = asyncio.ensure_future(
             self.rpc.get_next_subscribed_message()
         )
         feed.publish("foobar_not_received")

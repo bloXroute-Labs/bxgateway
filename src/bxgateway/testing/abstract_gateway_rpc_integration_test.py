@@ -3,7 +3,7 @@ from abc import ABCMeta, abstractmethod
 
 from bxcommon import constants
 from bxcommon.rpc import rpc_constants
-from bxcommon.rpc.json_rpc_request import JsonRpcRequest
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.services.threaded_request_service import ThreadedRequestService
@@ -54,12 +54,12 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         pass
 
     @abstractmethod
-    async def request(self, req: JsonRpcRequest) -> JsonRpcResponse:
+    async def request(self, req: BxJsonRpcRequest) -> JsonRpcResponse:
         pass
 
     @async_test
     async def test_blxr_tx(self):
-        result = await self.request(JsonRpcRequest(
+        result = await self.request(BxJsonRpcRequest(
             "1",
             RpcRequestType.BLXR_TX,
             {
@@ -81,7 +81,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @async_test
     async def test_gateway_status(self):
-        result = await self.request(JsonRpcRequest(
+        result = await self.request(BxJsonRpcRequest(
             "2",
             RpcRequestType.GATEWAY_STATUS,
             None
@@ -94,7 +94,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @async_test
     async def test_stop(self):
-        result = await self.request(JsonRpcRequest(
+        result = await self.request(BxJsonRpcRequest(
             "3",
             RpcRequestType.STOP,
             None
@@ -106,7 +106,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @async_test
     async def test_memory(self):
-        result = await self.request(JsonRpcRequest(
+        result = await self.request(BxJsonRpcRequest(
             "4",
             RpcRequestType.MEMORY,
             None
@@ -118,7 +118,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @async_test
     async def test_peers(self):
-        result = await self.request(JsonRpcRequest(
+        result = await self.request(BxJsonRpcRequest(
             "5",
             RpcRequestType.PEERS,
             None
@@ -138,7 +138,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         gateway_bdn_performance_stats_service.log_tx_from_blockchain_node()
         gateway_bdn_performance_stats_service.close_interval_data()
 
-        result = await self.request(JsonRpcRequest(
+        result = await self.request(BxJsonRpcRequest(
             "6",
             RpcRequestType.BDN_PERFORMANCE,
             None

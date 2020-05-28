@@ -2,7 +2,7 @@ import asyncio
 from typing import TYPE_CHECKING, Union, List, Dict, Any
 
 from bxcommon.rpc import rpc_constants
-from bxcommon.rpc.json_rpc_request import JsonRpcRequest
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
@@ -22,7 +22,7 @@ class GatewayStatusRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
 
     def __init__(
         self,
-        request: JsonRpcRequest,
+        request: BxJsonRpcRequest,
         node: "AbstractGatewayNode",
     ):
         if request.params is None:

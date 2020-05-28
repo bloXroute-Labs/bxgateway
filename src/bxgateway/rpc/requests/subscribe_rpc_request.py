@@ -1,6 +1,6 @@
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, List
 
-from bxcommon.rpc.json_rpc_request import JsonRpcRequest
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.rpc.rpc_errors import RpcInvalidParams
@@ -23,13 +23,13 @@ class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
 
     def __init__(
         self,
-        request: JsonRpcRequest,
+        request: BxJsonRpcRequest,
         node: "AbstractGatewayNode",
         feed_manager: FeedManager,
         subscribe_handler: Callable[[Subscriber, str], None],
     ) -> None:
         self.feed_name = ""
-        self.include = []
+        self.include: List[str] = []
         self.feed_manager = feed_manager
         self.subscribe_handler = subscribe_handler
 

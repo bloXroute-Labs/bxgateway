@@ -12,7 +12,7 @@ import websockets
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.testing import gateway_helpers
 from bxcommon import constants
-from bxcommon.rpc.json_rpc_request import JsonRpcRequest
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.test_utils.helpers import async_test
@@ -37,7 +37,7 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
     def get_gateway_opts(self) -> GatewayOpts:
         return gateway_helpers.get_gateway_opts(8000, )
 
-    async def request(self, req: JsonRpcRequest) -> JsonRpcResponse:
+    async def request(self, req: BxJsonRpcRequest) -> JsonRpcResponse:
         async with websockets.connect(self.ws_uri) as ws:
             await ws.send(req.to_jsons())
             return JsonRpcResponse.from_jsons(await ws.recv())
@@ -67,7 +67,7 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
                 0.1, publish
             )
             await ws.send(
-                JsonRpcRequest(
+                BxJsonRpcRequest(
                     "2", RpcRequestType.SUBSCRIBE, ["foo", {}]
                 ).to_jsons()
             )
@@ -83,7 +83,7 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
             self._assert_notification(3, subscriber_id, await ws.recv())
 
             await ws.send(
-                JsonRpcRequest(
+                BxJsonRpcRequest(
                     "3", RpcRequestType.UNSUBSCRIBE, [subscriber_id]
                 ).to_jsons()
             )
@@ -103,7 +103,7 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
     def _assert_notification(
         self, expected_result: Any, subscriber_id: str, message: str
     ):
-        parsed_notification = JsonRpcRequest.from_jsons(message)
+        parsed_notification = BxJsonRpcRequest.from_jsons(message)
         self.assertIsNone(parsed_notification.id)
         self.assertEqual(RpcRequestType.SUBSCRIBE, parsed_notification.method)
         self.assertEqual(subscriber_id, parsed_notification.params["subscription"])

@@ -257,7 +257,11 @@ def get_opts() -> GatewayOpts:
         type=int,
         default=gateway_constants.WS_DEFAULT_PORT
     )
-
+    arg_parser.add_argument(
+        "--eth-ws-uri",
+        help=f"Ethereum websockets endpoint for syncing transaction content",
+        type=str
+    )
     opts = GatewayOpts(cli.parse_arguments(arg_parser))
     config.set_data_directory(opts.data_dir)
     if opts.private_key is None:

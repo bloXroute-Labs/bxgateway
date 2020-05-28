@@ -69,12 +69,13 @@ class GatewayOpts(CommonOpts):
     consensus_port: int
     relay: bool
     is_consensus: bool
-
-    # ENV
-    is_docker: bool
     ws: bool
     ws_host: str
     ws_port: int
+    eth_ws_uri: Optional[str]
+
+    # ENV
+    is_docker: bool
 
     def __init__(self, opts: Namespace):
 
@@ -152,6 +153,7 @@ class GatewayOpts(CommonOpts):
         self.ws = opts.ws
         self.ws_host = opts.ws_host
         self.ws_port = opts.ws_port
+        self.eth_ws_uri = opts.eth_ws_uri
 
         # set by node runner
         self.blockchain_block_interval = 0

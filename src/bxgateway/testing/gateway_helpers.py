@@ -124,7 +124,7 @@ def get_gateway_opts(
             "ws_host": constants.LOCALHOST,
             "ws_port": 28333,
             "account_id": account_id,
-            "account_model": account_model
+            "account_model": account_model,
         }
     )
 
@@ -147,7 +147,8 @@ def get_gateway_opts(
             "chain_difficulty": 4194304,
             "genesis_hash": "1e8ff5fd9d06ab673db775cf5c72a6b2d63171cd26fe1e6a8b9d2d696049c781",
             "no_discovery": True,
-            "enode": "enode://294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3@127.0.0.1:8000"
+            "enode": "enode://294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3@127.0.0.1:8000",
+            "eth_ws_uri": None
         }
     )
     # ontology

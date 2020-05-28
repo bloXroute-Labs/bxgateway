@@ -255,3 +255,13 @@ WS_CLOSE_FAIL = LogMessage(
     CONNECTION_PROBLEM_CATEGORY,
     "Failed to close Gateway Websockets server: {}."
 )
+ETH_WS_INITIALIZATION_FAIL = LogMessage(
+    "G-000049",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to initialize Ethereum websockets connection: {}."
+)
+ETH_WS_CLOSE_FAIL = LogMessage(
+    "G-000050",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to close Etheruem websockets connection: {}."
+)
