@@ -1,5 +1,10 @@
 import asyncio
-from asyncio.exceptions import CancelledError
+# TODO: remove try-catch when removing py3.7 support
+try:
+    from asyncio.exceptions import CancelledError
+except ImportError:
+    from asyncio.futures import CancelledError
+
 import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Future

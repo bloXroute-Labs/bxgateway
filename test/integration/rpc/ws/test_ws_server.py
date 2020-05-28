@@ -1,7 +1,12 @@
 import asyncio
 import json
 from typing import Any
-from asyncio.exceptions import TimeoutError
+# TODO: remove try-catch when removing py3.7 support
+try:
+    from asyncio.exceptions import TimeoutError
+except ImportError:
+    from asyncio.futures import TimeoutError
+
 import websockets
 
 from bxgateway.gateway_opts import GatewayOpts
