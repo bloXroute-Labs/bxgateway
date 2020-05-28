@@ -5,12 +5,11 @@ from aiohttp.web_exceptions import HTTPUnauthorized, HTTPOk
 
 from bxgateway.testing import gateway_helpers
 from bxcommon.rpc import rpc_constants
-from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
 from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.testing.mocks.mock_rpc_request import MockRpcRequest
+from bxcommon.test_utils.mocks.mock_rpc_request import MockRpcRequest
 
 
 # noinspection PyTypeChecker
