@@ -136,9 +136,12 @@ class GatewayOpts(CommonOpts):
         self.config_update_interval = opts.config_update_interval
         self.require_blockchain_connection = opts.require_blockchain_connection
         self.default_tx_quota_type = opts.default_tx_quota_type
-        self.account_id = opts.account_id
-        self.account_model = opts.account_model
         
+        if "account_id" in opts:
+            self.account_id = opts.account_id
+        if "account_model" in opts:
+            self.account_model = opts.account_model
+
         # Ontology specific
         self.http_info_port = opts.http_info_port
         self.consensus_port = opts.consensus_port
