@@ -335,8 +335,9 @@ class BlockProcessingService:
         if self._node.opts.dump_short_id_mapping_compression:
             mapping = {}
             for short_id in block_info.short_ids:
-                mapping[short_id] = convert.bytes_to_hex(
-                    self._node.get_tx_service().get_transaction(short_id).hash.binary)
+                tx_hash = self._node.get_tx_service().get_transaction(short_id).hash
+                assert tx_hash is not None
+                mapping[short_id] = convert.bytes_to_hex(tx_hash.binary)
             with open(f"{self._node.opts.dump_short_id_mapping_compression_path}/"
                       f"{convert.bytes_to_hex(block_hash.binary)}", "w") as f:
                 f.write(str(mapping))

@@ -240,21 +240,20 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         for transaction in transactions:
             tx_hash, transaction_contents, short_id = transaction
 
-            # pyre-fixme[6]: Expected `int` for 1st param but got `Optional[int]`.
+            assert tx_hash is not None
+            assert short_id is not None
+
             self.node.block_recovery_service.check_missing_sid(short_id)
 
             if not tx_service.has_short_id(short_id):
                 tx_service.assign_short_id(tx_hash, short_id)
 
-            # pyre-fixme[6]: Expected `Sha256Hash` for 1st param but got
-            #  `Optional[bxcommon.utils.object_hash.Sha256Hash]`.
             self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
             if not tx_service.has_transaction_contents(tx_hash):
+                assert transaction_contents is not None
                 tx_service.set_transaction_contents(tx_hash, transaction_contents)
 
-            # pyre-fixme[6]: Expected `Sha256Hash` for 1st param but got
-            #  `Optional[bxcommon.utils.object_hash.Sha256Hash]`.
             tx_stats.add_tx_by_hash_event(tx_hash,
                                           TransactionStatEventType.TX_UNKNOWN_TRANSACTION_RECEIVED_BY_GATEWAY_FROM_RELAY,
                                           self.node.network_num, short_id, peer=stats_format.connection(self))

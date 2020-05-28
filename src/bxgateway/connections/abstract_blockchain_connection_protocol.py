@@ -41,52 +41,57 @@ class AbstractBlockchainConnectionProtocol:
         """
         start_time = time.time()
         txn_count = 0
-
-        bx_tx_messages = self.connection.node.message_converter.tx_to_bx_txs(
-            msg, self.connection.network_num, self.connection.node.default_tx_quota_type
-        )
+        broadcast_txs_count = 0
 
         tx_service = self.connection.node.get_tx_service()
 
+        process_tx_msg_result = tx_service.process_transactions_message_from_node(msg)
+
         broadcast_start_time = time.time()
 
-        pending_txs_to_set = []
-
-        for bx_tx_message, tx_hash, tx_cache_key, tx_bytes, tx_seen_flag in tx_service.process_bx_tx_messages(
-            bx_tx_messages):
+        for tx_result in process_tx_msg_result:
             txn_count += 1
 
-            if tx_seen_flag:
-                tx_stats.add_tx_by_hash_event(tx_hash,
+            if tx_result.seen:
+                tx_stats.add_tx_by_hash_event(tx_result.transaction_hash,
                                               TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                               self.connection.network_num,
                                               peer=stats_format.connection(self.connection))
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
                 continue
-            else:
-                pending_txs_to_set.append((tx_hash, tx_bytes, tx_cache_key))
 
-            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE,
-                                          self.connection.network_num, peer=stats_format.connection(self.connection))
-            gateway_transaction_stats_service.log_transaction_from_blockchain(tx_hash)
+            broadcast_txs_count += 1
+
+            tx_stats.add_tx_by_hash_event(
+                tx_result.transaction_hash,
+                TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE,
+                self.connection.network_num,
+                peer=stats_format.connection(self.connection)
+            )
+            gateway_transaction_stats_service.log_transaction_from_blockchain(tx_result.transaction_hash)
             gateway_bdn_performance_stats_service.log_tx_from_blockchain_node()
 
             # All connections outside of this one is a bloXroute server
-            broadcast_peers = self.connection.node.broadcast(bx_tx_message, self.connection,
-                                                             connection_types=[ConnectionType.RELAY_TRANSACTION])
+            broadcast_peers = self.connection.node.broadcast(
+                tx_result.bdn_transaction_message,
+                self.connection,
+                connection_types=[ConnectionType.RELAY_TRANSACTION]
+            )
+
             if broadcast_peers:
-                tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
-                                              self.connection.network_num,
-                                              peers=map(lambda conn: (stats_format.connection(conn)),
-                                                        broadcast_peers))
+                tx_stats.add_tx_by_hash_event(
+                    tx_result.transaction_hash,
+                    TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
+                    self.connection.network_num,
+                    peers=map(lambda conn: (stats_format.connection(conn)), broadcast_peers)
+                )
             else:
-                logger.trace("Tx Message: {} from BlockchainNode was dropped, no upstream relay connection available",
-                             tx_hash)
+                logger.trace(
+                    "Tx Message: {} from BlockchainNode was dropped, no upstream relay connection available",
+                    tx_result.transaction_hash
+                )
 
         set_content_start_time = time.time()
-
-        tx_service.set_transactions_contents(pending_txs_to_set)
-
         end_time = time.time()
 
         total_duration_ms = (end_time - start_time) * 1000
@@ -99,7 +104,7 @@ class AbstractBlockchainConnectionProtocol:
             duration_before_broadcast_ms,
             duration_broadcast_ms,
             duration_set_content_ms,
-            len(pending_txs_to_set)
+            broadcast_txs_count
         )
 
         performance_utils.log_operation_duration(

@@ -26,9 +26,9 @@ from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketC
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.network_direction import NetworkDirection
 from bxcommon.network.peer_info import ConnectionPeerInfo
+from bxcommon.rpc import rpc_constants
 from bxcommon.services import sdn_http_service
 from bxcommon.services.broadcast_service import BroadcastService
-from bxcommon.services.transaction_service import TransactionService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
 from bxcommon.utils import network_latency, memory_utils, convert, node_cache
 from bxcommon.utils.alarm_queue import AlarmId
@@ -54,6 +54,7 @@ from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueui
 from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService
 from bxgateway.services.gateway_broadcast_service import GatewayBroadcastService
+from bxgateway.services.gateway_transaction_service import GatewayTransactionService
 from bxgateway.services.neutrality_service import NeutralityService
 from bxgateway.utils import configuration_utils
 from bxgateway.utils.blockchain_message_queue import BlockchainMessageQueue
@@ -102,7 +103,7 @@ class AbstractGatewayNode(AbstractNode):
     block_queuing_service: AbstractBlockQueuingService
     block_processing_service: BlockProcessingService
     block_cleanup_service: AbstractBlockCleanupService
-    _tx_service: TransactionService
+    _tx_service: GatewayTransactionService
 
     _block_from_node_handling_times: ExpiringDict[Sha256Hash, float]
     _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[float, str]]
@@ -188,10 +189,10 @@ class AbstractGatewayNode(AbstractNode):
         self.network = self._get_blockchain_network()
 
         if opts.use_extensions:
-            from bxcommon.services.extension_transaction_service import ExtensionTransactionService
-            self._tx_service = ExtensionTransactionService(self, self.network_num)
+            from bxgateway.services.extension_gateway_transaction_service import ExtensionGatewayTransactionService
+            self._tx_service = ExtensionGatewayTransactionService(self, self.network_num)
         else:
-            self._tx_service = TransactionService(self, self.network_num)
+            self._tx_service = GatewayTransactionService(self, self.network_num)
 
         self.init_transaction_stat_logging()
         self.init_bdn_performance_stats_logging()
@@ -327,7 +328,7 @@ class AbstractGatewayNode(AbstractNode):
         )
         return super(AbstractGatewayNode, self).record_mem_stats()
 
-    def get_tx_service(self, network_num=None):
+    def get_tx_service(self, network_num=None) -> GatewayTransactionService:
         if network_num is not None and network_num != self.opts.blockchain_network_num:
             raise ValueError("Gateway is running with network number '{}' but tx service for '{}' was requested"
                              .format(self.opts.blockchain_network_num, network_num))
@@ -486,7 +487,8 @@ class AbstractGatewayNode(AbstractNode):
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
                                                self.opts.external_ip, self.opts.continent, self.opts.country,
-                                               self.opts.should_update_source_version, self.account_id, self.quota_level)
+                                               self.opts.should_update_source_version, self.account_id,
+                                               self.quota_level)
         if self.is_local_blockchain_address(ip, port):
             return self.build_blockchain_connection(socket_connection)
         elif self.remote_blockchain_ip == ip and self.remote_blockchain_port == port:
@@ -612,7 +614,8 @@ class AbstractGatewayNode(AbstractNode):
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
                                                self.opts.external_ip, self.opts.continent, self.opts.country,
-                                               self.opts.should_update_source_version, self.account_id, self.quota_level)
+                                               self.opts.should_update_source_version, self.account_id,
+                                               self.quota_level)
         if connection_type in ConnectionType.GATEWAY:
             self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
                                                  self.opts.node_id,
@@ -643,9 +646,9 @@ class AbstractGatewayNode(AbstractNode):
         self.enqueue_connection(outbound_peer.ip, outbound_peer.port, ConnectionType.REMOTE_BLOCKCHAIN_NODE)
 
     def on_block_seen_by_blockchain_node(
-            self,
-            block_hash: Sha256Hash,
-            block_message: Optional[AbstractBlockMessage] = None
+        self,
+        block_hash: Sha256Hash,
+        block_message: Optional[AbstractBlockMessage] = None
     ):
         self.blocks_seen.add(block_hash)
         recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
