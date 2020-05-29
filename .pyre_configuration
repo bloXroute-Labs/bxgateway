@@ -4,7 +4,7 @@
     "../bxcommon/src",
     "../bxcommon-internal/src",
     "../bxextensions/",
-    ".venv/lib/python3.8/site-packages"
+    ".venv/lib/python3.7/site-packages"
   ],
   "source_directories": [
     "src"

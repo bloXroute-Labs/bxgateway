@@ -4,7 +4,7 @@ executors:
   bloxroute-executor:
     docker:
     # TODO: Use AWS repository or create bloXroute account on Docker Hub
-    - image: circleci/python:3.8
+    - image: circleci/python:3.7
     environment:
       PYTHONPATH: /home/circleci/ws/bxcommon/src:/home/circleci/ws/bxgateway/src:/home/circleci/ws/bxextensions:/home/circleci/ws/bxcommon-internal/src/
     working_directory: ~/ws
