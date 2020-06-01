@@ -34,6 +34,8 @@ class WsConnection:
         for task in pending:
             task.cancel()
 
+        self.close()
+
     async def handle_request(self, websocket: WebSocketServerProtocol, _path: str) -> None:
         # seems to be an oddity in library typeshed
         # noinspection PyTypeChecker

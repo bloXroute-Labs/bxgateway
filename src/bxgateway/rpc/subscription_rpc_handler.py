@@ -20,6 +20,7 @@ from bxgateway.rpc.requests.gateway_status_rpc_request import GatewayStatusRpcRe
 from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcRequest
 from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
+from bxutils import logging
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences

@@ -7,9 +7,12 @@ from websockets.server import WebSocketServer
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
 from bxgateway.rpc.ws.ws_connection import WsConnection
+from bxutils import logging
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+
+logger = logging.get_logger(__name__)
 
 
 class WsServer:
@@ -37,6 +40,7 @@ class WsServer:
             await server.wait_closed()
 
     async def handle_connection(self, websocket: WebSocketServerProtocol, path: str) -> None:
+        logger.trace("Accepting new websocket connection...")
         connection = WsConnection(
             websocket,
             path,

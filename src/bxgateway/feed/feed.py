@@ -1,7 +1,10 @@
+from asyncio import QueueFull
 from typing import TypeVar, Generic, List, Dict, Optional
 
 from bxgateway.feed.subscriber import Subscriber
+from bxutils import logging
 
+logger = logging.get_logger(__name__)
 T = TypeVar("T")
 
 
@@ -26,8 +29,21 @@ class Feed(Generic[T]):
         return self.subscribers.pop(subscriber_id, None)
 
     def publish(self, message: T) -> None:
+        bad_subscribers = []
         for subscriber in self.subscribers.values():
-            subscriber.queue(message)
+            try:
+                subscriber.queue(message)
+            except QueueFull:
+                logger.error(
+                    "Subscriber {} was not receiving messages and emptying its queue from "
+                    "feed {}. Disconnecting.",
+                    subscriber.subscription_id,
+                    self.name
+                )
+                bad_subscribers.append(subscriber)
+
+        for bad_subscriber in bad_subscribers:
+            self.unsubscribe(bad_subscriber.subscription_id)
 
     def subscriber_count(self) -> int:
         return len(self.subscribers)

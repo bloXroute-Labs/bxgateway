@@ -2,6 +2,9 @@ from typing import Dict, Optional, List, Any
 
 from bxgateway.feed.feed import Feed
 from bxgateway.feed.subscriber import Subscriber
+from bxutils import logging
+
+logger = logging.get_logger(__name__)
 
 
 class FeedManager:
@@ -20,14 +23,27 @@ class FeedManager:
         self, name: str, include_fields: Optional[List[str]] = None
     ) -> Optional[Subscriber]:
         if name in self.feeds:
-            return self.feeds[name].subscribe(include_fields)
+            subscriber = self.feeds[name].subscribe(include_fields)
+            logger.debug(
+                "Creating new subscriber ({}) to {}",
+                subscriber.subscription_id,
+                name
+            )
+            return subscriber
         else:
             return None
 
     def unsubscribe_from_feed(
         self, name: str, subscriber_id: str
     ) -> Optional[Subscriber]:
-        return self.feeds[name].unsubscribe(subscriber_id)
+        subscriber = self.feeds[name].unsubscribe(subscriber_id)
+        if subscriber is not None:
+            logger.debug(
+                "Unsubscribing subscriber ({}) from {}",
+                subscriber.subscription_id,
+                name
+            )
+        return subscriber
 
     def publish_to_feed(self, name: str, message: Any) -> None:
         self.feeds[name].publish(message)
