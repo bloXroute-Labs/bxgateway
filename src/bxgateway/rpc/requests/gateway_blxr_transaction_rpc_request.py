@@ -26,7 +26,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
     QUOTA_TYPE: str = "quota_type"
     SYNCHRONOUS = rpc_constants.SYNCHRONOUS_PARAMS_KEY
 
-    def process_transaction(
+    async def process_transaction(
         self, network_num: int, account_id: str, quota_type: QuotaType, transaction_str: str
     ) -> JsonRpcResponse:
         try:
