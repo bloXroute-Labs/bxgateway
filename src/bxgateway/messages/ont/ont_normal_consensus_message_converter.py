@@ -17,7 +17,7 @@ from bxcommon.utils import convert, crypto
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxcommon.utils.object_hash import Sha256Hash
 
-from bxgateway import ont_constants
+from bxgateway import ont_constants, log_messages
 from bxgateway.abstract_message_converter import BlockDecompressionResult
 from bxgateway.messages.ont import ont_messages_util
 from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMessageConverter, get_block_info
@@ -267,7 +267,7 @@ class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
             logger.debug("Successfully parsed bx_block broadcast message. {} transactions in bx_block", total_tx_count)
         else:
             ont_consensus_msg = None
-            logger.warning("Consensus block recovery needed. Missing {} sids, {} tx hashes. Total txs in bx_block: {}",
+            logger.warning(log_messages.BLOCK_RECOVERY_NEEDED_ONT_CONSENSUS,
                            len(unknown_tx_sids), len(unknown_tx_hashes), total_tx_count)
         block_info = get_block_info(
             bx_block_msg,

@@ -265,3 +265,33 @@ ETH_WS_CLOSE_FAIL = LogMessage(
     CONNECTION_PROBLEM_CATEGORY,
     "Failed to close Etheruem websockets connection: {}."
 )
+BLOCK_RECOVERY_NEEDED_ONT_CONSENSUS = LogMessage(
+    "G-000051",
+    GENERAL_CATEGORY,
+    "Consensus block recovery needed. Missing {} sids, {} tx hashes. Total txs in bx_block: {}"
+)
+BLOCK_COMPRESSION_FAIL_ONT_CONSENSUS = LogMessage(
+    "G-000052",
+    PROCESSING_FAILED_CATEGORY,
+    "Failed to compress consensus block {} - {}"
+)
+BLOCK_REQUIRES_RECOVERY_ONT_CONSENSUS = LogMessage(
+    "G-000053",
+    GENERAL_CATEGORY,
+    "Consensus block {} requires short id recovery. Querying BDN..."
+)
+BLOCK_DECOMPRESSION_FAILURE_ONT_CONSENSUS = LogMessage(
+    "G-000054",
+    GENERAL_CATEGORY,
+    "Unexpectedly, could not decompress consensus block {} after block was recovered."
+)
+LACK_BLOCKCHAIN_CONNECTION_ONT_CONSENSUS = LogMessage(
+    "G-000055",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Discarding consensus block. No connection currently exists to the blockchain node."
+)
+FAILED_TO_DECOMPRESS_BLOCK_ONT_CONSENSUS = LogMessage(
+    "G-000056",
+    GENERAL_CATEGORY,
+    "Failed to decompress consensus block {} - {}"
+)
