@@ -98,14 +98,17 @@ class EthWsSubscriber:
                         params["result"][2:]
                     )
                 )
-                tx_contents = cast(
-                    memoryview,
-                    self.transaction_service.get_transaction_by_hash(tx_hash)
-                )
-                self.feed_manager.publish_to_feed(
-                    PendingTransactionFeed.NAME,
-                    TransactionFeedEntry(tx_hash, tx_contents)
-                )
+                self.process_received_transaction(tx_hash)
+
+    def process_received_transaction(self, tx_hash: Sha256Hash) -> None:
+        tx_contents = cast(
+            Optional[memoryview],
+            self.transaction_service.get_transaction_by_hash(tx_hash)
+        )
+        self.feed_manager.publish_to_feed(
+            PendingTransactionFeed.NAME,
+            TransactionFeedEntry(tx_hash, tx_contents)
+        )
 
     async def stop(self) -> None:
         receiving_task = self.receiving_task

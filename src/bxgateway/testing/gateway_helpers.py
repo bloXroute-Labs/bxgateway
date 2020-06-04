@@ -47,6 +47,7 @@ def get_gateway_opts(
     enable_network_content_logs=False,
     account_id=None,
     account_model=None,
+    request_remote_transaction_streaming: bool = False,
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:
@@ -125,6 +126,7 @@ def get_gateway_opts(
             "ws_port": 28333,
             "account_id": account_id,
             "account_model": account_model,
+            "request_remote_transaction_streaming": request_remote_transaction_streaming,
         }
     )
 

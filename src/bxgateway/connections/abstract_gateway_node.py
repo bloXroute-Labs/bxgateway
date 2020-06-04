@@ -26,7 +26,6 @@ from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketC
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.network_direction import NetworkDirection
 from bxcommon.network.peer_info import ConnectionPeerInfo
-from bxcommon.rpc import rpc_constants
 from bxcommon.services import sdn_http_service
 from bxcommon.services.broadcast_service import BroadcastService
 from bxcommon.storage.block_encrypted_cache import BlockEncryptedCache
@@ -49,7 +48,6 @@ from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 from bxgateway.feed.unconfirmed_transaction_feed import UnconfirmedTransactionFeed
 from bxgateway.gateway_opts import GatewayOpts
-from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
@@ -72,14 +70,11 @@ from bxutils.ssl.ssl_certificate_type import SSLCertificateType
 logger = logging.get_logger(__name__)
 
 
-class AbstractGatewayNode(AbstractNode):
+class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     """
     bloXroute gateway node. Middlemans messages between blockchain nodes and the bloXroute
     relay network.
     """
-
-    __metaclass__ = ABCMeta
-
     NODE_TYPE = NodeType.EXTERNAL_GATEWAY
     # pyre-fixme[8]: Attribute has type `Type[AbstractRelayConnection]`; used as `None`.
     RELAY_CONNECTION_CLS: ClassVar[Type[AbstractRelayConnection]] = None
@@ -235,7 +230,6 @@ class AbstractGatewayNode(AbstractNode):
         self.feed_manager = FeedManager()
         self._rpc_server = GatewayHttpRpcServer(self)
         self._ws_server = WsServer(opts.ws_host, opts.ws_port, self.feed_manager, self)
-        self._eth_ws_subscriber = EthWsSubscriber(opts.eth_ws_uri, self.feed_manager, self._tx_service)
         self.init_live_feeds()
 
         self.tracked_block_cleanup_interval_s = tracked_block_cleanup_interval_s
@@ -269,6 +263,11 @@ class AbstractGatewayNode(AbstractNode):
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
+    def build_gateway_connection(
+        self, socket_connection: AbstractSocketConnectionProtocol
+    ) -> GatewayConnection:
+        return GatewayConnection(socket_connection, self)
+
     @abstractmethod
     def build_block_queuing_service(self) -> AbstractBlockQueuingService:
         pass
@@ -292,9 +291,7 @@ class AbstractGatewayNode(AbstractNode):
 
     def init_live_feeds(self) -> None:
         self.feed_manager.register_feed(UnconfirmedTransactionFeed())
-        eth_ws_uri = self.opts.eth_ws_uri
-        if eth_ws_uri is not None:
-            self.feed_manager.register_feed(PendingTransactionFeed())
+        self.feed_manager.register_feed(PendingTransactionFeed(self.alarm_queue))
 
     def send_bdn_performance_stats(self) -> int:
         relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)
@@ -413,13 +410,6 @@ class AbstractGatewayNode(AbstractNode):
             except Exception as e:
                 logger.error(log_messages.WS_INITIALIZATION_FAIL, e, exc_info=True)
 
-        try:
-            await asyncio.wait_for(
-                self._eth_ws_subscriber.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
-            )
-        except Exception as e:
-            logger.error(log_messages.ETH_WS_INITIALIZATION_FAIL, e, exc_info=True)
-
     async def close(self):
         try:
             await asyncio.wait_for(self._rpc_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
@@ -429,10 +419,6 @@ class AbstractGatewayNode(AbstractNode):
             await asyncio.wait_for(self._ws_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
         except (Exception, CancelledError) as e:
             logger.error(log_messages.WS_CLOSE_FAIL, e, exc_info=True)
-        try:
-            await asyncio.wait_for(self._eth_ws_subscriber.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
-        except Exception as e:
-            logger.error(log_messages.ETH_WS_CLOSE_FAIL, e, exc_info=True)
         await super(AbstractGatewayNode, self).close()
 
     def send_request_for_relay_peers(self):
@@ -513,7 +499,7 @@ class AbstractGatewayNode(AbstractNode):
         # only other gateways attempt to actively connect to gateways
         elif not from_me or any(ip == peer_gateway.ip and port == peer_gateway.port
                                 for peer_gateway in self.peer_gateways):
-            return GatewayConnection(socket_connection, self)
+            return self.build_gateway_connection(socket_connection)
         elif any(ip == peer_relay.ip and port == peer_relay.port for peer_relay in self.peer_relays):
             relay_connection = self.build_relay_connection(socket_connection)
             if self.opts.split_relays:
@@ -755,32 +741,47 @@ class AbstractGatewayNode(AbstractNode):
 
         return result
 
-    def _send_request_for_gateway_peers(self):
+    def _send_request_for_gateway_peers(self) -> int:
         """
         Requests gateway peers from SDN. Merges list with provided command line gateways.
         """
-        peer_gateways = sdn_http_service.fetch_gateway_peers(self.opts.node_id)
-        if not peer_gateways and not self.peer_gateways and \
-            self.send_request_for_gateway_peers_num_of_calls < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+        logger.info(
+            "Fetching gateway peers, streaming: {}", self.opts.request_remote_transaction_streaming
+        )
+        peer_gateways = sdn_http_service.fetch_gateway_peers(
+            self.opts.node_id, self.opts.request_remote_transaction_streaming
+        )
+        if (
+            not peer_gateways
+            and not self.peer_gateways
+            and self.send_request_for_gateway_peers_num_of_calls
+            < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS
+        ):
             # Try again later
             logger.warning(log_messages.NO_GATEWAY_PEERS)
             self.send_request_for_gateway_peers_num_of_calls += 1
-            if self.send_request_for_gateway_peers_num_of_calls == \
-                gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS:
+            if (
+                self.send_request_for_gateway_peers_num_of_calls ==
+                gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS
+            ):
                 logger.warning(log_messages.ABANDON_GATEWAY_PEER_REQUEST)
             return constants.SDN_CONTACT_RETRY_SECONDS
-        else:
+        elif peer_gateways:
             logger.debug("Processing updated peer gateways: {}", peer_gateways)
             self._add_gateway_peers(peer_gateways)
             self.on_updated_peers(self._get_all_peers())
             self.send_request_for_gateway_peers_num_of_calls = 0
+        return constants.CANCEL_ALARMS
 
-    def _get_all_peers(self):
-        return list(self.peer_gateways.union(self.peer_relays).union(self.peer_transaction_relays))
+    def _get_all_peers(self) -> Set[OutboundPeerModel]:
+        return self.peer_gateways.union(self.peer_relays).union(self.peer_transaction_relays)
 
-    def _add_gateway_peers(self, gateways_peers):
+    def _add_gateway_peers(self, gateways_peers: List[OutboundPeerModel]) -> None:
         for gateway_peer in gateways_peers:
-            if gateway_peer.ip != self.opts.external_ip or gateway_peer.port != self.opts.external_port:
+            if (
+                gateway_peer.ip != self.opts.external_ip
+                or gateway_peer.port != self.opts.external_port
+            ):
                 self.peer_gateways.add(gateway_peer)
 
     def _remove_gateway_peer(self, ip, port):
@@ -947,11 +948,6 @@ class AbstractGatewayNode(AbstractNode):
 
             # check the network latency using the thread pool
             self.requester.send_threaded_request(
-                # pyre-fixme[6]: Expected `(...) -> None` for 1st param but got
-                #  `BoundMethod[typing.Callable(AbstractGatewayNode._find_best_relay_peers)[[Named(self,
-                #  AbstractGatewayNode), Named(potential_relay_peers,
-                #  List[OutboundPeerModel])], List[OutboundPeerModel]],
-                #  AbstractGatewayNode]`.
                 self._find_best_relay_peers,
                 potential_relay_peers,
                 done_callback=self._register_potential_relay_peers_from_future
@@ -990,7 +986,7 @@ class AbstractGatewayNode(AbstractNode):
 
         return best_relay_peers
 
-    def _register_potential_relay_peers_from_future(self, ping_potential_relays_future: Future):
+    def _register_potential_relay_peers_from_future(self, ping_potential_relays_future: Future) -> None:
         best_relay_peers = ping_potential_relays_future.result()
         self._register_potential_relay_peers(best_relay_peers)
 

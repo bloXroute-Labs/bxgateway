@@ -12,7 +12,7 @@ from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAlreadySeen
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-from bxutils import logging
+from bxutils import logging, log_messages as common_log_messages
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -35,7 +35,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             transaction = message_converter.encode_raw_msg(transaction_str)
             bx_tx = message_converter.bdn_tx_to_bx_tx(transaction, network_num, quota_type)
         except (ValueError, ParseError) as e:
-            logger.error("Error parsing the transaction:\n{}", e)
+            logger.error(common_log_messages.RPC_COULD_NOT_PARSE_TRANSACTION, e)
             raise RpcInvalidParams(
                 self.request_id, f"Invalid transaction param: {transaction_str}"
             )
