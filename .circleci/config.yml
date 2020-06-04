@@ -76,12 +76,11 @@ jobs:
             sudo rm -rf venv
             python -m virtualenv venv
             . venv/bin/activate
-            pip install pip==19
-            pip install -r bxgateway/requirements.txt
-            pip install -r bxgateway/requirements-dev.txt
-            pip install -r bxcommon/requirements.txt
-            pip install -r bxcommon/requirements-dev.txt
-            pip install -r bxcommon/requirements-optional.txt
+            pip install -r bxgateway/requirements.txt \
+              -r bxgateway/requirements-dev.txt \
+              -r bxcommon/requirements.txt \
+              -r bxcommon/requirements-dev.txt \
+              -r bxcommon/requirements-optional.txt
       - persist_to_workspace:
           root: .
           paths:
@@ -198,9 +197,9 @@ jobs:
           name: Initialize virtualenv
           command: |
             . venv/bin/activate
-            pip install -r bxrelay/requirements.txt
-            pip install -r bxrelay/requirements-dev.txt
-            pip install -r bxcommon/requirements-optional.txt
+            pip install -r bxrelay/requirements.txt \
+              -r bxrelay/requirements-dev.txt \
+              -r bxcommon/requirements-optional.txt
       - run:
           name: Integration Test
           command: |
@@ -311,6 +310,9 @@ workflows:
       - build:
           requires:
             - initialize
+          filters:
+            branches:
+              only: develop
       - check:
           requires:
             - build_extensions
