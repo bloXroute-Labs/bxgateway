@@ -47,6 +47,11 @@ def get_gateway_opts(
     enable_network_content_logs=False,
     account_id=None,
     account_model=None,
+    ipc=False,
+    ipc_file="bxgateway.ipc",
+    ws=False,
+    ws_host=constants.LOCALHOST,
+    ws_port=28333,
     request_remote_transaction_streaming: bool = False,
     **kwargs,
 ) -> GatewayOpts:
@@ -126,6 +131,8 @@ def get_gateway_opts(
             "ws_port": 28333,
             "account_id": account_id,
             "account_model": account_model,
+            "ipc": False,
+            "ipc_file": "bxgateway.ipc",
             "request_remote_transaction_streaming": request_remote_transaction_streaming,
         }
     )

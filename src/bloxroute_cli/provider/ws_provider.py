@@ -155,7 +155,7 @@ class WsProvider(AbstractProvider):
     async def close(self) -> None:
         ws = self.ws
         if ws is not None:
-            ws.close()
+            await ws.close()
             await ws.wait_closed()
 
         listener = self.listener

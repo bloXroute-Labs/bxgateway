@@ -65,6 +65,7 @@ from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxgateway.rpc.ws.ws_server import WsServer
+from bxgateway.rpc.ipc.ipc_server import IpcServer
 from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
 from bxutils.ssl.extensions import extensions_factory
@@ -233,6 +234,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.feed_manager = FeedManager()
         self._rpc_server = GatewayHttpRpcServer(self)
         self._ws_server = WsServer(opts.ws_host, opts.ws_port, self.feed_manager, self)
+        self._ipc_server = IpcServer(opts.ipc_file, self.feed_manager, self)
         self.init_live_feeds()
 
         self.tracked_block_cleanup_interval_s = tracked_block_cleanup_interval_s
@@ -422,6 +424,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             except Exception as e:
                 logger.error(log_messages.WS_INITIALIZATION_FAIL, e, exc_info=True)
 
+        if self.opts.ipc:
+            try:
+                await asyncio.wait_for(
+                    self._ipc_server.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
+                )
+            except Exception as e:
+                logger.error(log_messages.IPC_INITIALIZATION_FAIL, e, exc_info=True)
+
     async def close(self):
         try:
             await asyncio.wait_for(self._rpc_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
@@ -431,6 +441,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             await asyncio.wait_for(self._ws_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
         except (Exception, CancelledError) as e:
             logger.error(log_messages.WS_CLOSE_FAIL, e, exc_info=True)
+        try:
+            await asyncio.wait_for(self._ipc_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
+        except (Exception, CancelledError) as e:
+            logger.error(log_messages.IPC_CLOSE_FAIL, e, exc_info=True)
+
         await super(AbstractGatewayNode, self).close()
 
     def send_request_for_relay_peers(self):

@@ -117,4 +117,5 @@ class EthWsSubscriber:
 
         ws_client = self.ws_client
         if ws_client is not None:
-            ws_client.close()
+            await ws_client.close()
+            await ws_client.wait_closed()

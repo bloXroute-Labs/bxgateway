@@ -143,6 +143,15 @@ def get_opts() -> GatewayOpts:
                             help="Public key of remote bloXroute owned Ethereum node for encrypted communication "
                                  "during chainstate sync ",
                             type=str)
+    # IPC
+    arg_parser.add_argument("--ipc",
+                            help="Boolean indicating if IPC should be enabled.",
+                            type=convert.str_to_bool,
+                            default=False)
+    arg_parser.add_argument("--ipc-file",
+                            help="IPC filename that represents a unix domain socket",
+                            type=str,
+                            default="bxgateway.ipc")
 
     # Ontology specific
     # TODO: Remove test only arguments

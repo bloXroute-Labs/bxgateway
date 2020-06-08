@@ -1,7 +1,7 @@
 import asyncio
 import json
 from asyncio import Future
-from typing import TYPE_CHECKING, Dict, Any, NamedTuple, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Any, NamedTuple, Optional, Union
 
 from bxcommon.rpc.abstract_rpc_handler import AbstractRpcHandler
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
@@ -34,7 +34,7 @@ class Subscription(NamedTuple):
     task: Future
 
 
-class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", str, str]):
+class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[bytes, str], Union[bytes, str]]):
     feed_manager: FeedManager
     subscriptions: Dict[str, Subscription]
     subscribed_messages: 'asyncio.Queue[BxJsonRpcRequest]'
@@ -57,7 +57,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", str, str]
             gateway_constants.RPC_SUBSCRIBER_MAX_QUEUE_SIZE
         )
 
-    async def parse_request(self, request: str) -> Dict[str, Any]:
+    async def parse_request(self, request: Union[bytes, str]) -> Dict[str, Any]:
         return json.loads(request)
 
     def get_request_handler(self, request: BxJsonRpcRequest) -> AbstractRpcRequest:

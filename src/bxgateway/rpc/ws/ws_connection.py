@@ -37,9 +37,6 @@ class WsConnection:
         self.close()
 
     async def handle_request(self, websocket: WebSocketServerProtocol, _path: str) -> None:
-        # seems to be an oddity in library typeshed
-        # noinspection PyTypeChecker
-        # pyre-fixme16]: `websockets.server.WebSocketServerProtocol` has no attribute `__aiter__`.
         async for message in websocket:
             response = await self.rpc_handler.handle_request(message)
             await websocket.send(response)

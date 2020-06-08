@@ -295,3 +295,13 @@ FAILED_TO_DECOMPRESS_BLOCK_ONT_CONSENSUS = LogMessage(
     GENERAL_CATEGORY,
     "Failed to decompress consensus block {} - {}"
 )
+IPC_INITIALIZATION_FAIL = LogMessage(
+    "G-000057",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to initialize Gateway IPC server: {}."
+)
+IPC_CLOSE_FAIL = LogMessage(
+    "G-000058",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to close Gateway IPC server: {}."
+)

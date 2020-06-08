@@ -64,6 +64,10 @@ class GatewayOpts(CommonOpts):
     account_id: Optional[str]
     account_model: Optional[BdnAccountModelBase]
 
+    # IPC
+    ipc: bool
+    ipc_file: str
+
     # Ontology specific
     http_info_port: int
     consensus_port: int
@@ -145,6 +149,10 @@ class GatewayOpts(CommonOpts):
             self.account_id = opts.account_id
         if "account_model" in opts:
             self.account_model = opts.account_model
+
+        # IPC
+        self.ipc = opts.ipc
+        self.ipc_file = opts.ipc_file
 
         # Ontology specific
         self.http_info_port = opts.http_info_port
