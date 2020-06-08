@@ -8,7 +8,7 @@ from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_blxr_transaction_rpc_request import \
     AbstractBlxrTransactionRpcRequest
-from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAlreadySeen
+from bxcommon.rpc.rpc_errors import RpcInvalidParams
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
@@ -49,7 +49,12 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
                 network_num,
                 account_id=account_id, short_id=short_id
             )
-            raise RpcAlreadySeen(self.request_id, {"tx_hash": str(tx_hash)})
+            tx_json = {
+                "tx_hash": str(tx_hash),
+                "quota_type": quota_type.name.lower(),
+                "account_id": account_id,
+            }
+            return self.ok(tx_json)
         tx_stats.add_tx_by_hash_event(
             tx_hash,
             TransactionStatEventType.TX_RECEIVED_FROM_RPC_REQUEST,

@@ -146,7 +146,7 @@ async def handle_command(opts: Namespace, client: GatewayRpcClient, stdout_write
         except (ClientConnectorError, ClientConnectionError):
             pass
     if response_text is not None:
-        stdout_writer.write(response_text.encode("utf-8"))
+        stdout_writer.write(response_text.encode("utf-8").decode("unicode_escape").encode("utf-8"))
         stdout_writer.write(b"\n")
         await stdout_writer.drain()
     await asyncio.sleep(0)

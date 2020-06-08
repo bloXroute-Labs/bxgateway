@@ -2,13 +2,14 @@ from typing import TYPE_CHECKING
 
 from aiohttp import web
 from aiohttp.web import Request, Response
-from aiohttp.web_exceptions import HTTPUnauthorized, HTTPClientError
+from aiohttp.web_exceptions import HTTPClientError, HTTPUnauthorized
 from prometheus_client import REGISTRY
 from prometheus_client import exposition as prometheus_client
 
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.https.abstract_http_rpc_server import AbstractHttpRpcServer
 from bxcommon.rpc.https.http_rpc_handler import HttpRpcHandler
+from bxcommon.rpc.rpc_errors import RpcAccountIdError
 from bxgateway.rpc.https.gateway_http_rpc_handler import GatewayHttpRpcHandler
 
 from bxutils import logging
@@ -36,7 +37,7 @@ class GatewayHttpRpcServer(AbstractHttpRpcServer["AbstractGatewayNode"]):
             else:
                 is_authenticated = False
         if not is_authenticated:
-            raise HTTPUnauthorized(text="Request credentials are invalid!")
+            raise HTTPUnauthorized(text="Request credentials are invalid.")
 
     def request_handler(self) -> HttpRpcHandler:
         return GatewayHttpRpcHandler(self.node)
