@@ -262,12 +262,6 @@ def get_opts() -> GatewayOpts:
         help="Ethereum websockets endpoint for syncing transaction content",
         type=str
     )
-    arg_parser.add_argument(
-        "--request-remote-transaction-streaming",
-        help="Request live transaction feed from remote blockchain connection (Paid feature)",
-        type=convert.str_to_bool,
-        default=False,
-    )
     opts = GatewayOpts(cli.parse_arguments(arg_parser))
     config.set_data_directory(opts.data_dir)
     if opts.private_key is None:

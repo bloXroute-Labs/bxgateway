@@ -19,7 +19,7 @@ class TransactionFeedEntry:
 
 
 class UnconfirmedTransactionFeed(Feed[TransactionFeedEntry]):
-    NAME = "unconfirmedTxs"
+    NAME = "newTxs"
     FIELDS = ["tx_hash", "tx_contents"]
 
     def __init__(self) -> None:

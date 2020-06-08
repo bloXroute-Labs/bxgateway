@@ -157,7 +157,8 @@ class GatewayOpts(CommonOpts):
         self.ws_host = opts.ws_host
         self.ws_port = opts.ws_port
         self.eth_ws_uri = opts.eth_ws_uri
-        self.request_remote_transaction_streaming = opts.request_remote_transaction_streaming
+        # Request streaming from BDN if ws server is turned on
+        self.request_remote_transaction_streaming = opts.ws
 
         # set by node runner
         self.blockchain_block_interval = 0

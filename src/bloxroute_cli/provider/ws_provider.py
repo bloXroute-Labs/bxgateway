@@ -22,7 +22,7 @@ class WsProvider(AbstractProvider):
     ```
     ws_uri = "ws://127.0.0.1:28333"
     async with WsProvider(ws_uri) as ws:
-        subscription_id = await ws.subscribe("unconfirmedTxs")
+        subscription_id = await ws.subscribe("newTxs")
         while True:
             next_notification = await ws.get_next_subscription_notification_by_id(subscription_id)
             print(next_notification)  # or process it generally
@@ -33,7 +33,7 @@ class WsProvider(AbstractProvider):
     ws_uri = "ws://127.0.0.1:28333"
     try:
         ws = await WsProvider(ws_uri)
-        subscription_id = await ws.subscribe("unconfirmedTxs")
+        subscription_id = await ws.subscribe("newTxs")
         while True:
             next_notification = await ws.get_next_subscription_notification_by_id(subscription_id)
             print(next_notification)  # or process it generally
@@ -50,7 +50,7 @@ class WsProvider(AbstractProvider):
     def process(subscription_message):
         print(subscription_message)
 
-    ws.subscribe_with_callback(process, "unconfirmedTxs")
+    ws.subscribe_with_callback(process, "newTxs")
 
     while True:
         await asyncio.sleep(0)  # otherwise program would exit
