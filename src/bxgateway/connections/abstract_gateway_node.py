@@ -1,5 +1,7 @@
 import asyncio
 # TODO: remove try-catch when removing py3.7 support
+import functools
+
 try:
     from asyncio.exceptions import CancelledError
 except ImportError:
@@ -9,6 +11,7 @@ import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Future
 from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, cast
+from prometheus_client import Gauge
 
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -236,6 +239,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if self.tracked_block_cleanup_interval_s > 0:
             self.alarm_queue.register_alarm(self.tracked_block_cleanup_interval_s, self._tracked_block_cleanup,
                                             alarm_name="tracked_blocks_cleanup")
+
+        self.quota_gauge = Gauge(
+            "quota_level",
+            "Quota being used",
+            ("quota",)
+        )
+        self.quota_gauge.labels("tx").set_function(
+            functools.partial(int, self.quota_level)
+        )
 
         status_log.initialize(
             self.opts.use_extensions,
