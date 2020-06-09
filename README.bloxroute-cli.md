@@ -2,19 +2,8 @@
 
 bloxroute-cli is a utility for communicating with the [bloxroute-gateway].
 
-# Installation
-
-It's best to run this program inside of a [virtual environment][1], especially if your system's default Python 
-version is not 3.6 or 3.7. The recommended Python version is 3.7.
-
-# Running
-
-```bash
-$ bloxroute-cli -h
-```
- 
 # Documentation
-You can find our full technical documentation and architecture [on our website][documentation].
+You can find our full documentation, including requirements and installation instructions, [on our website][documentation].
 
 # Troubleshooting
 

@@ -37,50 +37,6 @@ For more information, you can read our [white paper].
 You can choose either to either install via [pip] or [Docker] (recommended). Refer to  
 [our technical documentation][install] for full usage instructions.
 
-### pip
-
-It's best to run this program inside of a [virtual environment], especially if your system's default Python 
-version is not 3. You maybe need to substitute `pip3` for `pip` and/or add Python binaries to your 
-`PATH` (usually `PATH=$PATH:~/.local`) for the following commands to work. `bloxroute-gateway` is not compatible with
-Python 2.
-
-`bloxroute-gateway` is optimized for Ubuntu, CentOS, and Alpine Linux, but should run fine on any Unix based system.
-`bloxroute-gateway` is not compatible with Windows.
-
-Install:
-```
-pip install requests==2.22.0 distro
-pip install bloxroute-gateway
-```
-
-Running:
-```
-bloxroute-gateway --blockchain-protocol [blockchain-protocol] --blockchain-network [blockchain-network]
-```
-
-For more details, refer to `README.gateway.md`.
-
-
-### Docker
-
-Install:
-```
-docker pull bloxroute/bxgateway
-```
-
-Running:
-```
-docker run bloxroute/bxgateway --blockchain-protocol [blockchain-protocol] --blockchain-network [blockchain-network]
-```
-
-### Arguments
-
-You are required to specify a blockchain protocol (e.g. `BitcoinCash`) and a blockchain network (e.g. `Mainnet`, 
-`Testnet`). If you are using Ethereum, you will also need to specify the public key of your Ethereum node via 
-`--node-public-key [hex-encoded-key]`.
-
-For detail on the all possible command-line arguments, refer to [our technical documentation][args].
-
 ## Development
 
 Ensure you have Python 3.6+ installed. Again, we recommend that you use a `virtualenv` for `bxgateway` development.
