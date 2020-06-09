@@ -21,11 +21,11 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
                 BlockchainProtocol.ONTOLOGY.value,
                 tpe.InputBytes(msg.rawbytes())
             )
-        # elif isinstance(self.node, EthGatewayNode):
-        #     ext_processing_results = self.proxy.process_gateway_transaction_from_node(
-        #         BlockchainProtocol.ETHEREUM.value,
-        #         tpe.InputBytes(msg.rawbytes())
-        #     )
+        elif isinstance(self.node, EthGatewayNode):
+            ext_processing_results = self.proxy.process_gateway_transaction_from_node(
+                BlockchainProtocol.ETHEREUM.value,
+                tpe.InputBytes(msg.rawbytes())
+            )
         else:
             return GatewayTransactionService.process_transactions_message_from_node(self, msg)
 

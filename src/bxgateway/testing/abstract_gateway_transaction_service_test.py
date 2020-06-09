@@ -32,23 +32,22 @@ class TestAbstractGatewayTransactionService(AbstractTransactionServiceTestCase, 
         self.transaction_service = self._get_transaction_service()
 
     def _test_process_transactions_message_from_node(self):
-        tx_message, test_tx_hash, test_tx_contents = self._get_node_tx_message()
+        tx_message, test_txs_info = self._get_node_tx_message()
         result = self.transaction_service.process_transactions_message_from_node(tx_message)
 
         self.assertIsNotNone(result)
-        self.assertEqual(1, len(result))
+        self.assertEqual(len(test_txs_info), len(result))
 
-        first_item = result[0]
+        for (test_tx_hash, test_tx_contents), tx_result in zip(test_txs_info, result):
+            self.assertFalse(tx_result.seen)
+            self.assertEqual(convert.bytes_to_hex(test_tx_hash.binary),
+                             convert.bytes_to_hex(tx_result.transaction_hash.binary))
+            tx_contents = tx_result.transaction_contents
+            self.assertEqual(convert.bytes_to_hex(test_tx_contents), convert.bytes_to_hex(tx_contents))
 
-        self.assertFalse(first_item.seen)
-        self.assertEqual(convert.bytes_to_hex(test_tx_hash.binary),
-                         convert.bytes_to_hex(first_item.transaction_hash.binary))
-        tx_contents = first_item.transaction_contents
-        self.assertEqual(convert.bytes_to_hex(test_tx_contents), convert.bytes_to_hex(tx_contents))
-
-        self.assertTrue(self.transaction_service.has_transaction_contents(test_tx_hash))
-        self.assertEqual(convert.bytes_to_hex(test_tx_contents),
-                         convert.bytes_to_hex(self.transaction_service.get_transaction_by_hash(test_tx_hash)))
+            self.assertTrue(self.transaction_service.has_transaction_contents(test_tx_hash))
+            self.assertEqual(convert.bytes_to_hex(test_tx_contents),
+                             convert.bytes_to_hex(self.transaction_service.get_transaction_by_hash(test_tx_hash)))
 
     @abstractmethod
     def _get_transaction_service(self) -> GatewayTransactionService:
@@ -61,5 +60,5 @@ class TestAbstractGatewayTransactionService(AbstractTransactionServiceTestCase, 
     @abstractmethod
     def _get_node_tx_message(
         self
-    ) -> Tuple[Union[TxOntMessage, TransactionsEthProtocolMessage], Sha256Hash, Union[bytearray, memoryview]]:
+    ) -> Tuple[Union[TxOntMessage, TransactionsEthProtocolMessage], List[Tuple[Sha256Hash, Union[bytearray, memoryview]]]]:
         pass

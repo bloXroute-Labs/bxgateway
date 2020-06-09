@@ -1,5 +1,6 @@
+from typing import Tuple, Union, List, Any
+
 from mock import MagicMock
-from typing import Tuple, Union
 
 from bxcommon.test_utils import helpers
 from bxcommon.utils.object_hash import Sha256Hash
@@ -22,9 +23,11 @@ class TestAbstractOntGatewayTransactionService(TestAbstractGatewayTransactionSer
 
     def _get_node_tx_message(
         self
-    ) -> Tuple[Union[TxOntMessage, TransactionsEthProtocolMessage], Sha256Hash, Union[bytearray, memoryview]]:
+    ) -> Tuple[
+        Union[TxOntMessage, TransactionsEthProtocolMessage], List[Tuple[Any, Any]]]:
         magic = 123456
         version = 1
         tx_contents = helpers.generate_bytearray(200)
         msg = TxOntMessage(magic, version, tx_contents)
-        return msg, msg.tx_hash(), msg.payload()
+        tx_contents = msg.payload()
+        return msg, [(msg.tx_hash(), tx_contents)]

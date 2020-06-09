@@ -1,4 +1,4 @@
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 
 from mock import MagicMock
 
@@ -18,20 +18,18 @@ class TestAbstractEthGatewayTransactionService(TestAbstractGatewayTransactionSer
         return GatewayTransactionService(self.node, 0)
 
     def _get_gateway_node(self) -> AbstractGatewayNode:
-        mockSslService = MagicMock()
-        return EthGatewayNode(self.opts, mockSslService)
+        mock_ssl_service = MagicMock()
+        return EthGatewayNode(self.opts, mock_ssl_service)
 
     def _get_node_tx_message(
         self
-    ) -> Tuple[Union[TxOntMessage, TransactionsEthProtocolMessage], Sha256Hash, Union[bytearray, memoryview]]:
-        txs = [
-            mock_eth_messages.get_dummy_transaction(1)
-        ]
+    ) -> Tuple[
+        Union[TxOntMessage, TransactionsEthProtocolMessage], List[Tuple[Sha256Hash, Union[bytearray, memoryview]]]]:
+        txs = []
+
+        for i in range(600):
+            txs.append(mock_eth_messages.get_dummy_transaction(i + 1))
+
         msg = TransactionsEthProtocolMessage(None, txs)
-        raw_bytes = msg.rawbytes()
 
-        another_msg = TransactionsEthProtocolMessage(raw_bytes)
-        deserialized_txs = another_msg.get_transactions()
-        self.assertEqual(1, len(deserialized_txs))
-
-        return msg, msg.get_transactions()[0].hash(), msg.get_transactions()[0].contents()
+        return msg, list(map(lambda tx: (tx.hash(), tx.contents()), msg.get_transactions()))
