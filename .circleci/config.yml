@@ -19,13 +19,27 @@ jobs:
       - checkout:
           path:
             "bxgateway"
-      - restore_cache: # restores saved dependency cache if the Branch key template or requirements.txt files have not changed since the previous run
-          key: bx-{{ .Branch }}-{{ checksum "bxgateway/requirements.txt" }}-{{ checksum "bxgateway/requirements-dev.txt"}}
+      - run: # install and activate virtual environment with pip
+          command: |
+            cd ~/ws
+            python -m virtualenv venv
+      - run:
+          name: clone bxextensions dependency
+          command: |
+            { # try
+                echo "Trying to clone identical branch name '$CIRCLE_BRANCH' from bxextensions."
+                git clone -b $CIRCLE_BRANCH --single-branch --depth=1 --recursive git@github.com:bloXroute-Labs/bxextensions-private.git bxextensions
+            } || { # catch
+                echo "Trying bxextensions develop branch, could not find identical branch name '$CIRCLE_BRANCH'."
+                git clone -b develop --single-branch --depth=1 --recursive git@github.com:bloXroute-Labs/bxextensions-private.git bxextensions
+            }
+            cd bxextensions
+            echo "$(git rev-parse HEAD)" > ~/ws/ext_tmp_file
       - run:
           name: install dependencies
           command: |
             sudo apt update &&
-            sudo apt install linux-headers-amd64
+            sudo apt install build-essential automake autogen autoconf libtool libtool-bin libssl-dev cmake linux-headers-amd64
       - run:
           name: install bxcommon
           command: |
@@ -60,58 +74,46 @@ jobs:
              cd bxcommon-internal
              bxcommonInternalBranch=$(git rev-parse --abbrev-ref HEAD)
              echo "Resolved branch $bxcommonInternalBranch for bxcommon-internal."
-      - run:
-          name: Install bxextensions dependency
-          command: |
-            { # try
-                echo "Trying to clone identical branch name '$CIRCLE_BRANCH' from bxextensions."
-                git clone -b $CIRCLE_BRANCH --single-branch --depth=1 --recursive git@github.com:bloXroute-Labs/bxextensions-private.git bxextensions
-            } || { # catch
-                echo "Trying bxextensions develop branch, could not find identical branch name '$CIRCLE_BRANCH'."
-                git clone -b develop --single-branch --depth=1 --recursive git@github.com:bloXroute-Labs/bxextensions-private.git bxextensions
-            }
+      - restore_cache: # restores saved dependency cache
+          key: bxextensions-{{ checksum "~/ws/ext_tmp_file" }}
+      - restore_cache: # restores saved dependency cache
+          key: bxgateway-{{ checksum "bxgateway/requirements.txt" }}-{{ checksum "bxgateway/requirements-dev.txt"}}-
+            {{ checksum "bxcommon/requirements.txt"}}-{{ checksum "bxcommon/requirements-dev.txt"}}-\
+            {{ checksum "bxcommon/requirements-optional.txt"}}
+          
       - run: # install and activate virtual environment with pip
           name: installing virtual env
           command: |
-            sudo rm -rf venv
-            python -m virtualenv venv
             . venv/bin/activate
             pip install -r bxgateway/requirements.txt \
               -r bxgateway/requirements-dev.txt \
               -r bxcommon/requirements.txt \
               -r bxcommon/requirements-dev.txt \
               -r bxcommon/requirements-optional.txt
-      - persist_to_workspace:
-          root: .
-          paths:
-            - venv
-            - bxextensions
-            - bxcommon
-            - bxcommon-internal
-            - bxgateway
-  build_extensions:
-    executor: bloxroute-executor
-    working_directory: ~/ws
-    steps:
-      - attach_workspace:
-          at: ~/ws
       - run:
-          name: install dependencies
           command: |
-            sudo apt install build-essential automake autogen autoconf libtool libtool-bin libssl-dev cmake
-      - run:
-          name: build extensions
-          command: |
+            . venv/bin/activate
             cd bxextensions
             python build_extensions.py
+      - save_cache: # special step to save dependency cache
+          key: bxextensions-{{ checksum "~/ws/ext_tmp_file" }}
+          paths:
+            - bxextensions
+      - save_cache: # special step to save dependency cache
+          key: bxgateway-{{ checksum "bxgateway/requirements.txt" }}-{{ checksum "bxgateway/requirements-dev.txt"}}-\
+            {{ checksum "bxcommon/requirements.txt"}}-{{ checksum "bxcommon/requirements-dev.txt"}}-\
+            {{ checksum "bxcommon/requirements-optional.txt"}}
+          paths:
+            - venv
+
       - persist_to_workspace:
           root: .
           paths:
             - venv
-            - bxextensions
             - bxcommon
             - bxcommon-internal
             - bxgateway
+            - bxextensions
   check:
     executor: bloxroute-executor
     working_directory: ~/ws
@@ -304,9 +306,6 @@ workflows:
   test-build:
     jobs:
       - initialize
-      - build_extensions:
-          requires:
-            - initialize
       - build:
           requires:
             - initialize
@@ -315,13 +314,13 @@ workflows:
               only: develop
       - check:
           requires:
-            - build_extensions
+            - initialize
       - test:
           requires:
-            - build_extensions
+            - initialize
       - e2e:
           requires:
-            - build_extensions
+            - initialize
       - publish:
           requires:
             - build
