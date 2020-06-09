@@ -323,7 +323,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
             self.node.last_quota_level_notification_time = time.time()
             args_list = msg.raw_message().split(",")
-            entity_type = EntityType(int(args_list[2]))
+            entity_type = EntityType(int(args_list[1]))
             quota_level = int(args_list[0])
             if entity_type == EntityType.TRANSACTION and self.node.quota_level != quota_level:
                 self.node.quota_level = quota_level
