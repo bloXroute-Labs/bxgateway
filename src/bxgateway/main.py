@@ -9,18 +9,22 @@ import argparse
 import os
 import random
 import sys
+import functools
 
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
+from bxcommon.models.node_type import NodeType
 from bxgateway import btc_constants, gateway_constants, eth_constants, ont_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.gateway_opts import GatewayOpts
+from bxgateway import argument_parsers
 from bxgateway.utils.gateway_start_args import GatewayStartArgs
 from bxcommon.models.quota_type_model import QuotaType
 from bxutils import logging_messages_utils
+
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -75,8 +79,7 @@ def get_opts() -> GatewayOpts:
                                          description="Command line interface for the bloXroute Gateway.",
                                          usage="bloxroute_gateway --blockchain-protocol [PROTOCOL] [additional "
                                                "arguments]")
-    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g BitcoinCash, Ethereum", type=str,
-                            required=True)
+    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g BitcoinCash, Ethereum", type=str)
     arg_parser.add_argument("--blockchain-network", help="Blockchain network. e.g Mainnet, Testnet", type=str)
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip",
@@ -84,6 +87,7 @@ def get_opts() -> GatewayOpts:
                             default=None)
     arg_parser.add_argument("--enode", help="Ethereum enode. ex) enode://<eth node public key>@<eth node "
                                             "ip>:<port>?discport=0",
+                            action=argument_parsers.ParseEnode,
                             type=str,
                             default=None)
     arg_parser.add_argument("--peer-gateways",
@@ -284,8 +288,9 @@ def main():
     logger_names.append("bxgateway")
     logging_messages_utils.logger_names = set(logger_names)
     opts = get_opts()
-    node_type = get_gateway_node_type(opts.blockchain_protocol)
-    node_runner.run_node(config.get_data_file(PID_FILE_NAME), opts, node_type, logger_names=logger_names)
+    get_node_class = functools.partial(get_gateway_node_type, opts.blockchain_protocol)
+    node_runner.run_node(
+        config.get_data_file(PID_FILE_NAME), opts, get_node_class, NodeType.EXTERNAL_GATEWAY, logger_names=logger_names)
 
 
 if __name__ == "__main__":

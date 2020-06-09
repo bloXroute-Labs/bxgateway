@@ -15,15 +15,17 @@ from bxgateway import eth_constants
 from bxgateway.utils.eth.eccx import ECCx
 from bxutils import logging
 import os
+import sys
 
 logger = logging.get_logger(__name__)
 
 
-@dataclass()
+@dataclass
 class GatewayOpts(CommonOpts):
     blockchain_port: int
-    blockchain_protocol: str
-    blockchain_network: Union[str, List[BlockchainNetworkModel]]
+    blockchain_protocol: Optional[str]
+    blockchain_network: Optional[str]
+    blockchain_networks: List[BlockchainNetworkModel]
     blockchain_ip: str
     peer_gateways: List[OutboundPeerModel]
     min_peer_gateways: int
@@ -61,7 +63,6 @@ class GatewayOpts(CommonOpts):
     require_blockchain_connection: bool
     default_tx_quota_type: QuotaType
     should_update_source_version: bool
-    account_id: Optional[str]
     account_model: Optional[BdnAccountModelBase]
 
     # IPC
@@ -88,17 +89,16 @@ class GatewayOpts(CommonOpts):
 
         super().__init__(opts)
 
-        if not opts.blockchain_network:
+        if "blockchain_networks" not in opts:
             # node_cache dependencies should be untangled
             # pyre-fixme [6]: Expected `CommonOpts` for 1st positional only
             #  parameter to call `node_cache.read` but got `Namespace`
             cache_file_info = node_cache.read(opts)
             if cache_file_info is not None:
-                self.blockchain_network = cache_file_info.blockchain_network
-            else:
-                self.blockchain_network = "mainnet"
+                self.blockchain_networks = cache_file_info.blockchain_networks
         else:
-            self.blockchain_network = opts.blockchain_network
+            self.blockchain_networks = opts.blockchain_networks
+
         self.outbound_peers = opts.peer_gateways + opts.peer_relays
 
         if opts.connect_to_remote_blockchain and opts.remote_blockchain_ip and opts.remote_blockchain_port:
@@ -107,7 +107,6 @@ class GatewayOpts(CommonOpts):
             self.remote_blockchain_peer = None
 
         self.blockchain_port = opts.blockchain_port
-        self.blockchain_protocol = opts.blockchain_protocol.lower()
         self.blockchain_ip = opts.blockchain_ip
         self.peer_gateways = opts.peer_gateways
         self.min_peer_gateways = opts.min_peer_gateways
@@ -144,11 +143,8 @@ class GatewayOpts(CommonOpts):
         self.config_update_interval = opts.config_update_interval
         self.require_blockchain_connection = opts.require_blockchain_connection
         self.default_tx_quota_type = opts.default_tx_quota_type
-        
-        if "account_id" in opts:
-            self.account_id = opts.account_id
-        if "account_model" in opts:
-            self.account_model = opts.account_model
+
+        self.account_model = None
 
         # IPC
         self.ipc = opts.ipc
@@ -180,22 +176,26 @@ class GatewayOpts(CommonOpts):
         self.peer_transaction_relays = []
 
         # do rest of validation
-        if self.blockchain_protocol == BlockchainProtocol.ETHEREUM.value:
-            self.validate_eth_opts()
+
+        if opts.blockchain_protocol:
+            self.blockchain_protocol = opts.blockchain_protocol.lower()
+        else:
+            self.blockchain_protocol = None
+
+        self.blockchain_network = opts.blockchain_network
+
         if not self.cookie_file_path:
             self.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
                 "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip))
         self.validate_blockchain_ip()
 
     def validate_eth_opts(self):
-        if self.enode is not None and isinstance(self.enode, str):
-            self.parse_enode()
         if self.blockchain_ip is None:
             logger.fatal("Either --blockchain-ip or --enode arguments are required.", exc_info=False)
-            exit(1)
+            sys.exit(1)
         if self.node_public_key is None:
             logger.fatal("--node-public-key argument is required but not specified.", exc_info=False)
-            exit(1)
+            sys.exit(1)
         validate_pub_key(self.node_public_key)
 
         if self.remote_blockchain_peer is not None:
@@ -204,50 +204,51 @@ class GatewayOpts(CommonOpts):
                     "--remote-public-key of the blockchain node must be included with command-line specified remote "
                     "blockchain peer. Use --remote-public-key",
                     exc_info=False)
-                exit(1)
+                sys.exit(1)
             validate_pub_key(self.remote_public_key)
-
-    def parse_enode(self):
-        # Make sure enode is at least as long as the public key
-        if len(self.enode) < 2 * eth_constants.PUBLIC_KEY_LEN:
-            logger.fatal("Invalid enode. "
-                         "Invalid enode length: {}", len(self.enode), exc_info=False)
-            exit(1)
-        try:
-            enode_and_pub_key, ip_and_port = self.enode.split("@")
-            if enode_and_pub_key.startswith("enode://"):
-                pub_key = enode_and_pub_key[8:]
-            else:
-                pub_key = enode_and_pub_key
-            ip, port_and_disc = ip_and_port.split(":")
-            port = port_and_disc.split("?")[0]
-        except ValueError:
-            logger.fatal("Invalid enode: {}", self.enode, exc_info=False)
-            exit(1)
-        else:
-            # Node public key gets validated in validate_eth_opts
-            self.node_public_key = pub_key
-            # blockchain IP gets validated in __init__()
-            self.blockchain_ip = ip
-            # Port validation
-            if not port.isnumeric():
-                logger.fatal("Invalid port: {}", port, exc_info=False)
-                exit(1)
-            self.blockchain_port = int(port)
 
     def validate_blockchain_ip(self):
         if self.blockchain_ip is None:
             logger.fatal("--blockchain-ip is required but not specified.", exc_info=False)
-            exit(1)
+            sys.exit(1)
         if self.blockchain_ip == gateway_constants.LOCALHOST and self.is_docker:
             logger.fatal("The specified blockchain IP is localhost, which is not compatible with a dockerized "
                          "gateway. Did you mean 172.17.0.X?", exc_info=False)
-            exit(1)
+            sys.exit(1)
         try:
             self.blockchain_ip = ip_resolver.blocking_resolve_ip(self.blockchain_ip)
         except EnvironmentError:
             logger.fatal("Blockchain IP could not be resolved, exiting. Blockchain IP: {}", self.blockchain_ip)
-            exit(1)
+            sys.exit(1)
+
+    def set_account_options(self, account_model: BdnAccountModelBase) -> None:
+        super().set_account_options(account_model)
+        self.account_model = account_model
+
+        blockchain_protocol = account_model.blockchain_protocol
+        blockchain_network = account_model.blockchain_network
+        if blockchain_protocol is not None:
+            blockchain_protocol = blockchain_protocol.lower()
+            if self.blockchain_protocol:
+                assert self.blockchain_protocol == blockchain_protocol
+            else:
+                self.blockchain_protocol = blockchain_protocol
+        if blockchain_network is not None:
+            if self.blockchain_network:
+                assert self.blockchain_network == blockchain_network
+            else:
+                self.blockchain_network = blockchain_network
+
+    def validate_network_opts(self) -> None:
+        if self.blockchain_network is None:
+            self.blockchain_network = "mainnet"
+
+        if self.blockchain_protocol is None:
+            logger.fatal("Blockchain protocol information is missing exiting.")
+            sys.exit(1)
+
+        if self.blockchain_protocol == BlockchainProtocol.ETHEREUM.value:
+            self.validate_eth_opts()
 
 
 def get_sdn_hostname(sdn_url: str) -> str:
@@ -264,9 +265,9 @@ def validate_pub_key(key):
     if len(key) != 2 * eth_constants.PUBLIC_KEY_LEN:
         logger.fatal("Public key must be the 128 digit key associated with the blockchain enode. "
                      "Invalid key length: {}", len(key), exc_info=False)
-        exit(1)
+        sys.exit(1)
     eccx_obj = ECCx()
     if not eccx_obj.is_valid_key(hex_to_bytes(key)):
         logger.fatal("Public key must be constructed from a valid private key.", exc_info=False)
-        exit(1)
+        sys.exit(1)
 
