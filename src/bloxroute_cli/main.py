@@ -14,10 +14,8 @@ from typing import Optional, Union, Dict, List, Any
 from aiohttp import ClientSession, ClientResponse, ClientConnectorError, ContentTypeError, ClientConnectionError
 
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
-from bxcommon.models.url_scheme import UrlScheme
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.rpc_request_type import RpcRequestType
-
 
 COMMANDS_HELP = [
     "{:<18} exit the CLI.".format("exit"),
@@ -49,13 +47,26 @@ class ArgParserFile:
         return len(message)
 
 
-class GatewayRpcClient:
+class RpcClient:
 
-    def __init__(self, rpc_host: str, rpc_port: int, rpc_user: str, rpc_password: str, url_scheme: str):
+    def __init__(
+        self,
+        rpc_host: str,
+        rpc_port: int,
+        rpc_user: str,
+        rpc_password: str,
+        account_id: str,
+        secret_hash: str,
+        cloud_api_url: str,
+        target_is_cloud_api: bool
+    ):
         self._session = ClientSession()
-        self._rpc_url = rpc_constants.CLOUD_API_URL.format(rpc_user) if url_scheme.lower() == UrlScheme.HTTPS.value \
-            else f"http://{rpc_host}:{rpc_port}/"
-        self._encoded_auth = base64.b64encode(f"{rpc_user}:{rpc_password}".encode("utf-8")).decode("utf-8")
+        if target_is_cloud_api:
+            self._rpc_url = f"{cloud_api_url}/{account_id}/blxr_transaction"
+            self._encoded_auth = base64.b64encode(f"{account_id}:{secret_hash}".encode("utf-8")).decode("utf-8")
+        else:
+            self._rpc_url = f"http://{rpc_host}:{rpc_port}/"
+            self._encoded_auth = base64.b64encode(f"{rpc_user}:{rpc_password}".encode("utf-8")).decode("utf-8")
 
     async def __aenter__(self):
         return self
@@ -64,10 +75,10 @@ class GatewayRpcClient:
         await self.close()
 
     async def make_request(
-            self,
-            method: RpcRequestType,
-            request_id: Optional[str] = None,
-            request_params: Union[Dict[str, Any], List[Any], None] = None
+        self,
+        method: RpcRequestType,
+        request_id: Optional[str] = None,
+        request_params: Union[Dict[str, Any], List[Any], None] = None
     ) -> ClientResponse:
         if request_id is None:
             request_id = str(uuid.uuid4())
@@ -130,7 +141,7 @@ async def format_response(response: ClientResponse, content_type=rpc_constants.J
         return await response.text()
 
 
-async def handle_command(opts: Namespace, client: GatewayRpcClient, stdout_writer: StreamWriter) -> None:
+async def handle_command(opts: Namespace, client: RpcClient, stdout_writer: StreamWriter) -> None:
     if opts.debug:
         stdout_writer.write(f"executing with opts: {opts}\n".encode("utf-8"))
     response_text: Optional[str] = None
@@ -153,10 +164,10 @@ async def handle_command(opts: Namespace, client: GatewayRpcClient, stdout_write
 
 
 async def parse_and_handle_command(
-        arg_parser: ArgumentParser,
-        stdout_writer: StreamWriter,
-        client: GatewayRpcClient,
-        shell_args: Optional[List[str]] = None
+    arg_parser: ArgumentParser,
+    stdout_writer: StreamWriter,
+    client: RpcClient,
+    shell_args: Optional[List[str]] = None
 ) -> None:
     try:
         opts, params = arg_parser.parse_known_args(shell_args)
@@ -171,17 +182,20 @@ async def parse_and_handle_command(
 
 
 async def run_cli(
-        rpc_host: str,
-        rpc_port: int,
-        rpc_user: str,
-        rpc_password: str,
-        url_scheme: str,
-        arg_parser: ArgumentParser,
-        stdin_reader: StreamReader,
-        stdout_writer: StreamWriter
+    rpc_host: str,
+    rpc_port: int,
+    rpc_user: str,
+    rpc_password: str,
+    account_id: str,
+    secret_hash: str,
+    cloud_api_url: str,
+    target_is_cloud_api: bool,
+    arg_parser: ArgumentParser,
+    stdin_reader: StreamReader,
+    stdout_writer: StreamWriter
 ) -> None:
-    async with GatewayRpcClient(
-            rpc_host, rpc_port, rpc_user, rpc_password, url_scheme,
+    async with RpcClient(
+        rpc_host, rpc_port, rpc_user, rpc_password, account_id, secret_hash, cloud_api_url, target_is_cloud_api,
     ) as client:
         while True:
             stdout_writer.write(b">> ")
@@ -210,7 +224,7 @@ def get_command(command: str) -> Union[CLICommand, RpcRequestType]:
 
 def get_command_help() -> str:
     commands = [command.lower() for command in CLICommand.__members__.keys()] + \
-        [command.lower() for command in RpcRequestType.__members__.keys()]
+               [command.lower() for command in RpcRequestType.__members__.keys()]
     return f"The CLI command (valid values: {commands})."
 
 
@@ -268,23 +282,37 @@ def add_base_arguments(arg_parser: ArgumentParser) -> None:
     )
     arg_parser.add_argument(
         "--rpc-user",
-        help=f"The Gateway RPC server username, account ID. Contact support@bloxroute.com for assistance. "
+        help=f"The Gateway's RPC server username. Contact support@bloxroute.com for assistance."
              f"(default: {rpc_constants.DEFAULT_RPC_USER})",
         type=str,
         default=rpc_constants.DEFAULT_RPC_USER
     )
     arg_parser.add_argument(
         "--rpc-password",
-        help=f"The Gateway RPC server password, secret key. (default: {rpc_constants.DEFAULT_RPC_PASSWORD})",
+        help=f"The Gateway's RPC server password. (default: {rpc_constants.DEFAULT_RPC_PASSWORD})",
         type=str,
         default=rpc_constants.DEFAULT_RPC_PASSWORD
     )
     arg_parser.add_argument(
-        "--url-scheme",
-        help=f"URL scheme in RPC request. Use bloXroute public API as RPC server if https, "
-             f"or use Gateway if http. (default: http)",
+        "--cloud-api",
+        help=f"Should the bloxroute-cli send the request to bloXroute Cloud API",
+        action="store_true"
+    )
+    arg_parser.add_argument(
+        "--cloud-api-url",
+        help=f"bloXroute's cloud-api DNS name (default: {rpc_constants.CLOUD_API_URL})",
         type=str,
-        default=UrlScheme.HTTP.value
+        default=rpc_constants.CLOUD_API_URL
+    )
+    arg_parser.add_argument(
+        "--account-id",
+        help=f"The account's ID. Contact support@bloxroute.com for assistance. ",
+        type=str
+    )
+    arg_parser.add_argument(
+        "--secret-hash",
+        help=f"The account's secret key. Contact support@bloxroute.com for assistance. ",
+        type=str,
     )
     arg_parser.add_argument(
         "--interactive-shell",
@@ -298,6 +326,25 @@ def add_base_arguments(arg_parser: ArgumentParser) -> None:
         action="store_true",
         default=False
     )
+
+
+def validate_args(opts: Namespace, stdout_writer: StreamWriter) -> bool:
+    if ("cloud_api" in opts and opts.cloud_api is True):
+        if ("cloud_api_url" not in opts or ("cloud_api_url" in opts and opts.cloud_api_url is None)) or \
+           ("account_id" not in opts or ("account_id" in opts and opts.account_id is None)) or \
+           ("secret_hash" not in opts or ("secret_hash" in opts and opts.secret_hash is None)):
+            stdout_writer.write("The use of bloXroute Cloud API requires the following two arguments: "
+                                "--account-id, --secret-hash.\n".encode("utf-8"))
+            return False
+    elif ("rpc_host" not in opts or ("rpc_host" in opts and opts.rpc_host is None)) or \
+         ("rpc_port" not in opts or ("rpc_port" in opts.rpc_port and opts.rpc_port is None)) or \
+         ("rpc_user" not in opts or ("rpc_user" in opts and opts.rpc_user is None)) or \
+         ("rpc_password" not in opts or ("rpc_password" in opts and opts.rpc_password is None)):
+            stdout_writer.write("The use of bloXroute Gateway requires the following two arguments: "
+                                "--rpc-user, --rpc-password.\n".encode("utf-8"))
+            return False
+
+    return True
 
 
 async def main():
@@ -326,22 +373,23 @@ async def main():
         lambda: FlowControlMixin(), os.fdopen(sys.stdout.fileno(), "wb")
     )
     stdout_writer = StreamWriter(transport, protocol, None, cli_loop)
-    if opts.url_scheme.lower() == UrlScheme.HTTPS.value and (not opts.rpc_user or not opts.rpc_password):
-        stdout_writer.write("The use of https scheme and bloXroute public API requires the following two arguments: "
-                            "--rpc-user, --rpc-password.\n".encode("utf-8"))
+    if not validate_args(opts, stdout_writer):
         exit(1)
+
     try:
 
         if opts.interactive_shell or len(params) == 0:
             await run_cli(
-                opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password, opts.url_scheme,
+                opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password,
+                opts.account_id, opts.secret_hash, opts.cloud_api_url, opts.cloud_api,
                 cli_parser, stdin_reader, stdout_writer
             )
         else:
             if "help" in sys.argv:
                 cli_parser.print_help(file=ArgParserFile(stdout_writer))
-            async with GatewayRpcClient(
-                    opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password, opts.url_scheme,
+            async with RpcClient(
+                opts.rpc_host, opts.rpc_port, opts.rpc_user, opts.rpc_password,
+                opts.account_id, opts.secret_hash, opts.cloud_api_url, opts.cloud_api
             ) as client:
                 await parse_and_handle_command(cli_parser, stdout_writer, client)
     except (ClientConnectorError, ClientConnectionError, TimeoutError, CancelledError) as e:
