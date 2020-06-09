@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from bxcommon.utils.cli import CommonOpts
 from bxcommon.utils import ip_resolver
-from typing import Union, List, Optional
+from typing import List, Optional
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
@@ -91,7 +91,6 @@ class GatewayOpts(CommonOpts):
 
         if "blockchain_networks" not in opts:
             # node_cache dependencies should be untangled
-            # pyre-fixme [6]: Expected `CommonOpts` for 1st positional only
             #  parameter to call `node_cache.read` but got `Namespace`
             cache_file_info = node_cache.read(opts)
             if cache_file_info is not None:
