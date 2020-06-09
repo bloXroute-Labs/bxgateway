@@ -337,7 +337,7 @@ def validate_args(opts: Namespace, stdout_writer: StreamWriter) -> bool:
                                 "--account-id, --secret-hash.\n".encode("utf-8"))
             return False
     elif ("rpc_host" not in opts or ("rpc_host" in opts and opts.rpc_host is None)) or \
-         ("rpc_port" not in opts or ("rpc_port" in opts.rpc_port and opts.rpc_port is None)) or \
+         ("rpc_port" not in opts or ("rpc_port" in opts and opts.rpc_port is None)) or \
          ("rpc_user" not in opts or ("rpc_user" in opts and opts.rpc_user is None)) or \
          ("rpc_password" not in opts or ("rpc_password" in opts and opts.rpc_password is None)):
             stdout_writer.write("The use of bloXroute Gateway requires the following two arguments: "
