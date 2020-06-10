@@ -233,7 +233,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         self.feed_manager = FeedManager()
         self._rpc_server = GatewayHttpRpcServer(self)
-        self._ws_server = WsServer(opts.ws_host, opts.ws_port, self.feed_manager, self)
+        self._ws_server = self.build_ws_server()
         self._ipc_server = IpcServer(opts.ipc_file, self.feed_manager, self)
         self.init_live_feeds()
 
@@ -289,6 +289,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     @abstractmethod
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         pass
+
+    def build_ws_server(self) -> WsServer:
+        return WsServer(self.opts.ws_host, self.opts.ws_port, self.feed_manager, self)
 
     def get_broadcast_service(self) -> BroadcastService:
         return GatewayBroadcastService(self.connection_pool)

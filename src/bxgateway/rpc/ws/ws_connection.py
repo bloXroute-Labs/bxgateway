@@ -34,7 +34,7 @@ class WsConnection:
         for task in pending:
             task.cancel()
 
-        self.close()
+        await self.close()
 
     async def handle_request(self, websocket: WebSocketServerProtocol, _path: str) -> None:
         async for message in websocket:
@@ -46,7 +46,7 @@ class WsConnection:
             message = await self.rpc_handler.get_next_subscribed_message()
             await websocket.send(message.to_jsons())
 
-    def close(self) -> None:
+    async def close(self) -> None:
         self.rpc_handler.close()
 
         request_handler = self.request_handler
@@ -56,3 +56,6 @@ class WsConnection:
         publish_handler = self.publish_handler
         if publish_handler is not None:
             publish_handler.cancel()
+
+        await self.ws.close()
+

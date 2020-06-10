@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional, List, TYPE_CHECKING
 
 import websockets
@@ -28,13 +29,15 @@ class WsServer:
         self._connections: List[WsConnection] = []
 
     async def start(self) -> None:
+        logger.info("Started websockets server")
         self._server = await websockets.serve(self.handle_connection, self.host, self.port)
 
     async def stop(self) -> None:
         server = self._server
         if server is not None:
-            for connection in self._connections:
-                connection.close()
+            await asyncio.gather(
+                *(connection.close() for connection in self._connections)
+            )
 
             server.close()
             await server.wait_closed()

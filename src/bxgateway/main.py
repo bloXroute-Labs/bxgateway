@@ -260,7 +260,7 @@ def get_opts() -> GatewayOpts:
     )
     arg_parser.add_argument(
         "--ws-host",
-        help=f"Websockets server listening host (default: {gateway_constants.WS_DEFAULT_PORT})",
+        help=f"Websockets server listening host (default: {gateway_constants.WS_DEFAULT_HOST})",
         type=str,
         default=gateway_constants.WS_DEFAULT_HOST
     )
