@@ -18,6 +18,7 @@ from bxgateway.rpc.requests.gateway_memory_rpc_request import GatewayMemoryRpcRe
 from bxgateway.rpc.requests.gateway_peers_rpc_request import GatewayPeersRpcRequest
 from bxgateway.rpc.requests.gateway_status_rpc_request import GatewayStatusRpcRequest
 from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcRequest
+from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
 from bxutils import logging
@@ -50,6 +51,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             RpcRequestType.BDN_PERFORMANCE: BdnPerformanceRpcRequest,
             RpcRequestType.SUBSCRIBE: SubscribeRpcRequest,
             RpcRequestType.UNSUBSCRIBE: UnsubscribeRpcRequest,
+            RpcRequestType.QUOTA_USAGE: QuotaUsageRpcRequest,
         }
         self.feed_manager = feed_manager
         self.subscriptions = {}

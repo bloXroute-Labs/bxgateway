@@ -8,6 +8,7 @@ from bxgateway.rpc.requests.gateway_status_rpc_request import GatewayStatusRpcRe
 from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcRequest
 from bxgateway.rpc.requests.gateway_memory_rpc_request import GatewayMemoryRpcRequest
 from bxgateway.rpc.requests.gateway_peers_rpc_request import GatewayPeersRpcRequest
+from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 
 from bxutils import logging
 
@@ -31,5 +32,6 @@ class GatewayHttpRpcHandler(HttpRpcHandler["AbstractGatewayNode"]):
             RpcRequestType.STOP: GatewayStopRpcRequest,
             RpcRequestType.MEMORY: GatewayMemoryRpcRequest,
             RpcRequestType.PEERS: GatewayPeersRpcRequest,
-            RpcRequestType.BDN_PERFORMANCE: BdnPerformanceRpcRequest
+            RpcRequestType.BDN_PERFORMANCE: BdnPerformanceRpcRequest,
+            RpcRequestType.QUOTA_USAGE: QuotaUsageRpcRequest
         }
