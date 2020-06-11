@@ -16,10 +16,12 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
 
     def process_transactions_message_from_node(self, msg
                                                ) -> List[ProcessTransactionMessageFromNodeResult]:
+        msg_bytes = msg.rawbytes()
+
         if isinstance(self.node, OntGatewayNode):
             ext_processing_results = self.proxy.process_gateway_transaction_from_node(
                 BlockchainProtocol.ONTOLOGY.value,
-                tpe.InputBytes(msg.rawbytes())
+                tpe.InputBytes(msg_bytes)
             )
         # elif isinstance(self.node, EthGatewayNode):
         #     ext_processing_results = self.proxy.process_gateway_transaction_from_node(
@@ -33,7 +35,7 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
 
         for tx_result in ext_processing_results:
             tx_hash = Sha256Hash(memoryview(tx_result.get_tx_hash().binary()))
-            tx_contents = memoryview(tx_result.get_tx_contents())
+            tx_contents = msg_bytes[tx_result.get_offset():tx_result.get_offset() + tx_result.get_length()]
 
             result.append(ProcessTransactionMessageFromNodeResult(
                 tx_result.get_is_seen(),
