@@ -2,7 +2,7 @@ from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxgateway.feed.feed import Feed
-from bxgateway.feed.unconfirmed_transaction_feed import TransactionFeedEntry
+from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
 
 EXPIRATION_TIME_S = 5 * 60
 

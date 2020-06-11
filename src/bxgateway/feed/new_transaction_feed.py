@@ -18,7 +18,7 @@ class TransactionFeedEntry:
             self.tx_contents = convert.bytes_to_hex(tx_contents)
 
 
-class UnconfirmedTransactionFeed(Feed[TransactionFeedEntry]):
+class NewTransactionFeed(Feed[TransactionFeedEntry]):
     NAME = "newTxs"
     FIELDS = ["tx_hash", "tx_contents"]
 

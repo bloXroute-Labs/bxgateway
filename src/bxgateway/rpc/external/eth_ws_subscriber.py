@@ -12,7 +12,7 @@ from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
-from bxgateway.feed.unconfirmed_transaction_feed import TransactionFeedEntry
+from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
 from bxutils import logging
 
 logger = logging.get_logger(__name__)

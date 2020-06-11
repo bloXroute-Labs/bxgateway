@@ -23,7 +23,7 @@ from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import log_messages, gateway_constants
-from bxgateway.feed.unconfirmed_transaction_feed import UnconfirmedTransactionFeed, \
+from bxgateway.feed.new_transaction_feed import NewTransactionFeed, \
     TransactionFeedEntry
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
@@ -145,7 +145,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         if tx_contents:
             self.node.feed_manager.publish_to_feed(
-                UnconfirmedTransactionFeed.NAME,
+                NewTransactionFeed.NAME,
                 TransactionFeedEntry(tx_hash, tx_contents)
             )
         tx_stats.add_tx_by_hash_event(

@@ -11,7 +11,7 @@ from bxcommon.test_utils.helpers import async_test
 from bxcommon.utils import convert
 from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 from bxgateway.feed.subscriber import Subscriber
-from bxgateway.feed.unconfirmed_transaction_feed import TransactionFeedEntry
+from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode

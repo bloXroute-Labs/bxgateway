@@ -49,7 +49,7 @@ from bxgateway.connections.gateway_connection import GatewayConnection
 from bxcommon.rpc import rpc_constants
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
-from bxgateway.feed.unconfirmed_transaction_feed import UnconfirmedTransactionFeed
+from bxgateway.feed.new_transaction_feed import NewTransactionFeed
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
@@ -307,7 +307,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                         self.send_bdn_performance_stats)
 
     def init_live_feeds(self) -> None:
-        self.feed_manager.register_feed(UnconfirmedTransactionFeed())
+        self.feed_manager.register_feed(NewTransactionFeed())
         self.feed_manager.register_feed(PendingTransactionFeed(self.alarm_queue))
 
     def send_bdn_performance_stats(self) -> int:
