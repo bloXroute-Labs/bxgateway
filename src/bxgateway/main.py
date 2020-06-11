@@ -275,6 +275,12 @@ def get_opts() -> GatewayOpts:
         help="Ethereum websockets endpoint for syncing transaction content",
         type=str
     )
+    arg_parser.add_argument(
+        "--process-node-txs-in-extension",
+        help="If true, then the gateway will process transactions received from blockchain node using C++ extension",
+        default=False,
+        type=convert.str_to_bool
+    )
     opts = GatewayOpts(cli.parse_arguments(arg_parser))
     config.set_data_directory(opts.data_dir)
     if opts.private_key is None:

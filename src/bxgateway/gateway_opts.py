@@ -64,6 +64,7 @@ class GatewayOpts(CommonOpts):
     default_tx_quota_type: QuotaType
     should_update_source_version: bool
     account_model: Optional[BdnAccountModelBase]
+    process_node_txs_in_extension: bool
 
     # IPC
     ipc: bool
@@ -142,6 +143,7 @@ class GatewayOpts(CommonOpts):
         self.config_update_interval = opts.config_update_interval
         self.require_blockchain_connection = opts.require_blockchain_connection
         self.default_tx_quota_type = opts.default_tx_quota_type
+        self.process_node_txs_in_extension = opts.process_node_txs_in_extension
 
         self.account_model = None
 

@@ -134,6 +134,7 @@ def get_gateway_opts(
             "ipc": False,
             "ipc_file": "bxgateway.ipc",
             "request_remote_transaction_streaming": request_remote_transaction_streaming,
+            "process_node_txs_in_extension": True
         }
     )
 

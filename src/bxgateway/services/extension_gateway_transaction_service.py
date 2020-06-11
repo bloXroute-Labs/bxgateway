@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, cast
 
 import task_pool_executor as tpe
 
@@ -8,6 +8,7 @@ from bxcommon.services.extension_transaction_service import ExtensionTransaction
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.ont.ont_gateway_node import OntGatewayNode
+from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.services.gateway_transaction_service import GatewayTransactionService, \
     ProcessTransactionMessageFromNodeResult
 
@@ -16,18 +17,19 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
 
     def process_transactions_message_from_node(self, msg
                                                ) -> List[ProcessTransactionMessageFromNodeResult]:
+        opts = cast(GatewayOpts, self.node.opts)
         msg_bytes = msg.rawbytes()
 
-        if isinstance(self.node, OntGatewayNode):
+        if isinstance(self.node, OntGatewayNode) and opts.process_node_txs_in_extension:
             ext_processing_results = self.proxy.process_gateway_transaction_from_node(
                 BlockchainProtocol.ONTOLOGY.value,
                 tpe.InputBytes(msg_bytes)
             )
-        # elif isinstance(self.node, EthGatewayNode):
-        #     ext_processing_results = self.proxy.process_gateway_transaction_from_node(
-        #         BlockchainProtocol.ETHEREUM.value,
-        #         tpe.InputBytes(msg.rawbytes())
-        #     )
+        elif isinstance(self.node, EthGatewayNode) and opts.process_node_txs_in_extension:
+            ext_processing_results = self.proxy.process_gateway_transaction_from_node(
+                BlockchainProtocol.ETHEREUM.value,
+                tpe.InputBytes(msg_bytes)
+            )
         else:
             return GatewayTransactionService.process_transactions_message_from_node(self, msg)
 
