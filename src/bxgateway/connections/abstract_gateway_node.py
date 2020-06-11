@@ -1069,5 +1069,5 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 "tracked block cleanup, request cleanup of {} blocks: {}, tracked blocks: {} recent blocks: {}",
                 len(tracked_blocks_to_clean), tracked_blocks_to_clean, tracked_blocks, recent_blocks)
         else:
-            logger.warning("tracked block cleanup failed, block queuing service is not available")
+            logger.warning(log_messages.TRACKED_BLOCK_CLEANUP_ERROR, "block queuing service is not available")
         return self.tracked_block_cleanup_interval_s

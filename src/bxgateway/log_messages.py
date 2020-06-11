@@ -305,3 +305,8 @@ IPC_CLOSE_FAIL = LogMessage(
     CONNECTION_PROBLEM_CATEGORY,
     "Failed to close Gateway IPC server: {}."
 )
+TRACKED_BLOCK_CLEANUP_ERROR = LogMessage(
+    "G-000059",
+    GENERAL_CATEGORY,
+    "tracked block cleanup failed, {}"
+)
