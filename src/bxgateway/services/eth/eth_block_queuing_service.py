@@ -130,11 +130,16 @@ class EthBlockQueuingService(
     ) -> Sha256Hash:
         return block_message.prev_block_hash()
 
-    def get_block_body_from_message(self, block_hash: Sha256Hash) -> Optional[BlockBodiesEthProtocolMessage]:
+    def get_block_parts(self, block_hash: Sha256Hash) -> Optional[NewBlockParts]:
         if block_hash not in self._block_parts:
             logger.debug("requested transaction info for a block not in the queueing service {}", block_hash)
             return None
-        block_parts = self._block_parts[block_hash]
+        return self._block_parts[block_hash]
+
+    def get_block_body_from_message(self, block_hash: Sha256Hash) -> Optional[BlockBodiesEthProtocolMessage]:
+        block_parts = self.get_block_parts(block_hash)
+        if block_parts is None:
+            return None
         return BlockBodiesEthProtocolMessage.from_body_bytes(block_parts.block_body_bytes)
 
     # pyre-fixme[14]: `on_block_sent` overrides method defined in
@@ -164,9 +169,9 @@ class EthBlockQueuingService(
         super().push(block_hash, block_msg, waiting_for_recovery)
 
     def store_block_data(
-            self,
-            block_hash: Sha256Hash,
-            block_msg: InternalEthBlockInfo
+        self,
+        block_hash: Sha256Hash,
+        block_msg: InternalEthBlockInfo
     ):
         super().store_block_data(block_hash, block_msg)
         self._store_block_parts(block_hash, block_msg)
@@ -341,7 +346,6 @@ class EthBlockQueuingService(
                 )
                 return False, []
 
-
             block_hashes.append(
                 next(iter(self._block_hashes_by_height[height]))
             )
@@ -367,9 +371,9 @@ class EthBlockQueuingService(
         return True, block_hashes
 
     def iterate_block_hashes_starting_from_hash(
-            self,
-            block_hash: Sha256Hash,
-            max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        self,
+        block_hash: Sha256Hash,
+        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
         """
         iterate over cached blocks headers in descending order
         :param block_hash: starting block hash
@@ -385,8 +389,8 @@ class EthBlockQueuingService(
                 break
 
     def iterate_recent_block_hashes(
-            self,
-            max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        self,
+        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
         """
         :param max_count:
         :return: Iterator[Sha256Hash] in descending order (last -> first)

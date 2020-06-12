@@ -278,7 +278,7 @@ def get_opts() -> GatewayOpts:
     arg_parser.add_argument(
         "--process-node-txs-in-extension",
         help="If true, then the gateway will process transactions received from blockchain node using C++ extension",
-        default=False,
+        default=True,
         type=convert.str_to_bool
     )
     opts = GatewayOpts(cli.parse_arguments(arg_parser))
