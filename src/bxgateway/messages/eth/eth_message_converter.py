@@ -26,6 +26,19 @@ from bxgateway.utils.eth import rlp_utils
 logger = logging.get_logger(__name__)
 
 
+def parse_transaction_bytes(tx_bytes: memoryview) -> TransactionsEthProtocolMessage:
+    size = len(tx_bytes)
+
+    txs_prefix = rlp_utils.get_length_prefix_list(size)
+    size += len(txs_prefix)
+
+    buf = bytearray(size)
+
+    buf[0:len(txs_prefix)] = txs_prefix
+    buf[len(txs_prefix):] = tx_bytes
+    return TransactionsEthProtocolMessage(buf)
+
+
 class EthMessageConverter(AbstractMessageConverter):
 
     def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None) ->\
@@ -86,20 +99,7 @@ class EthMessageConverter(AbstractMessageConverter):
             raise TypeError("Type TxMessage is expected for bx_tx_msg arg but was {0}"
                             .format(type(bx_tx_msg)))
 
-        size = 0
-
-        tx_bytes = bx_tx_msg.tx_val()
-        size += len(tx_bytes)
-
-        txs_prefix = rlp_utils.get_length_prefix_list(size)
-        size += len(txs_prefix)
-
-        buf = bytearray(size)
-
-        buf[0:len(txs_prefix)] = txs_prefix
-        buf[len(txs_prefix):] = tx_bytes
-
-        return TransactionsEthProtocolMessage(buf)
+        return parse_transaction_bytes(bx_tx_msg.tx_val())
 
     def block_to_bx_block(self, block_msg: InternalEthBlockInfo, tx_service: TransactionService) -> Tuple[
         memoryview, BlockInfo]:

@@ -19,6 +19,7 @@ from bxcommon.models.notification_code import NotificationCode
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.utils import convert, performance_utils
 from bxcommon.utils import memory_utils
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
@@ -128,26 +129,29 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         if processing_result.ignore_seen:
             gateway_transaction_stats_service.log_duplicate_transaction_from_relay()
-            tx_stats.add_tx_by_hash_event(tx_hash,
-                                          TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
-                                          network_num, short_id, peer=stats_format.connection(self),
-                                          is_compact_transaction=False)
+            tx_stats.add_tx_by_hash_event(
+                tx_hash,
+                TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
+                network_num,
+                short_id,
+                peer=stats_format.connection(self),
+                is_compact_transaction=False
+            )
             self.log_trace("Transaction has already been seen: {}", tx_hash)
             return
 
         if processing_result.existing_short_id:
             gateway_transaction_stats_service.log_duplicate_transaction_from_relay(is_compact)
-            tx_stats.add_tx_by_hash_event(tx_hash,
-                                          TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
-                                          network_num, short_id, peer=stats_format.connection(self),
-                                          is_compact_transaction=is_compact)
+            tx_stats.add_tx_by_hash_event(
+                tx_hash,
+                TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
+                network_num,
+                short_id,
+                peer=stats_format.connection(self),
+                is_compact_transaction=is_compact
+            )
             return
 
-        if tx_contents:
-            self.node.feed_manager.publish_to_feed(
-                NewTransactionFeed.NAME,
-                TransactionFeedEntry(tx_hash, tx_contents)
-            )
         tx_stats.add_tx_by_hash_event(
             tx_hash,
             TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER,
@@ -156,19 +160,31 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             peer=stats_format.connection(self),
             is_compact_transaction=msg.is_compact()
         )
-        gateway_transaction_stats_service.log_transaction_from_relay(tx_hash,
-                                                                     short_id is not None,
-                                                                     msg.is_compact())
+        gateway_transaction_stats_service.log_transaction_from_relay(
+            tx_hash,
+            short_id is not None,
+            msg.is_compact()
+        )
 
         if processing_result.assigned_short_id:
             was_missing = self.node.block_recovery_service.check_missing_sid(short_id)
             attempt_recovery |= was_missing
-            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SHORT_ID_STORED_BY_GATEWAY,
-                                          network_num, short_id, was_missing=was_missing)
+            tx_stats.add_tx_by_hash_event(
+                tx_hash,
+                TransactionStatEventType.TX_SHORT_ID_STORED_BY_GATEWAY,
+                network_num,
+                short_id,
+                was_missing=was_missing
+            )
             gateway_transaction_stats_service.log_short_id_assignment_processed()
         elif not short_id:
-            tx_stats.add_tx_by_hash_event(tx_hash, TransactionStatEventType.TX_SHORT_ID_EMPTY_IN_MSG_FROM_RELAY,
-                                          network_num, short_id, peer=stats_format.connection(self))
+            tx_stats.add_tx_by_hash_event(
+                tx_hash,
+                TransactionStatEventType.TX_SHORT_ID_EMPTY_IN_MSG_FROM_RELAY,
+                network_num,
+                short_id,
+                peer=stats_format.connection(self)
+            )
 
         if not is_compact and processing_result.existing_contents:
             gateway_transaction_stats_service.log_redundant_transaction_content()
@@ -179,8 +195,11 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
 
             if self.node.node_conn is not None:
-                btc_tx_msg = self.node.message_converter.bx_tx_to_tx(msg)
-                self.node.send_msg_to_node(btc_tx_msg)
+                blockchain_tx_message = self.node.message_converter.bx_tx_to_tx(msg)
+                self.publish_new_transaction(
+                    tx_hash, tx_contents
+                )
+                self.node.send_msg_to_node(blockchain_tx_message)
 
                 tx_stats.add_tx_by_hash_event(
                     tx_hash,
@@ -339,3 +358,11 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             self.log(msg.level(), log_messages.NOTIFICATION_FROM_RELAY, msg.formatted_message())
         else:
             self.log(msg.level(), "Notification from Relay: {}", msg.formatted_message())
+
+    def publish_new_transaction(
+        self, tx_hash: Sha256Hash, tx_contents: memoryview
+    ) -> None:
+        self.node.feed_manager.publish_to_feed(
+            NewTransactionFeed.NAME,
+            TransactionFeedEntry(tx_hash, tx_contents)
+        )

@@ -13,6 +13,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
+from bxgateway.messages.eth import eth_message_converter
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
@@ -105,9 +106,28 @@ class EthWsSubscriber:
             Optional[memoryview],
             self.transaction_service.get_transaction_by_hash(tx_hash)
         )
+        if tx_contents is not None:
+            try:
+                transactions_message = eth_message_converter.parse_transaction_bytes(
+                    tx_contents
+                )
+                transactions = transactions_message.get_transactions()
+                assert len(transactions) == 1
+                contents = transactions[0].to_json()
+            except Exception as e:
+                logger.error(
+                    "Could not serialize transaction in transaction service to normal "
+                    "Ethereum transaction: {}. Error: {}",
+                    tx_hash,
+                    e
+                )
+                return
+        else:
+            contents = None
+
         self.feed_manager.publish_to_feed(
             PendingTransactionFeed.NAME,
-            TransactionFeedEntry(tx_hash, tx_contents)
+            TransactionFeedEntry(tx_hash, contents)
         )
 
     async def stop(self) -> None:

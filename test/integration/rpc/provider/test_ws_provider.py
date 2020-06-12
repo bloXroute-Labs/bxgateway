@@ -60,9 +60,11 @@ class WsProviderTest(AbstractTestCase):
             connection_handler = self.server._connections[0]
             subscription_id = await ws.subscribe("newTxs")
 
+            tx_contents = helpers.generate_bytes(250)
+
             published_message = TransactionFeedEntry(
                 helpers.generate_object_hash(),
-                helpers.generate_bytes(250)
+                memoryview(tx_contents)
             )
             self.gateway_node.feed_manager.publish_to_feed(
                 "newTxs", published_message
@@ -102,6 +104,7 @@ class WsProviderTest(AbstractTestCase):
             subscribe_task_1 = asyncio.create_task(
                 ws.call(RpcRequestType.SUBSCRIBE, ["newTxs"], request_id="123")
             )
+            await asyncio.sleep(0)
             subscribe_task_2 = asyncio.create_task(
                 ws.call(RpcRequestType.SUBSCRIBE, ["newTxs"], request_id="124")
             )

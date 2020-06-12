@@ -1,3 +1,5 @@
+from typing import List
+
 import rlp
 
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
@@ -13,5 +15,5 @@ class TransactionsEthProtocolMessage(EthProtocolMessage):
     def __repr__(self):
         return f"TransactionsEthProtocolMessage<num_txs: {len(self.get_transactions())}>"
 
-    def get_transactions(self):
+    def get_transactions(self) -> List[Transaction]:
         return self.get_field_value("transactions")

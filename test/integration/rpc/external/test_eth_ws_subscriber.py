@@ -1,5 +1,6 @@
 import asyncio
 
+import rlp
 import websockets
 
 from bxcommon import constants
@@ -14,6 +15,7 @@ from bxgateway.feed.subscriber import Subscriber
 from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.testing import gateway_helpers
+from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 
 
@@ -86,8 +88,11 @@ class EthWsSubscriberTest(AbstractTestCase):
         self.assertEqual(0, subscriber.messages.qsize())
 
         tx_hash = helpers.generate_object_hash()
-        tx_contents = helpers.generate_bytearray(250)
-        self.gateway_node.get_tx_service().set_transaction_contents(tx_hash, tx_contents)
+        tx_contents = mock_eth_messages.get_dummy_transaction(1)
+        self.gateway_node.get_tx_service().set_transaction_contents(
+            tx_hash,
+            rlp.encode(tx_contents)
+        )
         tx_hash_2 = helpers.generate_hash()
 
         await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
@@ -98,7 +103,7 @@ class EthWsSubscriberTest(AbstractTestCase):
 
         tx_message_1 = await subscriber.receive()
         self.assertEqual(convert.bytes_to_hex(tx_hash.binary), tx_message_1.tx_hash)
-        self.assertEqual(convert.bytes_to_hex(tx_contents), tx_message_1.tx_contents)
+        self.assertEqual(tx_contents.to_json(), tx_message_1.tx_contents)
 
         tx_message_2 = await subscriber.receive()
         self.assertEqual(convert.bytes_to_hex(tx_hash_2), tx_message_2.tx_hash)
