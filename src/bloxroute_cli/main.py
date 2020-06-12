@@ -25,7 +25,8 @@ COMMANDS_HELP = [
     "{:<18} get the memory stats of the bloXroute Gateway.".format("memory"),
     "{:<18} shutdown the Gateway server.".format("stop"),
     "{:<18} get the bloXroute Gateway connected peers info.".format("peers"),
-    "{:<18} get BDN performance stats.".format("bdn_performance")
+    "{:<18} get BDN performance stats.".format("bdn_performance"),
+    "{:<18} get quota usage status.".format("quota_usage")
 ]
 
 
@@ -127,6 +128,10 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
             }
         elif merged_opts.command == RpcRequestType.GATEWAY_STATUS:
             merged_opts.request_params = {rpc_constants.DETAILS_LEVEL_PARAMS_KEY: unrecognized_params[0]}
+    elif merged_opts.request_params is None and merged_opts.command == RpcRequestType.QUOTA_USAGE:
+        merged_opts.request_params = {
+            rpc_constants.ACCOUNT_ID_PARAMS_KEY: opts.rpc_user
+        }
     return merged_opts
 
 

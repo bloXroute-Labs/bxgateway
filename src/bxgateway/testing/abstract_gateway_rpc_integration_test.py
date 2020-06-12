@@ -147,14 +147,3 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertIsNone(result.error)
         self.assertEqual("66.67%", result.result["blocks_from_bdn_percentage"])
         self.assertEqual("33.33%", result.result["transactions_from_bdn_percentage"])
-
-    @async_test
-    async def test_quota_usage(self):
-        result = await self.request(BxJsonRpcRequest(
-            "7",
-            RpcRequestType.QUOTA_USAGE,
-            None
-        ))
-        self.assertEqual("7", result.id)
-        self.assertIsNone(result.error)
-        self.assertEqual("0.00%", result.result["quota_usage"])
