@@ -1,9 +1,9 @@
 from abc import ABCMeta, abstractmethod
-from typing import Optional, List, NamedTuple, Any, Union, Dict, Callable, Tuple
+from typing import Optional, List, NamedTuple, Any, Callable, Tuple
 
+from bxcommon.rpc.json_rpc_request import JsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_errors import RpcError
-from bxcommon.rpc.rpc_request_type import RpcRequestType
 
 
 class SubscriptionNotification(NamedTuple):
@@ -38,8 +38,7 @@ class AbstractProvider(metaclass=ABCMeta):
     @abstractmethod
     async def call(
         self,
-        method: RpcRequestType,
-        params: Union[List[Any], Dict[Any, Any], None]
+        request: JsonRpcRequest,
     ) -> JsonRpcResponse:
         pass
 

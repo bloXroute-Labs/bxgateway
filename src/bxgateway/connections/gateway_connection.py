@@ -188,10 +188,12 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_confirmed_tx(self, msg: ConfirmedTxMessage) -> None:
         tx_hash = msg.tx_hash()
-        tx_contents = cast(
-            Optional[memoryview],
-            self.node.get_tx_service().get_transaction_by_hash(tx_hash)
-        )
+        tx_contents = msg.tx_val()
+        if tx_contents == ConfirmedTxMessage.EMPTY_TX_VAL:
+            tx_contents = cast(
+                Optional[memoryview],
+                self.node.get_tx_service().get_transaction_by_hash(tx_hash)
+            )
         self.node.feed_manager.publish_to_feed(
             PendingTransactionFeed.NAME,
             TransactionFeedEntry(tx_hash, tx_contents)

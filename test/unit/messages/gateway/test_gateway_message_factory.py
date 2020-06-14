@@ -2,6 +2,7 @@ from bxcommon import constants
 from bxcommon.constants import MSG_TYPE_LEN
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
+from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.message_factory_test_case import MessageFactoryTestCase
 from bxcommon.utils import crypto
@@ -23,6 +24,7 @@ from bxgateway.messages.gateway.request_tx_stream_message import RequestTxStream
 
 class GatewayMessageFactoryTest(MessageFactoryTestCase):
     HASH = Sha256Hash(crypto.double_sha256(b"123"))
+    TX_VAL = helpers.generate_bytearray(250)
     BLOCK = helpers.generate_bytearray(29) + b"\x01"
 
     def get_message_factory(self):
@@ -50,9 +52,9 @@ class GatewayMessageFactoryTest(MessageFactoryTestCase):
             BlockHoldingMessage.PAYLOAD_LENGTH,
         )
         self.get_message_preview_successfully(
-            ConfirmedTxMessage(self.HASH),
+            ConfirmedTxMessage(self.HASH, self.TX_VAL),
             GatewayMessageType.CONFIRMED_TX,
-            ConfirmedTxMessage.PAYLOAD_LENGTH,
+            ConfirmedTxMessage.PAYLOAD_LENGTH + len(self.TX_VAL),
         )
         self.get_message_preview_successfully(
             RequestTxStreamMessage(),
@@ -122,9 +124,17 @@ class GatewayMessageFactoryTest(MessageFactoryTestCase):
         self.assertEqual(hash_val, blockchain_message_out.hash_stop())
 
         confirmed_tx = self.create_message_successfully(
-            ConfirmedTxMessage(self.HASH), ConfirmedTxMessage
+            ConfirmedTxMessage(self.HASH, self.TX_VAL), ConfirmedTxMessage
         )
         self.assertEqual(self.HASH, confirmed_tx.tx_hash())
+        self.assertEqual(self.TX_VAL, confirmed_tx.tx_val())
+
+        confirmed_tx_no_content = self.create_message_successfully(
+            ConfirmedTxMessage(self.HASH), ConfirmedTxMessage
+        )
+        self.assertEqual(self.HASH, confirmed_tx_no_content.tx_hash())
+        self.assertEqual(TxMessage.EMPTY_TX_VAL, confirmed_tx_no_content.tx_val())
+
         self.create_message_successfully(
             RequestTxStreamMessage(), RequestTxStreamMessage
         )

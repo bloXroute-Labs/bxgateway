@@ -65,12 +65,13 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             self.blockchain_connection, True, dummy_private_key, dummy_public_key)
         self.block_blockchain_connection_protocol = EthBaseConnectionProtocol(
             self.blockchain_connection, True, dummy_private_key, dummy_public_key)
+        self.tx_blockchain_connection_protocol.publish_pending_transaction = MagicMock()
+        self.block_blockchain_connection_protocol.publish_pending_transaction = MagicMock()
 
         self.relay_connection = AbstractRelayConnection(
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
         )
         self.relay_connection.state = ConnectionState.INITIALIZED
-
 
         gateway_bdn_performance_stats_service.set_node(self.node)
 

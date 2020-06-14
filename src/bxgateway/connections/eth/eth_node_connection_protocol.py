@@ -2,6 +2,8 @@ from collections import deque
 from typing import List, Deque, Union, Dict
 from time import time
 
+import rlp
+
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.expiring_dict import ExpiringDict
@@ -10,6 +12,8 @@ from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.eth_exceptions import CipherNotInitializedError
+from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
+from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
@@ -20,6 +24,7 @@ from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message impo
 from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
+from bxgateway.messages.eth.serializers.transaction import Transaction
 from bxgateway.utils.eth import crypto_utils
 from bxutils import logging
 from bxgateway import log_messages
@@ -310,3 +315,15 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 skip=0,
                 reverse=0
             )
+
+    def publish_pending_transaction(
+        self, tx_hash: Sha256Hash, tx_contents: Union[bytearray, memoryview]
+    ) -> None:
+        transaction = rlp.decode(bytearray(tx_contents), Transaction)
+        self.node.feed_manager.publish_to_feed(
+            PendingTransactionFeed.NAME,
+            TransactionFeedEntry(
+                tx_hash,
+                transaction.to_json()
+            )
+        )

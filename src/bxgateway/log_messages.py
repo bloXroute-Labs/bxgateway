@@ -310,3 +310,19 @@ TRACKED_BLOCK_CLEANUP_ERROR = LogMessage(
     GENERAL_CATEGORY,
     "tracked block cleanup failed, {}"
 )
+COULD_NOT_DESERIALIZE_TRANSACTION = LogMessage(
+    "G-000060",
+    PROCESSING_FAILED_CATEGORY,
+    "Could not deserialize transaction in transaction service to Ethereum payload: {}. Error: {}",
+)
+TRANSACTION_NOT_FOUND_IN_MEMPOOL = LogMessage(
+    "G-000061",
+    GENERAL_CATEGORY,
+    "Transaction was not found in mempool, despite publication to pendingTxs feed. Publishing "
+    "empty contents for {}"
+)
+ETH_RPC_PROCESSING_ERROR = LogMessage(
+    "G-000062",
+    PROCESSING_FAILED_CATEGORY,
+    "Encountered exception when processing message: {}. Error: {}. Continuing processing.",
+)

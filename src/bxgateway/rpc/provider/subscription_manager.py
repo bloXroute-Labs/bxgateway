@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict
 
-from bloxroute_cli.provider.abstract_provider import SubscriptionNotification
+from bxgateway.rpc.provider.abstract_provider import SubscriptionNotification
 
 
 class SubscriptionManager:

@@ -37,16 +37,38 @@ class EthWsSubscriberTest(AbstractTestCase):
         self.eth_ws_subscriber = EthWsSubscriber(
             self.eth_ws_uri, self.gateway_node.feed_manager, self.gateway_node.get_tx_service()
         )
+        self.subscriber: Subscriber[
+            TransactionFeedEntry
+        ] = self.gateway_node.feed_manager.subscribe_to_feed(PendingTransactionFeed.NAME)
+
+        await self.eth_ws_subscriber.start()
+        await asyncio.sleep(0.01)
+
+        self.assertIsNotNone(self.eth_ws_subscriber.receiving_task)
+        self.assertEqual(0, self.subscriber.messages.qsize())
+
+        self.sample_transactions = {
+            i: mock_eth_messages.get_dummy_transaction(i) for i in range(10)
+        }
 
     async def ws_test_serve(self, websocket, path):
         async def consumer(ws, _path):
             try:
                 async for message in ws:
                     rpc_request = JsonRpcRequest.from_jsons(message)
-                    await ws.send(
-                        JsonRpcResponse(rpc_request.id, self.eth_subscription_id).to_jsons()
-                    )
-            except Exception:
+                    if rpc_request.method_name == "eth_subscribe":
+                        await ws.send(
+                            JsonRpcResponse(rpc_request.id, self.eth_subscription_id).to_jsons()
+                        )
+                    elif rpc_request.method_name == "eth_getTransactionByHash":
+                        nonce = int(rpc_request.id)
+                        await ws.send(
+                            JsonRpcResponse(
+                                rpc_request.id,
+                                self.sample_transactions[nonce].to_json()
+                            ).to_jsons()
+                        )
+            except Exception as e:
                 # server closed, exit
                 pass
 
@@ -75,39 +97,47 @@ class EthWsSubscriberTest(AbstractTestCase):
 
     @async_test
     async def test_subscription(self):
-        subscriber: Subscriber[
-            TransactionFeedEntry
-        ] = self.gateway_node.feed_manager.subscribe_to_feed(PendingTransactionFeed.NAME)
-
-        await self.eth_ws_subscriber.start()
-        await asyncio.sleep(0.01)
-        self.assertIsNotNone(self.eth_ws_subscriber.ws_client)
-        self.assertIsNotNone(self.eth_ws_subscriber.receiving_task)
-        self.assertEqual(self.eth_subscription_id, self.eth_ws_subscriber.subscription_id)
-
-        self.assertEqual(0, subscriber.messages.qsize())
-
         tx_hash = helpers.generate_object_hash()
         tx_contents = mock_eth_messages.get_dummy_transaction(1)
         self.gateway_node.get_tx_service().set_transaction_contents(
             tx_hash,
             rlp.encode(tx_contents)
         )
-        tx_hash_2 = helpers.generate_hash()
+
+        tx_hash_2 = helpers.generate_object_hash()
+        tx_contents_2 = mock_eth_messages.get_dummy_transaction(2)
+        self.gateway_node.get_tx_service().set_transaction_contents(
+            tx_hash_2,
+            rlp.encode(tx_contents_2)
+        )
 
         await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
-        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash_2)}")
+        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash_2.binary)}")
         await asyncio.sleep(0.01)
 
-        self.assertEqual(2, subscriber.messages.qsize())
+        self.assertEqual(2, self.subscriber.messages.qsize())
 
-        tx_message_1 = await subscriber.receive()
+        tx_message_1 = await self.subscriber.receive()
         self.assertEqual(convert.bytes_to_hex(tx_hash.binary), tx_message_1.tx_hash)
         self.assertEqual(tx_contents.to_json(), tx_message_1.tx_contents)
 
-        tx_message_2 = await subscriber.receive()
-        self.assertEqual(convert.bytes_to_hex(tx_hash_2), tx_message_2.tx_hash)
-        self.assertEqual("", tx_message_2.tx_contents)
+        tx_message_2 = await self.subscriber.receive()
+        self.assertEqual(convert.bytes_to_hex(tx_hash_2.binary), tx_message_2.tx_hash)
+        self.assertEqual(tx_contents_2.to_json(), tx_message_2.tx_contents)
+
+    @async_test
+    async def test_subscription_with_no_content_filled(self):
+        tx_hash = helpers.generate_hash()
+        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash)}")
+
+        await asyncio.sleep(0.01)
+
+        self.assertEqual(1, self.subscriber.messages.qsize())
+        tx_message = await self.subscriber.receive()
+        self.assertEqual(convert.bytes_to_hex(tx_hash), tx_message.tx_hash)
+
+        expected_contents = self.sample_transactions[2].to_json()
+        self.assertEqual(expected_contents, tx_message.tx_contents)
 
     @async_test
     async def tearDown(self) -> None:

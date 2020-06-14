@@ -1,6 +1,6 @@
 import asyncio
 
-from bloxroute_cli.provider.ws_provider import WsProvider, WsException
+from bloxroute_cli.provider.ws_provider import WsProvider
 from bxcommon import constants
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType
@@ -9,6 +9,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test, AsyncMock
 from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
+from bxgateway.rpc.provider.abstract_ws_provider import WsException
 from bxgateway.rpc.ws.ws_server import WsServer
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
@@ -102,11 +103,11 @@ class WsProviderTest(AbstractTestCase):
             connection_handler.rpc_handler.handle_request = AsyncMock()
 
             subscribe_task_1 = asyncio.create_task(
-                ws.call(RpcRequestType.SUBSCRIBE, ["newTxs"], request_id="123")
+                ws.call_bx(RpcRequestType.SUBSCRIBE, ["newTxs"], request_id="123")
             )
             await asyncio.sleep(0)
             subscribe_task_2 = asyncio.create_task(
-                ws.call(RpcRequestType.SUBSCRIBE, ["newTxs"], request_id="124")
+                ws.call_bx(RpcRequestType.SUBSCRIBE, ["newTxs"], request_id="124")
             )
 
             server_ws = connection_handler.ws
