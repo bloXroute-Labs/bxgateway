@@ -13,6 +13,8 @@ if TYPE_CHECKING:
     # pylint: disable=ungrouped-imports,cyclic-import
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
+INTERVAL_START_TIME = "interval_start_time"
+INTERVAL_END_TIME = "interval_end_time"
 BLOCKS_FROM_BDN = "blocks_from_bdn_percentage"
 TX_FROM_BDN = "transactions_from_bdn_percentage"
 
@@ -20,7 +22,7 @@ TX_FROM_BDN = "transactions_from_bdn_percentage"
 class BdnPerformanceRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {
         "params": "",
-        "description": "return percentage of blocks/transactions first received from BDN rather than from p2p network"
+        "description": "return percentage of blocks/transactions first received from BDN rather than from p2p network "
         "in the previous 15 minute interval",
     }
 
@@ -37,15 +39,15 @@ class BdnPerformanceRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
         ] = gateway_bdn_performance_stats_service.get_most_recent_stats()
 
         if interval_data is None:
+            stats[INTERVAL_START_TIME] = float("nan")
+            stats[INTERVAL_END_TIME] = float("nan")
             stats[BLOCKS_FROM_BDN] = float("nan")
             stats[TX_FROM_BDN] = float("nan")
-            stats["interval_start_time"] = float("nan")
-            stats["interval_end_time"] = float("nan")
             return stats
 
-        stats["interval_start_time"] = str(interval_data.start_time)
+        stats[INTERVAL_START_TIME] = str(interval_data.start_time)
         assert interval_data.end_time is not None
-        stats["interval_end_time"] = str(interval_data.end_time)
+        stats[INTERVAL_END_TIME] = str(interval_data.end_time)
 
         if (
             interval_data.new_blocks_received_from_bdn

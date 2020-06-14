@@ -137,12 +137,13 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
 
 async def format_response(response: ClientResponse, content_type=rpc_constants.JSON_HEADER_TYPE) -> str:
     try:
-        response_json = await response.json(content_type=content_type)
-        result = response_json.get("result", None)
+        response_json_str = await response.json(content_type=content_type)
+        response_json_dict = json.loads(response_json_str)
+        result = response_json_dict.get("result", None)
         if not result:
-            result = response_json.get("error", "Unknown error")
+            result = response_json_dict.get("error", "Unknown error")
         return json.dumps(result, indent=4)
-    except (JSONDecodeError, ContentTypeError):
+    except (JSONDecodeError, ContentTypeError, TypeError):
         return await response.text()
 
 
@@ -154,7 +155,7 @@ async def handle_command(opts: Namespace, client: RpcClient, stdout_writer: Stre
         response: ClientResponse = await client.make_request(
             opts.command, opts.request_id, opts.request_params
         )
-        response_text = await format_response(response, rpc_constants.PLAIN_HEADER_TYPE)
+        response_text = await format_response(response)
     elif opts.command == CLICommand.HELP:
         try:
             response: ClientResponse = await client.get_server_help()

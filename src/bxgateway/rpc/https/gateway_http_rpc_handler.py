@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 
 from bxcommon.rpc.https.http_rpc_handler import HttpRpcHandler
+from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxgateway.rpc.requests.bdn_performance_rpc_request import BdnPerformanceRpcRequest
-from bxgateway.rpc.requests.gateway_blxr_transaction_rpc_request import \
-    GatewayBlxrTransactionRpcRequest
+from bxgateway.rpc.requests.gateway_blxr_transaction_rpc_request import GatewayBlxrTransactionRpcRequest
 from bxgateway.rpc.requests.gateway_status_rpc_request import GatewayStatusRpcRequest
 from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcRequest
 from bxgateway.rpc.requests.gateway_memory_rpc_request import GatewayMemoryRpcRequest
@@ -12,7 +12,6 @@ from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 
 from bxutils import logging
 
-from bxcommon.rpc.rpc_request_type import RpcRequestType
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences

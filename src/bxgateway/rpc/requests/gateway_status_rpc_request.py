@@ -1,5 +1,5 @@
 import asyncio
-from typing import TYPE_CHECKING, Union, List, Dict, Any
+from typing import TYPE_CHECKING
 
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
@@ -33,7 +33,7 @@ class GatewayStatusRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
         self._json_encoder = EnhancedJSONEncoder()
         params = request.params
         assert isinstance(params, dict)
-        self._details_level = params[rpc_constants.DETAILS_LEVEL_PARAMS_KEY]
+        self._details_level = params[rpc_constants.DETAILS_LEVEL_PARAMS_KEY].lower()
 
     def validate_params(self) -> None:
         pass
@@ -53,7 +53,7 @@ class GatewayStatusRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
             self.node.account_id,
             self.node.quota_level
         )
-        if self._details_level == GatewayStatusDetailsLevel.SUMMARY:
+        if self._details_level == GatewayStatusDetailsLevel.SUMMARY.name.lower():
             data = diagnostics.summary
         else:
             data = diagnostics

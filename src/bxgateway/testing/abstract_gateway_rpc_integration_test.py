@@ -1,5 +1,5 @@
 import unittest
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 
 from bxcommon import constants
 from bxcommon.rpc import rpc_constants
@@ -12,6 +12,7 @@ from bxcommon.test_utils.helpers import async_test
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.gateway_opts import GatewayOpts
+from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
 from bxgateway.rpc.requests import gateway_memory_rpc_request
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import \
@@ -81,16 +82,29 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @async_test
     async def test_gateway_status(self):
-        result = await self.request(BxJsonRpcRequest(
+        result_summary = await self.request(BxJsonRpcRequest(
             "2",
             RpcRequestType.GATEWAY_STATUS,
             None
         ))
-        self.assertEqual("2", result.id)
-        self.assertIsNone(result.error)
-        self.assertEqual(constants.LOCALHOST, result.result["summary"]["ip_address"])
-        self.assertEqual("NA", result.result["summary"]["continent"])
-        self.assertEqual("United States", result.result["summary"]["country"])
+        self.assertEqual("2", result_summary.id)
+        self.assertIsNone(result_summary.error)
+        self.assertEqual(constants.LOCALHOST, result_summary.result["ip_address"])
+        self.assertEqual("NA", result_summary.result["continent"])
+        self.assertEqual("United States", result_summary.result["country"])
+
+        result_detailed = await self.request(BxJsonRpcRequest(
+            "2.5",
+            RpcRequestType.GATEWAY_STATUS,
+            {
+                rpc_constants.DETAILS_LEVEL_PARAMS_KEY: GatewayStatusDetailsLevel.DETAILED.name
+            }
+        ))
+        self.assertEqual("2.5", result_detailed.id)
+        self.assertIsNone(result_detailed.error)
+        self.assertEqual(constants.LOCALHOST, result_detailed.result["summary"]["ip_address"])
+        self.assertEqual("NA", result_detailed.result["summary"]["continent"])
+        self.assertEqual("United States", result_detailed.result["summary"]["country"])
 
     @async_test
     async def test_stop(self):

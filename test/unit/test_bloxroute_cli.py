@@ -80,3 +80,19 @@ class BloxrouteCliTest(AbstractTestCase):
 
         valid = main.validate_args(opts, stdout_writer)
         self.assertEqual(True, valid)
+
+    async def test_bloxroute_cli_help_command(self):
+        try:
+            sys.argv = ["main.py",
+                        "help"]
+            arg_parser: ArgumentParser = ArgumentParser()
+            main.add_run_arguments(arg_parser)
+            main.add_base_arguments(arg_parser)
+            opts, params = arg_parser.parse_known_args()
+
+            stdout_writer = sys.stdout
+
+            valid = main.validate_args(opts, stdout_writer)
+            self.assertEqual(True, valid)
+        except Exception as e:
+            self.fail(f"Unexpected exception {e} raised")
