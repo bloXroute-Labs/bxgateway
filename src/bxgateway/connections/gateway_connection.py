@@ -22,6 +22,7 @@ from bxgateway.messages.gateway.gateway_message_factory import gateway_message_f
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
 from bxgateway.messages.gateway.request_tx_stream_message import RequestTxStreamMessage
+from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -194,6 +195,11 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 Optional[memoryview],
                 self.node.get_tx_service().get_transaction_by_hash(tx_hash)
             )
+            if tx_contents is None:
+                transaction_feed_stats_service.log_pending_transaction_missing_contents()
+            
+        transaction_feed_stats_service.log_pending_transaction_from_internal(tx_hash)
+
         self.node.feed_manager.publish_to_feed(
             PendingTransactionFeed.NAME,
             TransactionFeedEntry(tx_hash, tx_contents)

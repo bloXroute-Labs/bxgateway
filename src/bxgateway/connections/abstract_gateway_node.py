@@ -2,6 +2,8 @@ import asyncio
 # TODO: remove try-catch when removing py3.7 support
 import functools
 
+from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
+
 try:
     from asyncio.exceptions import CancelledError
 except ImportError:
@@ -198,6 +200,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.init_transaction_stat_logging()
         self.init_bdn_performance_stats_logging()
         self.init_node_config_update()
+        self.init_transaction_feed_stat_logging()
 
         self._block_from_node_handling_times = ExpiringDict(
             self.alarm_queue,
@@ -305,6 +308,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         gateway_bdn_performance_stats_service.set_node(self)
         self.alarm_queue.register_alarm(gateway_bdn_performance_stats_service.interval,
                                         self.send_bdn_performance_stats)
+
+    def init_transaction_feed_stat_logging(self):
+        transaction_feed_stats_service.set_node(self)
+        if self.opts.ws:
+            self.alarm_queue.register_alarm(
+                transaction_feed_stats_service.interval,
+                transaction_feed_stats_service.flush_info
+            )
 
     def init_live_feeds(self) -> None:
         self.feed_manager.register_feed(NewTransactionFeed())
@@ -775,9 +786,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         """
         Requests gateway peers from SDN. Merges list with provided command line gateways.
         """
-        logger.info(
-            "Fetching gateway peers, streaming: {}", self.opts.request_remote_transaction_streaming
-        )
         peer_gateways = sdn_http_service.fetch_gateway_peers(
             self.opts.node_id, self.opts.request_remote_transaction_streaming
         )

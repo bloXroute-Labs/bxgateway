@@ -30,6 +30,7 @@ from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 from bxutils import logging
 from bxutils.logging import LogLevel
 from bxutils.logging import LogRecordType
@@ -199,6 +200,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 self.publish_new_transaction(
                     tx_hash, tx_contents
                 )
+                transaction_feed_stats_service.log_new_transaction(tx_hash)
                 self.node.send_msg_to_node(blockchain_tx_message)
 
                 tx_stats.add_tx_by_hash_event(

@@ -14,7 +14,7 @@ from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
 from bxgateway.messages.eth.serializers.transaction import Transaction
 from bxgateway.rpc.provider.abstract_ws_provider import AbstractWsProvider
-from bxgateway.messages.eth import eth_message_converter
+from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
@@ -116,6 +116,8 @@ class EthWsSubscriber(AbstractWsProvider):
                 PendingTransactionFeed.NAME,
                 TransactionFeedEntry(tx_hash, transaction.to_json())
             )
+            transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
+
         except Exception as e:
             logger.error(
                 log_messages.COULD_NOT_DESERIALIZE_TRANSACTION, tx_hash, e
@@ -133,10 +135,26 @@ class EthWsSubscriber(AbstractWsProvider):
     ) -> None:
         if parsed_tx is None:
             logger.error(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, tx_hash)
+            transaction_feed_stats_service.log_pending_transaction_missing_contents()
+
+
+    async def fetch_missing_transaction(self, tx_hash: Sha256Hash) -> None:
+        response = await self.call_rpc(
+            "eth_getTransactionByHash",
+            [f"0x{str(tx_hash)}"]
+        )
+        return self.process_transaction_with_parsed_contents(tx_hash, response.result)
+
+    def process_transaction_with_parsed_contents(
+        self, tx_hash: Sha256Hash, parsed_tx: Optional[Dict[str, Any]]
+    ) -> None:
+        if parsed_tx is None:
+            logger.error(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, tx_hash)
         self.feed_manager.publish_to_feed(
             PendingTransactionFeed.NAME,
             TransactionFeedEntry(tx_hash, parsed_tx)
         )
+        transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
 
     async def stop(self) -> None:
         await self.close()
