@@ -71,9 +71,7 @@ def get_default_eth_private_key():
     return private_key
 
 
-def get_opts() -> GatewayOpts:
-    config.set_working_directory(os.path.dirname(__file__))
-
+def get_argument_parser() -> argparse.ArgumentParser:
     # Parse gateway specific command line parameters
     arg_parser = argparse.ArgumentParser(parents=[cli.get_argument_parser()],
                                          description="Command line interface for the bloXroute Gateway.",
@@ -281,7 +279,13 @@ def get_opts() -> GatewayOpts:
         default=True,
         type=convert.str_to_bool
     )
-    opts = GatewayOpts(cli.parse_arguments(arg_parser))
+    return arg_parser
+
+
+def get_opts() -> GatewayOpts:
+    config.set_working_directory(os.path.dirname(__file__))
+
+    opts = GatewayOpts(cli.parse_arguments(get_argument_parser()))
     config.set_data_directory(opts.data_dir)
     if opts.private_key is None:
         opts.private_key = get_default_eth_private_key()
