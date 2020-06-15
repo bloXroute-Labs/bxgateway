@@ -136,20 +136,6 @@ class EthWsSubscriber(AbstractWsProvider):
         if parsed_tx is None:
             logger.error(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, tx_hash)
             transaction_feed_stats_service.log_pending_transaction_missing_contents()
-
-
-    async def fetch_missing_transaction(self, tx_hash: Sha256Hash) -> None:
-        response = await self.call_rpc(
-            "eth_getTransactionByHash",
-            [f"0x{str(tx_hash)}"]
-        )
-        return self.process_transaction_with_parsed_contents(tx_hash, response.result)
-
-    def process_transaction_with_parsed_contents(
-        self, tx_hash: Sha256Hash, parsed_tx: Optional[Dict[str, Any]]
-    ) -> None:
-        if parsed_tx is None:
-            logger.error(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, tx_hash)
         self.feed_manager.publish_to_feed(
             PendingTransactionFeed.NAME,
             TransactionFeedEntry(tx_hash, parsed_tx)
