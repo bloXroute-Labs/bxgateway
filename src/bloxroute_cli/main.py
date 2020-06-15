@@ -62,8 +62,9 @@ class RpcClient:
         target_is_cloud_api: bool
     ):
         self._session = ClientSession()
+        self.target_is_cloud_api = target_is_cloud_api
         if target_is_cloud_api:
-            self._rpc_url = f"{cloud_api_url}/{account_id}/blxr_transaction"
+            self._rpc_url = cloud_api_url
             self._encoded_auth = base64.b64encode(f"{account_id}:{secret_hash}".encode("utf-8")).decode("utf-8")
         else:
             self._rpc_url = f"http://{rpc_host}:{rpc_port}/"
@@ -88,6 +89,7 @@ class RpcClient:
             "id": request_id,
             "params": request_params
         }
+
         return await self._session.post(
             self._rpc_url,
             data=json.dumps(json_data),
@@ -113,8 +115,8 @@ class RpcClient:
 def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
     merged_opts = Namespace()
     merged_opts.__dict__ = opts.__dict__.copy()
-    if merged_opts.request_params is None and unrecognized_params:
-        if merged_opts.command == RpcRequestType.BLXR_TX:
+    if merged_opts.command == RpcRequestType.BLXR_TX:
+        if merged_opts.request_params is None and unrecognized_params:
             transaction_payload = unrecognized_params[0]
             synchronous = str(True)
             if len(unrecognized_params) > 1:
@@ -122,16 +124,18 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
             merged_opts.request_params = {
                 rpc_constants.TRANSACTION_PARAMS_KEY: transaction_payload,
                 rpc_constants.SYNCHRONOUS_PARAMS_KEY: synchronous,
-                rpc_constants.ACCOUNT_ID_PARAMS_KEY: opts.rpc_user,
+                rpc_constants.ACCOUNT_ID_PARAMS_KEY: opts.account_id if opts.cloud_api else opts.rpc_user,
                 rpc_constants.BLOCKCHAIN_PROTOCOL_PARAMS_KEY: opts.blockchain_protocol,
                 rpc_constants.BLOCKCHAIN_NETWORK_PARAMS_KEY: opts.blockchain_network
             }
-        elif merged_opts.command == RpcRequestType.GATEWAY_STATUS:
-            merged_opts.request_params = {rpc_constants.DETAILS_LEVEL_PARAMS_KEY: unrecognized_params[0]}
-    elif merged_opts.request_params is None and merged_opts.command == RpcRequestType.QUOTA_USAGE:
-        merged_opts.request_params = {
-            rpc_constants.ACCOUNT_ID_PARAMS_KEY: opts.rpc_user
-        }
+    elif merged_opts.command == RpcRequestType.GATEWAY_STATUS:
+        merged_opts.request_params = {rpc_constants.DETAILS_LEVEL_PARAMS_KEY: unrecognized_params[0]}
+    elif merged_opts.command == RpcRequestType.QUOTA_USAGE:
+        if merged_opts.request_params is None:
+            merged_opts.request_params = {
+                rpc_constants.ACCOUNT_ID_PARAMS_KEY: opts.account_id if opts.cloud_api else opts.rpc_user
+            }
+
     return merged_opts
 
 
@@ -275,6 +279,27 @@ def add_run_arguments(arg_parser: ArgumentParser) -> None:
 
 def add_base_arguments(arg_parser: ArgumentParser) -> None:
     arg_parser.add_argument(
+        "--cloud-api",
+        help=f"Should the bloxroute-cli send the request to bloXroute Cloud API",
+        action="store_true"
+    )
+    arg_parser.add_argument(
+        "--cloud-api-url",
+        help=f"bloXroute's cloud-api DNS name (default: {rpc_constants.CLOUD_API_URL})",
+        type=str,
+        default=rpc_constants.CLOUD_API_URL
+    )
+    arg_parser.add_argument(
+        "--account-id",
+        help=f"The account's ID. Contact support@bloxroute.com for assistance. ",
+        type=str
+    )
+    arg_parser.add_argument(
+        "--secret-hash",
+        help=f"The account's secret key. Contact support@bloxroute.com for assistance. ",
+        type=str,
+    )
+    arg_parser.add_argument(
         "--rpc-host",
         help="The Gateway RPC host (default: {}).".format(rpc_constants.DEFAULT_RPC_HOST),
         type=str,
@@ -300,27 +325,6 @@ def add_base_arguments(arg_parser: ArgumentParser) -> None:
         default=rpc_constants.DEFAULT_RPC_PASSWORD
     )
     arg_parser.add_argument(
-        "--cloud-api",
-        help=f"Should the bloxroute-cli send the request to bloXroute Cloud API",
-        action="store_true"
-    )
-    arg_parser.add_argument(
-        "--cloud-api-url",
-        help=f"bloXroute's cloud-api DNS name (default: {rpc_constants.CLOUD_API_URL})",
-        type=str,
-        default=rpc_constants.CLOUD_API_URL
-    )
-    arg_parser.add_argument(
-        "--account-id",
-        help=f"The account's ID. Contact support@bloxroute.com for assistance. ",
-        type=str
-    )
-    arg_parser.add_argument(
-        "--secret-hash",
-        help=f"The account's secret key. Contact support@bloxroute.com for assistance. ",
-        type=str,
-    )
-    arg_parser.add_argument(
         "--interactive-shell",
         help="Run the Gateway RPC client in interactive Shell mode (default: False)",
         action="store_true",
@@ -335,13 +339,20 @@ def add_base_arguments(arg_parser: ArgumentParser) -> None:
 
 
 def validate_args(opts: Namespace, stdout_writer: StreamWriter) -> bool:
-    if ("cloud_api" in opts and opts.cloud_api is True):
+    if ("account_id" in opts and opts.account_id is not None) and \
+            ("secret_hash" in opts and opts.secret_hash is not None):
+        opts.cloud_api = True
+        sys.argv.append("--cloud-api")
+        return True
+
+    elif ("cloud_api" in opts and opts.cloud_api is True):
         if ("cloud_api_url" not in opts or ("cloud_api_url" in opts and opts.cloud_api_url is None)) or \
            ("account_id" not in opts or ("account_id" in opts and opts.account_id is None)) or \
            ("secret_hash" not in opts or ("secret_hash" in opts and opts.secret_hash is None)):
             stdout_writer.write("The use of bloXroute Cloud API requires the following two arguments: "
                                 "--account-id, --secret-hash.\n".encode("utf-8"))
             return False
+
     elif ("rpc_host" not in opts or ("rpc_host" in opts and opts.rpc_host is None)) or \
          ("rpc_port" not in opts or ("rpc_port" in opts and opts.rpc_port is None)) or \
          ("rpc_user" not in opts or ("rpc_user" in opts and opts.rpc_user is None)) or \
