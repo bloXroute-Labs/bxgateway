@@ -120,7 +120,7 @@ class EthWsSubscriber(AbstractWsProvider):
 
         except Exception as e:
             logger.error(
-                log_messages.COULD_NOT_DESERIALIZE_TRANSACTION, tx_hash, e
+                log_messages.COULD_NOT_DESERIALIZE_TRANSACTION, tx_hash, e, exc_info=True
             )
 
     async def fetch_missing_transaction(self, tx_hash: Sha256Hash) -> None:
@@ -134,8 +134,12 @@ class EthWsSubscriber(AbstractWsProvider):
         self, tx_hash: Sha256Hash, parsed_tx: Optional[Dict[str, Any]]
     ) -> None:
         if parsed_tx is None:
-            logger.error(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, tx_hash)
+            logger.debug(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, tx_hash)
             transaction_feed_stats_service.log_pending_transaction_missing_contents()
+        else:
+            # normalize transaction format
+            parsed_tx = Transaction.from_json(parsed_tx).to_json()
+
         self.feed_manager.publish_to_feed(
             PendingTransactionFeed.NAME,
             TransactionFeedEntry(tx_hash, parsed_tx)

@@ -79,10 +79,13 @@ class AbstractBlockchainConnectionProtocol:
                 self.connection,
                 connection_types=[ConnectionType.RELAY_TRANSACTION]
             )
-            if self.connection.node.opts.ws:
-                self.publish_pending_transaction(
-                    tx_result.transaction_hash, tx_result.transaction_contents
-                )
+            # for now, don't publish transactions received from blockchain node
+            # huge performance impact to try and parse the 1000s of transactions
+            # from Ethereum on startup
+            # if self.connection.node.opts.ws and self.connection.node.opts.has_fully_updated_tx_service:
+            #     self.publish_pending_transaction(
+            #         tx_result.transaction_hash, tx_result.transaction_contents
+            #     )
 
             if broadcast_peers:
                 tx_stats.add_tx_by_hash_event(

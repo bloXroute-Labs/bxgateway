@@ -1,4 +1,5 @@
 import asyncio
+from typing import Dict, Any
 
 import rlp
 import websockets
@@ -13,10 +14,21 @@ from bxcommon.utils import convert
 from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 from bxgateway.feed.subscriber import Subscriber
 from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
+from bxgateway.messages.eth.serializers.transaction import Transaction
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
+
+
+def tx_to_eth_rpc_json(transaction: Transaction) -> Dict[str, Any]:
+    payload = transaction.to_json()
+    for field in {"nonce", "gas", "gas_price", "value"}:
+        payload[field] = hex(payload[field])
+
+    payload["gasPrice"] = payload["gas_price"]
+    del payload["gas_price"]
+    return payload
 
 
 class EthWsSubscriberTest(AbstractTestCase):
@@ -65,7 +77,7 @@ class EthWsSubscriberTest(AbstractTestCase):
                         await ws.send(
                             JsonRpcResponse(
                                 rpc_request.id,
-                                self.sample_transactions[nonce].to_json()
+                                tx_to_eth_rpc_json(self.sample_transactions[nonce])
                             ).to_jsons()
                         )
             except Exception as e:

@@ -121,11 +121,11 @@ class Transaction(rlp.Serializable):
     @classmethod
     def from_json(cls, payload: Dict[str, Any]) -> "Transaction":
         return cls(
-            payload["nonce"],
-            payload["gasPrice"],
-            payload["gas"],
-            convert.hex_to_bytes(payload["to"][2:]),
-            payload["value"],
+            int(payload["nonce"], 16),
+            int(payload["gasPrice"], 16),
+            int(payload["gas"], 16),
+            utils.optional_map(payload["to"], lambda to: convert.hex_to_bytes(to[2:])),
+            int(payload["value"], 16),
             convert.hex_to_bytes(payload["input"][2:]),
             int(payload["v"], 16),
             int(payload["r"], 16),

@@ -16,6 +16,19 @@ SAMPLE_TRANSACTION = {
   "v": "0x25",
   "value": 0
 }
+SAMPLE_TRANSACTION_FROM_WS = {
+    "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a",
+    "gas": "0x9bba",
+    "gasPrice": "0x41dcf5dbe",
+    "hash": "0x0d96b711bdcc89b59f0fdfa963158394cea99cedce52d0e4f4a56839145a814a",
+    "input": "0xea1790b90000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000005ee3f95400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041d880a37ae74a2593900da75b3cae6335b5f58997c6f426e98e42f55d3d5cd6487369ec0250a923cf1f45a39aa551b68420ec04582d1a68bcab9a70240ae39f261b00000000000000000000000000000000000000000000000000000000000000",
+    "nonce": "0x1e8",
+    "r": "0x561fc2c4428e8d3ff1e48ce07322a98ea6c8c5836bc79e7d60a6ed5d37a124a2",
+    "s": "0x7ab1477ccb14143ba9afeb2f98099c85dd4175f09767f03d47f0733467eadde2",
+    "to": "0xd7bec4d6bf6fc371eb51611a50540f0b59b5f896",
+    "v": "0x25",
+    "value": "0x0"
+}
 
 
 class TransactionTest(AbstractTestCase):
@@ -98,7 +111,7 @@ class TransactionTest(AbstractTestCase):
         )
 
     def test_from_json(self):
-        result = Transaction.from_json(SAMPLE_TRANSACTION)
+        result = Transaction.from_json(SAMPLE_TRANSACTION_FROM_WS)
         self.assertEqual(488, result.nonce)
         self.assertEqual(17679998398, result.gas_price)
         self.assertEqual(39866, result.start_gas)

@@ -27,9 +27,10 @@ class ResponseQueue:
 
     async def get_by_request_id(self, request_id: str) -> JsonRpcResponse:
         if request_id in self.message_by_request_id:
+            message = self.message_by_request_id[request_id]
             if self.only_once:
                 self.cleanup(request_id)
-            return self.message_by_request_id[request_id]
+            return message
 
         if request_id in self.message_notifiers:
             event = self.message_notifiers[request_id]

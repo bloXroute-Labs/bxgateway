@@ -5,7 +5,6 @@ from typing import Optional, Union, List, Any, Dict, Tuple, Coroutine, Callable,
 
 import websockets
 
-from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_request import JsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_errors import RpcError
@@ -129,6 +128,7 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
                     log_messages.ETH_RPC_PROCESSING_ERROR,
                     next_message,
                     e,
+                    exc_info=True
                 )
         self.running = False
 
