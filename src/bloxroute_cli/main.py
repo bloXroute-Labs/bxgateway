@@ -129,7 +129,8 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
                 rpc_constants.BLOCKCHAIN_NETWORK_PARAMS_KEY: opts.blockchain_network
             }
     elif merged_opts.command == RpcRequestType.GATEWAY_STATUS:
-        merged_opts.request_params = {rpc_constants.DETAILS_LEVEL_PARAMS_KEY: unrecognized_params[0]}
+        if merged_opts.request_params is None and unrecognized_params:
+            merged_opts.request_params = {rpc_constants.DETAILS_LEVEL_PARAMS_KEY: unrecognized_params[0]}
     elif merged_opts.command == RpcRequestType.QUOTA_USAGE:
         if merged_opts.request_params is None:
             merged_opts.request_params = {
