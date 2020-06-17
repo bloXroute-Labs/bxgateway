@@ -6,6 +6,8 @@ from bxcommon.utils.stats.statistics_service import StatisticsService, StatsInte
 from bxgateway import gateway_constants
 from bxutils import logging
 from bxutils.logging import LogRecordType
+from bxgateway.feed.new_transaction_feed import NewTransactionFeed
+from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -84,6 +86,12 @@ class TransactionFeedStatsService(
             if diff > 0
         ])
 
+        node = self.node
+        assert node is not None
+        feeds = node.feed_manager.feeds
+        pending_transaction_feed_subscribers = len(feeds[PendingTransactionFeed.name].subscribers)
+        new_transaction_feed_subscribers = len(feeds[PendingTransactionFeed.name].subscribers)
+
         return {
             "new_transactions": len(interval_data.new_transaction_received_times),
             "pending_transactions": len(interval_data.pending_transaction_received_times),
@@ -98,6 +106,8 @@ class TransactionFeedStatsService(
             "avg_pending_transactions_from_internal_faster_by_s": avg_pending_transactions_from_internal_faster_by_s,
             "pending_transactions_from_internal_faster_count": pending_transactions_from_internal_faster_count,
             "pending_transactions_missing_contents": interval_data.pending_transactions_missing_contents,
+            "pending_transaction_feed_subscribers": pending_transaction_feed_subscribers,
+            "new_transaction_feed_subscribers": new_transaction_feed_subscribers
         }
 
     def log_new_transaction(self, tx_hash: Sha256Hash) -> None:
