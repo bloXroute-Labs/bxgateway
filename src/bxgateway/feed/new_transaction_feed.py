@@ -1,4 +1,4 @@
-from typing import Optional, Union, Dict, Any
+from typing import Union, Dict, Any
 
 from bxcommon.utils import crypto, convert
 from bxcommon.utils.object_hash import Sha256Hash

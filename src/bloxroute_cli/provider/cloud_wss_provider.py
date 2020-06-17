@@ -12,7 +12,7 @@ from bxcommon.models.node_type import NodeType
 from bxcommon.utils import config
 from bxutils import constants as utils_constants
 
-CLOUD_WEBSOCKETS_URL = "wss://eth.feed.blxrbdn.com"
+CLOUD_WEBSOCKETS_URL = "wss://eth.feed.blxrbdn.com:28333"
 CA_CERT_URL = "https://certificates.blxrbdn.com/ca/ca_cert.pem"
 DEFAULT_NODE_NAME = NodeType.EXTERNAL_GATEWAY.name.lower()
 
@@ -66,4 +66,5 @@ class CloudWssProvider(WsProvider):
     async def initialize(self) -> None:
         self.ws = await websockets.connect(self.uri, ssl=self.ssl_context)
         self.listener = asyncio.create_task(self.receive())
+        self.ws_checker = asyncio.create_task(self.check_ws_close_status())
         self.running = True
