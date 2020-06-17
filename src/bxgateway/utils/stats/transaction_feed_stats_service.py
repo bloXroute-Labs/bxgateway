@@ -156,24 +156,16 @@ class TransactionFeedStatsService(
         if tx_hash in interval_data.pending_transaction_from_local_blockchain_received_times:
             return
 
-        interval_data.pending_transaction_from_local_blockchain_received_times[
-            tx_hash
-        ] = current_time
-        if tx_hash in interval_data.pending_transaction_received_times:
+        interval_data.pending_transaction_from_local_blockchain_received_times[tx_hash] = current_time
+        if tx_hash in interval_data.pending_transaction_from_internal_received_times:
             # already received from internal
-            timestamp = interval_data.pending_transaction_from_internal_received_times[
-                tx_hash
-            ]
-            interval_data.pending_from_internal_faster_than_local_times.append(
-                current_time - timestamp
-            )
+            timestamp = interval_data.pending_transaction_from_internal_received_times[tx_hash]
+            interval_data.pending_from_internal_faster_than_local_times.append(current_time - timestamp)
         else:
             interval_data.pending_transaction_received_times[tx_hash] = current_time
             if tx_hash in interval_data.new_transaction_received_times:
                 timestamp = interval_data.new_transaction_received_times[tx_hash]
-                interval_data.new_transactions_faster_than_pending_times.append(
-                    current_time - timestamp
-                )
+                interval_data.new_transactions_faster_than_pending_times.append(current_time - timestamp)
 
     def log_pending_transaction_missing_contents(self) -> None:
         interval_data = self.interval_data
