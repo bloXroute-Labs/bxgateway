@@ -124,7 +124,13 @@ class Transaction(rlp.Serializable):
             int(payload["nonce"], 16),
             int(payload["gasPrice"], 16),
             int(payload["gas"], 16),
-            utils.optional_map(payload["to"], lambda to: convert.hex_to_bytes(to[2:])),
+            utils.or_else(
+                utils.optional_map(
+                    payload["to"],
+                    lambda to: convert.hex_to_bytes(to[2:])
+                ),
+                bytes()
+            ),
             int(payload["value"], 16),
             convert.hex_to_bytes(payload["input"][2:]),
             int(payload["v"], 16),

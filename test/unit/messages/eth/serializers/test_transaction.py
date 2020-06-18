@@ -134,3 +134,9 @@ class TransactionTest(AbstractTestCase):
             if key == "gasPrice":
                 key = "gas_price"
             self.assertEqual(val, result_json[key])
+
+    def test_empty_to_serializes(self):
+        sample_transactions = dict(SAMPLE_TRANSACTION_FROM_WS)
+        sample_transactions["to"] = None
+
+        Transaction.from_json(sample_transactions).to_json()
