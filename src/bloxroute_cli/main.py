@@ -16,6 +16,7 @@ from aiohttp import ClientSession, ClientResponse, ClientConnectorError, Content
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.rpc_request_type import RpcRequestType
+from bxcommon.utils import convert
 
 COMMANDS_HELP = [
     "{:<18} exit the CLI.".format("exit"),
@@ -80,8 +81,8 @@ class RpcClient:
         self,
         method: RpcRequestType,
         request_id: Optional[str] = None,
-        request_params: Union[Dict[str, Any], List[Any], None] = None
-    ) -> ClientResponse:
+        request_params: Union[Dict[str, Any], None] = None
+    ) -> Optional[ClientResponse]:
         if request_id is None:
             request_id = str(uuid.uuid4())
         json_data = {
@@ -89,15 +90,33 @@ class RpcClient:
             "id": request_id,
             "params": request_params
         }
+        synchronous = True
+        if request_params:
+            synchronous = convert.str_to_bool(
+                request_params.get(rpc_constants.SYNCHRONOUS_PARAMS_KEY, "true").lower()
+            )
 
-        return await self._session.post(
-            self._rpc_url,
-            data=json.dumps(json_data),
-            headers={
-                rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE,
-                rpc_constants.AUTHORIZATION_HEADER_KEY: self._encoded_auth
-            }
-        )
+        if synchronous:
+            return await self._session.post(
+                self._rpc_url,
+                data=json.dumps(json_data),
+                headers={
+                    rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE,
+                    rpc_constants.AUTHORIZATION_HEADER_KEY: self._encoded_auth
+                }
+            )
+        else:
+            asyncio.create_task(
+                self._session.post(
+                    self._rpc_url,
+                    data=json.dumps(json_data),
+                    headers={
+                        rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE,
+                        rpc_constants.AUTHORIZATION_HEADER_KEY: self._encoded_auth
+                    }
+                )
+            )
+            return None
 
     async def get_server_help(self) -> ClientResponse:
         return await self._session.get(
@@ -157,10 +176,13 @@ async def handle_command(opts: Namespace, client: RpcClient, stdout_writer: Stre
         stdout_writer.write(f"executing with opts: {opts}\n".encode("utf-8"))
     response_text: Optional[str] = None
     if isinstance(opts.command, RpcRequestType):
-        response: ClientResponse = await client.make_request(
+        response: Optional[ClientResponse] = await client.make_request(
             opts.command, opts.request_id, opts.request_params
         )
-        response_text = await format_response(response)
+        if response:
+            response_text = await format_response(response)
+        else:
+            response_text = "{'message': 'Sent async request. Not waiting for response'}"
     elif opts.command == CLICommand.HELP:
         try:
             response: ClientResponse = await client.get_server_help()
