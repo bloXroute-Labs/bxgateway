@@ -50,3 +50,6 @@ class FeedManager:
 
     def get_feed_fields(self, feed_name: str) -> List[str]:
         return self.feeds[feed_name].FIELDS
+
+    def any_subscribers(self) -> bool:
+        return any(feed.subscriber_count() > 0 for feed in self.feeds.values())

@@ -25,6 +25,8 @@ class EthRelayConnectionTest(AbstractTestCase):
         )
 
     def test_publish_new_transaction(self):
+        self.node.feed_manager.any_subscribers = MagicMock(return_value=True)
+
         bx_tx_message, _, _ = self.node.message_converter.tx_to_bx_txs(
             mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE, 5
         )[0]
@@ -41,3 +43,21 @@ class EthRelayConnectionTest(AbstractTestCase):
         self.node.feed_manager.publish_to_feed.assert_called_once_with(
                 NewTransactionFeed.NAME, expected_publication
         )
+
+    def test_publish_new_transaction_no_subscribers(self):
+        self.node.feed_manager.any_subscribers = MagicMock(return_value=False)
+
+        bx_tx_message, _, _ = self.node.message_converter.tx_to_bx_txs(
+            mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE, 5
+        )[0]
+
+        self.node.feed_manager.publish_to_feed = MagicMock()
+        self.connection.msg_tx(bx_tx_message)
+
+        expected_publication = TransactionFeedEntry(
+            Sha256Hash(
+                convert.hex_to_bytes(mock_eth_messages.EIP_155_TRANSACTION_HASH)
+            ),
+            mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE.get_transactions()[0].to_json()
+        )
+        self.node.feed_manager.publish_to_feed.assert_not_called()

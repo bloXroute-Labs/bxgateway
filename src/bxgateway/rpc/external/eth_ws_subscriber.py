@@ -110,6 +110,9 @@ class EthWsSubscriber(AbstractWsProvider):
     def process_transaction_with_contents(
         self, tx_hash: Sha256Hash, tx_contents: memoryview
     ) -> None:
+        if not self.feed_manager.any_subscribers():
+            return
+
         try:
             transaction = rlp.decode(tx_contents.tobytes(), Transaction)
             self.feed_manager.publish_to_feed(
@@ -133,12 +136,23 @@ class EthWsSubscriber(AbstractWsProvider):
     def process_transaction_with_parsed_contents(
         self, tx_hash: Sha256Hash, parsed_tx: Optional[Dict[str, Any]]
     ) -> None:
+        if not self.feed_manager.any_subscribers():
+            return
+
         if parsed_tx is None:
             logger.debug(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, tx_hash)
             transaction_feed_stats_service.log_pending_transaction_missing_contents()
         else:
-            # normalize transaction format
-            parsed_tx = Transaction.from_json(parsed_tx).to_json()
+            try:
+                # normalize transaction format
+                parsed_tx = Transaction.from_json(parsed_tx).to_json()
+            except Exception as e:
+                logger.error(
+                    log_messages.COULD_NOT_DESERIALIZE_TRANSACTION,
+                    parsed_tx,
+                    e,
+                    exc_info=True
+                )
 
         self.feed_manager.publish_to_feed(
             PendingTransactionFeed.NAME,

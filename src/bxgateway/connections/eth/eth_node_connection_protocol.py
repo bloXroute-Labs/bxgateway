@@ -319,11 +319,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
     def publish_pending_transaction(
         self, tx_hash: Sha256Hash, tx_contents: Union[bytearray, memoryview]
     ) -> None:
-        transaction = rlp.decode(bytearray(tx_contents), Transaction)
-        self.node.feed_manager.publish_to_feed(
-            PendingTransactionFeed.NAME,
-            TransactionFeedEntry(
-                tx_hash,
-                transaction.to_json()
+        if self.node.feed_manager.any_subscribers():
+            transaction = rlp.decode(bytearray(tx_contents), Transaction)
+            self.node.feed_manager.publish_to_feed(
+                PendingTransactionFeed.NAME,
+                TransactionFeedEntry(
+                    tx_hash,
+                    transaction.to_json()
+                )
             )
-        )
