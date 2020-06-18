@@ -7,7 +7,6 @@ from bxcommon.test_utils.abstract_transaction_service_test_case import AbstractT
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
-from bxgateway.connections.ont.ont_gateway_node import OntGatewayNode
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.messages.ont.tx_ont_message import TxOntMessage
 from bxgateway.services.gateway_transaction_service import GatewayTransactionService
