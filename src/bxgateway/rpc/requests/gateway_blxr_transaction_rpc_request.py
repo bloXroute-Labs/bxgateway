@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING
+import asyncio
 
 from bxcommon.models.quota_type_model import QuotaType
-
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.exceptions import ParseError
 from bxcommon.rpc import rpc_constants
@@ -26,7 +27,39 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
     QUOTA_TYPE: str = "quota_type"
     SYNCHRONOUS = rpc_constants.SYNCHRONOUS_PARAMS_KEY
 
+    def __init__(self, request: BxJsonRpcRequest, node: "AbstractGatewayNode") -> None:
+        super().__init__(request, node)
+        params = self.params
+        assert isinstance(params, dict)
+
+        lowercase_true = str(True).lower()
+        self.synchronous = \
+            params.get(self.SYNCHRONOUS, lowercase_true).lower() == lowercase_true
+
     async def process_transaction(
+        self, network_num: int, account_id: str, quota_type: QuotaType, transaction_str: str
+    ) -> JsonRpcResponse:
+
+        if self.synchronous:
+            return await self.post_process_transaction(
+                network_num, account_id, quota_type, transaction_str
+            )
+        else:
+            asyncio.create_task(
+                self.post_process_transaction(
+                    network_num, account_id, quota_type, transaction_str
+                )
+            )
+        return JsonRpcResponse(
+            self.request_id,
+            {
+                "tx_hash": "not available with async",
+                "quota_type": quota_type.name.lower(),
+                "synchronous": str(self.synchronous)
+            }
+        )
+
+    async def post_process_transaction(
         self, network_num: int, account_id: str, quota_type: QuotaType, transaction_str: str
     ) -> JsonRpcResponse:
         try:

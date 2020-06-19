@@ -1,6 +1,6 @@
 import unittest
 from abc import abstractmethod
-
+import base64
 from bxcommon import constants
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest

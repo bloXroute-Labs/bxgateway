@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING
+import base64
 
 from aiohttp import web
 from aiohttp.web import Request, Response
@@ -37,7 +38,8 @@ class GatewayHttpRpcServer(AbstractHttpRpcServer["AbstractGatewayNode"]):
             else:
                 is_authenticated = False
         if not is_authenticated:
-            raise HTTPUnauthorized(text="Request credentials are invalid.")
+            message = "Request credentials are invalid. Specify RPC username and password"
+            raise RpcAccountIdError(None, message)
 
     def request_handler(self) -> HttpRpcHandler:
         return GatewayHttpRpcHandler(self.node)
@@ -60,3 +62,9 @@ class GatewayHttpRpcServer(AbstractHttpRpcServer["AbstractGatewayNode"]):
             return response
         except HTTPClientError as e:
             return self._format_http_error(e)
+
+    def set_encoded_auth(self):
+        encoded_auth = \
+            base64.b64encode(f"{self.node.opts.rpc_user}:{self.node.opts.rpc_password}".encode("utf-8")).decode("utf-8")
+
+        return encoded_auth

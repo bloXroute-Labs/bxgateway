@@ -8,6 +8,7 @@ from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
 from bxgateway.utils.logging.status import status_log
 from bxutils.encoding.json_encoder import EnhancedJSONEncoder
+from bxcommon.rpc.rpc_errors import RpcInvalidParams
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -29,14 +30,21 @@ class GatewayStatusRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
             request.params = {
                 rpc_constants.DETAILS_LEVEL_PARAMS_KEY: GatewayStatusDetailsLevel.SUMMARY.name
             }
+        self._details_level = None
         super().__init__(request, node)
         self._json_encoder = EnhancedJSONEncoder()
         params = request.params
         assert isinstance(params, dict)
-        self._details_level = params[rpc_constants.DETAILS_LEVEL_PARAMS_KEY].lower()
+        self.params = params
 
     def validate_params(self) -> None:
-        pass
+        super().validate_params()
+        params = self.params
+        assert isinstance(params, dict)
+        if rpc_constants.DETAILS_LEVEL_PARAMS_KEY not in params:
+            params[rpc_constants.DETAILS_LEVEL_PARAMS_KEY] = GatewayStatusDetailsLevel.SUMMARY.name
+
+        self._details_level = params[rpc_constants.DETAILS_LEVEL_PARAMS_KEY].lower()
 
     async def process_request(self) -> JsonRpcResponse:
         loop = asyncio.get_event_loop()
