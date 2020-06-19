@@ -60,10 +60,12 @@ class RpcClient:
         account_id: str,
         secret_hash: str,
         cloud_api_url: str,
-        target_is_cloud_api: bool
+        target_is_cloud_api: bool,
+        interactive: bool = False
     ):
         self._session = ClientSession()
         self.target_is_cloud_api = target_is_cloud_api
+        self.interactive = interactive
         if target_is_cloud_api:
             self._rpc_url = cloud_api_url
             self._encoded_auth = base64.b64encode(f"{account_id}:{secret_hash}".encode("utf-8")).decode("utf-8")
@@ -96,16 +98,7 @@ class RpcClient:
                 request_params.get(rpc_constants.SYNCHRONOUS_PARAMS_KEY, "true").lower()
             )
 
-        if synchronous:
-            return await self._session.post(
-                self._rpc_url,
-                data=json.dumps(json_data),
-                headers={
-                    rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE,
-                    rpc_constants.AUTHORIZATION_HEADER_KEY: self._encoded_auth
-                }
-            )
-        else:
+        if not synchronous and self.interactive:
             asyncio.create_task(
                 self._session.post(
                     self._rpc_url,
@@ -117,6 +110,15 @@ class RpcClient:
                 )
             )
             return None
+
+        return await self._session.post(
+            self._rpc_url,
+            data=json.dumps(json_data),
+            headers={
+                rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE,
+                rpc_constants.AUTHORIZATION_HEADER_KEY: self._encoded_auth
+            }
+        )
 
     async def get_server_help(self) -> ClientResponse:
         return await self._session.get(
@@ -226,9 +228,13 @@ async def run_cli(
     arg_parser: ArgumentParser,
     stdin_reader: StreamReader,
     stdout_writer: StreamWriter
+
 ) -> None:
+
+    interactive = True
     async with RpcClient(
         rpc_host, rpc_port, rpc_user, rpc_password, account_id, secret_hash, cloud_api_url, target_is_cloud_api,
+        interactive
     ) as client:
         while True:
             stdout_writer.write(b">> ")
