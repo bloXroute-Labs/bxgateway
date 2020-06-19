@@ -1,14 +1,14 @@
 import asyncio
 from abc import abstractmethod, ABCMeta
 from asyncio import Future
-from typing import Optional, Union, List, Any, Dict, Tuple, Coroutine, Callable, TypeVar
+from typing import Optional, Union, List, Any, Dict, Tuple, Callable, TypeVar
 
 import websockets
 
 from bxcommon.rpc.json_rpc_request import JsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_errors import RpcError
-from bxgateway import log_messages
+from bxgateway import log_messages, gateway_constants
 from bxgateway.rpc.provider.abstract_provider import AbstractProvider, SubscriptionNotification
 from bxgateway.rpc.provider.response_queue import ResponseQueue
 from bxgateway.rpc.provider.subscription_manager import SubscriptionManager
@@ -24,12 +24,14 @@ class WsException(Exception):
 
 
 class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
-    def __init__(self, uri: str):
-        self.uri: str = uri
+    def __init__(self, uri: str, retry_connection: bool = False):
+        self.uri = uri
+        self.retry_connection = retry_connection
 
         self.ws: Optional[websockets.WebSocketClientProtocol] = None
-        self.listener: Optional[Future] = None
-        self.ws_checker: Optional[Future] = None
+        self.listener_task: Optional[Future] = None
+        self.ws_status_check: Optional[Future] = None
+        self.connected_event = asyncio.Event()
 
         self.subscription_manager = SubscriptionManager()
         self.response_messages = ResponseQueue()
@@ -38,10 +40,55 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
         self.current_request_id = 1
 
     async def initialize(self) -> None:
-        self.ws = await websockets.connect(self.uri)
-        self.listener = asyncio.create_task(self.receive())
-        self.ws_checker = asyncio.create_task(self.check_ws_close_status())
-        self.running = True
+        await self.connect()
+
+        # on initial connect, exception will be raised if self.ws is not set
+        ws = self.ws
+        assert ws is not None
+
+    async def connect(self) -> None:
+        logger.trace("Initiating websockets connection to: {}", self.uri)
+
+        connection_attempts = 0
+        while True:
+            self.ws = None
+
+            try:
+                self.ws = await self.connect_websocket()
+            except ConnectionRefusedError as e:
+                # immediately raise an error if this is the first attempt,
+                # or not attempting to retry connections
+                if not self.retry_connection or not self.running:
+                    logger.warning(log_messages.WS_COULD_NOT_CONNECT, self.uri)
+                    raise e
+                elif connection_attempts < len(gateway_constants.WS_RECONNECT_TIMEOUTS):
+                    logger.trace(
+                        "Connection was rejected from websockets endpoint: {}. Retrying...",
+                        self.uri,
+                        gateway_constants.WS_RECONNECT_TIMEOUTS[connection_attempts]
+                    )
+                    await asyncio.sleep(
+                        gateway_constants.WS_RECONNECT_TIMEOUTS[connection_attempts]
+                    )
+                else:
+                    break
+            else:
+                logger.trace("Connected to websockets endpoint: {}", self.uri)
+                break
+
+            connection_attempts += 1
+
+        if self.ws is None:
+            logger.debug("Could not reconnect websocket. Exiting.")
+            self.running = False
+        else:
+            self.running = True
+            self.ws_status_check = asyncio.create_task(self._ensure_websocket_alive())
+            self.connected_event.set()
+            self.listener_task = asyncio.create_task(self.receive())
+
+    async def connect_websocket(self) -> websockets.WebSocketClientProtocol:
+        return await websockets.connect(self.uri)
 
     @abstractmethod
     async def subscribe(self, channel: str, fields: Optional[List[str]] = None) -> str:
@@ -71,10 +118,21 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
     ) -> JsonRpcResponse:
         request_id = request.id
         assert request_id is not None
+
+        await self.connected_event.wait()
+
+        if not self.running:
+            raise WsException(
+                "Connection was broken when trying to call RPC method. "
+                "Try reconnecting."
+            )
+
         ws = self.ws
         assert ws is not None
 
-        await ws.send(request.to_jsons())
+        serialized_request = request.to_jsons()
+        logger.trace("Sending message to websocket: {}", serialized_request)
+        await ws.send(serialized_request)
         return await self.get_rpc_response(request_id)
 
     def subscribe_with_callback(
@@ -99,10 +157,17 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
             callback(notification)
 
     async def receive(self) -> None:
+        # TODO: preferably this would be an infinite loop that waits on
+        # self.connected_event.wait(), but it seems that `async for` never
+        # throws an exception, even when the websocket gets disconnected.
+
+        logger.trace("Started receiving on websocket.")
         ws = self.ws
         assert ws is not None
 
         async for next_message in ws:
+            logger.trace("Received message on websocket: {}", next_message)
+
             # process response messages
             # noinspection PyBroadException
             try:
@@ -130,65 +195,94 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
                     e,
                     exc_info=True
                 )
-        self.running = False
+
+        logger.trace("Temporarily stopped receiving message on websocket. Awaiting reconnection.")
 
     async def get_next_subscription_notification(self) -> SubscriptionNotification:
-        return await self._wait_for_ws_message(
+        task = asyncio.create_task(
             self.subscription_manager.get_next_subscription_notification()
         )
+        return await self._wait_for_ws_message(task)
 
     async def get_next_subscription_notification_by_id(
         self, subscription_id: str
     ) -> SubscriptionNotification:
-        return await self._wait_for_ws_message(
+        task = asyncio.create_task(
             self.subscription_manager.get_next_subscription_notification_for_id(
                 subscription_id
             )
         )
+        return await self._wait_for_ws_message(task)
 
     async def get_rpc_response(self, request_id: str) -> JsonRpcResponse:
-        return await self._wait_for_ws_message(
-            self.response_messages.get_by_request_id(request_id)
-        )
+        task = asyncio.create_task(self.response_messages.get_by_request_id(request_id))
+        return await self._wait_for_ws_message(task)
 
-    async def _wait_for_ws_message(self, ws_waiter: Coroutine[Any, Any, T]) -> T:
-        ws_waiter_task = asyncio.create_task(ws_waiter)
-        ws_checker_task = self.ws_checker
-        assert ws_checker_task is not None
+    async def _wait_for_ws_message(self, ws_waiter_task: "Future[T]") -> T:
+        if not self.connected_event.is_set():
+            ws_waiter_task.cancel()
+            raise WsException("Cannot wait for a message on a broken socket.")
+
+        ws_status_check = self.ws_status_check
+        assert ws_status_check is not None
 
         await asyncio.wait(
-            [ws_waiter_task, ws_checker_task], return_when=asyncio.FIRST_COMPLETED
+            [ws_waiter_task, ws_status_check], return_when=asyncio.FIRST_COMPLETED
         )
 
         if ws_waiter_task.done():
             return ws_waiter_task.result()
         else:
             ws_waiter_task.cancel()
+            raise WsException(
+                "Websocket connection disconnected while waiting for a response. "
+                "Try reconnecting or checking SSL certificates."
+            )
 
-        raise WsException(
-            "Websocket connection seems to be broken. Try reconnecting or checking "
-            "that you are using the correct certificates."
-        )
-
-    async def check_ws_close_status(self) -> None:
+    async def _ensure_websocket_alive(self) -> None:
         ws = self.ws
         assert ws is not None
         await ws.wait_closed()
-        self.running = False
-        await self.close()
+
+        self.connected_event.clear()
+
+        listener = self.listener_task
+        assert listener is not None
+        listener.cancel()
+
+        if not self.retry_connection:
+            logger.debug("Websockets connection was broken. Closing...")
+            self.running = False
+            await self.close()
+        elif self.running:
+            logger.debug("Websockets connection was broken, reconnecting...")
+            await self.reconnect()
+
+    async def reconnect(self) -> None:
+        await asyncio.sleep(gateway_constants.WS_MIN_RECONNECT_TIMEOUT_S)
+
+        await self.connect()
+
+        if self.ws is not None:
+            logger.debug("Websockets connection was re-established.")
 
     async def close(self) -> None:
+        logger.trace("Closing websockets provider")
+
+        self.running = False
+
         ws = self.ws
         if ws is not None:
             await ws.close()
             await ws.wait_closed()
 
-        listener = self.listener
+        listener = self.listener_task
         if listener is not None:
             listener.cancel()
 
-        ws_checker = self.ws_checker
-        if ws_checker is not None:
-            ws_checker.cancel()
+        ws_status_check = self.ws_status_check
+        if ws_status_check is not None:
+            ws_status_check.cancel()
 
-        self.running = False
+        self.connected_event.set()
+

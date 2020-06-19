@@ -1079,3 +1079,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         else:
             logger.warning(log_messages.TRACKED_BLOCK_CLEANUP_ERROR, "block queuing service is not available")
         return self.tracked_block_cleanup_interval_s
+
+    def on_new_subscriber(self) -> None:
+        pass

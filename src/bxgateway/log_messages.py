@@ -258,7 +258,12 @@ WS_CLOSE_FAIL = LogMessage(
 ETH_WS_INITIALIZATION_FAIL = LogMessage(
     "G-000049",
     CONNECTION_PROBLEM_CATEGORY,
-    "Failed to initialize Ethereum websockets connection: {}."
+    "Could not connect to the Ethereum websockets server to verify transactions. "
+    "Ensure that you have included the `--ws`, `--ws-api eth`, and `--ws-port PORT` "
+    "arguments when starting your Ethereum node, and have specified the right "
+    "websocket connection string for `--eth-ws-uri` on your gateway. "
+    "If you would the gateway to run without this functionality, you can remove "
+    "the `--eth-ws-uri` argument. Error: {}"
 )
 ETH_WS_CLOSE_FAIL = LogMessage(
     "G-000050",
@@ -325,4 +330,16 @@ ETH_RPC_PROCESSING_ERROR = LogMessage(
     "G-000062",
     PROCESSING_FAILED_CATEGORY,
     "Encountered exception when processing message: {}. Error: {}. Continuing processing.",
+)
+ETH_RPC_COULD_NOT_RECONNECT = LogMessage(
+    "G-000063",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Could not reconnect to Ethereum websockets feed. Disabling Ethereum transaction "
+    "verification for now, but will attempt reconnection upon when the next subscriber "
+    "reconnects."
+)
+WS_COULD_NOT_CONNECT = LogMessage(
+    "G-000064",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Could not connect to websockets server at {}. Connection timed out.",
 )

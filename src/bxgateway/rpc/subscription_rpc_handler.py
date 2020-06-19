@@ -21,7 +21,6 @@ from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcReques
 from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
-from bxutils import logging
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -104,6 +103,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
         self.subscriptions[subscriber.subscription_id] = Subscription(
             subscriber, feed_name, task
         )
+        self.node.on_new_subscriber()
 
     def _on_unsubscribe(self, subscriber_id: str) -> Optional[str]:
         if subscriber_id in self.subscriptions:

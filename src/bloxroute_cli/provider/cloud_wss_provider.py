@@ -1,4 +1,3 @@
-import asyncio
 import os
 import ssl
 import urllib.request
@@ -63,8 +62,5 @@ class CloudWssProvider(WsProvider):
         context.check_hostname = False
         self.ssl_context = context
 
-    async def initialize(self) -> None:
-        self.ws = await websockets.connect(self.uri, ssl=self.ssl_context)
-        self.listener = asyncio.create_task(self.receive())
-        self.ws_checker = asyncio.create_task(self.check_ws_close_status())
-        self.running = True
+    async def connect_websocket(self) -> websockets.WebSocketClientProtocol:
+        return await websockets.connect(self.uri, ssl=self.ssl_context)

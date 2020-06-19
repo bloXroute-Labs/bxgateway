@@ -1,4 +1,3 @@
-import asyncio
 import websockets
 
 from bloxroute_cli.provider.ws_provider import WsProvider
@@ -14,7 +13,5 @@ class IpcProvider(WsProvider):
         super().__init__(ipc_file)
         self.ipc_path: str = config.get_data_file(ipc_file)
 
-    async def initialize(self) -> None:
-        self.ws = await websockets.unix_connect(self.ipc_path)
-        self.listener = asyncio.create_task(self.receive())
-        self.running = True
+    async def connect_websocket(self) -> websockets.WebSocketClientProtocol:
+        return await websockets.unix_connect(self.ipc_path)

@@ -151,10 +151,11 @@ class TransactionFeedStatsService(
     def log_pending_transaction_from_local(self, tx_hash: Sha256Hash) -> None:
         interval_data = self.interval_data
         assert interval_data is not None
-        current_time = time.time()
 
         if tx_hash in interval_data.pending_transaction_from_local_blockchain_received_times:
             return
+
+        current_time = time.time()
 
         interval_data.pending_transaction_from_local_blockchain_received_times[tx_hash] = current_time
         if tx_hash in interval_data.pending_transaction_from_internal_received_times:

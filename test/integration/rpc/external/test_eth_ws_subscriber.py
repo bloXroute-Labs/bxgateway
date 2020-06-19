@@ -1,5 +1,6 @@
 import asyncio
 from typing import Dict, Any
+from unittest.mock import patch
 
 import rlp
 import websockets
@@ -38,9 +39,7 @@ class EthWsSubscriberTest(AbstractTestCase):
         self.eth_ws_uri = f"ws://127.0.0.1:{self.eth_ws_port}"
         self.eth_ws_server_message_queue = asyncio.Queue()
         self.eth_subscription_id = "sub_id"
-        self.eth_test_ws_server = await websockets.serve(
-            self.ws_test_serve, constants.LOCALHOST, self.eth_ws_port
-        )
+        await self.start_server()
 
         self.gateway_node = MockGatewayNode(
             gateway_helpers.get_gateway_opts(8000, eth_ws_uri=self.eth_ws_uri)
@@ -62,6 +61,11 @@ class EthWsSubscriberTest(AbstractTestCase):
         self.sample_transactions = {
             i: mock_eth_messages.get_dummy_transaction(i) for i in range(10)
         }
+
+    async def start_server(self) -> None:
+        self.eth_test_ws_server = await websockets.serve(
+            self.ws_test_serve, constants.LOCALHOST, self.eth_ws_port
+        )
 
     async def ws_test_serve(self, websocket, path):
         async def consumer(ws, _path):
@@ -150,6 +154,85 @@ class EthWsSubscriberTest(AbstractTestCase):
 
         expected_contents = self.sample_transactions[2].to_json()
         self.assertEqual(expected_contents, tx_message.tx_contents)
+
+    @patch("bxgateway.gateway_constants.WS_RECONNECT_TIMEOUTS", [0.01])
+    @patch("bxgateway.gateway_constants.WS_MIN_RECONNECT_TIMEOUT_S", 0)
+    @async_test
+    async def test_disconnect_server(self):
+        tx_hash = helpers.generate_object_hash()
+        tx_contents = mock_eth_messages.get_dummy_transaction(1)
+        self.gateway_node.get_tx_service().set_transaction_contents(
+            tx_hash,
+            rlp.encode(tx_contents)
+        )
+
+        self.eth_test_ws_server.close()
+        await self.eth_test_ws_server.wait_closed()
+        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
+
+        await asyncio.sleep(0.05)
+
+        self.assertEqual(0, self.subscriber.messages.qsize())
+        self.assertFalse(self.eth_ws_subscriber.running)
+
+    @patch("bxgateway.gateway_constants.WS_RECONNECT_TIMEOUTS", [0.01, 0.05])
+    @patch("bxgateway.gateway_constants.WS_MIN_RECONNECT_TIMEOUT_S", 0)
+    @async_test
+    async def test_disconnect_server_reconnect(self):
+        tx_hash = helpers.generate_object_hash()
+        tx_contents = mock_eth_messages.get_dummy_transaction(1)
+        self.gateway_node.get_tx_service().set_transaction_contents(
+            tx_hash,
+            rlp.encode(tx_contents)
+        )
+
+        self.eth_test_ws_server.close()
+        await self.eth_test_ws_server.wait_closed()
+        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
+
+        await asyncio.sleep(0.02)
+
+        self.assertEqual(0, self.subscriber.messages.qsize())
+        self.assertTrue(self.eth_ws_subscriber.running)
+        self.assertFalse(self.eth_ws_subscriber.connected_event.is_set())
+
+        await self.start_server()
+        await asyncio.sleep(0.1)
+
+        self.assertTrue(self.eth_ws_subscriber.connected_event.is_set())
+        self.assertEqual(0, self.subscriber.messages.qsize())
+
+        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
+        await asyncio.sleep(0.01)
+        self.assertEqual(1, self.subscriber.messages.qsize())
+
+    @patch("bxgateway.gateway_constants.WS_RECONNECT_TIMEOUTS", [0.01])
+    @patch("bxgateway.gateway_constants.WS_MIN_RECONNECT_TIMEOUT_S", 0)
+    @async_test
+    async def test_disconnect_server_revive(self):
+        tx_hash = helpers.generate_object_hash()
+        tx_contents = mock_eth_messages.get_dummy_transaction(1)
+        self.gateway_node.get_tx_service().set_transaction_contents(
+            tx_hash,
+            rlp.encode(tx_contents)
+        )
+
+        self.eth_test_ws_server.close()
+        await self.eth_test_ws_server.wait_closed()
+        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
+
+        await asyncio.sleep(0.05)
+
+        self.assertEqual(0, self.subscriber.messages.qsize())
+        self.assertFalse(self.eth_ws_subscriber.running)
+
+        await self.start_server()
+        await asyncio.sleep(0)
+
+        await self.eth_ws_subscriber.revive()
+        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
+        await asyncio.sleep(0.01)
+        self.assertEqual(1, self.subscriber.messages.qsize())
 
     @async_test
     async def tearDown(self) -> None:

@@ -328,7 +328,8 @@ class EthGatewayNode(AbstractGatewayNode):
                 self.eth_ws_subscriber.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
             )
         except Exception as e:
-            logger.error(log_messages.ETH_WS_INITIALIZATION_FAIL, e, exc_info=True)
+            logger.error(log_messages.ETH_WS_INITIALIZATION_FAIL, e)
+            self.should_force_exit = True
 
     async def close(self):
         try:
@@ -357,3 +358,7 @@ class EthGatewayNode(AbstractGatewayNode):
             return ""
 
         return self.DISCONNECT_REASON_TO_INSTRUCTION[reason]
+
+    def on_new_subscriber(self) -> None:
+        if self.opts.eth_ws_uri and not self.eth_ws_subscriber.running:
+            asyncio.create_task(self.eth_ws_subscriber.revive())

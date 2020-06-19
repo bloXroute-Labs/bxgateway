@@ -4,6 +4,7 @@ from typing import Optional, cast, List, Tuple, Dict, Any
 
 import rlp
 
+from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_errors import RpcError
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert
@@ -13,7 +14,7 @@ from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
 from bxgateway.messages.eth.serializers.transaction import Transaction
-from bxgateway.rpc.provider.abstract_ws_provider import AbstractWsProvider
+from bxgateway.rpc.provider.abstract_ws_provider import AbstractWsProvider, WsException
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 from bxutils import logging
 
@@ -31,6 +32,7 @@ class EthWsSubscriber(AbstractWsProvider):
     --ws --wsapi eth --wsport 8546
 
     See https://geth.ethereum.org/docs/rpc/server for more info.
+    (--ws-addr 127.0.0.1 maybe a good idea too)
 
     Requires Gateway startup arguments:
     --eth-ws-uri ws://127.0.0.1:8546
@@ -47,8 +49,40 @@ class EthWsSubscriber(AbstractWsProvider):
 
         # ok, lifecycle patterns are a bit different
         # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[str]`.
-        super().__init__(ws_uri)
+        super().__init__(ws_uri, True)
         self.receiving_task: Optional[Future] = None
+
+    async def revive(self) -> None:
+        """
+        Revives subscriber; presumably, subscriber got disconnected earlier
+        and stopped retrying.
+        :return:
+        """
+        assert self.ws is None
+        assert self.running is False
+
+        logger.info("Attempting to revive Ethereum websockets feed...")
+        await self.reconnect()
+
+    async def reconnect(self) -> None:
+        logger.warning("Ethereum websockets connection was broken. Attempting reconnection...")
+
+        receiving_task = self.receiving_task
+        assert receiving_task is not None
+        receiving_task.cancel()
+
+        try:
+            await super().reconnect()
+        except ConnectionRefusedError:
+            self.running = False
+
+        if self.running:
+            subscription_id = await self.subscribe("newPendingTransactions")
+            self.receiving_task = asyncio.create_task(self.handle_notifications(subscription_id))
+
+            logger.info("Reconnected to Ethereum websocket feed")
+        else:
+            logger.warning(log_messages.ETH_RPC_COULD_NOT_RECONNECT)
 
     async def subscribe(self, channel: str, fields: Optional[List[str]] = None) -> str:
         response = await self.call_rpc(
@@ -110,6 +144,8 @@ class EthWsSubscriber(AbstractWsProvider):
     def process_transaction_with_contents(
         self, tx_hash: Sha256Hash, tx_contents: memoryview
     ) -> None:
+        transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
+
         if not self.feed_manager.any_subscribers():
             return
 
@@ -119,7 +155,6 @@ class EthWsSubscriber(AbstractWsProvider):
                 PendingTransactionFeed.NAME,
                 TransactionFeedEntry(tx_hash, transaction.to_json())
             )
-            transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
 
         except Exception as e:
             logger.error(
@@ -127,15 +162,26 @@ class EthWsSubscriber(AbstractWsProvider):
             )
 
     async def fetch_missing_transaction(self, tx_hash: Sha256Hash) -> None:
-        response = await self.call_rpc(
-            "eth_getTransactionByHash",
-            [f"0x{str(tx_hash)}"]
-        )
-        return self.process_transaction_with_parsed_contents(tx_hash, response.result)
+        try:
+            response = await self.call_rpc(
+                "eth_getTransactionByHash",
+                [f"0x{str(tx_hash)}"]
+            )
+            self.process_transaction_with_parsed_contents(tx_hash, response.result)
+        except WsException:
+            # ok, don't continue processing
+            logger.debug(
+                "Attempt to fetch transaction {} was interrupted by a broken connection. "
+                "Abandoning.",
+                tx_hash
+            )
+            pass
 
     def process_transaction_with_parsed_contents(
         self, tx_hash: Sha256Hash, parsed_tx: Optional[Dict[str, Any]]
     ) -> None:
+        transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
+
         if not self.feed_manager.any_subscribers():
             return
 
@@ -153,12 +199,10 @@ class EthWsSubscriber(AbstractWsProvider):
                     e,
                     exc_info=True
                 )
-
-        self.feed_manager.publish_to_feed(
-            PendingTransactionFeed.NAME,
-            TransactionFeedEntry(tx_hash, parsed_tx)
-        )
-        transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
+            self.feed_manager.publish_to_feed(
+                PendingTransactionFeed.NAME,
+                TransactionFeedEntry(tx_hash, parsed_tx)
+            )
 
     async def stop(self) -> None:
         await self.close()
