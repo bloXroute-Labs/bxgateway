@@ -13,10 +13,12 @@ from json import JSONDecodeError
 from typing import Optional, Union, Dict, List, Any
 from aiohttp import ClientSession, ClientResponse, ClientConnectorError, ContentTypeError, ClientConnectionError
 
+"""
+Valid import path: bxcommon.models, bxcommon.rpc
+"""
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.rpc_request_type import RpcRequestType
-from bxcommon.utils import convert
 
 COMMANDS_HELP = [
     "{:<18} exit the CLI.".format("exit"),
@@ -93,10 +95,10 @@ class RpcClient:
             "params": request_params
         }
         synchronous = True
+        lowercase_true = str(True).lower()
         if request_params:
-            synchronous = convert.str_to_bool(
-                request_params.get(rpc_constants.SYNCHRONOUS_PARAMS_KEY, "true").lower()
-            )
+            synchronous = \
+                request_params.get(rpc_constants.SYNCHRONOUS_PARAMS_KEY, lowercase_true).lower() == lowercase_true
 
         if not synchronous and self.interactive:
             asyncio.create_task(
