@@ -5,6 +5,8 @@ from typing import Optional
 from websockets import WebSocketServerProtocol
 
 from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
+from bxcommon.rpc.rpc_errors import RpcError
+from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 
 
 class WsConnection:
@@ -38,7 +40,10 @@ class WsConnection:
 
     async def handle_request(self, websocket: WebSocketServerProtocol, _path: str) -> None:
         async for message in websocket:
-            response = await self.rpc_handler.handle_request(message)
+            try:
+                response = await self.rpc_handler.handle_request(message)
+            except RpcError as err:
+                response = JsonRpcResponse(err.id, error=err).to_jsons()
             await websocket.send(response)
 
     async def handle_publications(self, websocket: WebSocketServerProtocol, _path: str) -> None:

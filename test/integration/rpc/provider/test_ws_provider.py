@@ -14,6 +14,7 @@ from bxgateway.rpc.provider.abstract_ws_provider import WsException
 from bxgateway.rpc.ws.ws_server import WsServer
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
+from bxcommon.rpc.rpc_errors import RpcError
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
 
@@ -103,6 +104,16 @@ class WsProviderTest(AbstractTestCase):
 
             exception = task.exception()
             self.assertIsInstance(exception, WsException)
+
+    @async_test
+    async def test_connection_to_invalid_channel(self):
+        async with WsProvider(self.ws_uri) as ws:
+            self.assertEqual(1, len(self.server._connections))
+
+            connection_handler = self.server._connections[0]
+            with self.assertRaises(RpcError):
+                _ = await ws.subscribe("fake_channel")
+            await connection_handler.close()
 
     @async_test
     async def test_multiple_rpc_calls_mixed_response(self):

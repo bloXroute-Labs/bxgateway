@@ -133,7 +133,14 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
         serialized_request = request.to_jsons()
         logger.trace("Sending message to websocket: {}", serialized_request)
         await ws.send(serialized_request)
-        return await self.get_rpc_response(request_id)
+        response = await self.get_rpc_response(request_id)
+        error = response.error
+        if error:
+            logger.error(
+                log_messages.ETH_RPC_ERROR, error.message, error.data)
+            raise error
+
+        return response
 
     def subscribe_with_callback(
         self,

@@ -343,3 +343,8 @@ WS_COULD_NOT_CONNECT = LogMessage(
     CONNECTION_PROBLEM_CATEGORY,
     "Could not connect to websockets server at {}. Connection timed out.",
 )
+ETH_RPC_ERROR = LogMessage(
+    "G-000065",
+    PROCESSING_FAILED_CATEGORY,
+    "RPC Error response: {}. details: {}.",
+)
