@@ -63,6 +63,17 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
                 TxMessage(message_hash=tx_hash, network_num=self.network_num, tx_val=tx_contents)
             ))
 
+            if not seen:
+                transaction_cache_key = self._tx_hash_to_cache_key(tx_hash)
+                self.set_transaction_contents_base(
+                    tx_hash,
+                    transaction_cache_key,
+                    tx_contents,
+                    False,
+                    0,
+                    False
+                )
+
         assert txs_count == len(result)
 
         return result

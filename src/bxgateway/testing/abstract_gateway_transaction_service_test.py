@@ -37,6 +37,8 @@ class TestAbstractGatewayTransactionService(AbstractTransactionServiceTestCase, 
         self.assertIsNotNone(result)
         self.assertEqual(len(test_txs_info), len(result))
 
+        total_size = 0
+
         for (test_tx_hash, test_tx_contents), tx_result in zip(test_txs_info, result):
             self.assertFalse(tx_result.seen)
             self.assertEqual(convert.bytes_to_hex(test_tx_hash.binary),
@@ -47,6 +49,14 @@ class TestAbstractGatewayTransactionService(AbstractTransactionServiceTestCase, 
             self.assertTrue(self.transaction_service.has_transaction_contents(test_tx_hash))
             self.assertEqual(convert.bytes_to_hex(test_tx_contents),
                              convert.bytes_to_hex(self.transaction_service.get_transaction_by_hash(test_tx_hash)))
+
+            total_size += len(test_tx_contents)
+
+        self.assertEqual(0, len(self.transaction_service._tx_assignment_expire_queue.queue))
+        self.assertEqual(len(result), len(self.transaction_service.tx_hashes_without_short_id))
+        self.assertEqual(0, len(self.transaction_service.tx_hashes_without_content))
+        self.assertEqual(total_size, self.transaction_service._total_tx_contents_size)
+
 
     @abstractmethod
     def _get_transaction_service(self) -> GatewayTransactionService:
