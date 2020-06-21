@@ -46,7 +46,8 @@ class FeedManager:
         return subscriber
 
     def publish_to_feed(self, name: str, message: Any) -> None:
-        self.feeds[name].publish(message)
+        if name in self.feeds:
+            self.feeds[name].publish(message)
 
     def get_feed_fields(self, feed_name: str) -> List[str]:
         return self.feeds[feed_name].FIELDS

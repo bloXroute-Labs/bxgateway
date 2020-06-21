@@ -111,6 +111,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     _block_from_node_handling_times: ExpiringDict[Sha256Hash, float]
     _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[float, str]]
 
+    feed_manager: FeedManager
+
     tracked_block_cleanup_interval_s: float
     account_model: Optional[BdnAccountModelBase]
 
@@ -318,8 +320,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             )
 
     def init_live_feeds(self) -> None:
-        self.feed_manager.register_feed(NewTransactionFeed())
-        self.feed_manager.register_feed(PendingTransactionFeed(self.alarm_queue))
+        account_model = self.account_model
+        if self.opts.ws and account_model and account_model.new_transaction_streaming.is_service_valid():
+            self.feed_manager.register_feed(NewTransactionFeed())
+            self.feed_manager.register_feed(PendingTransactionFeed(self.alarm_queue))
 
     def send_bdn_performance_stats(self) -> int:
         relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)

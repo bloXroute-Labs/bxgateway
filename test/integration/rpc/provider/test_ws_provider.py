@@ -1,4 +1,5 @@
 import asyncio
+from datetime import date
 
 from bloxroute_cli.provider.ws_provider import WsProvider
 from bxcommon import constants
@@ -13,14 +14,23 @@ from bxgateway.rpc.provider.abstract_ws_provider import WsException
 from bxgateway.rpc.ws.ws_server import WsServer
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
+from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
+from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
 
 
 class WsProviderTest(AbstractTestCase):
     @async_test
     async def setUp(self) -> None:
-        self.gateway_node = MockGatewayNode(
-            gateway_helpers.get_gateway_opts(8000)
+        account_model = BdnAccountModelBase(
+            "account_id", "account_name", "fake_certificate",
+            new_transaction_streaming=BdnServiceModelConfigBase(
+                expire_date=date(2999, 1, 1).isoformat()
+            )
         )
+        gateway_opts = gateway_helpers.get_gateway_opts(8000, ws=True)
+        gateway_opts.set_account_options(account_model)
+
+        self.gateway_node = MockGatewayNode(gateway_opts)
         self.gateway_node.requester = ThreadedRequestService(
             "mock_thread_service",
             self.gateway_node.alarm_queue,
@@ -59,6 +69,7 @@ class WsProviderTest(AbstractTestCase):
             self.assertEqual(1, len(self.server._connections))
 
             connection_handler = self.server._connections[0]
+            self.assertTrue(ws.running)
             subscription_id = await ws.subscribe("newTxs")
 
             tx_contents = helpers.generate_bytes(250)

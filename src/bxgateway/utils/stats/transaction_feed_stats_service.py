@@ -89,8 +89,14 @@ class TransactionFeedStatsService(
         node = self.node
         assert node is not None
         feeds = node.feed_manager.feeds
-        pending_transaction_feed_subscribers = len(feeds[PendingTransactionFeed.NAME].subscribers)
-        new_transaction_feed_subscribers = len(feeds[PendingTransactionFeed.NAME].subscribers)
+        if PendingTransactionFeed.NAME in feeds:
+            pending_transaction_feed_subscribers = len(feeds[PendingTransactionFeed.NAME].subscribers)
+        else:
+            pending_transaction_feed_subscribers = None
+        if PendingTransactionFeed.NAME in feeds:
+            new_transaction_feed_subscribers = len(feeds[PendingTransactionFeed.NAME].subscribers)
+        else:
+            new_transaction_feed_subscribers = None
 
         return {
             "new_transactions": len(interval_data.new_transaction_received_times),

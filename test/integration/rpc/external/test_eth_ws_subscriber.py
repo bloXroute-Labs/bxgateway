@@ -1,6 +1,8 @@
 import asyncio
 from typing import Dict, Any
+from datetime import date
 from unittest.mock import patch
+
 
 import rlp
 import websockets
@@ -20,6 +22,8 @@ from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
+from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
+from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
 
 
 def tx_to_eth_rpc_json(transaction: Transaction) -> Dict[str, Any]:
@@ -35,15 +39,23 @@ def tx_to_eth_rpc_json(transaction: Transaction) -> Dict[str, Any]:
 class EthWsSubscriberTest(AbstractTestCase):
     @async_test
     async def setUp(self) -> None:
+        account_model = BdnAccountModelBase(
+            "account_id", "account_name", "fake_certificate",
+            new_transaction_streaming=BdnServiceModelConfigBase(
+                expire_date=date(2999, 1, 1).isoformat()
+            )
+        )
+
         self.eth_ws_port = helpers.get_free_port()
         self.eth_ws_uri = f"ws://127.0.0.1:{self.eth_ws_port}"
         self.eth_ws_server_message_queue = asyncio.Queue()
         self.eth_subscription_id = "sub_id"
         await self.start_server()
 
-        self.gateway_node = MockGatewayNode(
-            gateway_helpers.get_gateway_opts(8000, eth_ws_uri=self.eth_ws_uri)
-        )
+        gateway_opts = gateway_helpers.get_gateway_opts(
+            8000, eth_ws_uri=self.eth_ws_uri, ws=True)
+        gateway_opts.set_account_options(account_model)
+        self.gateway_node = MockGatewayNode(gateway_opts)
 
         self.eth_ws_subscriber = EthWsSubscriber(
             self.eth_ws_uri, self.gateway_node.feed_manager, self.gateway_node.get_tx_service()

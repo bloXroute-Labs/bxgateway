@@ -126,7 +126,7 @@ def get_gateway_opts(
             "enable_network_content_logs": False,
             "enable_node_cache": True,
             "dump_short_id_mapping_compression_path": "",
-            "ws": False,
+            "ws": ws,
             "ws_host": constants.LOCALHOST,
             "ws_port": 28333,
             "account_id": account_id,
