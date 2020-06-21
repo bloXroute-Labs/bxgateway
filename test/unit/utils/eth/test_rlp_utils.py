@@ -8,6 +8,8 @@ from bxgateway.utils.eth import rlp_utils
 class RlpUtilsTest(AbstractTestCase):
 
     def test_encode_decode_int(self):
+        res = rlp_utils.encode_int(1)
+        print(res)
         self.assertEqual(1, len(rlp_utils.encode_int(0)))
         self.assertEqual(1, len(rlp_utils.encode_int(127)))
         self.assertEqual(2, len(rlp_utils.encode_int(128)))

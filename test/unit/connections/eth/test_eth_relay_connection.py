@@ -1,5 +1,4 @@
 from asynctest import MagicMock
-from mock import call
 
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -7,7 +6,7 @@ from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.feed.new_transaction_feed import NewTransactionFeed, TransactionFeedEntry
-from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
+from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
@@ -18,7 +17,7 @@ class EthRelayConnectionTest(AbstractTestCase):
         opts = gateway_helpers.get_gateway_opts(8000)
 
         self.node = MockGatewayNode(opts)
-        self.node.message_converter = EthMessageConverter()
+        self.node.message_converter = EthNormalMessageConverter()
         self.connection = helpers.create_connection(
             EthRelayConnection,
             self.node

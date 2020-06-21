@@ -6,7 +6,6 @@ from typing import Tuple, Optional, Union, List
 
 from bxutils import logging
 from bxcommon import constants
-from bxcommon.exceptions import ParseError
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.models.quota_type_model import QuotaType
@@ -39,7 +38,10 @@ def parse_transaction_bytes(tx_bytes: memoryview) -> TransactionsEthProtocolMess
     return TransactionsEthProtocolMessage(buf)
 
 
-class EthMessageConverter(AbstractMessageConverter):
+class EthNormalMessageConverter(AbstractMessageConverter):
+
+    def __init__(self):
+        self._last_recovery_idx: int = 0
 
     def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None) ->\
             List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
@@ -118,6 +120,7 @@ class EthMessageConverter(AbstractMessageConverter):
         msg_bytes = memoryview(block_msg.rawbytes())
 
         _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(msg_bytes, 0)
+
         block_msg_bytes = msg_bytes[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
         _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
@@ -127,8 +130,9 @@ class EthMessageConverter(AbstractMessageConverter):
         _, prev_block_itm_len, prev_block_itm_start = rlp_utils.consume_length_prefix(block_hdr_bytes, 0)
         prev_block_bytes = block_hdr_bytes[prev_block_itm_start:prev_block_itm_start + prev_block_itm_len]
 
-        _, txs_itm_len, txs_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes,
-                                                                        block_hdr_itm_start + block_hdr_itm_len)
+        _, txs_itm_len, txs_itm_start = rlp_utils.consume_length_prefix(
+            block_msg_bytes, block_hdr_itm_start + block_hdr_itm_len
+        )
         txs_bytes = block_msg_bytes[txs_itm_start:txs_itm_start + txs_itm_len]
 
         remaining_bytes = block_msg_bytes[txs_itm_start + txs_itm_len:]
@@ -162,8 +166,7 @@ class EthMessageConverter(AbstractMessageConverter):
 
             tx_content_prefix = rlp_utils.get_length_prefix_str(len(tx_content_bytes))
 
-            short_tx_content_size = len(is_full_tx_bytes) + \
-                                    len(tx_content_prefix) + len(tx_content_bytes)
+            short_tx_content_size = len(is_full_tx_bytes) + len(tx_content_prefix) + len(tx_content_bytes)
 
             short_tx_content_prefix_bytes = rlp_utils.get_length_prefix_list(short_tx_content_size)
 

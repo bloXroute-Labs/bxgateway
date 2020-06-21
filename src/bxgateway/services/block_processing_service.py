@@ -111,10 +111,10 @@ class BlockProcessingService:
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_HELD_BLOCK,
                                                       network_num=connection.network_num,
                                                       more_info=stats_format.connection(hold.holding_connection))
-
             if hold.alarm is None:
-                hold.alarm = self._node.alarm_queue.register_alarm(self._node.opts.blockchain_block_hold_timeout_s,
-                                                                   self._holding_timeout, block_hash, hold)
+                hold.alarm = self._node.alarm_queue.register_alarm(
+                    self._node.opts.blockchain_block_hold_timeout_s, self._holding_timeout, block_hash, hold
+                )
                 hold.block_message = block_message
                 hold.connection = connection
         else:

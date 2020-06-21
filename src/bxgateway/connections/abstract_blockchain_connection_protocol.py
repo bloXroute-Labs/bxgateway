@@ -148,7 +148,6 @@ class AbstractBlockchainConnectionProtocol:
                                                       msg.extra_stats_data()
                                                   )
                                                   )
-
         if block_hash in self.connection.node.blocks_seen.contents:
             node.on_block_seen_by_blockchain_node(block_hash)
             block_stats.add_block_event_by_block_hash(block_hash,

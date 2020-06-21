@@ -23,7 +23,7 @@ from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDisco
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
-from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
+from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
@@ -35,8 +35,8 @@ from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
-from bxutils import logging
 from bxgateway import log_messages, eth_constants
+from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
 
 logger = logging.get_logger(__name__)
@@ -96,9 +96,9 @@ class EthGatewayNode(AbstractGatewayNode):
         self._skip_remote_block_requests_stats_count = 0
 
         self.init_eth_gateway_stat_logging()
-        self.message_converter = EthMessageConverter()
-        self.eth_ws_subscriber = EthWsSubscriber(opts.eth_ws_uri, self.feed_manager, self._tx_service)
 
+        self.message_converter = converter_factory.create_eth_message_converter(self.opts)
+        self.eth_ws_subscriber = EthWsSubscriber(opts.eth_ws_uri, self.feed_manager, self._tx_service)
         logger.info("Gateway enode url: {}", self.get_enode())
 
     def build_blockchain_connection(

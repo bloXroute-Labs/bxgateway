@@ -15,23 +15,23 @@ from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
 from bxgateway.connections.eth.eth_node_connection_protocol import EthNodeConnectionProtocol
-from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
+import bxgateway.messages.eth.eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 
 
 class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
     def setUp(self):
-        self.node = MockGatewayNode(gateway_helpers.get_gateway_opts(8000,
-                                                                                       include_default_btc_args=True,
-                                                                                       include_default_eth_args=True))
+        self.node = MockGatewayNode(gateway_helpers.get_gateway_opts(
+            8000, include_default_btc_args=True, include_default_eth_args=True)
+        )
 
         self.relay_connection = AbstractRelayConnection(
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
         )
         self.blockchain_connection = EthBaseConnection(
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node)
-        self.node.message_converter = EthMessageConverter()
+        self.node.message_converter = converter_factory.create_eth_message_converter(self.node.opts)
 
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
         dummy_public_key = crypto_utils.private_to_public_key(dummy_private_key)
