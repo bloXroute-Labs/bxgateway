@@ -89,7 +89,7 @@ class OntExtensionConsensusMessageConverter(AbstractOntMessageConverter):
             self.decompression_tasks.return_task(tsk)
             header_info = ont_normal_consensus_message_converter.parse_bx_block_header(bx_block_msg, deque())
             raise message_conversion_error.btc_block_decompression_error(header_info.block_hash, e)
-        total_tx_count = tsk.tx_count()
+        total_tx_count = tsk.txn_count()
         unknown_tx_hashes = [Sha256Hash(bytearray(unknown_tx_hash.binary()))
                              for unknown_tx_hash in tsk.unknown_tx_hashes()]
         unknown_tx_sids = tsk.unknown_tx_sids()

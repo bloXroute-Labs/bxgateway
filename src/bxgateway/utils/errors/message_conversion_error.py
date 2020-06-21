@@ -5,6 +5,7 @@ from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageT
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
+from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 
 
 class MessageConversionType(Enum):
@@ -18,15 +19,13 @@ class MessageConversionError(Exception):
     def __init__(
             self,
             msg_hash: Sha256Hash,
-            src_msg_type: Optional[bytes],
+            src_msg_type: bytes,
             target_msg_type: bytes,
             error: str,
             conversion_type: "MessageConversionType"
     ):
-        if src_msg_type:
-            self.error_msg = f"failed to convert {src_msg_type.decode()} to {target_msg_type.decode()} - {error}"
-        else:
-            self.error_msg = f"failed to convert message - {error}"
+        self.error_msg = f"failed to convert {src_msg_type.decode()} to {target_msg_type.decode()} - {error}"
+
 
         self.msg_hash = msg_hash
         self.conversion_type = conversion_type
@@ -47,7 +46,13 @@ def btc_block_compression_error(msg_hash: Sha256Hash, error: Union[Exception, st
 
 def eth_block_compression_error(msg_hash: Sha256Hash, error: Union[Exception, str]) -> "MessageConversionError":
     return MessageConversionError(
-        msg_hash, None, BloxrouteMessageType.BROADCAST, str(error), MessageConversionType.BLOCK_COMPRESSION
+        msg_hash, EthProtocolMessageType.NEW_BLOCK_BYTES, BloxrouteMessageType.BROADCAST, str(error), MessageConversionType.BLOCK_COMPRESSION
+    )
+
+
+def eth_block_decompression_error(msg_hash: Sha256Hash, error: Union[Exception, str]) -> "MessageConversionError":
+    return MessageConversionError(
+        msg_hash, BloxrouteMessageType.BROADCAST, EthProtocolMessageType.NEW_BLOCK_BYTES, str(error), MessageConversionType.BLOCK_DECOMPRESSION
     )
 
 

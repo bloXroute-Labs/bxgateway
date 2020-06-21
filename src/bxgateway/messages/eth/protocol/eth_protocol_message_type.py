@@ -18,5 +18,5 @@ class EthProtocolMessageType:
     GET_RECEIPTS = 31
     RECEIPTS = 32
 
-
+    NEW_BLOCK_BYTES = b"new_block"
 

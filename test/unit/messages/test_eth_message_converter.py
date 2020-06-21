@@ -9,7 +9,7 @@ import rlp
 from bxcommon.constants import DEFAULT_TX_MEM_POOL_BUCKET_SIZE
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.test_utils import helpers
-from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
+from bxgateway.messages.eth.eth_abstract_message_converter import EthAbstractMessageConverter
 
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -52,11 +52,11 @@ class multi_setup(object):
         return run_multi_setup
 
 
-class EthNormalMessageConverterTests(AbstractTestCase):
+class EthMessageConverterTests(AbstractTestCase):
     MAGIC = 123
 
     def setUp(self):
-        self.eth_message_converter: EthNormalMessageConverter = converter_factory.create_eth_message_converter(
+        self.eth_message_converter: EthAbstractMessageConverter = converter_factory.create_eth_message_converter(
             gateway_helpers.get_gateway_opts(8000)
         )
         self.tx_service = ExtensionTransactionService(MockNode(gateway_helpers.get_gateway_opts(8000)), 0)
@@ -216,6 +216,7 @@ class EthNormalMessageConverterTests(AbstractTestCase):
 
         self.assertEqual(compact_block.chain_difficulty, block_msg.chain_difficulty)
 
+    @multi_setup()
     def test_block_to_bx_block__empty_block_success(self):
         block = Block(mock_eth_messages.get_dummy_block_header(8), [], [])
 
@@ -250,6 +251,7 @@ class EthNormalMessageConverterTests(AbstractTestCase):
         self.assertEqual(0, len(compact_block.transactions))
         self.assertEqual(compact_block.chain_difficulty, block_msg.chain_difficulty)
 
+    @multi_setup()
     def test_bx_block_to_block__success(self):
         tx_count = 100
         txs = []
@@ -316,6 +318,7 @@ class EthNormalMessageConverterTests(AbstractTestCase):
 
         self.assertEqual(compact_block.chain_difficulty, new_block_msg.chain_difficulty)
 
+    @multi_setup()
     def test_bx_block_to_block__full_txs_success(self):
         tx_count = 10
         txs = []
@@ -386,6 +389,7 @@ class EthNormalMessageConverterTests(AbstractTestCase):
 
         self.assertEqual(compact_block.chain_difficulty, new_block_msg.chain_difficulty)
 
+    @multi_setup()
     def test_block_to_bx_block_then_bx_block_to_block__success(self):
         txs = []
         txs_bytes = []
@@ -431,6 +435,7 @@ class EthNormalMessageConverterTests(AbstractTestCase):
 
         self.assertEqual(len(converted_block_msg_bytes), len(block_msg_bytes))
         self.assertEqual(converted_block_msg_bytes, block_msg_bytes)
+        self.assertEqual(block_msg_bytes, converted_block_msg_bytes)
 
     def _assert_values_equal(self, actual_value, expected_value, ):
 
