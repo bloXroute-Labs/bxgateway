@@ -35,6 +35,7 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
         await self.server.start()
 
     def get_gateway_opts(self) -> GatewayOpts:
+        super().get_gateway_opts()
         return gateway_helpers.get_gateway_opts(8000, )
 
     async def request(self, req: BxJsonRpcRequest) -> JsonRpcResponse:
@@ -99,6 +100,10 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
     @async_test
     async def tearDown(self) -> None:
         await self.server.stop()
+
+    @async_test
+    async def test_blxr_tx(self):
+        pass
 
     def _assert_notification(
         self, expected_result: Any, subscriber_id: str, message: str

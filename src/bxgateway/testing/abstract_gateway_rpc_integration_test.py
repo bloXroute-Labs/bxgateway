@@ -3,8 +3,14 @@ from abc import abstractmethod
 import base64
 from bxcommon import constants
 from bxcommon.rpc import rpc_constants
+from bxutils import constants as utils_constants
+from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
+from bxcommon.models.bdn_service_model_base import BdnServiceModelBase
+from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
+from bxcommon.models.bdn_service_type import BdnServiceType
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
+from bxcommon.rpc.rpc_errors import RpcErrorCode
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.services.threaded_request_service import ThreadedRequestService
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -38,6 +44,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             self.run = unittest.TestCase.run.__get__(self, self.__class__)
         else:
             self.run = lambda self, *args, **kwargs: None
+        self._account_model = None
 
     # pyre-ignore async setup problems
     async def setUp(self) -> None:
@@ -52,7 +59,21 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @abstractmethod
     def get_gateway_opts(self) -> GatewayOpts:
-        pass
+        self._account_model = BdnAccountModelBase(
+            account_id="",
+            logical_account_name="",
+            certificate="",
+            expire_date=utils_constants.DEFAULT_EXPIRATION_DATE.isoformat(),
+            cloud_api=BdnServiceModelConfigBase(
+                msg_quota=None,
+                permit=BdnServiceModelBase(
+                    service_type=BdnServiceType.PERMIT
+                ),
+                expire_date=utils_constants.DEFAULT_EXPIRATION_DATE.isoformat()
+            ),
+            blockchain_protocol="Ethereum",
+            blockchain_network="Mainnet",
+        )
 
     @abstractmethod
     async def request(self, req: BxJsonRpcRequest) -> JsonRpcResponse:
@@ -79,6 +100,37 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             Sha256Hash(convert.hex_to_bytes(TRANSACTION_HASH)),
             self.gateway_node.broadcast_messages[0][0].tx_hash()
         )
+
+    @async_test
+    async def test_blxr_tx_no_account(self):
+        self.gateway_node.account_model = None
+        result = await self.request(BxJsonRpcRequest(
+            "1",
+            RpcRequestType.BLXR_TX,
+            {
+                rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
+                "quota_type": "paid_daily_quota"
+            }
+        ))
+        self.assertEqual("1", result.id)
+        self.assertIsNone(result.result)
+        self.assertEqual(RpcErrorCode.ACCOUNT_ID_ERROR, result.error.code)
+
+    @async_test
+    async def test_blxr_tx_service_expired(self):
+        if self.gateway_node.account_model:
+            self.gateway_node.account_model.cloud_api.expire_date = constants.EPOCH_DATE
+        result = await self.request(BxJsonRpcRequest(
+            "1",
+            RpcRequestType.BLXR_TX,
+            {
+                rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
+                "quota_type": "paid_daily_quota"
+            }
+        ))
+        self.assertEqual("1", result.id)
+        self.assertIsNone(result.result)
+        self.assertEqual(RpcErrorCode.ACCOUNT_ID_ERROR, result.error.code)
 
     @async_test
     async def test_gateway_status(self):

@@ -145,7 +145,8 @@ class GatewayOpts(CommonOpts):
         self.default_tx_quota_type = opts.default_tx_quota_type
         self.process_node_txs_in_extension = opts.process_node_txs_in_extension
 
-        self.account_model = None
+        if "account_model" in opts:
+            self.account_model = opts.account_model
 
         # IPC
         self.ipc = opts.ipc

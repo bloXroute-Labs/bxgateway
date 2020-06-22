@@ -23,7 +23,8 @@ class GatewayRpcServerTest(AbstractGatewayRpcIntegrationTest):
         await self.rpc_server.start()
 
     def get_gateway_opts(self) -> GatewayOpts:
-        return gateway_helpers.get_gateway_opts(8000, rpc_port=self.rpc_port)
+        super().get_gateway_opts()
+        return gateway_helpers.get_gateway_opts(8000, rpc_port=self.rpc_port, account_model=self._account_model)
 
     async def request(self, req: BxJsonRpcRequest):
         headers = dict()

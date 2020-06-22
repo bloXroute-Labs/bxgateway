@@ -25,9 +25,15 @@ class SecuredGatewayRpcServerTest(AbstractGatewayRpcIntegrationTest):
         await self.rpc_server.start()
 
     def get_gateway_opts(self) -> GatewayOpts:
-        opts = gateway_helpers.get_gateway_opts(8000, rpc_port=self.rpc_port, rpc=True, rpc_user=self.rpc_user,
-                                                rpc_password=self.rpc_password)
-        print(opts)
+        super().get_gateway_opts()
+        opts = gateway_helpers.get_gateway_opts(
+            8000,
+            rpc_port=self.rpc_port,
+            rpc=True,
+            rpc_user=self.rpc_user,
+            rpc_password=self.rpc_password,
+            account_model=self._account_model
+        )
         return opts
 
     async def request(self, req: BxJsonRpcRequest):
