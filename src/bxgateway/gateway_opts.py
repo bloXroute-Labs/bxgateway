@@ -147,6 +147,8 @@ class GatewayOpts(CommonOpts):
 
         if "account_model" in opts:
             self.account_model = opts.account_model
+        else:
+            self.account_model = None
 
         # IPC
         self.ipc = opts.ipc
