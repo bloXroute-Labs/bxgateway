@@ -65,6 +65,7 @@ class GatewayOpts(CommonOpts):
     should_update_source_version: bool
     account_model: Optional[BdnAccountModelBase]
     process_node_txs_in_extension: bool
+    enable_eth_extensions: bool     # TODO remove
 
     # IPC
     ipc: bool
@@ -144,6 +145,7 @@ class GatewayOpts(CommonOpts):
         self.require_blockchain_connection = opts.require_blockchain_connection
         self.default_tx_quota_type = opts.default_tx_quota_type
         self.process_node_txs_in_extension = opts.process_node_txs_in_extension
+        self.enable_eth_extensions = opts.enable_eth_extensions     # TODO remove
 
         if "account_model" in opts:
             self.account_model = opts.account_model

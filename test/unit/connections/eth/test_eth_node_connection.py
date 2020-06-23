@@ -46,7 +46,6 @@ class EthNodeConnectionTest(AbstractTestCase):
 
         self.connection.enqueue_msg(block_message)
         message_length = self.connection.outputbuf.length
-        print(message_length)
         for message in self.connection.message_tracker.messages:
             print(message.length)
         block_stats.add_block_event_by_block_hash.assert_not_called()

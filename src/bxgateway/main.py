@@ -279,6 +279,13 @@ def get_argument_parser() -> argparse.ArgumentParser:
         default=True,
         type=convert.str_to_bool
     )
+    # TODO temp arg, need to be removed
+    arg_parser.add_argument(
+        "--enable-eth-extensions",
+        help="If true, run compression and decompression using C++ extensions code",
+        default=True,
+        type=convert.str_to_bool
+    )
     return arg_parser
 
 

@@ -5,7 +5,8 @@ def create_eth_message_converter(opts):
     if opts.use_extensions or opts.import_extensions:
         from bxgateway.messages.eth.eth_extension_message_converter import EthExtensionMessageConverter
 
-    if opts.use_extensions:
+    # TODO temp - need to remove opts.enable_eth_extensions
+    if opts.use_extensions and opts.enable_eth_extensions:
         return EthExtensionMessageConverter()
     else:
         return EthNormalMessageConverter()

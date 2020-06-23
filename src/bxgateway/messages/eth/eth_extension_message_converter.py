@@ -73,16 +73,16 @@ class EthExtensionMessageConverter(EthAbstractMessageConverter):
         try:
             task_pool_proxy.run_task(tsk)
         except tpe.AggregatedException as e:
+            block_hash = Sha256Hash(convert.hex_to_bytes(tsk.block_hash().hex_string()))
             self.decompression_tasks.return_task(tsk)
             # TODO find a better solution
-            logger.error(f"Task failed with msg: {e}")
-            raise message_conversion_error.eth_block_decompression_error(bx_block_msg.block_hash, e)
+            raise message_conversion_error.eth_block_decompression_error(block_hash, e)
 
         total_tx_count = tsk.tx_count()
         unknown_tx_hashes = [Sha256Hash(bytearray(unknown_tx_hash.binary()))
                              for unknown_tx_hash in tsk.unknown_tx_hashes()]
         unknown_tx_sids = tsk.unknown_tx_sids()
-        block_hash = tsk.block_hash().hex_string()
+        block_hash = Sha256Hash(convert.hex_to_bytes(tsk.block_hash().hex_string()))
 
         if tsk.success():
             block_msg = InternalEthBlockInfo(memoryview(tsk.block_message()))
@@ -92,7 +92,7 @@ class EthExtensionMessageConverter(EthAbstractMessageConverter):
             bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block_msg))
             compressed_size = len(bx_block_msg)
 
-            block_info = BlockInfo(Sha256Hash(convert.hex_to_bytes(block_hash)), tsk.short_ids(),
+            block_info = BlockInfo(block_hash, tsk.short_ids(),
                                    decompress_start_datetime, datetime.datetime.utcnow(),
                                    (time.time() - decompress_start_timestamp) * 1000, total_tx_count, bx_block_hash,
                                    convert.bytes_to_hex(block_msg.prev_block_hash().binary),
@@ -110,7 +110,7 @@ class EthExtensionMessageConverter(EthAbstractMessageConverter):
                 total_tx_count
             )
             block_info = BlockInfo(
-                Sha256Hash(block_hash), tsk.short_ids(), decompress_start_datetime, datetime.datetime.utcnow(),
+                block_hash, tsk.short_ids(), decompress_start_datetime, datetime.datetime.utcnow(),
                 (time.time() - decompress_start_timestamp) * 1000, None, None, None, None, None, None
             )
 

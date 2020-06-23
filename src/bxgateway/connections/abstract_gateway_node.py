@@ -549,12 +549,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             relay_connection = self.build_relay_connection(socket_connection)
             if self.opts.split_relays:
                 relay_connection.CONNECTION_TYPE = ConnectionType.RELAY_BLOCK
+                relay_connection.format_connection()
                 relay_connection.disable_buffering()
             return relay_connection
         elif any(ip == peer_relay.ip and port == peer_relay.port for peer_relay in self.peer_transaction_relays):
             assert self.opts.split_relays
             relay_connection = self.build_relay_connection(socket_connection)
             relay_connection.CONNECTION_TYPE = ConnectionType.RELAY_TRANSACTION
+            relay_connection.format_connection()
             return relay_connection
         else:
             logger.debug("Attempted connection to peer that's not a blockchain, remote blockchain, gateway, or relay. "

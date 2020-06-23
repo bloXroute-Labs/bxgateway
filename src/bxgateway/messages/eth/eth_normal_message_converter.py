@@ -162,8 +162,6 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
 
         block_msg_bytes = bx_block_msg if isinstance(bx_block_msg, memoryview) else memoryview(bx_block_msg)
 
-        # parse >>
-
         block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block_msg)
         short_ids, short_ids_bytes_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
             bx_block_msg,
@@ -188,8 +186,6 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
         txs_bytes = block_itm_bytes[block_txs_start:block_txs_start + block_txs_len]
 
         remaining_bytes = block_itm_bytes[block_txs_start + block_txs_len:]
-
-        # << parse
 
         # parse statistics variables
         short_tx_index = 0

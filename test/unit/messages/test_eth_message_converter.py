@@ -141,7 +141,7 @@ class EthMessageConverterTests(AbstractTestCase):
         short_ids = []
         used_short_ids = []
 
-        tx_count = 10
+        tx_count = 150
 
         for i in range(1, tx_count):
             tx = mock_eth_messages.get_dummy_transaction(1)
@@ -253,7 +253,7 @@ class EthMessageConverterTests(AbstractTestCase):
 
     @multi_setup()
     def test_bx_block_to_block__success(self):
-        tx_count = 100
+        tx_count = 1500
         txs = []
         short_txs = []
         short_ids = []
@@ -320,7 +320,7 @@ class EthMessageConverterTests(AbstractTestCase):
 
     @multi_setup()
     def test_bx_block_to_block__full_txs_success(self):
-        tx_count = 10
+        tx_count = 150
         txs = []
         short_txs = []
         short_ids = []
@@ -396,7 +396,7 @@ class EthMessageConverterTests(AbstractTestCase):
         txs_hashes = []
         short_ids = []
 
-        tx_count = 10
+        tx_count = 150
 
         for i in range(1, tx_count):
             tx = mock_eth_messages.get_dummy_transaction(i)
@@ -460,6 +460,7 @@ class EthMessageConverterTests(AbstractTestCase):
     def init(self, use_extensions: bool):
         opts = Namespace()
         opts.use_extensions = use_extensions
+        opts.enable_eth_extensions = use_extensions     # TODO remove
         opts.import_extensions = use_extensions
         opts.tx_mem_pool_bucket_size = DEFAULT_TX_MEM_POOL_BUCKET_SIZE
         eth_message_converter = converter_factory.create_eth_message_converter(opts=opts)
