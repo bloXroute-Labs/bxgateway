@@ -213,9 +213,10 @@ jobs:
   build:
     working_directory: ~/ws
     docker:
-      - image: docker:17.05.0-ce-git
+      - image: docker:19.03.8
     steps:
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 19.03.8
       - attach_workspace:
           at: ~/ws
       - checkout:
@@ -225,7 +226,7 @@ jobs:
           name: Install dependencies
           command: |
             apk add --no-cache \
-              py-pip=9.0.0-r1
+              py-pip=18.1-r0 git
             pip install \
               docker-compose==1.12.0 \
               awscli==1.11.76
@@ -261,9 +262,10 @@ jobs:
   publish:
     working_directory: ~/ws
     docker:
-      - image: docker:17.05.0-ce-git
+      - image: docker:docker:19.03.8
     steps:
-      - setup_remote_docker
+      - setup_remote_docker:
+          version: 19.03.8
       - attach_workspace:
           at: ~/ws
       - checkout:
@@ -273,7 +275,7 @@ jobs:
           name: Install dependencies
           command: |
             apk add --no-cache \
-              py-pip=9.0.0-r1
+              py-pip=18.1-r0 git
             pip install \
               docker-compose==1.12.0 \
               awscli==1.11.76
