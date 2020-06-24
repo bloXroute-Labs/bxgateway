@@ -1,6 +1,8 @@
 import random
 from typing import TYPE_CHECKING, cast, Optional
 
+import rlp
+
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
@@ -16,6 +18,7 @@ from bxgateway import gateway_constants
 from bxgateway import log_messages
 from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
+from bxgateway.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
@@ -189,7 +192,14 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_confirmed_tx(self, msg: ConfirmedTxMessage) -> None:
         tx_hash = msg.tx_hash()
+        transaction_feed_stats_service.log_pending_transaction_from_internal(tx_hash)
+
+        if not self.node.feed_manager.any_subscribers():
+            return
+
         tx_contents = msg.tx_val()
+
+        # shouldn't ever happen, but just in case
         if tx_contents == ConfirmedTxMessage.EMPTY_TX_VAL:
             tx_contents = cast(
                 Optional[memoryview],
@@ -197,13 +207,18 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             )
             if tx_contents is None:
                 transaction_feed_stats_service.log_pending_transaction_missing_contents()
-            
-        transaction_feed_stats_service.log_pending_transaction_from_internal(tx_hash)
+                return
 
-        self.node.feed_manager.publish_to_feed(
-            PendingTransactionFeed.NAME,
-            TransactionFeedEntry(tx_hash, tx_contents)
-        )
+        try:
+            transaction = rlp.decode(tx_contents.tobytes(), Transaction)
+            self.node.feed_manager.publish_to_feed(
+                PendingTransactionFeed.NAME,
+                TransactionFeedEntry(tx_hash, transaction.to_json())
+            )
+        except Exception as e:
+            self.log_error(
+                log_messages.COULD_NOT_DESERIALIZE_TRANSACTION, tx_hash, e, exc_info=True
+            )
 
     def msg_request_tx_stream(self, msg: RequestTxStreamMessage) -> None:
         pass

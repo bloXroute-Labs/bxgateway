@@ -1,3 +1,4 @@
+import rlp
 from mock import MagicMock
 
 from bxcommon.connections.connection_state import ConnectionState
@@ -15,6 +16,7 @@ from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_version_manager import gateway_version_manager
 from bxgateway.testing import gateway_helpers
+from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 
 
@@ -324,8 +326,17 @@ class GatewayConnectionTest(AbstractTestCase):
 
     def test_msg_confirmed_tx(self):
         self.node.feed_manager.publish_to_feed = MagicMock()
+        self.node.feed_manager.any_subscribers = MagicMock(return_value=True)
 
         tx_hash = helpers.generate_object_hash()
         message = ConfirmedTxMessage(tx_hash)
+        self.connection.msg_confirmed_tx(message)
+        self.node.feed_manager.publish_to_feed.assert_not_called()
+
+        tx_hash = helpers.generate_object_hash()
+        message = ConfirmedTxMessage(
+            tx_hash,
+            rlp.encode(mock_eth_messages.get_dummy_transaction(1))
+        )
         self.connection.msg_confirmed_tx(message)
         self.node.feed_manager.publish_to_feed.assert_called_once()

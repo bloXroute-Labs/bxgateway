@@ -210,5 +210,25 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         self.assertEqual(0, self.feed_manager.feeds["foo"].subscriber_count())
 
     @async_test
+    async def test_close_bad_subscribers(self):
+        self.rpc.subscribed_messages = asyncio.Queue(5)
+
+        close_listener = asyncio.create_task(self.rpc.wait_for_close())
+
+        feed1 = Feed("foo1")
+        self.feed_manager.register_feed(feed1)
+
+        rpc_request = BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo1", {}])
+        await self.rpc.get_request_handler(rpc_request).process_request()
+
+        for i in range(10):
+            feed1.publish(i)
+
+        await asyncio.sleep(0.1)
+
+        self.assertTrue(self.rpc.disconnect_event.is_set())
+        self.assertTrue(close_listener.done())
+
+    @async_test
     async def tearDown(self) -> None:
         self.rpc.close()

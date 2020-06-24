@@ -46,7 +46,7 @@ class Subscriber(Generic[T]):
         Queues up a message, releasing all receiving listeners.
 
         If too many messages are queued without a listener, this task
-        will eventually fail.
+        will eventually fail and must be handled.
         """
         include_fields = self.include_fields
         if include_fields is not None:

@@ -1,6 +1,8 @@
 from bxutils.logging_messages_utils import LogMessage
-from bxutils.log_message_categories import REQUEST_RESPONSE_CATEGORY, CONNECTION_PROBLEM_CATEGORY, NETWORK_CATEGORY, \
-    GENERAL_CATEGORY, PROCESSING_FAILED_CATEGORY, LOGGING_CATEGORY, NOTIFICATION_FROM_RELAY_CATEGORY
+from bxutils.log_message_categories import REQUEST_RESPONSE_CATEGORY, CONNECTION_PROBLEM_CATEGORY, \
+    NETWORK_CATEGORY, \
+    GENERAL_CATEGORY, PROCESSING_FAILED_CATEGORY, LOGGING_CATEGORY, \
+    NOTIFICATION_FROM_RELAY_CATEGORY, AUTHENTICATION_ERROR, RPC_ERROR
 
 NO_GATEWAY_PEERS = LogMessage(
     "G-000000",
@@ -262,7 +264,7 @@ ETH_WS_INITIALIZATION_FAIL = LogMessage(
     "Ensure that you have included the `--ws`, `--ws-api eth`, and `--ws-port PORT` "
     "arguments when starting your Ethereum node, and have specified the right "
     "websocket connection string for `--eth-ws-uri` on your gateway. "
-    "If you would the gateway to run without this functionality, you can remove "
+    "If you would like the gateway to run without this functionality, you can remove "
     "the `--eth-ws-uri` argument. Error: {}"
 )
 ETH_WS_CLOSE_FAIL = LogMessage(
@@ -347,4 +349,35 @@ ETH_RPC_ERROR = LogMessage(
     "G-000065",
     PROCESSING_FAILED_CATEGORY,
     "RPC Error response: {}. details: {}.",
+)
+TRANSACTION_FEED_NOT_ALLOWED = LogMessage(
+    "G-000066",
+    AUTHENTICATION_ERROR,
+    "Account does not have permission to stream transactions. Websocket server will be started "
+    "normally, but live transactions will not be available for subscription."
+)
+ETH_WS_SUBSCRIBER_NOT_STARTED = LogMessage(
+    "G-000067",
+    GENERAL_CATEGORY,
+    "Local Ethereum transaction validation is not enabled. Websocket server will be started "
+    "normally, but transaction feed validation will only comes from the BDN and not your connected "
+    "Ethereum node, which may provide better performance. Considering starting your gateway with "
+    "--eth-ws-uri ws://[ip_address]:[port] for faster transaction streaming."
+)
+BAD_FEED_SUBSCRIBER = LogMessage(
+    "G-000068",
+    GENERAL_CATEGORY,
+    "Subscriber {} was not receiving messages and emptying its queue from "
+    "feed {}. Disconnecting.",
+)
+BAD_RPC_SUBSCRIBER = LogMessage(
+    "G-000069",
+    RPC_ERROR,
+    "Subscription message queue was completed filled up (size {}). "
+    "Closing subscription RPC handler and all related subscriptions: {}"
+)
+ETH_WS_SUBSCRIBER_CONNECTION_BROKEN = LogMessage(
+    "G-000070",
+    RPC_ERROR,
+    "Ethereum websockets connection was broken. Attempting reconnection..."
 )

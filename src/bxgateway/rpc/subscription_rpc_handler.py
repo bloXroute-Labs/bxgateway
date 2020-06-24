@@ -8,7 +8,7 @@ from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.rpc.rpc_request_type import RpcRequestType
-from bxgateway import gateway_constants
+from bxgateway import gateway_constants, log_messages
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.subscriber import Subscriber
 from bxgateway.rpc.requests.bdn_performance_rpc_request import BdnPerformanceRpcRequest
@@ -21,11 +21,15 @@ from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcReques
 from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
+from bxutils import logging
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     # pylint: disable=ungrouped-imports,cyclic-import
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
+
+
+logger = logging.get_logger(__name__)
 
 
 class Subscription(NamedTuple):
@@ -57,6 +61,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
         self.subscribed_messages = asyncio.Queue(
             gateway_constants.RPC_SUBSCRIBER_MAX_QUEUE_SIZE
         )
+        self.disconnect_event = asyncio.Event()
 
     async def parse_request(self, request: Union[bytes, str]) -> Dict[str, Any]:
         return json.loads(request)
@@ -88,7 +93,22 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
                     "result": notification
                 }
             )
-            await self.subscribed_messages.put(next_message)
+            if self.subscribed_messages.full():
+                logger.error(
+                    log_messages.BAD_RPC_SUBSCRIBER,
+                    self.subscribed_messages.qsize(),
+                    list(self.subscriptions.keys())
+                )
+                asyncio.create_task(self.async_close())
+                return
+            else:
+                await self.subscribed_messages.put(next_message)
+
+    async def wait_for_close(self) -> None:
+        await self.disconnect_event.wait()
+
+    async def async_close(self) -> None:
+        self.close()
 
     def close(self) -> None:
         subscription_ids = list(self.subscriptions.keys())
@@ -97,6 +117,8 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             assert feed_name is not None
             self.feed_manager.unsubscribe_from_feed(feed_name, subscription_id)
         self.subscriptions = {}
+
+        self.disconnect_event.set()
 
     def _on_new_subscriber(self, subscriber: Subscriber, feed_name: str) -> None:
         task = asyncio.ensure_future(self.handle_subscription(subscriber))

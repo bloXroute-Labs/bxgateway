@@ -8,6 +8,9 @@ class ResponseQueue:
     """
     Queue for matching RPC requests with responses.
     Usage of this class expects all RPC requests to contain request IDs.
+
+    This class doesn't clean up its memory usage, so if the corresponding RPC
+    server doesn't respond to request IDs this queue will continue growing.
     """
     def __init__(self, only_once: bool = True):
         self.only_once = only_once

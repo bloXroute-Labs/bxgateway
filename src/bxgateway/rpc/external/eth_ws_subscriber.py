@@ -4,7 +4,6 @@ from typing import Optional, cast, List, Tuple, Dict, Any
 
 import rlp
 
-from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_errors import RpcError
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert
@@ -56,16 +55,13 @@ class EthWsSubscriber(AbstractWsProvider):
         """
         Revives subscriber; presumably, subscriber got disconnected earlier
         and stopped retrying.
-        :return:
         """
-        assert self.ws is None
-        assert self.running is False
-
-        logger.info("Attempting to revive Ethereum websockets feed...")
-        await self.reconnect()
+        if self.ws is None and not self.running:
+            logger.info("Attempting to revive Ethereum websockets feed...")
+            await self.reconnect()
 
     async def reconnect(self) -> None:
-        logger.warning("Ethereum websockets connection was broken. Attempting reconnection...")
+        logger.warning(log_messages.ETH_WS_SUBSCRIBER_CONNECTION_BROKEN)
 
         receiving_task = self.receiving_task
         assert receiving_task is not None

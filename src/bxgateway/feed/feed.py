@@ -1,6 +1,7 @@
 from asyncio import QueueFull
 from typing import TypeVar, Generic, List, Dict, Optional
 
+from bxgateway import log_messages
 from bxgateway.feed.subscriber import Subscriber
 from bxutils import logging
 
@@ -35,10 +36,7 @@ class Feed(Generic[T]):
                 subscriber.queue(message)
             except QueueFull:
                 logger.error(
-                    "Subscriber {} was not receiving messages and emptying its queue from "
-                    "feed {}. Disconnecting.",
-                    subscriber.subscription_id,
-                    self.name
+                    log_messages.BAD_FEED_SUBSCRIBER, subscriber.subscription_id, self.name
                 )
                 bad_subscribers.append(subscriber)
 

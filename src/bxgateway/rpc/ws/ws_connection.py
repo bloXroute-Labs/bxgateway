@@ -22,16 +22,19 @@ class WsConnection:
 
         self.request_handler: Optional[Future] = None
         self.publish_handler: Optional[Future] = None
+        self.alive_handler: Optional[Future] = None
 
     async def handle(self) -> None:
         request_handler = asyncio.ensure_future(self.handle_request(self.ws, self.path))
         publish_handler = asyncio.ensure_future(self.handle_publications(self.ws, self.path))
+        alive_handler = asyncio.ensure_future(self.rpc_handler.wait_for_close())
 
         self.request_handler = request_handler
         self.publish_handler = publish_handler
+        self.alive_handler = alive_handler
 
         done, pending = await asyncio.wait(
-            [request_handler, publish_handler], return_when=asyncio.FIRST_COMPLETED
+            [request_handler, publish_handler, alive_handler], return_when=asyncio.FIRST_COMPLETED
         )
         for task in pending:
             task.cancel()
@@ -61,6 +64,10 @@ class WsConnection:
         publish_handler = self.publish_handler
         if publish_handler is not None:
             publish_handler.cancel()
+
+        alive_handler = self.alive_handler
+        if alive_handler is not None:
+            alive_handler.cancel()
 
         await self.ws.close()
 

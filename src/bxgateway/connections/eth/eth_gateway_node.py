@@ -99,6 +99,9 @@ class EthGatewayNode(AbstractGatewayNode):
 
         self.message_converter = converter_factory.create_eth_message_converter(self.opts)
         self.eth_ws_subscriber = EthWsSubscriber(opts.eth_ws_uri, self.feed_manager, self._tx_service)
+        if self.opts.ws and not self.opts.eth_ws_uri:
+            logger.warning(log_messages.ETH_WS_SUBSCRIBER_NOT_STARTED)
+
         logger.info("Gateway enode url: {}", self.get_enode())
 
     def build_blockchain_connection(

@@ -324,6 +324,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if self.opts.ws and account_model and account_model.new_transaction_streaming.is_service_valid():
             self.feed_manager.register_feed(NewTransactionFeed())
             self.feed_manager.register_feed(PendingTransactionFeed(self.alarm_queue))
+        elif self.opts.ws:
+            logger.warning(log_messages.TRANSACTION_FEED_NOT_ALLOWED)
 
     def send_bdn_performance_stats(self) -> int:
         relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)

@@ -24,7 +24,12 @@ class WsException(Exception):
 
 
 class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
-    def __init__(self, uri: str, retry_connection: bool = False):
+    def __init__(
+        self,
+        uri: str,
+        retry_connection: bool = False,
+        queue_limit: int = gateway_constants.WS_PROVIDER_MAX_QUEUE_SIZE
+    ):
         self.uri = uri
         self.retry_connection = retry_connection
 
@@ -33,7 +38,7 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
         self.ws_status_check: Optional[Future] = None
         self.connected_event = asyncio.Event()
 
-        self.subscription_manager = SubscriptionManager()
+        self.subscription_manager = SubscriptionManager(queue_limit)
         self.response_messages = ResponseQueue()
 
         self.running = False
