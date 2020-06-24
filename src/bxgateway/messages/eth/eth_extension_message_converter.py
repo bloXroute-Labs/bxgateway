@@ -44,9 +44,10 @@ class EthExtensionMessageConverter(EthAbstractMessageConverter):
             self.compression_tasks.return_task(tsk)
             raise message_conversion_error.eth_block_compression_error(block_msg.block_hash(), e)
         bx_block = tsk.bx_block()
-        block = memoryview(bx_block)
+        starting_offset = tsk.starting_offset()
+        block = memoryview(bx_block)[starting_offset:]
         compressed_size = len(block)
-        original_size = len(block_msg.rawbytes())
+        original_size = len(block_msg.rawbytes()) - starting_offset
         block_hash = block_msg.block_hash()
 
         block_info = BlockInfo(
