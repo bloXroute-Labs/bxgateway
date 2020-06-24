@@ -49,6 +49,9 @@ COPY --chown=bxgateway:bxgateway bxextensions/release/alpine-3.11 /app/bxextensi
 
 RUN chmod u+s /bin/ping
 
+COPY bxgateway/docker-scripts/bloxroute-cli /bin/bloxroute-cli
+RUN chmod u+x /bin/bloxroute-cli
+
 WORKDIR /app/bxgateway
 EXPOSE 28332 9001 1801
 ENV PYTHONPATH=/app/bxcommon/src/:/app/bxcommon-internal/src/:/app/bxgateway/src/:/app/bxextensions/ \
