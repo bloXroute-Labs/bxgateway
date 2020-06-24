@@ -54,3 +54,7 @@ class FeedManager:
 
     def any_subscribers(self) -> bool:
         return any(feed.subscriber_count() > 0 for feed in self.feeds.values())
+
+    def keep_feed_alive(self, name: str) -> None:
+        if name in self.feeds:
+            self.feeds[name].keep_alive()

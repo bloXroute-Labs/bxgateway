@@ -195,6 +195,7 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         transaction_feed_stats_service.log_pending_transaction_from_internal(tx_hash)
 
         if not self.node.feed_manager.any_subscribers():
+            self.node.feed_manager.keep_feed_alive(PendingTransactionFeed.NAME)
             return
 
         tx_contents = msg.tx_val()

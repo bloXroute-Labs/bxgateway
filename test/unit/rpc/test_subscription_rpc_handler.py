@@ -12,6 +12,7 @@ from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
+from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 
 
 class SubscriptionRpcHandlerTest(AbstractTestCase):
@@ -123,9 +124,8 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         feed1 = Feed("foo1")
         feed2 = Feed("foo2")
         feed3 = Feed("foo3")
-        self.feed_manager.register_feed(feed1)
-        self.feed_manager.register_feed(feed2)
-        self.feed_manager.register_feed(feed3)
+        for feed in [feed1, feed2, feed3]:
+            self.feed_manager.register_feed(feed)
 
         subscribe_requests = [
             BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo1", {}]),

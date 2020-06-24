@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Callable, List
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
-from bxcommon.rpc.rpc_errors import RpcInvalidParams
+from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcInternalError
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.subscriber import Subscriber
 
@@ -45,12 +45,19 @@ class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
                 "Subscribe RPC request params must be a list of length 2."
             )
         feed_name, options = params
-        if feed_name not in self.feed_manager:
+        feed = self.feed_manager.feeds.get(feed_name)
+        if feed is None:
             raise RpcInvalidParams(
                 self.request_id,
                 f"{feed_name} is an invalid feed. "
-                f"Available feeds: {self.feed_manager.feeds.keys()}"
+                f"Available feeds: {list(self.feed_manager.feeds)}"
             )
+        elif not feed.active:
+            raise RpcInternalError(
+                self.request_id,
+                f"{feed_name} is not active. "
+            )
+
         self.feed_name = feed_name
 
         available_fields = self.feed_manager.get_feed_fields(feed_name)

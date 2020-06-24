@@ -37,6 +37,7 @@ class NewTransactionFeed(Feed[TransactionFeedEntry]):
 
     def __init__(self) -> None:
         super().__init__(self.NAME)
+        self._active = True
 
     def publish(self, message: TransactionFeedEntry) -> None:
         # hex encoding is 64 bytes
