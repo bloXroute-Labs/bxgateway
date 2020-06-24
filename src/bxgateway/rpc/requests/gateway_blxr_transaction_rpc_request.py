@@ -36,6 +36,23 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
         self.synchronous = \
             params.get(self.SYNCHRONOUS, lowercase_true).lower() == lowercase_true
 
+    async def process_request(self) -> JsonRpcResponse:
+        params = self.params
+        assert isinstance(params, dict)
+
+        account_id = self.get_account_id()
+        if not account_id:
+            raise RpcAccountIdError(
+                self.request_id,
+                "Gateway does not have an associated account. Please register the gateway with an account to submit "
+                "transactions through RPC."
+            )
+
+        transaction_str: str = params[rpc_constants.TRANSACTION_PARAMS_KEY]
+        network_num = self.get_network_num()
+        quota_type = QuotaType.PAID_DAILY_QUOTA
+        return await self.process_transaction(network_num, account_id, quota_type, transaction_str)
+
     async def process_transaction(
         self, network_num: int, account_id: str, quota_type: QuotaType, transaction_str: str
     ) -> JsonRpcResponse:
