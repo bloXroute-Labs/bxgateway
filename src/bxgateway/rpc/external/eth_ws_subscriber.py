@@ -143,6 +143,7 @@ class EthWsSubscriber(AbstractWsProvider):
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
 
         if not self.feed_manager.any_subscribers():
+            self.feed_manager.keep_feed_alive(PendingTransactionFeed.NAME)
             return
 
         try:
@@ -179,6 +180,7 @@ class EthWsSubscriber(AbstractWsProvider):
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
 
         if not self.feed_manager.any_subscribers():
+            self.feed_manager.keep_feed_alive(PendingTransactionFeed.NAME)
             return
 
         if parsed_tx is None:

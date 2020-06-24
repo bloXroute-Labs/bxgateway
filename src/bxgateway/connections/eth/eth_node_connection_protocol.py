@@ -328,3 +328,5 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     transaction.to_json()
                 )
             )
+        else:
+            self.node.feed_manager.keep_feed_alive(PendingTransactionFeed.NAME)
