@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Callable, List
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
-from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcInternalError
+from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcInternalError, RpcAccountIdError
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.subscriber import Subscriber
 
@@ -38,12 +38,19 @@ class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
         assert self.feed_name != ""
 
     def validate_params(self) -> None:
+        if not self.feed_manager.feeds:
+            raise RpcAccountIdError(
+                self.request_id,
+                f"Account does not have access to the transaction streaming service."
+            )
+        
         params = self.params
         if not isinstance(params, list) or len(params) != 2:
             raise RpcInvalidParams(
                 self.request_id,
                 "Subscribe RPC request params must be a list of length 2."
             )
+
         feed_name, options = params
         feed = self.feed_manager.feeds.get(feed_name)
         if feed is None:
