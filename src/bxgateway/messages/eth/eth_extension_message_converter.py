@@ -86,7 +86,9 @@ class EthExtensionMessageConverter(EthAbstractMessageConverter):
         block_hash = Sha256Hash(convert.hex_to_bytes(tsk.block_hash().hex_string()))
 
         if tsk.success():
-            block_msg = InternalEthBlockInfo(memoryview(tsk.block_message()))
+            starting_offset = tsk.starting_offset()
+            block = memoryview(tsk.block_message())[starting_offset:]
+            block_msg = InternalEthBlockInfo(block)
             content_size = len(block_msg.rawbytes())
             logger.debug("Successfully parsed block broadcast message. {} "
                          "transactions in block {}", total_tx_count, block_hash)

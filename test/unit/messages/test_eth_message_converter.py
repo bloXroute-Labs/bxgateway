@@ -435,7 +435,6 @@ class EthMessageConverterTests(AbstractTestCase):
 
         self.assertEqual(len(converted_block_msg_bytes), len(block_msg_bytes))
         self.assertEqual(converted_block_msg_bytes, block_msg_bytes)
-        self.assertEqual(block_msg_bytes, converted_block_msg_bytes)
 
     def _assert_values_equal(self, actual_value, expected_value, ):
 
