@@ -259,49 +259,6 @@ jobs:
           key: v1-{{ .Branch }}-{{ checksum "~/ws/bxgateway/requirements.txt" }}-{{ checksum "~/ws/bxcommon/requirements.txt" }}
           paths:
             - /caches/app.tar
-  publish:
-    working_directory: ~/ws
-    docker:
-      - image: docker:docker:19.03.8
-    steps:
-      - setup_remote_docker:
-          version: 19.03.8
-      - attach_workspace:
-          at: ~/ws
-      - checkout:
-          path:
-            "bxgateway"
-      - run:
-          name: Install dependencies
-          command: |
-            apk add --no-cache \
-              py-pip=18.1-r0 git
-            pip install \
-              docker-compose==1.12.0 \
-              awscli==1.11.76
-      - restore_cache:
-          keys:
-            - v1-{{ .Branch }}-{{ checksum "~/ws/bxgateway/requirements.txt" }}-{{ checksum "~/ws/bxcommon/requirements.txt" }}
-          paths:
-            - /caches/app.tar
-      - restore_cache:
-          keys:
-            - build-cache-{{ arch }}-{{ .Branch }}-{{ checksum "~/ws/bxextensions/release/MANIFEST.MF" }}
-      - run:
-          name: Load Docker image layer cache
-          command: |
-            set +o pipefail
-            docker load -i /caches/app.tar | true
-      - deploy:
-          name: Push application Docker image
-          command: |
-            aws configure set region us-east-1
-            aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-            aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-            $(aws ecr get-login)
-            docker tag app "${AWS_ECR_ENDPOINT}/bxgateway:${CIRCLE_BRANCH}"
-            docker push "${AWS_ECR_ENDPOINT}/bxgateway:${CIRCLE_BRANCH}"
-
 workflows:
   version: 2
 
@@ -323,13 +280,3 @@ workflows:
       - e2e:
           requires:
             - initialize
-      - publish:
-          requires:
-            - build
-            - check
-            - test
-            - e2e
-          filters:
-            branches:
-              only:
-                develop
