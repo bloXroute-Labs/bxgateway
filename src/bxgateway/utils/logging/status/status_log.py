@@ -84,7 +84,7 @@ def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: s
         for conn in conn_pool.get_by_connection_type(conn_type):
             network.add_connection(conn.CONNECTION_TYPE, conn.peer_desc, conn.file_no, conn.peer_id)
 
-    summary = network.get_summary(ip_address, continent, country, update_required, account_id)
+    summary = network.get_summary(ip_address, continent, country, update_required, account_id, quota_level)
     assert summary.gateway_status is not None
     # pyre-fixme[16]: `Optional` has no attribute `value`.
     gateway_status.state(summary.gateway_status.value)
