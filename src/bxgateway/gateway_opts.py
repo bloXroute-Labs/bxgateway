@@ -218,9 +218,11 @@ class GatewayOpts(CommonOpts):
             logger.fatal("--blockchain-ip is required but not specified.", exc_info=False)
             sys.exit(1)
         if self.blockchain_ip == gateway_constants.LOCALHOST and self.is_docker:
-            logger.fatal("The specified blockchain IP is localhost, which is not compatible with a dockerized "
-                         "gateway. Did you mean 172.17.0.X?", exc_info=False)
-            sys.exit(1)
+            logger.warning(
+                "The specified blockchain IP is localhost, which is not compatible with a dockerized gateway. "
+                "Did you mean 172.17.0.X?",
+                exc_info=False
+            )
         try:
             self.blockchain_ip = ip_resolver.blocking_resolve_ip(self.blockchain_ip)
         except EnvironmentError:
