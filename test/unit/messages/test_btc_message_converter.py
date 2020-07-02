@@ -3,6 +3,7 @@ import os
 import random
 from argparse import Namespace
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import DEFAULT_TX_MEM_POOL_BUCKET_SIZE
 from bxcommon.messages.bloxroute.tx_message import TxMessage
@@ -321,9 +322,11 @@ class BtcMessageConverterTests(AbstractTestCase):
         btc_message_converter = converter_factory.create_btc_message_converter(self.MAGIC, opts=opts)
         if use_extensions:
             helpers.set_extensions_parallelism()
-            tx_service = ExtensionTransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
+            tx_service = ExtensionTransactionService(MockNode(
+                gateway_helpers.get_gateway_opts(8999)), 0)
         else:
-            tx_service = TransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
+            tx_service = TransactionService(MockNode(
+                gateway_helpers.get_gateway_opts(8999)), 0)
         if self.txns:
             for idx, txn in enumerate(self.txns):
                 sha = btc_common_util.get_txid(txn)

@@ -1,5 +1,6 @@
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -19,7 +20,7 @@ from bxgateway.testing.mocks.mock_ont_gateway_node import MockOntGatewayNode
 class OntNodeConnectionProtocolTest(AbstractTestCase):
 
     def setUp(self):
-        opts = helpers.get_gateway_opts(8000, include_default_ont_args=True)
+        opts = gateway_helpers.get_gateway_opts(8000, include_default_ont_args=True)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         self.node = MockOntGatewayNode(opts)

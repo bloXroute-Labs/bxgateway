@@ -41,11 +41,12 @@ def get_sha3_calculator(input):
     return keccak.new(digest_bits=eth_constants.SHA3_LEN_BITS, update_after_digest=True, data=input)
 
 
-def recover_public_key(message, signature):
+def recover_public_key(message, signature, hasher=None):
     """
     Recovers public key from signed message
     :param message: message
     :param signature: signature
+    :param hasher: hash function to use on message (usually sha256 or keccak_hash)
     :return: public key
     """
 
@@ -53,7 +54,7 @@ def recover_public_key(message, signature):
         raise ValueError("Expected signature len of {0} but was {1}"
                          .format(eth_constants.SIGNATURE_LEN, len(signature)))
 
-    pk = PublicKey.from_signature_and_message(signature, message, hasher=None)
+    pk = PublicKey.from_signature_and_message(signature, message, hasher=hasher)
     return pk.format(compressed=False)[1:]
 
 
@@ -81,7 +82,7 @@ def verify_signature(pubkey, signature, message):
     return pk.format(compressed=False) == b"\04" + pubkey
 
 
-def encode_signature(v, r, s):
+def encode_signature(v, r, s) -> bytes:
     """
     Calculates byte representation of ECC signature from parameters
     :param v:
@@ -89,10 +90,20 @@ def encode_signature(v, r, s):
     :param s:
     :return: bytes of ECC signature
     """
+    if not isinstance(v, int):
+        raise ValueError("v is expected to be int")
 
-    if not isinstance(v, int) or v not in (27, 28):
+    if v > eth_constants.EIP155_CHAIN_ID_OFFSET:
+        if v % 2 == 0:
+            v = 28
+        else:
+            v = 27
+
+    if v not in (27, 28):
         raise ValueError("v is expected to be int or long in range (27, 28)")
 
+    # pyre-fixme[16]: Module `bitcoin` has no attribute `encode`.
+    # pyre-fixme[16]: Module `bitcoin` has no attribute `encode`.
     vb, rb, sb = rlp_utils.ascii_chr(v - 27), bitcoin.encode(r, 256), bitcoin.encode(s, 256)
     return _left_0_pad_32(rb) + _left_0_pad_32(sb) + vb
 
@@ -231,3 +242,7 @@ def _left_0_pad_32(x):
     """
 
     return b"\x00" * (32 - len(x)) + x
+
+
+def public_key_to_address(public_key_bytes: bytes) -> bytes:
+    return keccak_hash(public_key_bytes)[-20:]

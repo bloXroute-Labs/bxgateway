@@ -4,6 +4,7 @@ import random
 import time
 from argparse import Namespace
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import DEFAULT_TX_MEM_POOL_BUCKET_SIZE
 from bxcommon.test_utils import helpers
@@ -127,7 +128,9 @@ class OntMessageConverterTests(AbstractTestCase):
         ont_message_converter = converter_factory.create_ont_consensus_message_converter(self.MAGIC, opts)
         if use_extensions:
             helpers.set_extensions_parallelism()
-            tx_service = ExtensionTransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
+            tx_service = ExtensionTransactionService(MockNode(
+                gateway_helpers.get_gateway_opts(8999)), 0)
         else:
-            tx_service = TransactionService(MockNode(helpers.get_gateway_opts(8999)), 0)
+            tx_service = TransactionService(MockNode(
+                gateway_helpers.get_gateway_opts(8999)), 0)
         return tx_service, ont_message_converter

@@ -2,9 +2,12 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator, cast, Tuple
 
 from bxcommon import constants
+from bxcommon.utils import memory_utils, crypto
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
+from bxcommon.utils.memory_utils import ObjectSize
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.stats import hooks
 from bxgateway import eth_constants, gateway_constants
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
@@ -130,11 +133,16 @@ class EthBlockQueuingService(
     ) -> Sha256Hash:
         return block_message.prev_block_hash()
 
-    def get_block_body_from_message(self, block_hash: Sha256Hash) -> Optional[BlockBodiesEthProtocolMessage]:
+    def get_block_parts(self, block_hash: Sha256Hash) -> Optional[NewBlockParts]:
         if block_hash not in self._block_parts:
             logger.debug("requested transaction info for a block not in the queueing service {}", block_hash)
             return None
-        block_parts = self._block_parts[block_hash]
+        return self._block_parts[block_hash]
+
+    def get_block_body_from_message(self, block_hash: Sha256Hash) -> Optional[BlockBodiesEthProtocolMessage]:
+        block_parts = self.get_block_parts(block_hash)
+        if block_parts is None:
+            return None
         return BlockBodiesEthProtocolMessage.from_body_bytes(block_parts.block_body_bytes)
 
     # pyre-fixme[14]: `on_block_sent` overrides method defined in
@@ -164,9 +172,9 @@ class EthBlockQueuingService(
         super().push(block_hash, block_msg, waiting_for_recovery)
 
     def store_block_data(
-            self,
-            block_hash: Sha256Hash,
-            block_msg: InternalEthBlockInfo
+        self,
+        block_hash: Sha256Hash,
+        block_msg: InternalEthBlockInfo
     ):
         super().store_block_data(block_hash, block_msg)
         self._store_block_parts(block_hash, block_msg)
@@ -341,7 +349,6 @@ class EthBlockQueuingService(
                 )
                 return False, []
 
-
             block_hashes.append(
                 next(iter(self._block_hashes_by_height[height]))
             )
@@ -367,9 +374,9 @@ class EthBlockQueuingService(
         return True, block_hashes
 
     def iterate_block_hashes_starting_from_hash(
-            self,
-            block_hash: Sha256Hash,
-            max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        self,
+        block_hash: Sha256Hash,
+        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
         """
         iterate over cached blocks headers in descending order
         :param block_hash: starting block hash
@@ -385,8 +392,8 @@ class EthBlockQueuingService(
                 break
 
     def iterate_recent_block_hashes(
-            self,
-            max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        self,
+        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
         """
         :param max_count:
         :return: Iterator[Sha256Hash] in descending order (last -> first)
@@ -405,6 +412,37 @@ class EthBlockQueuingService(
         if block_hash and block_hash in self._height_by_block_hash:
             block_height = self._height_by_block_hash[block_hash]
         return block_height
+
+    def log_memory_stats(self):
+        hooks.add_obj_mem_stats(
+            self.__class__.__name__,
+            self.node.network_num,
+            self.block_checking_alarms,
+            "block_queue_block_checking_alarms",
+            ObjectSize(
+                size=len(self.block_checking_alarms) * (crypto.SHA256_HASH_LEN + constants.UL_INT_SIZE_IN_BYTES),
+                flat_size=0,
+                is_actual_size=False
+            ),
+            object_item_count=len(self.block_checking_alarms),
+            object_type=memory_utils.ObjectType.BASE,
+            size_type=memory_utils.SizeType.ESTIMATE
+        )
+
+        hooks.add_obj_mem_stats(
+            self.__class__.__name__,
+            self.node.network_num,
+            self.block_repeat_count,
+            "block_queue_block_repeat_count",
+            ObjectSize(
+                size=len(self.block_repeat_count) * (crypto.SHA256_HASH_LEN + constants.UL_INT_SIZE_IN_BYTES),
+                flat_size=0,
+                is_actual_size=False
+            ),
+            object_item_count=len(self.block_repeat_count),
+            object_type=memory_utils.ObjectType.BASE,
+            size_type=memory_utils.SizeType.ESTIMATE
+        )
 
     def _store_block_parts(
         self, block_hash: Sha256Hash, block_message: InternalEthBlockInfo
@@ -442,4 +480,5 @@ class EthBlockQueuingService(
             return eth_constants.CHECK_BLOCK_RECEIPT_INTERVAL_S
         else:
             del self.block_repeat_count[block_hash]
+            del self.block_checking_alarms[block_hash]
             return constants.CANCEL_ALARMS

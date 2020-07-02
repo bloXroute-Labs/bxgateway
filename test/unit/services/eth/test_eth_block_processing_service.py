@@ -1,5 +1,6 @@
 from mock import Mock, MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
@@ -18,7 +19,7 @@ from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 class EthBlockProcessingServiceTest(AbstractTestCase):
     def setUp(self) -> None:
         self.node = MockGatewayNode(
-            helpers.get_gateway_opts(8000, max_block_interval=0)
+            gateway_helpers.get_gateway_opts(8000, max_block_interval=0)
         )
 
         self.node.send_msg_to_node = MagicMock()

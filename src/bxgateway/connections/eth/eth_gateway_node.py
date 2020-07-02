@@ -1,5 +1,6 @@
+import asyncio
 from collections import deque
-from typing import Optional, List, Deque, cast
+from typing import Optional, List, cast
 
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -9,11 +10,11 @@ from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketC
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.peer_info import ConnectionPeerInfo
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
+from bxcommon.rpc import rpc_constants
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-from bxgateway import eth_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -22,8 +23,9 @@ from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDisco
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
-from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
+from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
+from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
@@ -33,8 +35,8 @@ from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
-from bxutils import logging
 from bxgateway import log_messages, eth_constants
+from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
 
 logger = logging.get_logger(__name__)
@@ -95,7 +97,10 @@ class EthGatewayNode(AbstractGatewayNode):
 
         self.init_eth_gateway_stat_logging()
 
-        self.message_converter = EthMessageConverter()
+        self.message_converter = converter_factory.create_eth_message_converter(self.opts)
+        self.eth_ws_subscriber = EthWsSubscriber(opts.eth_ws_uri, self.feed_manager, self._tx_service)
+        if self.opts.ws and not self.opts.eth_ws_uri:
+            logger.warning(log_messages.ETH_WS_SUBSCRIBER_NOT_STARTED)
 
         logger.info("Gateway enode url: {}", self.get_enode())
 
@@ -319,6 +324,26 @@ class EthGatewayNode(AbstractGatewayNode):
         return \
             f"enode://{convert.bytes_to_hex(self.get_public_key())}@{self.opts.external_ip}:{self.opts.non_ssl_port}"
 
+    async def init(self) -> None:
+        await super().init()
+        try:
+            await asyncio.wait_for(
+                self.eth_ws_subscriber.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
+            )
+        except Exception as e:
+            logger.error(log_messages.ETH_WS_INITIALIZATION_FAIL, e)
+            self.should_force_exit = True
+
+    async def close(self):
+        try:
+            await asyncio.wait_for(
+                self.eth_ws_subscriber.stop(),
+                rpc_constants.RPC_SERVER_STOP_TIMEOUT_S
+            )
+        except Exception as e:
+            logger.error(log_messages.ETH_WS_CLOSE_FAIL, e, exc_info=True)
+        await super().close()
+
     def _is_in_local_discovery(self):
         return not self.opts.no_discovery and self._node_public_key is None
 
@@ -336,3 +361,7 @@ class EthGatewayNode(AbstractGatewayNode):
             return ""
 
         return self.DISCONNECT_REASON_TO_INSTRUCTION[reason]
+
+    def on_new_subscriber(self) -> None:
+        if self.opts.eth_ws_uri and not self.eth_ws_subscriber.running:
+            asyncio.create_task(self.eth_ws_subscriber.revive())

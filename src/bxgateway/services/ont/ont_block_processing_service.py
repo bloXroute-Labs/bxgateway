@@ -6,6 +6,7 @@ from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
+from bxgateway import log_messages
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
@@ -62,10 +63,10 @@ class OntBlockProcessingService(BlockProcessingService):
                     conversion_type=e.conversion_type.value
                 )
                 transaction_service.on_block_cleaned_up(e.msg_hash)
-                connection.log_warning("Failed to decompress consensus block {} - {}", e.msg_hash, e)
+                connection.log_warning(log_messages.FAILED_TO_DECOMPRESS_BLOCK_ONT_CONSENSUS, e.msg_hash, e)
                 return
         else:
-            connection.log_warning("Discarding consensus block. No connection currently exists to the blockchain node.")
+            connection.log_warning(log_messages.LACK_BLOCKCHAIN_CONNECTION_ONT_CONSENSUS)
             return
 
         block_hash = block_info.block_hash
@@ -166,12 +167,12 @@ class OntBlockProcessingService(BlockProcessingService):
                                                       more_info="{} sids, {} hashes".format(
                                                           len(unknown_sids), len(unknown_hashes)))
 
-            connection.log_warning("Consensus block {} requires short id recovery. Querying BDN...", block_hash)
+            connection.log_warning(log_messages.BLOCK_REQUIRES_RECOVERY_ONT_CONSENSUS, block_hash)
 
             self.start_transaction_recovery(unknown_sids, unknown_hashes, block_hash, connection)
             if recovered:
                 # should never happen –– this should not be called on blocks that have not recovered
-                connection.log_error("Unexpectedly, could not decompress consensus block {} after block was recovered.",
+                connection.log_error(log_messages.BLOCK_DECOMPRESSION_FAILURE_ONT_CONSENSUS,
                                      block_hash)
             else:
                 self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)

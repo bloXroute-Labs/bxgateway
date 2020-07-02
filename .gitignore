@@ -110,3 +110,5 @@ ENV/
 
 .pyre_configuration_*
 .cookie*
+
+test/config*.json

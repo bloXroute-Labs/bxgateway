@@ -2,6 +2,7 @@ from abc import abstractmethod, ABCMeta
 
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.messages.bloxroute.block_confirmation_message import BlockConfirmationMessage
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
@@ -16,7 +17,7 @@ class AbstractBlockCleanupServiceTest(AbstractTestCase, metaclass=ABCMeta):
 
     def setUp(self) -> None:
         self.block_confirmations_count = 3
-        opts = helpers.get_gateway_opts(
+        opts = gateway_helpers.get_gateway_opts(
             8000,
             block_confirmations_count=self.block_confirmations_count - 1,
             include_default_btc_args=True

@@ -1,3 +1,5 @@
+from typing import List
+
 import rlp
 
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
@@ -11,7 +13,9 @@ class TransactionsEthProtocolMessage(EthProtocolMessage):
     fields = [("transactions", rlp.sedes.CountableList(Transaction))]
 
     def __repr__(self):
-        return f"TransactionsEthProtocolMessage<num_txs: {len(self.get_transactions())}>"
+        # Calling get_transactions here causes transactions message to be deserialized in Python code and impacts
+        # performance. Print only length of the message instead.
+        return f"TransactionsEthProtocolMessage<message_len: {len(self.rawbytes())}>"
 
-    def get_transactions(self):
+    def get_transactions(self) -> List[Transaction]:
         return self.get_field_value("transactions")

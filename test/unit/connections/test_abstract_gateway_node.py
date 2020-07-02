@@ -4,8 +4,9 @@ from typing import Optional
 
 from mock import MagicMock, call
 
+from bxgateway.gateway_opts import GatewayOpts
+from bxgateway.testing import gateway_helpers
 from bxcommon import constants
-from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import LOCALHOST, MAX_CONNECT_RETRIES
@@ -37,7 +38,7 @@ from bxutils.services.node_ssl_service import NodeSSLService
 
 class GatewayNode(AbstractGatewayNode):
 
-    def __init__(self, opts: Namespace, node_ssl_service: Optional[NodeSSLService] = None):
+    def __init__(self, opts: GatewayOpts, node_ssl_service: Optional[NodeSSLService] = None):
         if node_ssl_service is None:
             node_ssl_service = MockNodeSSLService(self.NODE_TYPE, MagicMock())
         super().__init__(opts, node_ssl_service)
@@ -62,10 +63,11 @@ class GatewayNode(AbstractGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         return BtcRemoteConnection(socket_connection, self)
 
+
 def initialize_split_relay_node():
     relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
     network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[0]])
-    opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
+    opts = gateway_helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
     if opts.use_extensions:
         helpers.set_extensions_parallelism()
     node = GatewayNode(opts)
@@ -96,7 +98,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY),
             OutboundPeerModel(LOCALHOST, 8002, node_type=NodeType.EXTERNAL_GATEWAY)
         ]
-        opts = helpers.get_gateway_opts(8000, peer_gateways=peer_gateways)
+        opts = gateway_helpers.get_gateway_opts(8000, peer_gateways=peer_gateways)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)
@@ -121,7 +123,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         peer_gateways = [
             OutboundPeerModel(LOCALHOST, 8001)
         ]
-        opts = helpers.get_gateway_opts(8000, peer_gateways=peer_gateways)
+        opts = gateway_helpers.get_gateway_opts(8000, peer_gateways=peer_gateways)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)
@@ -149,7 +151,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         peer_gateways = [
             OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY),
         ]
-        opts = helpers.get_gateway_opts(8000, peer_gateways=peer_gateways, min_peer_gateways=2)
+        opts = gateway_helpers.get_gateway_opts(8000, peer_gateways=peer_gateways, min_peer_gateways=2)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)
@@ -166,7 +168,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         sdn_http_service.fetch_gateway_peers.assert_not_called()
         node.alarm_queue.fire_alarms()
 
-        sdn_http_service.fetch_gateway_peers.assert_has_calls([call(node.opts.node_id)])
+        sdn_http_service.fetch_gateway_peers.assert_has_calls([call(node.opts.node_id, False)])
         self.assertEqual(2, len([node for node in node.outbound_peers if node.node_type in NodeType.GATEWAY_TYPE]))
         self.assertIn(OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY), node.outbound_peers)
         self.assertIn(
@@ -176,7 +178,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
     def test_split_relay_connection(self):
         relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[0]])
-        opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
+        opts = gateway_helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)
@@ -382,7 +384,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel(LOCALHOST, 9001, node_type=NodeType.RELAY_BLOCK)
         ]
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[0]])
-        opts = helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
+        opts = gateway_helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)
@@ -562,10 +564,12 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(relay_all, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
 
     def _initialize_gateway(self, initialize_blockchain_conn: bool, initialize_relay_conn: bool) -> GatewayNode:
-        opts = helpers.get_gateway_opts(8000,
-                                        blockchain_address=(LOCALHOST, 8001),
-                                        peer_relays=[OutboundPeerModel(LOCALHOST, 8002)],
-                                        include_default_btc_args=True)
+        opts = gateway_helpers.get_gateway_opts(
+            8000,
+            blockchain_address=(LOCALHOST, 8001),
+            peer_relays=[OutboundPeerModel(LOCALHOST, 8002)],
+            include_default_btc_args=True
+        )
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)

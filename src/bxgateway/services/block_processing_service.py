@@ -111,10 +111,10 @@ class BlockProcessingService:
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_HELD_BLOCK,
                                                       network_num=connection.network_num,
                                                       more_info=stats_format.connection(hold.holding_connection))
-
             if hold.alarm is None:
-                hold.alarm = self._node.alarm_queue.register_alarm(self._node.opts.blockchain_block_hold_timeout_s,
-                                                                   self._holding_timeout, block_hash, hold)
+                hold.alarm = self._node.alarm_queue.register_alarm(
+                    self._node.opts.blockchain_block_hold_timeout_s, self._holding_timeout, block_hash, hold
+                )
                 hold.block_message = block_message
                 hold.connection = connection
         else:
@@ -335,8 +335,9 @@ class BlockProcessingService:
         if self._node.opts.dump_short_id_mapping_compression:
             mapping = {}
             for short_id in block_info.short_ids:
-                mapping[short_id] = convert.bytes_to_hex(
-                    self._node.get_tx_service().get_transaction(short_id).hash.binary)
+                tx_hash = self._node.get_tx_service().get_transaction(short_id).hash
+                assert tx_hash is not None
+                mapping[short_id] = convert.bytes_to_hex(tx_hash.binary)
             with open(f"{self._node.opts.dump_short_id_mapping_compression_path}/"
                       f"{convert.bytes_to_hex(block_hash.binary)}", "w") as f:
                 f.write(str(mapping))

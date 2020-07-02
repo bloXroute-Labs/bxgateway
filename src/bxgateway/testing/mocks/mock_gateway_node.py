@@ -1,5 +1,5 @@
 # pyre-ignore-all-errors
-from typing import Optional, Deque
+from typing import Optional
 
 from mock import MagicMock
 
@@ -11,6 +11,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
+from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -19,9 +20,9 @@ from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
+from bxgateway.services.gateway_transaction_service import GatewayTransactionService
 from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
-from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxutils.services.node_ssl_service import NodeSSLService
 
 
@@ -52,15 +53,15 @@ class MockGatewayNode(AbstractGatewayNode):
 
         self.broadcast_messages = []
         self.send_to_node_messages = []
-        self._tx_service = TransactionService(self, 0)
+        self._tx_service = GatewayTransactionService(self, 0)
         self.block_cleanup_service = self._get_cleanup_service()
         self.block_queuing_service = block_queueing_cls(self)
         self.message_converter = MockMessageConverter()
         if opts.use_extensions:
-            from bxcommon.services.extension_transaction_service import ExtensionTransactionService
-            self._tx_service = ExtensionTransactionService(self, self.network_num)
+            from bxgateway.services.extension_gateway_transaction_service import ExtensionGatewayTransactionService
+            self._tx_service = ExtensionGatewayTransactionService(self, self.network_num)
         else:
-            self._tx_service = TransactionService(self, self.network_num)
+            self._tx_service = GatewayTransactionService(self, self.network_num)
         self.opts.has_fully_updated_tx_service = True
         self.requester = MagicMock()
         self.node_conn = MagicMock()

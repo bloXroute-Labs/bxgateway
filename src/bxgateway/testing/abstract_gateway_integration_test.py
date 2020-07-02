@@ -1,7 +1,8 @@
 from abc import abstractmethod
-from argparse import Namespace
 from typing import Type, List
 
+from bxgateway.gateway_opts import GatewayOpts
+from bxgateway.testing import gateway_helpers
 from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.test_utils import helpers
@@ -53,12 +54,12 @@ class AbstractGatewayIntegrationTest(AbstractTestCase):
         pass
 
     @abstractmethod
-    def gateway_opts_1(self) -> Namespace:
-        return helpers.get_gateway_opts(9000)
+    def gateway_opts_1(self) -> GatewayOpts:
+        return gateway_helpers.get_gateway_opts(9000)
 
     @abstractmethod
-    def gateway_opts_2(self) -> Namespace:
-        return helpers.get_gateway_opts(9001)
+    def gateway_opts_2(self) -> GatewayOpts:
+        return gateway_helpers.get_gateway_opts(9001)
 
     def gateway_1_receive_message_from_blockchain(self, message: AbstractMessage):
         helpers.receive_node_message(self.gateway_1, self.blockchain_fileno_1, message.rawbytes())

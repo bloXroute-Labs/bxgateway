@@ -1,6 +1,8 @@
 from bxutils.logging_messages_utils import LogMessage
-from bxutils.log_message_categories import REQUEST_RESPONSE_CATEGORY, CONNECTION_PROBLEM_CATEGORY, NETWORK_CATEGORY, \
-    GENERAL_CATEGORY, PROCESSING_FAILED_CATEGORY, LOGGING_CATEGORY, NOTIFICATION_FROM_RELAY_CATEGORY
+from bxutils.log_message_categories import REQUEST_RESPONSE_CATEGORY, CONNECTION_PROBLEM_CATEGORY, \
+    NETWORK_CATEGORY, \
+    GENERAL_CATEGORY, PROCESSING_FAILED_CATEGORY, LOGGING_CATEGORY, \
+    NOTIFICATION_FROM_RELAY_CATEGORY, AUTHENTICATION_ERROR, RPC_ERROR
 
 NO_GATEWAY_PEERS = LogMessage(
     "G-000000",
@@ -244,4 +246,138 @@ NOTIFICATION_FROM_RELAY = LogMessage(
     "G-000046",
     NOTIFICATION_FROM_RELAY_CATEGORY,
     "Notification from Relay: {}"
+)
+WS_INITIALIZATION_FAIL = LogMessage(
+    "G-000047",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to initialize Gateway Websockets server: {}."
+)
+WS_CLOSE_FAIL = LogMessage(
+    "G-000048",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to close Gateway Websockets server: {}."
+)
+ETH_WS_INITIALIZATION_FAIL = LogMessage(
+    "G-000049",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Could not connect to the Ethereum websockets server to verify transactions. "
+    "Ensure that you have included the `--ws`, `--ws-api eth`, and `--ws-port PORT` "
+    "arguments when starting your Ethereum node, and have specified the right "
+    "websocket connection string for `--eth-ws-uri` on your gateway. "
+    "If you would like the gateway to run without this functionality, you can remove "
+    "the `--eth-ws-uri` argument. Error: {}"
+)
+ETH_WS_CLOSE_FAIL = LogMessage(
+    "G-000050",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to close Etheruem websockets connection: {}."
+)
+BLOCK_RECOVERY_NEEDED_ONT_CONSENSUS = LogMessage(
+    "G-000051",
+    GENERAL_CATEGORY,
+    "Consensus block recovery needed. Missing {} sids, {} tx hashes. Total txs in bx_block: {}"
+)
+BLOCK_COMPRESSION_FAIL_ONT_CONSENSUS = LogMessage(
+    "G-000052",
+    PROCESSING_FAILED_CATEGORY,
+    "Failed to compress consensus block {} - {}"
+)
+BLOCK_REQUIRES_RECOVERY_ONT_CONSENSUS = LogMessage(
+    "G-000053",
+    GENERAL_CATEGORY,
+    "Consensus block {} requires short id recovery. Querying BDN..."
+)
+BLOCK_DECOMPRESSION_FAILURE_ONT_CONSENSUS = LogMessage(
+    "G-000054",
+    GENERAL_CATEGORY,
+    "Unexpectedly, could not decompress consensus block {} after block was recovered."
+)
+LACK_BLOCKCHAIN_CONNECTION_ONT_CONSENSUS = LogMessage(
+    "G-000055",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Discarding consensus block. No connection currently exists to the blockchain node."
+)
+FAILED_TO_DECOMPRESS_BLOCK_ONT_CONSENSUS = LogMessage(
+    "G-000056",
+    GENERAL_CATEGORY,
+    "Failed to decompress consensus block {} - {}"
+)
+IPC_INITIALIZATION_FAIL = LogMessage(
+    "G-000057",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to initialize Gateway IPC server: {}."
+)
+IPC_CLOSE_FAIL = LogMessage(
+    "G-000058",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Failed to close Gateway IPC server: {}."
+)
+TRACKED_BLOCK_CLEANUP_ERROR = LogMessage(
+    "G-000059",
+    GENERAL_CATEGORY,
+    "tracked block cleanup failed, {}"
+)
+COULD_NOT_DESERIALIZE_TRANSACTION = LogMessage(
+    "G-000060",
+    PROCESSING_FAILED_CATEGORY,
+    "Could not deserialize transaction in transaction service to Ethereum payload: {}. Error: {}",
+)
+TRANSACTION_NOT_FOUND_IN_MEMPOOL = LogMessage(
+    "G-000061",
+    GENERAL_CATEGORY,
+    "Transaction was not found in mempool, despite publication to pendingTxs feed. Publishing "
+    "empty contents for {}"
+)
+ETH_RPC_PROCESSING_ERROR = LogMessage(
+    "G-000062",
+    PROCESSING_FAILED_CATEGORY,
+    "Encountered exception when processing message: {}. Error: {}. Continuing processing.",
+)
+ETH_RPC_COULD_NOT_RECONNECT = LogMessage(
+    "G-000063",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Could not reconnect to Ethereum websockets feed. Disabling Ethereum transaction "
+    "verification for now, but will attempt reconnection upon when the next subscriber "
+    "reconnects."
+)
+WS_COULD_NOT_CONNECT = LogMessage(
+    "G-000064",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Could not connect to websockets server at {}. Connection timed out.",
+)
+ETH_RPC_ERROR = LogMessage(
+    "G-000065",
+    PROCESSING_FAILED_CATEGORY,
+    "RPC Error response: {}. details: {}.",
+)
+TRANSACTION_FEED_NOT_ALLOWED = LogMessage(
+    "G-000066",
+    AUTHENTICATION_ERROR,
+    "Account does not have permission to stream transactions. Websocket server will be started "
+    "normally, but live transactions will not be available for subscription."
+)
+ETH_WS_SUBSCRIBER_NOT_STARTED = LogMessage(
+    "G-000067",
+    GENERAL_CATEGORY,
+    "Local Ethereum transaction validation is not enabled. Websocket server will be started "
+    "normally, but transaction feed validation will only comes from the BDN and not your connected "
+    "Ethereum node, which may provide better performance. Considering starting your gateway with "
+    "--eth-ws-uri ws://[ip_address]:[port] for faster transaction streaming."
+)
+BAD_FEED_SUBSCRIBER = LogMessage(
+    "G-000068",
+    GENERAL_CATEGORY,
+    "Subscriber {} was not receiving messages and emptying its queue from "
+    "feed {}. Disconnecting.",
+)
+BAD_RPC_SUBSCRIBER = LogMessage(
+    "G-000069",
+    RPC_ERROR,
+    "Subscription message queue was completed filled up (size {}). "
+    "Closing subscription RPC handler and all related subscriptions: {}"
+)
+ETH_WS_SUBSCRIBER_CONNECTION_BROKEN = LogMessage(
+    "G-000070",
+    RPC_ERROR,
+    "Ethereum websockets connection was broken. Attempting reconnection..."
 )

@@ -1,4 +1,6 @@
 import os
+
+from bxgateway.testing import gateway_helpers
 from bxcommon.utils import convert
 
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
@@ -13,7 +15,7 @@ from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 class OntBlockQueuingServiceTest(AbstractTestCase):
     def setUp(self):
         self.node = MockGatewayNode(
-            helpers.get_gateway_opts(8000, max_block_interval=0)
+            gateway_helpers.get_gateway_opts(8000, max_block_interval=0)
         )
 
         self.node_connection = Mock()

@@ -1,5 +1,6 @@
 import time
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from mock import MagicMock
 
@@ -17,8 +18,8 @@ from bxgateway.testing.mocks import mock_eth_messages
 class EthNodeConnectionTest(AbstractTestCase):
     def setUp(self) -> None:
         pub_key = "a04f30a45aae413d0ca0f219b4dcb7049857bc3f91a6351288cce603a2c9646294a02b987bf6586b370b2c22d74662355677007a14238bb037aedf41c2d08866"
-        opts = helpers.get_gateway_opts(8000, include_default_eth_args=True, pub_key=pub_key,
-                                 track_detailed_sent_messages=True)
+        opts = gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True, pub_key=pub_key,
+                                                                  track_detailed_sent_messages=True)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
@@ -45,7 +46,6 @@ class EthNodeConnectionTest(AbstractTestCase):
 
         self.connection.enqueue_msg(block_message)
         message_length = self.connection.outputbuf.length
-        print(message_length)
         for message in self.connection.message_tracker.messages:
             print(message.length)
         block_stats.add_block_event_by_block_hash.assert_not_called()

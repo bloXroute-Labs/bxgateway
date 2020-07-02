@@ -1,5 +1,6 @@
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.constants import LOCALHOST
@@ -8,7 +9,7 @@ from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnectio
 
 
 def make_spy_node(gateway_cls, port, **kwargs):
-    opts = helpers.get_gateway_opts(port, **kwargs)
+    opts = gateway_helpers.get_gateway_opts(port, **kwargs)
     if opts.use_extensions:
         helpers.set_extensions_parallelism()
     gateway_node = gateway_cls(opts, MockNodeSSLService(gateway_cls.NODE_TYPE, MagicMock()))

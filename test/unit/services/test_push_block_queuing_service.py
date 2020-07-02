@@ -3,6 +3,7 @@ from typing import List, Optional
 
 from mock import MagicMock, Mock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.test_utils import helpers
@@ -114,7 +115,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
 
     def setUp(self):
         self.node = MockGatewayNode(
-            helpers.get_gateway_opts(
+            gateway_helpers.get_gateway_opts(
                 8000,
                 max_block_interval=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S,
                 blockchain_message_ttl=TTL

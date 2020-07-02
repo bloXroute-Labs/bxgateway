@@ -1,6 +1,7 @@
 import time
 from mock import MagicMock
 
+from bxgateway.testing import gateway_helpers
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
@@ -17,12 +18,11 @@ from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_connection_protocol import EthNodeConnectionProtocol
-from bxgateway.messages.eth.eth_message_converter import EthMessageConverter
+import bxgateway.messages.eth.eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.services.block_processing_service import BlockProcessingService
-from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxgateway.utils.eth import crypto_utils
@@ -38,16 +38,18 @@ def _block_with_timestamp(timestamp):
 
 class GatewayTransactionStatsServiceTest(AbstractTestCase):
     def setUp(self):
-        self.node = MockGatewayNode(helpers.get_gateway_opts(8000, include_default_eth_args=True),
-                                    block_queueing_cls=MagicMock())
-        self.node.message_converter = EthMessageConverter()
+        self.node = MockGatewayNode(
+            gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True, use_extensions=True),
+            block_queueing_cls=MagicMock())
+        self.node.message_converter = converter_factory.create_eth_message_converter(self.node.opts)
         self.node.block_processing_service = BlockProcessingService(self.node)
 
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
         dummy_public_key = crypto_utils.private_to_public_key(dummy_private_key)
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
-        eth_opts = helpers.get_gateway_opts(1234, include_default_eth_args=True,
-                                            pub_key=convert.bytes_to_hex(dummy_public_key))
+        eth_opts = gateway_helpers.get_gateway_opts(
+            1234, include_default_eth_args=True, pub_key=convert.bytes_to_hex(dummy_public_key)
+        )
         self.eth_node = EthGatewayNode(eth_opts, node_ssl_service)
         self.node.node_conn = EthNodeConnection(
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.eth_node)
@@ -63,12 +65,13 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             self.blockchain_connection, True, dummy_private_key, dummy_public_key)
         self.block_blockchain_connection_protocol = EthBaseConnectionProtocol(
             self.blockchain_connection, True, dummy_private_key, dummy_public_key)
+        self.tx_blockchain_connection_protocol.publish_pending_transaction = MagicMock()
+        self.block_blockchain_connection_protocol.publish_pending_transaction = MagicMock()
 
         self.relay_connection = AbstractRelayConnection(
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
         )
         self.relay_connection.state = ConnectionState.INITIALIZED
-
 
         gateway_bdn_performance_stats_service.set_node(self.node)
 
@@ -250,8 +253,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.block_blockchain_connection_protocol.msg_block(block_msg)
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
-        msg_bytes, block_info = self.node.message_converter.block_to_bx_block(internal_new_block_msg,
-                                                                              self.node._tx_service)
+        msg_bytes, block_info = self.node.message_converter.block_to_bx_block(
+            internal_new_block_msg, self.node._tx_service
+        )
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
         broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
         self.relay_connection.msg_broadcast(broadcast_msg)

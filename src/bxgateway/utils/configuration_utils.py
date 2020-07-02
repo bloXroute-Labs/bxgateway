@@ -2,6 +2,7 @@ import os
 import functools
 from json import JSONDecodeError
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 from bxutils import logging
 from bxgateway import log_messages
@@ -10,10 +11,12 @@ from bxutils.logging import log_level
 
 from bxcommon.models.config.gateway_node_config_model import GatewayNodeConfigModel
 from bxcommon.utils import model_loader
-from bxcommon.connections.abstract_node import AbstractNode
 from bxcommon.utils import config
 
 from bxgateway import gateway_constants
+
+if TYPE_CHECKING:
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 logger = logging.get_logger(__name__)
 project_root_logger = logging.get_logger(__name__.split(".")[0])
@@ -55,7 +58,7 @@ def compare_and_update(new_value, target, setter, item=None):
             return
 
 
-def update_node_config(node: AbstractNode):
+def update_node_config(node: "AbstractGatewayNode"):
     config.init_file_in_data_dir(gateway_constants.CONFIG_FILE_NAME)
     config.init_file_in_data_dir(gateway_constants.CONFIG_OVERRIDE_NAME)
     default_node_config = read_config_file(config.get_data_file(gateway_constants.CONFIG_FILE_NAME))

@@ -141,7 +141,7 @@ class PushBlockQueuingService(
     def remove_from_queue(self, block_hash: Sha256Hash) -> int:
         index = super().remove_from_queue(block_hash)
 
-        if index is 0 and self._last_alarm_id is not None:
+        if index == 0 and self._last_alarm_id is not None:
             # pyre-fixme[6]: Expected `AlarmId` for 1st param but got
             #  `Optional[AlarmId]`.
             self.node.alarm_queue.unregister_alarm(self._last_alarm_id)

@@ -6,6 +6,9 @@ from bxgateway.messages.eth.serializers.block_header import BlockHeader
 from bxgateway.messages.eth.serializers.transaction import Transaction
 
 
+# pyre-fixme[13]: Attribute `header` is never initialized.
+# pyre-fixme[13]: Attribute `transactions` is never initialized.
+# pyre-fixme[13]: Attribute `uncles` is never initialized.
 class Block(rlp.Serializable):
 
     fields = [
@@ -14,9 +17,6 @@ class Block(rlp.Serializable):
         ("uncles", rlp.sedes.CountableList(BlockHeader))
     ]
 
-    # pyre-fixme[8]: Attribute has type `BlockHeader`; used as `None`.
-    header: BlockHeader = None
-    # pyre-fixme[8]: Attribute has type `List[Transaction]`; used as `None`.
-    transactions: List[Transaction] = None
-    # pyre-fixme[8]: Attribute has type `List[BlockHeader]`; used as `None`.
-    uncles: List[BlockHeader] = None
+    header: BlockHeader
+    transactions: List[Transaction]
+    uncles: List[BlockHeader]

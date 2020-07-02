@@ -2,22 +2,17 @@ import datetime
 import struct
 import time
 from collections import deque
-from typing import Tuple, Optional, Union, List
+from typing import Tuple
 
 from bxutils import logging
 from bxcommon import constants
-from bxcommon.exceptions import ParseError
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
-from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert, crypto
-from bxcommon.utils.blockchain_utils.bdn_tx_to_bx_tx import bdn_tx_to_bx_tx
-from bxcommon.utils.blockchain_utils.eth.eth_common_util import raw_tx_to_bx_tx
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
+from bxgateway.abstract_message_converter import BlockDecompressionResult
+from bxgateway.messages.eth.eth_abstract_message_converter import EthAbstractMessageConverter
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
-from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.utils.eth import rlp_utils
@@ -26,80 +21,10 @@ from bxgateway.utils.eth import rlp_utils
 logger = logging.get_logger(__name__)
 
 
-class EthMessageConverter(AbstractMessageConverter):
+class EthNormalMessageConverter(EthAbstractMessageConverter):
 
-    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None) ->\
-            List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
-        """
-        Converts Ethereum transactions message to array of internal transaction messages
-
-        The code is optimized and does not make copies of bytes
-
-        :param tx_msg: Ethereum transaction message
-        :param network_num: blockchain network number
-        :param quota_type: the quota type to assign to the BDN transaction.
-        :return: array of tuples (transaction message, transaction hash, transaction bytes)
-        """
-
-        if not isinstance(tx_msg, TransactionsEthProtocolMessage):
-            raise TypeError("TransactionsEthProtocolMessage is expected for arg tx_msg but was {0}"
-                            .format(type(tx_msg)))
-        bx_tx_msgs = []
-
-        msg_bytes = memoryview(tx_msg.rawbytes())
-
-        _, length, start = rlp_utils.consume_length_prefix(msg_bytes, 0)
-        txs_bytes = msg_bytes[start:]
-
-        tx_start_index = 0
-
-        while True:
-            bx_tx, tx_item_length, tx_item_start = raw_tx_to_bx_tx(txs_bytes, tx_start_index, network_num, quota_type)
-            bx_tx_msgs.append((bx_tx, bx_tx.message_hash(), bx_tx.tx_val()))
-
-            tx_start_index = tx_item_start + tx_item_length
-
-            if tx_start_index == len(txs_bytes):
-                break
-
-        return bx_tx_msgs
-
-    def bdn_tx_to_bx_tx(
-            self,
-            raw_tx: Union[bytes, bytearray, memoryview],
-            network_num: int,
-            quota_type: Optional[QuotaType] = None
-    ) -> TxMessage:
-        return bdn_tx_to_bx_tx(raw_tx, network_num, quota_type)
-
-    def bx_tx_to_tx(self, bx_tx_msg):
-        """
-        Converts internal transaction message to Ethereum transactions message
-
-        The code is optimized and does not make copies of bytes
-
-        :param bx_tx_msg: internal transaction message
-        :return: Ethereum transactions message
-        """
-
-        if not isinstance(bx_tx_msg, TxMessage):
-            raise TypeError("Type TxMessage is expected for bx_tx_msg arg but was {0}"
-                            .format(type(bx_tx_msg)))
-
-        size = 0
-
-        tx_bytes = bx_tx_msg.tx_val()
-        size += len(tx_bytes)
-
-        txs_prefix = rlp_utils.get_length_prefix_list(size)
-        size += len(txs_prefix)
-
-        buf = bytearray(size)
-
-        buf[0:len(txs_prefix)] = txs_prefix
-        buf[len(txs_prefix):] = tx_bytes
-
-        return TransactionsEthProtocolMessage(buf)
+    def __init__(self):
+        super().__init__()
 
     def block_to_bx_block(self, block_msg: InternalEthBlockInfo, tx_service: TransactionService) -> Tuple[
         memoryview, BlockInfo]:
@@ -118,6 +43,7 @@ class EthMessageConverter(AbstractMessageConverter):
         msg_bytes = memoryview(block_msg.rawbytes())
 
         _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(msg_bytes, 0)
+
         block_msg_bytes = msg_bytes[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
         _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
@@ -127,8 +53,9 @@ class EthMessageConverter(AbstractMessageConverter):
         _, prev_block_itm_len, prev_block_itm_start = rlp_utils.consume_length_prefix(block_hdr_bytes, 0)
         prev_block_bytes = block_hdr_bytes[prev_block_itm_start:prev_block_itm_start + prev_block_itm_len]
 
-        _, txs_itm_len, txs_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes,
-                                                                        block_hdr_itm_start + block_hdr_itm_len)
+        _, txs_itm_len, txs_itm_start = rlp_utils.consume_length_prefix(
+            block_msg_bytes, block_hdr_itm_start + block_hdr_itm_len
+        )
         txs_bytes = block_msg_bytes[txs_itm_start:txs_itm_start + txs_itm_len]
 
         remaining_bytes = block_msg_bytes[txs_itm_start + txs_itm_len:]
@@ -162,8 +89,7 @@ class EthMessageConverter(AbstractMessageConverter):
 
             tx_content_prefix = rlp_utils.get_length_prefix_str(len(tx_content_bytes))
 
-            short_tx_content_size = len(is_full_tx_bytes) + \
-                                    len(tx_content_prefix) + len(tx_content_bytes)
+            short_tx_content_size = len(is_full_tx_bytes) + len(tx_content_prefix) + len(tx_content_bytes)
 
             short_tx_content_prefix_bytes = rlp_utils.get_length_prefix_list(short_tx_content_size)
 
@@ -253,8 +179,10 @@ class EthMessageConverter(AbstractMessageConverter):
         block_hash_bytes = crypto_utils.keccak_hash(full_hdr_bytes)
         block_hash = Sha256Hash(block_hash_bytes)
 
-        _, block_txs_len, block_txs_start = rlp_utils.consume_length_prefix(block_itm_bytes,
-                                                                            block_hdr_start + block_hdr_len)
+
+        _, block_txs_len, block_txs_start = rlp_utils.consume_length_prefix(
+            block_itm_bytes, block_hdr_start + block_hdr_len
+        )
         txs_bytes = block_itm_bytes[block_txs_start:block_txs_start + block_txs_len]
 
         remaining_bytes = block_itm_bytes[block_txs_start + block_txs_len:]
@@ -281,10 +209,9 @@ class EthMessageConverter(AbstractMessageConverter):
             is_full_tx_start = 0
             is_full_tx, is_full_tx_len, = rlp_utils.decode_int(tx_bytes, is_full_tx_start)
 
-            _, tx_content_len, tx_content_start = rlp_utils.consume_length_prefix(tx_bytes,
-                                                                                  is_full_tx_start + is_full_tx_len)
+            _, tx_content_len, tx_content_start = rlp_utils.consume_length_prefix(
+                tx_bytes, is_full_tx_start + is_full_tx_len)
             tx_content_bytes = tx_bytes[tx_content_start:tx_content_start + tx_content_len]
-
             if is_full_tx:
                 tx_bytes = tx_content_bytes
             else:

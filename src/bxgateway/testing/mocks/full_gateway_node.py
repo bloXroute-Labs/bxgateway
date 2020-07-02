@@ -1,4 +1,3 @@
-from argparse import Namespace
 from typing import Type, NamedTuple
 
 from mock import MagicMock
@@ -13,6 +12,7 @@ from bxgateway.connections.abstract_gateway_blockchain_connection import Abstrac
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
+from bxgateway.gateway_opts import GatewayOpts
 
 
 class FullGatewayInfo(NamedTuple):
@@ -31,7 +31,8 @@ class FullGatewayInfo(NamedTuple):
     gateway_connection: GatewayConnection
 
 
-def of_type(gateway_class: Type[AbstractGatewayNode], opts: Namespace) -> FullGatewayInfo:
+def of_type(gateway_class: Type[AbstractGatewayNode], opts: GatewayOpts) -> FullGatewayInfo:
+    # probably pyre bug
     # pyre-fixme[45]: Cannot instantiate abstract class `AbstractGatewayNode`.
     gateway = gateway_class(opts, MockNodeSSLService(gateway_class.NODE_TYPE, MagicMock()))
     gateway.requester = MagicMock()

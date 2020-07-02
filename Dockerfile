@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.7.0-alpine3.8
+ARG PYTHON_VERSION=3.8.3-alpine3.11
 
 FROM python:${PYTHON_VERSION} as builder
 # Assumes this repo and bxcommon repo are at equal roots
@@ -14,9 +14,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY bxgateway/requirements.txt ./bxgateway_requirements.txt
 COPY bxcommon/requirements.txt ./bxcommon_requirements.txt
 
-RUN pip install -U pip \
-        && pip install -r ./bxgateway_requirements.txt \
-        && pip install -r ./bxcommon_requirements.txt
+RUN pip install -U pip wheel \
+ && pip install -r ./bxgateway_requirements.txt \
+                -r ./bxcommon_requirements.txt
 
 FROM python:${PYTHON_VERSION}
 
@@ -45,9 +45,12 @@ COPY bxgateway/docker-entrypoint.sh /usr/local/bin/
 COPY --chown=bxgateway:bxgateway bxgateway/src /app/bxgateway/src
 COPY --chown=bxgateway:bxgateway bxcommon/src /app/bxcommon/src
 COPY --chown=bxgateway:bxgateway bxcommon-internal/src /app/bxcommon-internal/src
-COPY --chown=bxgateway:bxgateway bxextensions/release/alpine-3.8 /app/bxextensions
+COPY --chown=bxgateway:bxgateway bxextensions/release/alpine-3.11 /app/bxextensions
 
 RUN chmod u+s /bin/ping
+
+COPY bxgateway/docker-scripts/bloxroute-cli /bin/bloxroute-cli
+RUN chmod u+x /bin/bloxroute-cli
 
 WORKDIR /app/bxgateway
 EXPOSE 28332 9001 1801

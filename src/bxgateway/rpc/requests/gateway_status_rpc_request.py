@@ -1,48 +1,56 @@
 import asyncio
-from typing import TYPE_CHECKING, Union, List, Dict, Any
-from aiohttp.web_response import Response
-from aiohttp.web_exceptions import HTTPOk
+from typing import TYPE_CHECKING
 
 from bxcommon.rpc import rpc_constants
-from bxcommon.rpc.rpc_request_type import RpcRequestType
+from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
+from bxcommon.rpc.json_rpc_response import JsonRpcResponse
+from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
-from bxgateway.rpc.requests.abstract_gateway_rpc_request import AbstractGatewayRpcRequest
 from bxgateway.utils.logging.status import status_log
 from bxutils.encoding.json_encoder import EnhancedJSONEncoder
+from bxcommon.rpc.rpc_errors import RpcInvalidParams
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
-class GatewayStatusRpcRequest(AbstractGatewayRpcRequest):
-    DETAILS_LEVEL = rpc_constants.DETAILS_LEVEL_PARAMS_KEY
+class GatewayStatusRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {
-        "params": f"Optional - {DETAILS_LEVEL}: {list(GatewayStatusDetailsLevel.__members__.keys())}.",
+        "params": f"Optional - {rpc_constants.DETAILS_LEVEL_PARAMS_KEY}: "
+                  f"{list(GatewayStatusDetailsLevel.__members__.keys())}.",
         "description": "return status of the bloXroute Gateway"
     }
 
     def __init__(
-            self,
-            method: RpcRequestType,
-            node: "AbstractGatewayNode",
-            request_id: str = "",
-            params: Union[Dict[str, Any], List[Any], None] = None
+        self,
+        request: BxJsonRpcRequest,
+        node: "AbstractGatewayNode",
     ):
-        if params is None:
-            params = {self.DETAILS_LEVEL: GatewayStatusDetailsLevel.SUMMARY.name}
-        super().__init__(method, node, request_id, params)
+        if request.params is None:
+            request.params = {
+                rpc_constants.DETAILS_LEVEL_PARAMS_KEY: GatewayStatusDetailsLevel.SUMMARY.name
+            }
+        self._details_level = None
+        super().__init__(request, node)
         self._json_encoder = EnhancedJSONEncoder()
-        self._details_level = GatewayStatusDetailsLevel.SUMMARY
+        params = request.params
+        assert isinstance(params, dict)
+        self.params = params
 
-    async def process_request(self) -> Response:
-        try:
-            self._details_level = GatewayStatusDetailsLevel[self.params[self.DETAILS_LEVEL].upper()]  # pyre-ignore
-        except (KeyError, TypeError):
-            pass
+    def validate_params(self) -> None:
+        super().validate_params()
+        params = self.params
+        assert isinstance(params, dict)
+        if rpc_constants.DETAILS_LEVEL_PARAMS_KEY not in params:
+            params[rpc_constants.DETAILS_LEVEL_PARAMS_KEY] = GatewayStatusDetailsLevel.SUMMARY.name
+
+        self._details_level = params[rpc_constants.DETAILS_LEVEL_PARAMS_KEY].lower()
+
+    async def process_request(self) -> JsonRpcResponse:
         loop = asyncio.get_event_loop()
-        opts = self._node.opts
+        opts = self.node.opts
         diagnostics = await loop.run_in_executor(
-            self._node.requester.thread_pool,
+            self.node.requester.thread_pool,
             status_log.get_diagnostics,
             opts.use_extensions,
             opts.source_version,
@@ -50,12 +58,12 @@ class GatewayStatusRpcRequest(AbstractGatewayRpcRequest):
             opts.continent,
             opts.country,
             opts.should_update_source_version,
-            self._node.account_id,
-            self._node.quota_level
+            self.node.account_id,
+            self.node.quota_level
         )
-        if self._details_level == GatewayStatusDetailsLevel.SUMMARY:
+        if self._details_level == GatewayStatusDetailsLevel.SUMMARY.name.lower():
             data = diagnostics.summary
         else:
             data = diagnostics
         result = self._json_encoder.as_dict(data)
-        return self._format_response(result, HTTPOk)
+        return self.ok(result)

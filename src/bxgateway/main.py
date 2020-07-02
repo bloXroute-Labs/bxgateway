@@ -9,18 +9,22 @@ import argparse
 import os
 import random
 import sys
+import functools
 
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
+from bxcommon.models.node_type import NodeType
 from bxgateway import btc_constants, gateway_constants, eth_constants, ont_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.eth import crypto_utils
 from bxgateway.gateway_opts import GatewayOpts
+from bxgateway import argument_parsers
 from bxgateway.utils.gateway_start_args import GatewayStartArgs
 from bxcommon.models.quota_type_model import QuotaType
 from bxutils import logging_messages_utils
+
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -67,16 +71,13 @@ def get_default_eth_private_key():
     return private_key
 
 
-def get_opts() -> GatewayOpts:
-    config.set_working_directory(os.path.dirname(__file__))
-
+def get_argument_parser() -> argparse.ArgumentParser:
     # Parse gateway specific command line parameters
     arg_parser = argparse.ArgumentParser(parents=[cli.get_argument_parser()],
                                          description="Command line interface for the bloXroute Gateway.",
                                          usage="bloxroute_gateway --blockchain-protocol [PROTOCOL] [additional "
                                                "arguments]")
-    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g BitcoinCash, Ethereum", type=str,
-                            required=True)
+    arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g BitcoinCash, Ethereum", type=str)
     arg_parser.add_argument("--blockchain-network", help="Blockchain network. e.g Mainnet, Testnet", type=str)
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip",
@@ -84,6 +85,7 @@ def get_opts() -> GatewayOpts:
                             default=None)
     arg_parser.add_argument("--enode", help="Ethereum enode. ex) enode://<eth node public key>@<eth node "
                                             "ip>:<port>?discport=0",
+                            action=argument_parsers.ParseEnode,
                             type=str,
                             default=None)
     arg_parser.add_argument("--peer-gateways",
@@ -118,8 +120,6 @@ def get_opts() -> GatewayOpts:
                             ),
                             default="",
                             nargs="*")
-    arg_parser.add_argument("--sync-tx-service", help="sync tx service in gateway", type=convert.str_to_bool,
-                            default=True)
 
     # Bitcoin specific
     arg_parser.add_argument("--blockchain-version", help="Bitcoin protocol version", type=int)
@@ -145,6 +145,15 @@ def get_opts() -> GatewayOpts:
                             help="Public key of remote bloXroute owned Ethereum node for encrypted communication "
                                  "during chainstate sync ",
                             type=str)
+    # IPC
+    arg_parser.add_argument("--ipc",
+                            help="Boolean indicating if IPC should be enabled.",
+                            type=convert.str_to_bool,
+                            default=False)
+    arg_parser.add_argument("--ipc-file",
+                            help="IPC filename that represents a unix domain socket",
+                            type=str,
+                            default="bxgateway.ipc")
 
     # Ontology specific
     # TODO: Remove test only arguments
@@ -226,11 +235,13 @@ def get_opts() -> GatewayOpts:
         type=int,
         default=gateway_constants.CONFIG_UPDATE_INTERVAL_S
     )
-    arg_parser.add_argument("--require-blockchain-connection",
-                            help="Close gateway if connection with blockchain node can't be established "
-                                 "when the flag is set to True",
-                            type=convert.str_to_bool,
-                            default=True)
+    arg_parser.add_argument(
+        "--require-blockchain-connection",
+        help="Close gateway if connection with blockchain node can't be established "
+             "when the flag is set to True",
+        type=convert.str_to_bool,
+        default=True
+    )
     default_tx_quota_type = config.get_env_default(GatewayStartArgs.DEFAULT_TX_QUOTA_TYPE)
     arg_parser.add_argument(
         "--default-tx-quota-type",
@@ -239,8 +250,49 @@ def get_opts() -> GatewayOpts:
         choices=list(QuotaType),
         default=default_tx_quota_type
     )
+    arg_parser.add_argument(
+        "--ws",
+        help=f"Enable RPC websockets server (default: False)",
+        type=convert.str_to_bool,
+        default=False
+    )
+    arg_parser.add_argument(
+        "--ws-host",
+        help=f"Websockets server listening host (default: {gateway_constants.WS_DEFAULT_HOST})",
+        type=str,
+        default=gateway_constants.WS_DEFAULT_HOST
+    )
+    arg_parser.add_argument(
+        "--ws-port",
+        help=f"Websockets server listening port (default: {gateway_constants.WS_DEFAULT_PORT}",
+        type=int,
+        default=gateway_constants.WS_DEFAULT_PORT
+    )
+    arg_parser.add_argument(
+        "--eth-ws-uri",
+        help="Ethereum websockets endpoint for syncing transaction content",
+        type=str
+    )
+    arg_parser.add_argument(
+        "--process-node-txs-in-extension",
+        help="If true, then the gateway will process transactions received from blockchain node using C++ extension",
+        default=True,
+        type=convert.str_to_bool
+    )
+    # TODO temp arg, need to be removed
+    arg_parser.add_argument(
+        "--enable-eth-extensions",
+        help="If true, run compression and decompression using C++ extensions code",
+        default=True,
+        type=convert.str_to_bool
+    )
+    return arg_parser
 
-    opts = GatewayOpts(cli.parse_arguments(arg_parser))
+
+def get_opts() -> GatewayOpts:
+    config.set_working_directory(os.path.dirname(__file__))
+
+    opts = GatewayOpts(cli.parse_arguments(get_argument_parser()))
     config.set_data_directory(opts.data_dir)
     if opts.private_key is None:
         opts.private_key = get_default_eth_private_key()
@@ -253,8 +305,9 @@ def main():
     logger_names.append("bxgateway")
     logging_messages_utils.logger_names = set(logger_names)
     opts = get_opts()
-    node_type = get_gateway_node_type(opts.blockchain_protocol)
-    node_runner.run_node(config.get_data_file(PID_FILE_NAME), opts, node_type, logger_names=logger_names)
+    get_node_class = functools.partial(get_gateway_node_type, opts.blockchain_protocol)
+    node_runner.run_node(
+        config.get_data_file(PID_FILE_NAME), opts, get_node_class, NodeType.EXTERNAL_GATEWAY, logger_names=logger_names)
 
 
 if __name__ == "__main__":

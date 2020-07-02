@@ -13,7 +13,7 @@ from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
-from bxgateway import ont_constants, gateway_constants
+from bxgateway import ont_constants, gateway_constants, log_messages
 from bxgateway.connections.ont.ont_base_connection_protocol import OntBaseConnectionProtocol
 from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.messages.ont.get_blocks_ont_message import GetBlocksOntMessage
@@ -200,7 +200,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                 broadcast_type=BroadcastMessageType.CONSENSUS,
                 conversion_type=e.conversion_type.value
             )
-            self.connection.log_error("Failed to compress consensus block {} - {}", e.msg_hash, e)
+            self.connection.log_error(log_messages.BLOCK_COMPRESSION_FAIL_ONT_CONSENSUS, e.msg_hash, e)
             return
 
         block_stats.add_block_event_by_block_hash(block_hash,
