@@ -163,15 +163,12 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.block_cleanup_service = self.build_block_cleanup_service()
 
         self.send_request_for_relay_peers_num_of_calls = 0
+        self.check_relay_alarm_id: Optional[AlarmId] = None
         if not self.opts.peer_relays:
-            self.check_relay_alarm_id = self.alarm_queue.register_alarm(
-                constants.SDN_CONTACT_RETRY_SECONDS,
-                self.send_request_for_relay_peers
-            )
+            self._schedule_fetch_relays_from_sdn()
         else:
-            self.check_relay_alarm_id = self.alarm_queue.register_alarm(
-                gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
-                self.send_request_for_relay_peers
+            self._schedule_fetch_relays_from_sdn(
+                gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S
             )
 
         if opts.connect_to_remote_blockchain:
@@ -471,7 +468,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         await super(AbstractGatewayNode, self).close()
 
-    def send_request_for_relay_peers(self):
+    def send_request_for_relay_peers(self) -> int:
         """
         Requests potential relay peers from SDN. Merges list with provided command line relays.
 
@@ -479,11 +476,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         Then it try to ping for each relay (timeout of 2 seconds). The ping is done in parallel
         Once there are ping result, it calculate the best relay and decides if need to switch relays
 
-        The above can take time, so the functions is splitted into several internal functions and use the thread pool
+        The above can take time, so the functions is split into several internal functions and use the thread pool
         not to block the main thread.
         """
 
-        self.check_relay_alarm_id = None
         self.requester.send_threaded_request(
             sdn_http_service.fetch_potential_relay_peers_by_network,
             self.opts.node_id,
@@ -680,16 +676,20 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         elif connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
             self.send_request_for_remote_blockchain_peer()
         elif ConnectionType.RELAY_BLOCK in connection_type:
-            self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
-                                                 self.opts.node_id,
-                                                 ip,
-                                                 port)
+            self.requester.send_threaded_request(
+                sdn_http_service.submit_peer_connection_error_event,
+                self.opts.node_id,
+                ip,
+                port
+            )
             self._remove_relay_peer(ip, port)
         elif self.opts.split_relays and ConnectionType.RELAY_TRANSACTION in connection_type:
-            self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
-                                                 self.opts.node_id,
-                                                 ip,
-                                                 port)
+            self.requester.send_threaded_request(
+                sdn_http_service.submit_peer_connection_error_event,
+                self.opts.node_id,
+                ip,
+                port
+            )
             self._remove_relay_transaction_peer(ip, port)
 
         # Reset number of retries in case if SDN instructs to connect to the same node again
@@ -851,6 +851,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         """
         Clean up relay peer on connection failure. (after giving up retry)
         Destroys matching transaction relay if split relays enabled.
+
         :param ip: relay peer ip
         :param port: relay peer port
         """
@@ -868,16 +869,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         if (
             len(self.peer_relays) < self.peer_relays_min_count
-            or len(self.peer_transaction_relays) < self.peer_relays_min_count and
-            self.check_relay_alarm_id is None
+            or len(self.peer_transaction_relays) < self.peer_relays_min_count
         ):
-            logger.debug("Removed relay peer with ip {} and port {}. "
-                         "Current number of relay peers is lower than required. "
-                         "Scheduling request of new relays from BDN.",
-                         ip, port)
-            self.check_relay_alarm_id = self.alarm_queue.register_alarm(
-                constants.SDN_CONTACT_RETRY_SECONDS, self.send_request_for_relay_peers
+            logger.debug(
+                "Removed relay peer with ip {} and port {}. Current number of relay "
+                "peers is lower than required. Scheduling request of new relays from BDN.",
+                ip,
+                port
             )
+            self._schedule_fetch_relays_from_sdn()
 
     def _remove_relay_transaction_peer(self, ip: str, port: int, remove_block_relay: bool = True):
         """
@@ -952,11 +952,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             return constants.CANCEL_ALARMS
 
     def _check_sync_relay_connections(self):
-        if self.network_num in self.last_sync_message_received_by_network and \
-            time.time() - self.last_sync_message_received_by_network[self.network_num] > \
-            constants.LAST_MSG_FROM_RELAY_THRESHOLD_S:
-            logger.warning(log_messages.RELAY_CONNECTION_TIMEOUT,
-                           constants.LAST_MSG_FROM_RELAY_THRESHOLD_S)
+        if (
+            self.network_num in self.last_sync_message_received_by_network
+            and time.time() - self.last_sync_message_received_by_network[self.network_num]
+            > constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
+        ):
+            logger.warning(
+                log_messages.RELAY_CONNECTION_TIMEOUT, constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
+            )
 
             self.on_network_synced(self.network_num)
             self.alarm_queue.unregister_alarm(self._transaction_sync_timeout_alarm_id)
@@ -977,8 +980,12 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             if potential_relay_peers:
                 node_cache.update(self.opts, potential_relay_peers)
             else:
-                # if called too many times to send_request_for_relay_peers, reset relay peers to empty list in cache file
-                if self.send_request_for_relay_peers_num_of_calls > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS:
+                # if called too many times to send_request_for_relay_peers,
+                # reset relay peers to empty list in cache file
+                if (
+                    self.send_request_for_relay_peers_num_of_calls
+                    > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS
+                ):
                     node_cache.update(self.opts, [])
                     self.send_request_for_relay_peers_num_of_calls = 0
                 self.send_request_for_relay_peers_num_of_calls += 1
@@ -988,11 +995,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     potential_relay_peers = cache_file_info.relay_peers
 
                 if not potential_relay_peers:
-                    if self.check_relay_alarm_id is None:
-                        self.check_relay_alarm_id = self.alarm_queue.register_alarm(
-                            constants.SDN_CONTACT_RETRY_SECONDS,
-                            self.send_request_for_relay_peers
-                        )
+                    self._schedule_fetch_relays_from_sdn()
                     return
 
             # check the network latency using the thread pool
@@ -1004,14 +1007,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         except Exception as e:
             logger.info("Got {} when trying to read potential_relays from sdn", e)
 
-        if self.check_relay_alarm_id is None:
-            self.check_relay_alarm_id = self.alarm_queue.register_alarm(
-                gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S,
-                self.send_request_for_relay_peers
-            )
-
-    def _find_best_relay_peers(self, potential_relay_peers: List[OutboundPeerModel]) -> \
-        List[OutboundPeerModel]:
+    def _find_best_relay_peers(
+        self, potential_relay_peers: List[OutboundPeerModel]
+    ) -> List[OutboundPeerModel]:
         logger.info("Received list of potential relays from BDN: {}.",
                     ", ".join([node.ip for node in potential_relay_peers]))
 
@@ -1026,8 +1024,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         best_relay_country = best_relay_peers[0].get_country()
 
-        self.peer_relays_min_count = max(gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country],
-                                         gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[best_relay_country])
+        self.peer_relays_min_count = max(
+            gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country],
+            gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[best_relay_country]
+        )
 
         best_relay_peers = best_relay_peers[:self.peer_relays_min_count]
 
@@ -1072,6 +1072,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 )
 
         self.on_updated_peers(self._get_all_peers())
+        self._schedule_fetch_relays_from_sdn(
+            gateway_constants.RELAY_CONNECTION_REEVALUATION_INTERVAL_S
+        )
 
     def _tracked_block_cleanup(self):
         tx_service = self.get_tx_service()
@@ -1093,3 +1096,19 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def on_new_subscriber(self) -> None:
         pass
+
+    def _schedule_fetch_relays_from_sdn(
+        self,
+        delay: int = constants.SDN_CONTACT_RETRY_SECONDS
+    ) -> None:
+        """
+        Cancels existing tasks for fetching relays from SDN (usually the reevaluation interval)
+        and schedules a new one.
+        """
+        check_relay_alarm_id = self.check_relay_alarm_id
+        if check_relay_alarm_id is not None:
+            self.alarm_queue.unregister_alarm(check_relay_alarm_id)
+
+        self.check_relay_alarm_id = self.alarm_queue.register_alarm(
+            delay, self.send_request_for_relay_peers
+        )

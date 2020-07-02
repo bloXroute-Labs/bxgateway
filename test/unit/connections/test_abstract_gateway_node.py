@@ -4,9 +4,9 @@ from typing import Optional
 
 from mock import MagicMock, call
 
+from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.testing import gateway_helpers
 from bxcommon import constants
-from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import LOCALHOST, MAX_CONNECT_RETRIES
@@ -38,7 +38,7 @@ from bxutils.services.node_ssl_service import NodeSSLService
 
 class GatewayNode(AbstractGatewayNode):
 
-    def __init__(self, opts: Namespace, node_ssl_service: Optional[NodeSSLService] = None):
+    def __init__(self, opts: GatewayOpts, node_ssl_service: Optional[NodeSSLService] = None):
         if node_ssl_service is None:
             node_ssl_service = MockNodeSSLService(self.NODE_TYPE, MagicMock())
         super().__init__(opts, node_ssl_service)
@@ -62,6 +62,7 @@ class GatewayNode(AbstractGatewayNode):
         self, socket_connection: AbstractSocketConnectionProtocol
     ) -> AbstractGatewayBlockchainConnection:
         return BtcRemoteConnection(socket_connection, self)
+
 
 def initialize_split_relay_node():
     relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
@@ -563,10 +564,12 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(relay_all, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
 
     def _initialize_gateway(self, initialize_blockchain_conn: bool, initialize_relay_conn: bool) -> GatewayNode:
-        opts = gateway_helpers.get_gateway_opts(8000,
-                                                                  blockchain_address=(LOCALHOST, 8001),
-                                                                  peer_relays=[OutboundPeerModel(LOCALHOST, 8002)],
-                                                                  include_default_btc_args=True)
+        opts = gateway_helpers.get_gateway_opts(
+            8000,
+            blockchain_address=(LOCALHOST, 8001),
+            peer_relays=[OutboundPeerModel(LOCALHOST, 8002)],
+            include_default_btc_args=True
+        )
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)
