@@ -10,8 +10,7 @@ from typing import (
     TYPE_CHECKING,
     List,
     NamedTuple,
-    Iterator
-)
+    Iterator)
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -39,7 +38,8 @@ class BlockQueueEntry(NamedTuple):
 
 
 class AbstractBlockQueuingService(
-    Generic[TBlockMessage, THeaderMessage], metaclass=ABCMeta
+    Generic[TBlockMessage, THeaderMessage],
+    metaclass=ABCMeta
 ):
     """
     Service managing storage of blocks that are available for sending to blockchain node
@@ -172,9 +172,9 @@ class AbstractBlockQueuingService(
         return True
 
     def store_block_data(
-            self,
-            block_hash: Sha256Hash,
-            block_msg: TBlockMessage
+        self,
+        block_hash: Sha256Hash,
+        block_msg: TBlockMessage
     ):
         self._blocks[block_hash] = block_msg
 
@@ -262,6 +262,9 @@ class AbstractBlockQueuingService(
         return index
 
     def iterate_recent_block_hashes(
-            self,
-            max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        self,
+        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
         raise NotImplementedError
+
+    def log_memory_stats(self):
+        pass
