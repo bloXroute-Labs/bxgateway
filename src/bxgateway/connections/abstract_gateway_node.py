@@ -363,6 +363,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             object_type=memory_utils.ObjectType.META,
             size_type=memory_utils.SizeType.SPECIAL
         )
+
+        self.block_queuing_service.log_memory_stats()
+
         return super(AbstractGatewayNode, self).record_mem_stats()
 
     def get_tx_service(self, network_num=None) -> GatewayTransactionService:
