@@ -125,7 +125,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
         self.subscriptions[subscriber.subscription_id] = Subscription(
             subscriber, feed_name, task
         )
-        self.node.on_new_subscriber()
+        self.node.on_new_subscriber_request()
 
     def _on_unsubscribe(self, subscriber_id: str) -> Optional[str]:
         if subscriber_id in self.subscriptions:
