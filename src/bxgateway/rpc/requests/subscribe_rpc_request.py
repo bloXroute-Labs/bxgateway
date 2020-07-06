@@ -60,9 +60,10 @@ class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
                 f"Available feeds: {list(self.feed_manager.feeds)}"
             )
         elif not feed.active:
+            self.node.on_new_subscriber_request()
             raise RpcInternalError(
                 self.request_id,
-                f"{feed_name} is not active. "
+                f"{feed_name} is not active. Attempting to reactivate, try again in a moment"
             )
 
         self.feed_name = feed_name

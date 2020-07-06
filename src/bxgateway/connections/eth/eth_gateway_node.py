@@ -362,6 +362,6 @@ class EthGatewayNode(AbstractGatewayNode):
 
         return self.DISCONNECT_REASON_TO_INSTRUCTION[reason]
 
-    def on_new_subscriber(self) -> None:
+    def on_new_subscriber_request(self) -> None:
         if self.opts.eth_ws_uri and not self.eth_ws_subscriber.running:
             asyncio.create_task(self.eth_ws_subscriber.revive())

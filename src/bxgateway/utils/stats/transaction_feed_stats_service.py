@@ -93,8 +93,8 @@ class TransactionFeedStatsService(
             pending_transaction_feed_subscribers = len(feeds[PendingTransactionFeed.NAME].subscribers)
         else:
             pending_transaction_feed_subscribers = None
-        if PendingTransactionFeed.NAME in feeds:
-            new_transaction_feed_subscribers = len(feeds[PendingTransactionFeed.NAME].subscribers)
+        if NewTransactionFeed.NAME in feeds:
+            new_transaction_feed_subscribers = len(feeds[NewTransactionFeed.NAME].subscribers)
         else:
             new_transaction_feed_subscribers = None
 
