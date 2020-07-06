@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 
 class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {
-        "params": "[feed_name, {\"include\": [field_1, field_2]}.\n"
-                  "Available feeds: unconfirmed_txs, pending_txs\n"
+        "params": "[feed_name, {\"include\": [field_1, field_2]}].\n"
+                  "Available feeds: newTxs, pendingTxs\n"
                   "Available fields: tx_hash, tx_contents (default: all)",
         "description": "Subscribe to a named feed for notifications"
     }
