@@ -10,7 +10,7 @@
     <img src="https://badge.fury.io/py/bloxroute-gateway.svg" alt="Pypi version" />
   </a>
     <a href="https://python.org">
-    <img alt="Python" src="https://img.shields.io/badge/Python-3.6%20%7C%203.7-blue">  
+    <img alt="Python" src="https://img.shields.io/badge/Python-3.6%20%7C%203.7%20%7C%203.8-blue">  
   </a>
   <a href="https://discord.gg/FAYTEMm">
     <img alt="Discord" src="https://img.shields.io/discord/638409433860407300?logo=discord">  
