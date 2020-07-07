@@ -14,6 +14,7 @@ from bxgateway import gateway_constants
 from bxgateway import eth_constants
 from bxgateway.utils.eth.eccx import ECCx
 from bxutils import logging
+from bxgateway import log_messages
 import os
 import sys
 
@@ -193,14 +194,13 @@ class GatewayOpts(CommonOpts):
         if not self.cookie_file_path:
             self.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
                 "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip))
-        self.validate_blockchain_ip()
 
-    def validate_eth_opts(self):
+    def validate_eth_opts(self) -> None:
         if self.blockchain_ip is None:
-            logger.fatal("Either --blockchain-ip or --enode arguments are required.", exc_info=False)
+            logger.fatal(log_messages.ETH_MISSING_BLOCKCHAIN_IP, exc_info=False)
             sys.exit(1)
         if self.node_public_key is None:
-            logger.fatal("--node-public-key argument is required but not specified.", exc_info=False)
+            logger.fatal(log_messages.ETH_MISSING_NODE_PUBLIC_KEY, exc_info=False)
             sys.exit(1)
         validate_pub_key(self.node_public_key)
 
@@ -212,22 +212,6 @@ class GatewayOpts(CommonOpts):
                     exc_info=False)
                 sys.exit(1)
             validate_pub_key(self.remote_public_key)
-
-    def validate_blockchain_ip(self):
-        if self.blockchain_ip is None:
-            logger.fatal("--blockchain-ip is required but not specified.", exc_info=False)
-            sys.exit(1)
-        if self.blockchain_ip == gateway_constants.LOCALHOST and self.is_docker:
-            logger.warning(
-                "The specified blockchain IP is localhost, which is not compatible with a dockerized gateway. "
-                "Did you mean 172.17.0.X?",
-                exc_info=False
-            )
-        try:
-            self.blockchain_ip = ip_resolver.blocking_resolve_ip(self.blockchain_ip)
-        except EnvironmentError:
-            logger.fatal("Blockchain IP could not be resolved, exiting. Blockchain IP: {}", self.blockchain_ip)
-            sys.exit(1)
 
     def set_account_options(self, account_model: BdnAccountModelBase) -> None:
         super().set_account_options(account_model)
@@ -251,12 +235,17 @@ class GatewayOpts(CommonOpts):
         if self.blockchain_network is None:
             self.blockchain_network = "mainnet"
 
-        if self.blockchain_protocol is None:
-            logger.fatal("Blockchain protocol information is missing exiting.")
+        blockchain_protocol = self.blockchain_protocol
+
+        if blockchain_protocol is None:
+            logger.fatal(log_messages.MISSING_BLOCKCHAIN_PROTOCOL)
             sys.exit(1)
 
-        if self.blockchain_protocol == BlockchainProtocol.ETHEREUM.value:
+        if blockchain_protocol == BlockchainProtocol.ETHEREUM.value:
             self.validate_eth_opts()
+
+        self.blockchain_ip = validate_blockchain_ip(
+            self.blockchain_ip, self.is_docker)
 
 
 def get_sdn_hostname(sdn_url: str) -> str:
@@ -267,15 +256,28 @@ def get_sdn_hostname(sdn_url: str) -> str:
     return new_sdn_url
 
 
-def validate_pub_key(key):
+def validate_pub_key(key) -> None:
     if key.startswith("0x"):
         key = key[2:]
     if len(key) != 2 * eth_constants.PUBLIC_KEY_LEN:
-        logger.fatal("Public key must be the 128 digit key associated with the blockchain enode. "
-                     "Invalid key length: {}", len(key), exc_info=False)
+        logger.fatal(log_messages.INVALID_PUBLIC_KEY_LENGTH,
+                     len(key), exc_info=False)
         sys.exit(1)
     eccx_obj = ECCx()
     if not eccx_obj.is_valid_key(hex_to_bytes(key)):
-        logger.fatal("Public key must be constructed from a valid private key.", exc_info=False)
+        logger.fatal(log_messages.INVALID_PUBLIC_KEY, exc_info=False)
         sys.exit(1)
 
+
+def validate_blockchain_ip(blockchain_ip, is_docker=False) -> str:
+    if blockchain_ip is None:
+        logger.fatal(log_messages.MISSING_BLOCKCHAIN_IP, exc_info=False)
+        sys.exit(1)
+
+    if blockchain_ip == gateway_constants.LOCALHOST and is_docker:
+        logger.warning(log_messages.INVALID_BLOCKCHAIN_IP, exc_info=False)
+    try:
+        return ip_resolver.blocking_resolve_ip(blockchain_ip)
+    except EnvironmentError:
+        logger.fatal(log_messages.BLOCKCHAIN_IP_RESOLVE_ERROR, blockchain_ip)
+        sys.exit(1)

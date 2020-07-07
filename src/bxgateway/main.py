@@ -10,6 +10,7 @@ import os
 import random
 import sys
 import functools
+from typing import Optional, List
 
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -289,10 +290,10 @@ def get_argument_parser() -> argparse.ArgumentParser:
     return arg_parser
 
 
-def get_opts() -> GatewayOpts:
+def get_opts(args: Optional[List[str]] = None) -> GatewayOpts:
     config.set_working_directory(os.path.dirname(__file__))
 
-    opts = GatewayOpts(cli.parse_arguments(get_argument_parser()))
+    opts = GatewayOpts(cli.parse_arguments(get_argument_parser(), args))
     config.set_data_directory(opts.data_dir)
     if opts.private_key is None:
         opts.private_key = get_default_eth_private_key()

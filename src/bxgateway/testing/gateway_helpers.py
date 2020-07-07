@@ -181,8 +181,6 @@ def get_gateway_opts(
     for key, val in kwargs.items():
         opts.__dict__[key] = val
 
-    # validation messes up tests
-    GatewayOpts.validate_blockchain_ip = MagicMock()
     gateway_opts = GatewayOpts(opts)
 
     # some attributes are usually set by the node runner
