@@ -108,12 +108,14 @@ class EthGatewayNodeTest(AbstractTestCase):
 
         self.assertEqual(len(self.servers) + 1, len(peer_connections))
 
-        server_index = 0
         for server in self.servers:
-            self.assertEqual(IpEndpoint(server.ip, server.port), peer_connections[server_index].endpoint)
+            peer_connection = [peer for peer in peer_connections
+                               if peer.endpoint.ip_address == server.ip and peer.endpoint.port == server.port][0]
 
-            server_index += 1
+            self.assertEqual(IpEndpoint(server.ip, server.port), peer_connection.endpoint)
+
         blockchain_connection = peer_connections[len(self.servers)]
+
         self.assertEqual(IpEndpoint(self.blockchain_ip, self.blockchain_port), blockchain_connection.endpoint)
         self.assertEqual(expected_node_con_protocol, blockchain_connection.transport_protocol)
 

@@ -121,19 +121,19 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         opts: GatewayOpts,
         node_ssl_service: NodeSSLService,
         tracked_block_cleanup_interval_s=constants.CANCEL_ALARMS
-    ):
+    ) -> None:
         super(AbstractGatewayNode, self).__init__(
             opts, node_ssl_service
         )
         self.opts: GatewayOpts = opts
         if opts.split_relays:
-            opts.peer_transaction_relays = [
+            opts.peer_transaction_relays = {
                 OutboundPeerModel(peer_relay.ip, peer_relay.port + 1, node_type=NodeType.RELAY_TRANSACTION)
                 for peer_relay in opts.peer_relays
-            ]
-            opts.outbound_peers += opts.peer_transaction_relays
+            }
+            opts.outbound_peers.update(opts.peer_transaction_relays)
         else:
-            opts.peer_transaction_relays = []
+            opts.peer_transaction_relays = set()
 
         if opts.account_model:
             self.account_model = opts.account_model

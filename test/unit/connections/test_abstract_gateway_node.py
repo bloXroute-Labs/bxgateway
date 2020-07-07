@@ -33,6 +33,7 @@ from bxgateway.connections.btc.btc_relay_connection import BtcRelayConnection
 from bxgateway.connections.btc.btc_remote_connection import BtcRemoteConnection
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
+from bxgateway.gateway_opts import GatewayOpts
 from bxutils.services.node_ssl_service import NodeSSLService
 
 

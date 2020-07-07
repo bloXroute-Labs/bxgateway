@@ -182,24 +182,24 @@ def get_argument_parser() -> argparse.ArgumentParser:
         "--dump-short-id-mapping-compression",
         help="If true, the gateway will dump all short ids and txhashes compressed into a block",
         type=convert.str_to_bool,
-        default=False
+        default=False,
     )
     arg_parser.add_argument(
         "--dump-short-id-mapping-compression-path",
         help="Folder to dump compressed short ids to",
-        default="/app/bxgateway/debug/compressed-short-ids"
+        default="/app/bxgateway/debug/compressed-short-ids",
     )
     arg_parser.add_argument(
         "--tune-send-buffer-size",
         help="If true, then the gateway will increase the send buffer's size for the blockchain connection",
         default=False,
-        type=convert.str_to_bool
+        type=convert.str_to_bool,
     )
     arg_parser.add_argument(
         "--max-block-interval",
         help="Maximum time gateway holds a block while waiting for confirmation of receipt from blockchain node",
         type=int,
-        default=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S
+        default=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S,
     )
     arg_parser.add_argument(
         "--cookie-file-path",
@@ -210,82 +210,84 @@ def get_argument_parser() -> argparse.ArgumentParser:
         "--blockchain-message-ttl",
         help="Duration to queue up messages for if blockchain node connection is broken",
         type=int,
-        default=gateway_constants.DEFAULT_BLOCKCHAIN_MESSAGE_TTL_S
+        default=gateway_constants.DEFAULT_BLOCKCHAIN_MESSAGE_TTL_S,
     )
     arg_parser.add_argument(
         "--remote-blockchain-message-ttl",
         help="Duration to queue up messages for if remote blockchain node connection is broken",
         type=int,
-        default=gateway_constants.DEFAULT_REMOTE_BLOCKCHAIN_MESSAGE_TTL_S
+        default=gateway_constants.DEFAULT_REMOTE_BLOCKCHAIN_MESSAGE_TTL_S,
     )
     arg_parser.add_argument(
         "--stay-alive-duration",
         help="Duration Gateway should stay alive for without an active blockchain or relay connection",
         type=int,
-        default=gateway_constants.DEFAULT_STAY_ALIVE_DURATION_S
+        default=gateway_constants.DEFAULT_STAY_ALIVE_DURATION_S,
     )
     arg_parser.add_argument(
         "--initial-liveliness-check",
         help="Duration Gateway should stay alive for without an initial blockchain or relay connection",
         type=int,
-        default=gateway_constants.INITIAL_LIVELINESS_CHECK_S
+        default=gateway_constants.INITIAL_LIVELINESS_CHECK_S,
     )
     arg_parser.add_argument(
         "--config-update-interval",
         help="update the node configuration on cron, 0 to disable",
         type=int,
-        default=gateway_constants.CONFIG_UPDATE_INTERVAL_S
+        default=gateway_constants.CONFIG_UPDATE_INTERVAL_S,
     )
     arg_parser.add_argument(
         "--require-blockchain-connection",
         help="Close gateway if connection with blockchain node can't be established "
              "when the flag is set to True",
         type=convert.str_to_bool,
-        default=True
+        default=True,
     )
-    default_tx_quota_type = config.get_env_default(GatewayStartArgs.DEFAULT_TX_QUOTA_TYPE)
+    default_tx_quota_type = config.get_env_default(
+        GatewayStartArgs.DEFAULT_TX_QUOTA_TYPE
+    )
     arg_parser.add_argument(
         "--default-tx-quota-type",
         help=f"quota type to use when distributing transactions to the Bdn network (default: {default_tx_quota_type})",
         type=QuotaType.from_string,
         choices=list(QuotaType),
-        default=default_tx_quota_type
+        default=default_tx_quota_type,
     )
     arg_parser.add_argument(
         "--ws",
         help=f"Enable RPC websockets server (default: False)",
         type=convert.str_to_bool,
-        default=False
+        default=False,
     )
     arg_parser.add_argument(
         "--ws-host",
         help=f"Websockets server listening host (default: {gateway_constants.WS_DEFAULT_HOST})",
         type=str,
-        default=gateway_constants.WS_DEFAULT_HOST
+        default=gateway_constants.WS_DEFAULT_HOST,
     )
     arg_parser.add_argument(
         "--ws-port",
         help=f"Websockets server listening port (default: {gateway_constants.WS_DEFAULT_PORT}",
         type=int,
-        default=gateway_constants.WS_DEFAULT_PORT
+        default=gateway_constants.WS_DEFAULT_PORT,
     )
     arg_parser.add_argument(
         "--eth-ws-uri",
         help="Ethereum websockets endpoint for syncing transaction content",
-        type=str
+        type=str,
     )
     arg_parser.add_argument(
         "--process-node-txs-in-extension",
         help="If true, then the gateway will process transactions received from blockchain node using C++ extension",
         default=True,
-        type=convert.str_to_bool
+        type=convert.str_to_bool,
     )
     # TODO temp arg, need to be removed
     arg_parser.add_argument(
         "--enable-eth-extensions",
         help="If true, run compression and decompression using C++ extensions code",
         default=True,
-        type=convert.str_to_bool
+        type=convert.str_to_bool,
     )
     return arg_parser
 
@@ -293,7 +295,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
 def get_opts(args: Optional[List[str]] = None) -> GatewayOpts:
     config.set_working_directory(os.path.dirname(__file__))
 
-    opts = GatewayOpts(cli.parse_arguments(get_argument_parser(), args))
+    opts = GatewayOpts.from_opts(cli.parse_arguments(get_argument_parser(), args))
     config.set_data_directory(opts.data_dir)
     if opts.private_key is None:
         opts.private_key = get_default_eth_private_key()
@@ -308,7 +310,12 @@ def main():
     opts = get_opts()
     get_node_class = functools.partial(get_gateway_node_type, opts.blockchain_protocol)
     node_runner.run_node(
-        config.get_data_file(PID_FILE_NAME), opts, get_node_class, NodeType.EXTERNAL_GATEWAY, logger_names=logger_names)
+        config.get_data_file(PID_FILE_NAME),
+        opts,
+        get_node_class,
+        NodeType.EXTERNAL_GATEWAY,
+        logger_names=logger_names,
+    )
 
 
 if __name__ == "__main__":
