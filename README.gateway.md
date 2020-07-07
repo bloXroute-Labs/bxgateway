@@ -33,7 +33,7 @@ virtualenv venv -p python3
 source venv/bin/activate
 ```
 
-bloxroute-gateway has C++ extensions that are compiled per operating system, so this PIP package is distributed 
+bloxroute-gateway has C++ extensions that are compiled per operating system, so this `pip` package is distributed 
 only as an [Source Distribution][2]. During installation, we require `distro` to determine the operating system version
 and `requests` to fetch the right set of C++ extensions from an S3 bucket.
 
