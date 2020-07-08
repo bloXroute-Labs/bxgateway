@@ -2,10 +2,9 @@ from asynctest import MagicMock
 
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.utils import convert
-from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
-from bxgateway.feed.new_transaction_feed import NewTransactionFeed, TransactionFeedEntry
+from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.feed.new_transaction_feed import NewTransactionFeed
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
@@ -24,8 +23,6 @@ class EthRelayConnectionTest(AbstractTestCase):
         )
 
     def test_publish_new_transaction(self):
-        self.node.feed_manager.any_subscribers = MagicMock(return_value=True)
-
         bx_tx_message, _, _ = self.node.message_converter.tx_to_bx_txs(
             mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE, 5
         )[0]
@@ -33,30 +30,10 @@ class EthRelayConnectionTest(AbstractTestCase):
         self.node.feed_manager.publish_to_feed = MagicMock()
         self.connection.msg_tx(bx_tx_message)
 
-        expected_publication = TransactionFeedEntry(
-            Sha256Hash(
-                convert.hex_to_bytes(mock_eth_messages.EIP_155_TRANSACTION_HASH)
-            ),
-            mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE.get_transactions()[0].to_json()
+        expected_publication = EthRawTransaction(
+            bx_tx_message.tx_hash(), bx_tx_message.tx_val()
         )
         self.node.feed_manager.publish_to_feed.assert_called_once_with(
-                NewTransactionFeed.NAME, expected_publication
+            NewTransactionFeed.NAME, expected_publication
         )
 
-    def test_publish_new_transaction_no_subscribers(self):
-        self.node.feed_manager.any_subscribers = MagicMock(return_value=False)
-
-        bx_tx_message, _, _ = self.node.message_converter.tx_to_bx_txs(
-            mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE, 5
-        )[0]
-
-        self.node.feed_manager.publish_to_feed = MagicMock()
-        self.connection.msg_tx(bx_tx_message)
-
-        expected_publication = TransactionFeedEntry(
-            Sha256Hash(
-                convert.hex_to_bytes(mock_eth_messages.EIP_155_TRANSACTION_HASH)
-            ),
-            mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE.get_transactions()[0].to_json()
-        )
-        self.node.feed_manager.publish_to_feed.assert_not_called()

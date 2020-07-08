@@ -4,10 +4,10 @@ from typing import Dict, Any, TYPE_CHECKING, List, Type
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
 from bxgateway import gateway_constants
+from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxutils import logging
 from bxutils.logging import LogRecordType
-from bxgateway.feed.new_transaction_feed import NewTransactionFeed
-from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
+from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -89,12 +89,12 @@ class TransactionFeedStatsService(
         node = self.node
         assert node is not None
         feeds = node.feed_manager.feeds
-        if PendingTransactionFeed.NAME in feeds:
-            pending_transaction_feed_subscribers = len(feeds[PendingTransactionFeed.NAME].subscribers)
+        if EthPendingTransactionFeed.NAME in feeds:
+            pending_transaction_feed_subscribers = len(feeds[EthPendingTransactionFeed.NAME].subscribers)
         else:
             pending_transaction_feed_subscribers = None
-        if NewTransactionFeed.NAME in feeds:
-            new_transaction_feed_subscribers = len(feeds[NewTransactionFeed.NAME].subscribers)
+        if EthNewTransactionFeed.NAME in feeds:
+            new_transaction_feed_subscribers = len(feeds[EthNewTransactionFeed.NAME].subscribers)
         else:
             new_transaction_feed_subscribers = None
 

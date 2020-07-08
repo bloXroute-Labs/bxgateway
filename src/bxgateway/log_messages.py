@@ -423,3 +423,8 @@ BLOCKCHAIN_IP_RESOLVE_ERROR = LogMessage(
     GENERAL_CATEGORY,
     "Blockchain IP could not be resolved, exiting. Blockchain IP: {}"
 )
+COULD_NOT_SERIALIZE_FEED_ENTRY = LogMessage(
+    "G-000079",
+    PROCESSING_FAILED_CATEGORY,
+    "Could not serialize feed entry. Skipping."
+)

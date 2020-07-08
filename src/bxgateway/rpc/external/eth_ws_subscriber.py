@@ -2,17 +2,14 @@ import asyncio
 from asyncio import Future
 from typing import Optional, cast, List, Tuple, Dict, Any
 
-import rlp
-
 from bxcommon.rpc.rpc_errors import RpcError
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import log_messages
+from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.feed_manager import FeedManager
-from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
-from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.rpc.provider.abstract_ws_provider import AbstractWsProvider, WsException
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 from bxutils import logging
@@ -142,21 +139,9 @@ class EthWsSubscriber(AbstractWsProvider):
     ) -> None:
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
 
-        if not self.feed_manager.any_subscribers():
-            self.feed_manager.keep_feed_alive(PendingTransactionFeed.NAME)
-            return
-
-        try:
-            transaction = rlp.decode(tx_contents.tobytes(), Transaction)
-            self.feed_manager.publish_to_feed(
-                PendingTransactionFeed.NAME,
-                TransactionFeedEntry(tx_hash, transaction.to_json())
-            )
-
-        except Exception as e:
-            logger.error(
-                log_messages.COULD_NOT_DESERIALIZE_TRANSACTION, tx_hash, e, exc_info=True
-            )
+        self.feed_manager.publish_to_feed(
+            EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+        )
 
     async def fetch_missing_transaction(self, tx_hash: Sha256Hash) -> None:
         try:
@@ -179,27 +164,12 @@ class EthWsSubscriber(AbstractWsProvider):
     ) -> None:
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
 
-        if not self.feed_manager.any_subscribers():
-            self.feed_manager.keep_feed_alive(PendingTransactionFeed.NAME)
-            return
-
         if parsed_tx is None:
             logger.debug(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, tx_hash)
             transaction_feed_stats_service.log_pending_transaction_missing_contents()
         else:
-            try:
-                # normalize transaction format
-                parsed_tx = Transaction.from_json(parsed_tx).to_json()
-            except Exception as e:
-                logger.error(
-                    log_messages.COULD_NOT_DESERIALIZE_TRANSACTION,
-                    parsed_tx,
-                    e,
-                    exc_info=True
-                )
             self.feed_manager.publish_to_feed(
-                PendingTransactionFeed.NAME,
-                TransactionFeedEntry(tx_hash, parsed_tx)
+                EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, parsed_tx)
             )
 
     async def stop(self) -> None:

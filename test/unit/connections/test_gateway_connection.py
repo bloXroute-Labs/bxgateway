@@ -326,7 +326,6 @@ class GatewayConnectionTest(AbstractTestCase):
 
     def test_msg_confirmed_tx(self):
         self.node.feed_manager.publish_to_feed = MagicMock()
-        self.node.feed_manager.any_subscribers = MagicMock(return_value=True)
 
         tx_hash = helpers.generate_object_hash()
         message = ConfirmedTxMessage(tx_hash)

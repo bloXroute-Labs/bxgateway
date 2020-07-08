@@ -50,7 +50,6 @@ from bxgateway.connections.abstract_relay_connection import AbstractRelayConnect
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxcommon.rpc import rpc_constants
 from bxgateway.feed.feed_manager import FeedManager
-from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
 from bxgateway.feed.new_transaction_feed import NewTransactionFeed
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
@@ -237,7 +236,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self._rpc_server = self.build_rpc_server()
         self._ws_server = self.build_ws_server()
         self._ipc_server = IpcServer(opts.ipc_file, self.feed_manager, self)
-        self.init_live_feeds()
+        self.init_authorized_live_feeds()
 
         self.tracked_block_cleanup_interval_s = tracked_block_cleanup_interval_s
         if self.tracked_block_cleanup_interval_s > 0:
@@ -333,13 +332,19 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 transaction_feed_stats_service.flush_info
             )
 
-    def init_live_feeds(self) -> None:
+    def init_authorized_live_feeds(self) -> None:
         account_model = self.account_model
-        if self.opts.ws and account_model and account_model.new_transaction_streaming.is_service_valid():
-            self.feed_manager.register_feed(NewTransactionFeed())
-            self.feed_manager.register_feed(PendingTransactionFeed(self.alarm_queue))
+        if (
+            self.opts.ws
+            and account_model
+            and account_model.new_transaction_streaming.is_service_valid()
+        ):
+            self.init_live_feeds()
         elif self.opts.ws:
             logger.warning(log_messages.TRANSACTION_FEED_NOT_ALLOWED)
+
+    def init_live_feeds(self) -> None:
+        self.feed_manager.register_feed(NewTransactionFeed())
 
     def send_bdn_performance_stats(self) -> int:
         relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)

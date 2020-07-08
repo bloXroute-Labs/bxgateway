@@ -43,7 +43,7 @@ class Transaction(rlp.Serializable):
     r: int
     s: int
 
-    def hash(self):
+    def hash(self) -> Sha256Hash:
         """Transaction hash"""
         hash_bytes = crypto_utils.keccak_hash(rlp.encode(self))
         return Sha256Hash(hash_bytes)

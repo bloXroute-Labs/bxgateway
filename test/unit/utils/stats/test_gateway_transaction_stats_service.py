@@ -38,7 +38,7 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.blockchain_connection_protocol = EthNodeConnectionProtocol(
             self.blockchain_connection, True, dummy_private_key, dummy_public_key)
         self.blockchain_connection.network_num = 0
-        self.blockchain_connection_protocol.publish_pending_transaction = MagicMock()
+        self.blockchain_connection_protocol.publish_transaction = MagicMock()
 
         self.relay_connection.state = ConnectionState.INITIALIZED
         gateway_transaction_stats_service.set_node(self.node)
