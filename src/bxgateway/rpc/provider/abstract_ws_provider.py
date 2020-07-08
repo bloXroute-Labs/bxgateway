@@ -59,8 +59,10 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
             self.ws = None
 
             try:
-                self.ws = await self.connect_websocket()
-            except ConnectionRefusedError as e:
+                self.ws = await asyncio.wait_for(
+                    self.connect_websocket(), gateway_constants.WS_MAX_CONNECTION_TIMEOUT_S
+                )
+            except (asyncio.TimeoutError, ConnectionRefusedError) as e:
                 # immediately raise an error if this is the first attempt,
                 # or not attempting to retry connections
                 if not self.retry_connection or not self.running:
