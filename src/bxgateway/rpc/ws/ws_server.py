@@ -24,16 +24,22 @@ class WsServer:
         self.port = port
         self.feed_manager = feed_manager
         self.node = node
+        self._started: bool = False
 
         self._server: Optional[WebSocketServer] = None
         self._connections: List[WsConnection] = []
 
+    def status(self) -> bool:
+        return self._started
+
     async def start(self) -> None:
         logger.info("Started websockets server")
         self._server = await websockets.serve(self.handle_connection, self.host, self.port)
+        self._started = True
 
     async def stop(self) -> None:
         server = self._server
+        self._started = False
         if server is not None:
             await asyncio.gather(
                 *(connection.close() for connection in self._connections)

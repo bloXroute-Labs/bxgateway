@@ -234,7 +234,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.default_tx_quota_type = QuotaType.FREE_DAILY_QUOTA
 
         self.feed_manager = FeedManager()
-        self._rpc_server = GatewayHttpRpcServer(self)
+        self._rpc_server = self.build_rpc_server()
         self._ws_server = self.build_ws_server()
         self._ipc_server = IpcServer(opts.ipc_file, self.feed_manager, self)
         self.init_live_feeds()
@@ -250,7 +250,21 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             ("quota",)
         )
         self.quota_gauge.labels("tx").set_function(
-            functools.partial(int, self.quota_level)
+            functools.partial(lambda: int(self.quota_level))
+        )
+        self.additional_servers = Gauge(
+            "additional_servers",
+            "Status of additional servers",
+            ("servers",)
+        )
+        self.additional_servers.labels("ws_server").set_function(
+            functools.partial(self._ws_server.status)
+        )
+        self.additional_servers.labels("ipc_server").set_function(
+            functools.partial(self._ipc_server.status)
+        )
+        self.additional_servers.labels("rpc_server").set_function(
+            functools.partial(self._rpc_server.status)
         )
 
         status_log.initialize(
@@ -291,6 +305,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     @abstractmethod
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         pass
+
+    def build_rpc_server(self) -> GatewayHttpRpcServer:
+        return GatewayHttpRpcServer(self)
 
     def build_ws_server(self) -> WsServer:
         return WsServer(self.opts.ws_host, self.opts.ws_port, self.feed_manager, self)
