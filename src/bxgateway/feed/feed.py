@@ -16,12 +16,10 @@ class Feed(Generic[T, S], metaclass=ABCMeta):
 
     name: str
     subscribers: Dict[str, Subscriber[T]]
-    _active: bool
 
     def __init__(self, name: str) -> None:
         self.name = name
         self.subscribers = {}
-        self._active = True
 
     def subscribe(
         self, include_fields: Optional[List[str]] = None
@@ -68,7 +66,3 @@ class Feed(Generic[T, S], metaclass=ABCMeta):
 
     def subscriber_count(self) -> int:
         return len(self.subscribers)
-
-    @property
-    def active(self) -> bool:
-        return self._active
