@@ -81,7 +81,7 @@ class AbstractBlockchainConnectionProtocol:
             )
             if self.connection.node.opts.ws:
                 self.publish_transaction(
-                    tx_result.transaction_hash, tx_result.transaction_contents
+                    tx_result.transaction_hash, memoryview(tx_result.transaction_contents)
                 )
 
             if broadcast_peers:

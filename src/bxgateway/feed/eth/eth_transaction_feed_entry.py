@@ -19,14 +19,23 @@ class EthTransactionFeedEntry:
 
         try:
             if isinstance(tx_contents, memoryview):
-                # parse transaction from bytearray
+                # parse transaction from memoryview
                 transaction = rlp.decode(tx_contents.tobytes(), Transaction)
                 self.tx_contents = transaction.to_json()
             else:
                 # normalize json from source
                 self.tx_contents = Transaction.from_json(tx_contents).to_json()
         except Exception as e:
-            logger.error(log_messages.COULD_NOT_DESERIALIZE_TRANSACTION, tx_hash, e)
+            tx_contents_str = tx_contents
+            if isinstance(tx_contents, memoryview):
+                tx_contents_str = tx_contents.tobytes()
+                
+            logger.error(
+                log_messages.COULD_NOT_DESERIALIZE_TRANSACTION,
+                tx_hash,
+                tx_contents_str,
+                e
+            )
             raise e
 
     def __eq__(self, other) -> bool:

@@ -320,7 +320,7 @@ TRACKED_BLOCK_CLEANUP_ERROR = LogMessage(
 COULD_NOT_DESERIALIZE_TRANSACTION = LogMessage(
     "G-000060",
     PROCESSING_FAILED_CATEGORY,
-    "Could not deserialize transaction in transaction service to Ethereum payload: {}. Error: {}",
+    "Could not deserialize transaction in transaction service to Ethereum payload: {}, body: {}. Error: {}",
 )
 TRANSACTION_NOT_FOUND_IN_MEMPOOL = LogMessage(
     "G-000061",
