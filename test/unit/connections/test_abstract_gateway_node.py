@@ -337,10 +337,17 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         time.time = MagicMock(return_value=time.time() + gateway_constants.INITIAL_LIVELINESS_CHECK_S)
 
         node.alarm_queue.fire_alarms()
-        self.assertTrue(node.should_force_exit)
+        self.assertFalse(node.should_force_exit)
+
+    def test_not_early_exit_no_blockchain_connection(self):
+        node = self._initialize_gateway(False, True)
+        time.time = MagicMock(return_value=time.time() + gateway_constants.INITIAL_LIVELINESS_CHECK_S)
+
+        node.alarm_queue.fire_alarms()
+        self.assertFalse(node.should_force_exit)
 
     def test_early_exit_no_relay_connection(self):
-        node = self._initialize_gateway(True, False)
+        node = self._initialize_gateway(True, False, True)
         time.time = MagicMock(return_value=time.time() + gateway_constants.INITIAL_LIVELINESS_CHECK_S)
 
         node.alarm_queue.fire_alarms()
@@ -564,12 +571,18 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(relay_tx, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION)))
         self.assertEqual(relay_all, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
 
-    def _initialize_gateway(self, initialize_blockchain_conn: bool, initialize_relay_conn: bool) -> GatewayNode:
+    def _initialize_gateway(
+        self,
+        initialize_blockchain_conn: bool,
+        initialize_relay_conn: bool,
+        require_blockchain_connection: bool = False
+    ) -> GatewayNode:
         opts = gateway_helpers.get_gateway_opts(
             8000,
             blockchain_address=(LOCALHOST, 8001),
             peer_relays=[OutboundPeerModel(LOCALHOST, 8002)],
-            include_default_btc_args=True
+            include_default_btc_args=True,
+            require_blockchain_connection=require_blockchain_connection
         )
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
