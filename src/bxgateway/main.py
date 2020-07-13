@@ -241,7 +241,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
         help="Close gateway if connection with blockchain node can't be established "
              "when the flag is set to True",
         type=convert.str_to_bool,
-        default=False,
+        default=True,
     )
     default_tx_quota_type = config.get_env_default(
         GatewayStartArgs.DEFAULT_TX_QUOTA_TYPE

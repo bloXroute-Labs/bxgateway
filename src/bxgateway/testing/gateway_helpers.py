@@ -53,7 +53,6 @@ def get_gateway_opts(
     ws_host=constants.LOCALHOST,
     ws_port=28333,
     request_remote_transaction_streaming: bool = False,
-    require_blockchain_connection: bool = False,
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:
@@ -120,7 +119,7 @@ def get_gateway_opts(
             "initial_liveliness_check": initial_liveliness_check,
             "has_fully_updated_tx_service": has_fully_updated_tx_service,
             "source_version": source_version,
-            "require_blockchain_connection": require_blockchain_connection,
+            "require_blockchain_connection": True,
             "non_ssl_port": non_ssl_port,
             "default_tx_quota_type": default_tx_quota_type,
             "should_update_source_version": False,
