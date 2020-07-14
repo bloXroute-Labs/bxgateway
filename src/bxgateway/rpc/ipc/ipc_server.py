@@ -23,14 +23,20 @@ class IpcServer:
         self.feed_manager = feed_manager
         self._server: Optional[WebSocketServer] = None
         self._connections: List[WsConnection] = []
+        self._started: bool = False
+
+    def status(self) -> bool:
+        return self._started
 
     async def start(self) -> None:
         if os.path.exists(self.ipc_path):
             os.remove(self.ipc_path)
         self._server = await websockets.unix_serve(self.handle_connection, self.ipc_path)
+        self._started = True
 
     async def stop(self) -> None:
         server = self._server
+        self._started = False
         if server is not None:
             for connection in self._connections:
                 connection.close()

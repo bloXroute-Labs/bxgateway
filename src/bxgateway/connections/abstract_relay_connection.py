@@ -25,7 +25,7 @@ from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEven
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import log_messages, gateway_constants
 from bxgateway.feed.new_transaction_feed import NewTransactionFeed, \
-    TransactionFeedEntry
+    RawTransactionFeedEntry
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
@@ -366,5 +366,5 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     ) -> None:
         self.node.feed_manager.publish_to_feed(
             NewTransactionFeed.NAME,
-            TransactionFeedEntry(tx_hash, tx_contents)
+            RawTransactionFeedEntry(tx_hash, tx_contents)
         )

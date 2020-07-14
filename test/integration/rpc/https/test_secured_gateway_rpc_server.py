@@ -32,7 +32,8 @@ class SecuredGatewayRpcServerTest(AbstractGatewayRpcIntegrationTest):
             rpc=True,
             rpc_user=self.rpc_user,
             rpc_password=self.rpc_password,
-            account_model=self._account_model
+            account_model=self._account_model,
+            blockchain_protocol="Ethereum"
         )
         return opts
 

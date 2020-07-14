@@ -320,7 +320,7 @@ TRACKED_BLOCK_CLEANUP_ERROR = LogMessage(
 COULD_NOT_DESERIALIZE_TRANSACTION = LogMessage(
     "G-000060",
     PROCESSING_FAILED_CATEGORY,
-    "Could not deserialize transaction in transaction service to Ethereum payload: {}. Error: {}",
+    "Could not deserialize transaction in transaction service to Ethereum payload: {}, body: {}. Error: {}",
 )
 TRANSACTION_NOT_FOUND_IN_MEMPOOL = LogMessage(
     "G-000061",
@@ -380,4 +380,51 @@ ETH_WS_SUBSCRIBER_CONNECTION_BROKEN = LogMessage(
     "G-000070",
     RPC_ERROR,
     "Ethereum websockets connection was broken. Attempting reconnection..."
+)
+ETH_MISSING_BLOCKCHAIN_IP = LogMessage(
+    "G-000071",
+    GENERAL_CATEGORY,
+    "Either --blockchain-ip or --enode arguments are required."
+)
+ETH_MISSING_NODE_PUBLIC_KEY = LogMessage(
+    "G-000072",
+    GENERAL_CATEGORY,
+    "--node-public-key argument is required but not specified."
+)
+MISSING_BLOCKCHAIN_IP = LogMessage(
+    "G-000073",
+    GENERAL_CATEGORY,
+    "--blockchain-ip is required but not specified."
+)
+MISSING_BLOCKCHAIN_PROTOCOL = LogMessage(
+    "G-000074",
+    GENERAL_CATEGORY,
+    "Blockchain protocol information is missing exiting."
+)
+INVALID_PUBLIC_KEY_LENGTH = LogMessage(
+    "G-000075",
+    GENERAL_CATEGORY,
+    "Public key must be the 128 digit key associated with the blockchain enode. "
+    "Invalid key length: {}"
+)
+INVALID_PUBLIC_KEY = LogMessage(
+    "G-000076",
+    GENERAL_CATEGORY,
+    "Public key must be constructed from a valid private key."
+)
+INVALID_BLOCKCHAIN_IP = LogMessage(
+    "G-000077",
+    GENERAL_CATEGORY,
+    "The specified blockchain IP is localhost, which is not compatible with a dockerized "
+    "gateway. Did you mean 172.17.0.X?"
+)
+BLOCKCHAIN_IP_RESOLVE_ERROR = LogMessage(
+    "G-000078",
+    GENERAL_CATEGORY,
+    "Blockchain IP could not be resolved, exiting. Blockchain IP: {}"
+)
+COULD_NOT_SERIALIZE_FEED_ENTRY = LogMessage(
+    "G-000079",
+    PROCESSING_FAILED_CATEGORY,
+    "Could not serialize feed entry. Skipping."
 )

@@ -9,7 +9,7 @@ from bxcommon.services.threaded_request_service import ThreadedRequestService
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test, AsyncMock
-from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
+from bxgateway.feed.new_transaction_feed import RawTransaction, RawTransactionFeedEntry
 from bxgateway.rpc.provider.abstract_ws_provider import WsException
 from bxgateway.rpc.ws.ws_server import WsServer
 from bxgateway.testing import gateway_helpers
@@ -75,12 +75,16 @@ class WsProviderTest(AbstractTestCase):
 
             tx_contents = helpers.generate_bytes(250)
 
-            published_message = TransactionFeedEntry(
+            raw_published_message = RawTransaction(
                 helpers.generate_object_hash(),
                 memoryview(tx_contents)
             )
+            serialized_published_message = RawTransactionFeedEntry(
+                raw_published_message.tx_hash,
+                raw_published_message.tx_contents
+            )
             self.gateway_node.feed_manager.publish_to_feed(
-                "newTxs", published_message
+                "newTxs", raw_published_message
             )
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
@@ -90,10 +94,10 @@ class WsProviderTest(AbstractTestCase):
                 subscription_id, subscription_message.subscription_id
             )
             self.assertEqual(
-                published_message.tx_hash, subscription_message.notification["tx_hash"]
+                serialized_published_message.tx_hash, subscription_message.notification["tx_hash"]
             )
             self.assertEqual(
-                published_message.tx_contents, subscription_message.notification["tx_contents"]
+                serialized_published_message.tx_contents, subscription_message.notification["tx_contents"]
             )
 
             task = asyncio.create_task(

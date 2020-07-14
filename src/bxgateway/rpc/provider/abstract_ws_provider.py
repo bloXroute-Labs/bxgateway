@@ -52,7 +52,7 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
         assert ws is not None
 
     async def connect(self) -> None:
-        logger.trace("Initiating websockets connection to: {}", self.uri)
+        logger.debug("Initiating websockets connection to: {}", self.uri)
 
         connection_attempts = 0
         while True:
@@ -69,7 +69,7 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
                     logger.warning(log_messages.WS_COULD_NOT_CONNECT, self.uri)
                     raise e
                 elif connection_attempts < len(gateway_constants.WS_RECONNECT_TIMEOUTS):
-                    logger.trace(
+                    logger.debug(
                         "Connection was rejected from websockets endpoint: {}. Retrying...",
                         self.uri,
                         gateway_constants.WS_RECONNECT_TIMEOUTS[connection_attempts]
@@ -80,7 +80,7 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
                 else:
                     break
             else:
-                logger.trace("Connected to websockets endpoint: {}", self.uri)
+                logger.debug("Connected to websockets endpoint: {}", self.uri)
                 break
 
             connection_attempts += 1

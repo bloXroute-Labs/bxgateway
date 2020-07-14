@@ -1,11 +1,16 @@
 import struct
 
-from mock import MagicMock
+from mock import MagicMock, call
 
+from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
+from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
+    TransactionsEthProtocolMessage
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxgateway import eth_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import (
     AbstractGatewayBlockchainConnection,
 )
@@ -52,8 +57,10 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.connection.node = self.node
         self.connection.is_active = MagicMock(return_value=True)
         self.connection.network_num = 5
+        self.connection.format_connection_desc = "127.0.0.1:12345 - B"
         self.node.set_known_total_difficulty = MagicMock()
         self.node.node_conn = self.connection
+        self.node.message_converter = EthNormalMessageConverter()
 
         self.cleanup_service = EthNormalBlockCleanupService(
             self.node, NETWORK_NUM
@@ -422,3 +429,31 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
                 block_hashes[i + 10],
                 headers_sent.get_block_headers()[i].hash_object(),
             )
+
+    def test_msg_tx(self):
+        self.node.feed_manager.publish_to_feed = MagicMock()
+        self.node.opts.ws = True
+
+        transaction = mock_eth_messages.get_dummy_transaction(1)
+        transaction_hash = transaction.hash()
+        transaction_contents = transaction.contents()
+        messages = TransactionsEthProtocolMessage(None, [transaction])
+
+        self.sut.msg_tx(messages)
+
+        # published to both feeds
+        self.node.feed_manager.publish_to_feed.assert_has_calls(
+            [
+                call(
+                    EthNewTransactionFeed.NAME,
+                    EthRawTransaction(transaction_hash, transaction_contents)
+                ),
+                call(
+                    EthPendingTransactionFeed.NAME,
+                    EthRawTransaction(transaction_hash, transaction_contents)
+                ),
+            ]
+        )
+
+        # broadcast transactions
+        self.assertEqual(1, len(self.node.broadcast_messages))

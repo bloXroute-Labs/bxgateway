@@ -12,7 +12,11 @@ from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
+
+
+class TestFeed(Feed[str, str]):
+    def serialize(self, raw_message: str) -> str:
+        return raw_message
 
 
 class SubscriptionRpcHandlerTest(AbstractTestCase):
@@ -30,7 +34,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
 
     @async_test
     async def test_subscribe_to_feed(self):
-        feed = Feed("foo")
+        feed = TestFeed("foo")
         self.feed_manager.register_feed(feed)
         subscribe_request = BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo", {}])
 
@@ -66,7 +70,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
 
     @async_test
     async def test_subscribe_to_feed_validation(self):
-        feed = Feed("foo")
+        feed = TestFeed("foo")
         feed.FIELDS = ["field1", "field2", "field3"]
         self.feed_manager.register_feed(feed)
         subscribe_request = BxJsonRpcRequest(
@@ -81,7 +85,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
 
     @async_test
     async def test_subscribe_to_feed_with_filter(self):
-        feed = Feed("foo")
+        feed = TestFeed("foo")
         feed.FIELDS = ["field1", "field2", "field3"]
         self.feed_manager.register_feed(feed)
         subscribe_request = BxJsonRpcRequest(
@@ -121,9 +125,9 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
 
     @async_test
     async def test_subscribe_to_multiple_feeds(self):
-        feed1 = Feed("foo1")
-        feed2 = Feed("foo2")
-        feed3 = Feed("foo3")
+        feed1 = TestFeed("foo1")
+        feed2 = TestFeed("foo2")
+        feed3 = TestFeed("foo3")
         for feed in [feed1, feed2, feed3]:
             self.feed_manager.register_feed(feed)
 
@@ -173,7 +177,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
 
     @async_test
     async def test_unsubscribe(self):
-        feed = Feed("foo")
+        feed = TestFeed("foo")
         self.feed_manager.register_feed(feed)
 
         subscribe_request = BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo", {}])
@@ -215,7 +219,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
 
         close_listener = asyncio.create_task(self.rpc.wait_for_close())
 
-        feed1 = Feed("foo1")
+        feed1 = TestFeed("foo1")
         self.feed_manager.register_feed(feed1)
 
         rpc_request = BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo1", {}])

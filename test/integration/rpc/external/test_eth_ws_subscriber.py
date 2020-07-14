@@ -14,9 +14,9 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
 from bxcommon.utils import convert
-from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
+from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.subscriber import Subscriber
-from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
+from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
 from bxgateway.messages.eth.serializers.transaction import Transaction
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.testing import gateway_helpers
@@ -56,13 +56,17 @@ class EthWsSubscriberTest(AbstractTestCase):
             8000, eth_ws_uri=self.eth_ws_uri, ws=True)
         gateway_opts.set_account_options(account_model)
         self.gateway_node = MockGatewayNode(gateway_opts)
+        self.gateway_node.feed_manager.register_feed(
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+        )
 
         self.eth_ws_subscriber = EthWsSubscriber(
             self.eth_ws_uri, self.gateway_node.feed_manager, self.gateway_node.get_tx_service()
         )
         self.subscriber: Subscriber[
-            TransactionFeedEntry
-        ] = self.gateway_node.feed_manager.subscribe_to_feed(PendingTransactionFeed.NAME)
+            RawTransactionFeedEntry
+        ] = self.gateway_node.feed_manager.subscribe_to_feed(EthPendingTransactionFeed.NAME)
+        self.assertIsNotNone(self.subscriber)
 
         await self.eth_ws_subscriber.start()
         await asyncio.sleep(0.01)
@@ -146,11 +150,11 @@ class EthWsSubscriberTest(AbstractTestCase):
         self.assertEqual(2, self.subscriber.messages.qsize())
 
         tx_message_1 = await self.subscriber.receive()
-        self.assertEqual(convert.bytes_to_hex(tx_hash.binary), tx_message_1.tx_hash)
+        self.assertEqual(f"0x{convert.bytes_to_hex(tx_hash.binary)}", tx_message_1.tx_hash)
         self.assertEqual(tx_contents.to_json(), tx_message_1.tx_contents)
 
         tx_message_2 = await self.subscriber.receive()
-        self.assertEqual(convert.bytes_to_hex(tx_hash_2.binary), tx_message_2.tx_hash)
+        self.assertEqual(f"0x{convert.bytes_to_hex(tx_hash_2.binary)}", tx_message_2.tx_hash)
         self.assertEqual(tx_contents_2.to_json(), tx_message_2.tx_contents)
 
     @async_test
@@ -162,7 +166,7 @@ class EthWsSubscriberTest(AbstractTestCase):
 
         self.assertEqual(1, self.subscriber.messages.qsize())
         tx_message = await self.subscriber.receive()
-        self.assertEqual(convert.bytes_to_hex(tx_hash), tx_message.tx_hash)
+        self.assertEqual(f"0x{convert.bytes_to_hex(tx_hash)}", tx_message.tx_hash)
 
         expected_contents = self.sample_transactions[2].to_json()
         self.assertEqual(expected_contents, tx_message.tx_contents)

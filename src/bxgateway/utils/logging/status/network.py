@@ -19,7 +19,7 @@ class Network:
     remote_blockchain_nodes: List[BlockchainConnection]
 
     def get_summary(self, ip_address: str, continent: str, country: str, update_required: bool,
-                    account_id: Optional[str]) -> Summary:
+                    account_id: Optional[str], quota_level: Optional[int]) -> Summary:
         block_relay_connections_state = _connections_states_info(self.block_relays)
         transaction_relay_connections_state = _connections_states_info(self.transaction_relays)
         blockchain_node_connections_state = _connections_states_info(self.blockchain_nodes)
@@ -29,7 +29,8 @@ class Network:
         return Summary(gateway_status, summary.gateway_status_get_account_info(account_id),
                        block_relay_connections_state, transaction_relay_connections_state,
                        blockchain_node_connections_state, remote_blockchain_node_connections_state,
-                       ip_address, continent, country, update_required)
+                       ip_address, continent, country, update_required,
+                       summary.gateway_status_get_quota_level(quota_level))
 
     def clear(self):
         self.block_relays = []

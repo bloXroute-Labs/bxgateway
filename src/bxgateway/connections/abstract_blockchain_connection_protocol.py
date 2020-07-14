@@ -14,8 +14,8 @@ from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEven
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
-from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
-from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
+from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
+from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
@@ -79,13 +79,10 @@ class AbstractBlockchainConnectionProtocol:
                 self.connection,
                 connection_types=[ConnectionType.RELAY_TRANSACTION]
             )
-            # for now, don't publish transactions received from blockchain node
-            # huge performance impact to try and parse the 1000s of transactions
-            # from Ethereum on startup
-            # if self.connection.node.opts.ws and self.connection.node.opts.has_fully_updated_tx_service:
-            #     self.publish_pending_transaction(
-            #         tx_result.transaction_hash, tx_result.transaction_contents
-            #     )
+            if self.connection.node.opts.ws:
+                self.publish_transaction(
+                    tx_result.transaction_hash, memoryview(tx_result.transaction_contents)
+                )
 
             if broadcast_peers:
                 tx_stats.add_tx_by_hash_event(
@@ -214,10 +211,7 @@ class AbstractBlockchainConnectionProtocol:
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
         pass
 
-    def publish_pending_transaction(
-        self, tx_hash: Sha256Hash, tx_contents: Union[memoryview, bytearray]
+    def publish_transaction(
+        self, tx_hash: Sha256Hash, tx_contents: memoryview
     ) -> None:
-        self.connection.node.feed_manager.publish_to_feed(
-            PendingTransactionFeed.NAME,
-            TransactionFeedEntry(tx_hash, tx_contents)
-        )
+        pass

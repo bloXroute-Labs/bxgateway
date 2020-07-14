@@ -3,7 +3,7 @@ import base64
 
 from aiohttp import web
 from aiohttp.web import Request, Response
-from aiohttp.web_exceptions import HTTPClientError, HTTPUnauthorized
+from aiohttp.web_exceptions import HTTPClientError
 from prometheus_client import REGISTRY
 from prometheus_client import exposition as prometheus_client
 
@@ -25,7 +25,11 @@ logger = logging.get_logger(__name__)
 class GatewayHttpRpcServer(AbstractHttpRpcServer["AbstractGatewayNode"]):
     def __init__(self, node: "AbstractGatewayNode") -> None:
         super().__init__(node)
-        self._app.add_routes([web.get("/metrics", self.handle_metrics)])
+        self._app.add_routes(
+            [
+                web.get("/metrics", self.handle_metrics),
+            ]
+        )
 
     def authenticate_request(self, request: Request) -> None:
         is_authenticated = True

@@ -23,6 +23,8 @@ from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDisco
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
+from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
@@ -319,6 +321,10 @@ class EthGatewayNode(AbstractGatewayNode):
     def init_eth_gateway_stat_logging(self):
         eth_gateway_stats_service.set_node(self)
         self.alarm_queue.register_alarm(eth_gateway_stats_service.interval, eth_gateway_stats_service.flush_info)
+
+    def init_live_feeds(self) -> None:
+        self.feed_manager.register_feed(EthNewTransactionFeed())
+        self.feed_manager.register_feed(EthPendingTransactionFeed(self.alarm_queue))
 
     def get_enode(self):
         return \

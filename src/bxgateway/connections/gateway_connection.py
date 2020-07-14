@@ -16,8 +16,9 @@ from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
 from bxgateway import log_messages
-from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
-from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
+from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
 from bxgateway.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
@@ -192,12 +193,6 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_confirmed_tx(self, msg: ConfirmedTxMessage) -> None:
         tx_hash = msg.tx_hash()
-        transaction_feed_stats_service.log_pending_transaction_from_internal(tx_hash)
-
-        if not self.node.feed_manager.any_subscribers():
-            self.node.feed_manager.keep_feed_alive(PendingTransactionFeed.NAME)
-            return
-
         tx_contents = msg.tx_val()
 
         # shouldn't ever happen, but just in case
@@ -210,16 +205,11 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 transaction_feed_stats_service.log_pending_transaction_missing_contents()
                 return
 
-        try:
-            transaction = rlp.decode(tx_contents.tobytes(), Transaction)
-            self.node.feed_manager.publish_to_feed(
-                PendingTransactionFeed.NAME,
-                TransactionFeedEntry(tx_hash, transaction.to_json())
-            )
-        except Exception as e:
-            self.log_error(
-                log_messages.COULD_NOT_DESERIALIZE_TRANSACTION, tx_hash, e, exc_info=True
-            )
+        self.node.feed_manager.publish_to_feed(
+            EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+        )
+
+        transaction_feed_stats_service.log_pending_transaction_from_internal(tx_hash)
 
     def msg_request_tx_stream(self, msg: RequestTxStreamMessage) -> None:
         pass

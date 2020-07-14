@@ -15,8 +15,8 @@ if TYPE_CHECKING:
 
 class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {
-        "params": "[feed_name, {\"include\": [field_1, field_2]}.\n"
-                  "Available feeds: unconfirmed_txs, pending_txs\n"
+        "params": "[feed_name, {\"include\": [field_1, field_2]}].\n"
+                  "Available feeds: newTxs, pendingTxs\n"
                   "Available fields: tx_hash, tx_contents (default: all)",
         "description": "Subscribe to a named feed for notifications"
     }
@@ -59,12 +59,8 @@ class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
                 f"{feed_name} is an invalid feed. "
                 f"Available feeds: {list(self.feed_manager.feeds)}"
             )
-        elif not feed.active:
-            self.node.on_new_subscriber_request()
-            raise RpcInternalError(
-                self.request_id,
-                f"{feed_name} is not active. "
-            )
+
+        self.node.on_new_subscriber_request()
 
         self.feed_name = feed_name
 

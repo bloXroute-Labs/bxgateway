@@ -11,7 +11,6 @@ import websockets
 
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.testing import gateway_helpers
-from bxcommon import constants
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType
@@ -21,6 +20,11 @@ from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.testing.abstract_gateway_rpc_integration_test import \
     AbstractGatewayRpcIntegrationTest
 from bxgateway.rpc.ipc.ipc_server import IpcServer
+
+
+class TestFeed(Feed[int, int]):
+    def serialize(self, raw_message: int) -> int:
+        return raw_message
 
 
 class IpcServerTest(AbstractGatewayRpcIntegrationTest):
@@ -55,7 +59,7 @@ class IpcServerTest(AbstractGatewayRpcIntegrationTest):
 
     @async_test
     async def test_subscribe_and_unsubscribe(self):
-        feed: Feed[int] = Feed("foo")
+        feed = TestFeed("foo")
         self.feed_manager.register_feed(feed)
 
         def publish():

@@ -16,11 +16,16 @@ from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.test_utils.helpers import async_test
-from bxgateway.feed.feed import Feed
+from bxgateway.feed.feed import Feed, S, T
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.testing.abstract_gateway_rpc_integration_test import \
     AbstractGatewayRpcIntegrationTest
 from bxgateway.rpc.ws.ws_server import WsServer
+
+
+class TestFeed(Feed[int, int]):
+    def serialize(self, raw_message: int) -> int:
+        return raw_message
 
 
 class WsServerTest(AbstractGatewayRpcIntegrationTest):
@@ -55,7 +60,7 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
 
     @async_test
     async def test_subscribe_and_unsubscribe(self):
-        feed: Feed[int] = Feed("foo")
+        feed = TestFeed("foo")
         self.feed_manager.register_feed(feed)
 
         def publish():

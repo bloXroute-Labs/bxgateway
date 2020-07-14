@@ -53,14 +53,15 @@ def get_gateway_opts(
     ws_host=constants.LOCALHOST,
     ws_port=28333,
     request_remote_transaction_streaming: bool = False,
+    require_blockchain_connection: bool = False,
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:
         node_id = "Gateway at {0}".format(port)
     if peer_gateways is None:
-        peer_gateways = []
+        peer_gateways = set()
     if peer_relays is None:
-        peer_relays = []
+        peer_relays = set()
     if peer_transaction_relays is None:
         peer_transaction_relays = []
     if blockchain_address is None:
@@ -78,7 +79,7 @@ def get_gateway_opts(
     for kwarg, arg in partial_apply_args["kwargs"].items():
         partial_apply_args[kwarg] = arg
 
-    partial_apply_args["outbound_peers"] = peer_gateways + peer_relays
+    partial_apply_args["outbound_peers"] = set(peer_gateways).union(peer_relays)
 
     opts = Namespace()
     common_opts = get_common_opts(**partial_apply_args)
@@ -119,7 +120,7 @@ def get_gateway_opts(
             "initial_liveliness_check": initial_liveliness_check,
             "has_fully_updated_tx_service": has_fully_updated_tx_service,
             "source_version": source_version,
-            "require_blockchain_connection": True,
+            "require_blockchain_connection": require_blockchain_connection,
             "non_ssl_port": non_ssl_port,
             "default_tx_quota_type": default_tx_quota_type,
             "should_update_source_version": False,
@@ -130,7 +131,6 @@ def get_gateway_opts(
             "ws_host": constants.LOCALHOST,
             "ws_port": 28333,
             "account_id": account_id,
-            "account_model": account_model,
             "ipc": False,
             "ipc_file": "bxgateway.ipc",
             "request_remote_transaction_streaming": request_remote_transaction_streaming,
@@ -181,9 +181,9 @@ def get_gateway_opts(
     for key, val in kwargs.items():
         opts.__dict__[key] = val
 
-    # validation messes up tests
-    GatewayOpts.validate_blockchain_ip = MagicMock()
-    gateway_opts = GatewayOpts(opts)
+    gateway_opts = GatewayOpts.from_opts(opts)
+    if account_model:
+        gateway_opts.set_account_options(account_model)
 
     # some attributes are usually set by the node runner
     gateway_opts.__dict__.update({

@@ -20,4 +20,4 @@ class RequestTxStreamMessage(AbstractBloxrouteMessage):
         super().__init__(self.MESSAGE_TYPE, constants.CONTROL_FLAGS_LEN, buf)
 
     def log_level(self):
-        return LogLevel.INFO
+        return LogLevel.DEBUG

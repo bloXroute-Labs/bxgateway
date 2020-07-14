@@ -24,7 +24,8 @@ class GatewayRpcServerTest(AbstractGatewayRpcIntegrationTest):
 
     def get_gateway_opts(self) -> GatewayOpts:
         super().get_gateway_opts()
-        return gateway_helpers.get_gateway_opts(8000, rpc_port=self.rpc_port, account_model=self._account_model)
+        return gateway_helpers.get_gateway_opts(
+            8000, rpc_port=self.rpc_port, account_model=self._account_model, blockchain_protocol="Ethereum")
 
     async def request(self, req: BxJsonRpcRequest):
         headers = dict()

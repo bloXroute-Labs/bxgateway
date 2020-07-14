@@ -1,5 +1,5 @@
 from collections import deque
-from typing import List, Deque, Union, Dict
+from typing import List, Deque, Union
 from time import time
 
 import rlp
@@ -12,8 +12,10 @@ from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.eth_exceptions import CipherNotInitializedError
-from bxgateway.feed.new_transaction_feed import TransactionFeedEntry
-from bxgateway.feed.pending_transaction_feed import PendingTransactionFeed
+from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
+from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
@@ -316,17 +318,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 reverse=0
             )
 
-    def publish_pending_transaction(
-        self, tx_hash: Sha256Hash, tx_contents: Union[bytearray, memoryview]
+    def publish_transaction(
+        self, tx_hash: Sha256Hash, tx_contents: memoryview
     ) -> None:
-        if self.node.feed_manager.any_subscribers():
-            transaction = rlp.decode(bytearray(tx_contents), Transaction)
-            self.node.feed_manager.publish_to_feed(
-                PendingTransactionFeed.NAME,
-                TransactionFeedEntry(
-                    tx_hash,
-                    transaction.to_json()
-                )
-            )
-        else:
-            self.node.feed_manager.keep_feed_alive(PendingTransactionFeed.NAME)
+        self.node.feed_manager.publish_to_feed(
+            EthNewTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+        )
+        self.node.feed_manager.publish_to_feed(
+            EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+        )
