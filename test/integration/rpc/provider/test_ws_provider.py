@@ -3,20 +3,36 @@ from datetime import date
 
 from bloxroute_cli.provider.ws_provider import WsProvider
 from bxcommon import constants
+from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.services.threaded_request_service import ThreadedRequestService
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test, AsyncMock
+from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.new_transaction_feed import RawTransaction, RawTransactionFeedEntry
+from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
+from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
+    TransactionsEthProtocolMessage
 from bxgateway.rpc.provider.abstract_ws_provider import WsException
 from bxgateway.rpc.ws.ws_server import WsServer
 from bxgateway.testing import gateway_helpers
+from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxcommon.rpc.rpc_errors import RpcError
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
+
+
+def generate_new_eth_transaction() -> TxMessage:
+    transaction = mock_eth_messages.get_dummy_transaction(1)
+    transactions_eth_message = TransactionsEthProtocolMessage(None, [transaction])
+    tx_message = EthNormalMessageConverter().tx_to_bx_txs(
+        transactions_eth_message, 5
+    )[0][0]
+    return tx_message
 
 
 class WsProviderTest(AbstractTestCase):
@@ -44,6 +60,88 @@ class WsProviderTest(AbstractTestCase):
         self.ws_uri = f"ws://{constants.LOCALHOST}:8005"
 
         await self.server.start()
+
+    @async_test
+    async def test_subscribe_handles_duplicates(self):
+        self.gateway_node.feed_manager.register_feed(
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+        )
+
+        eth_tx_message = generate_new_eth_transaction()
+        eth_transaction = EthRawTransaction(
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val()
+        )
+        expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
+
+        async with WsProvider(self.ws_uri) as ws:
+            subscription_id = await ws.subscribe("pendingTxs", {"duplicates": False})
+
+            self.gateway_node.feed_manager.publish_to_feed(
+                "pendingTxs", eth_transaction
+            )
+
+            subscription_message = await ws.get_next_subscription_notification_by_id(
+                subscription_id
+            )
+            self.assertEqual(
+                subscription_id, subscription_message.subscription_id
+            )
+            self.assertEqual(
+                expected_tx_hash, subscription_message.notification["tx_hash"]
+            )
+
+            # will publish twice
+            self.gateway_node.feed_manager.publish_to_feed(
+                "pendingTxs", eth_transaction
+            )
+            with self.assertRaises(asyncio.TimeoutError):
+                await asyncio.wait_for(
+                    ws.get_next_subscription_notification_by_id(subscription_id),
+                    0.1
+                )
+
+    @async_test
+    async def test_subscribe_with_duplicates(self):
+        self.gateway_node.feed_manager.register_feed(
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+        )
+
+        eth_tx_message = generate_new_eth_transaction()
+        eth_transaction = EthRawTransaction(
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val()
+        )
+        expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
+
+        async with WsProvider(self.ws_uri) as ws:
+            subscription_id = await ws.subscribe("pendingTxs", {"duplicates": True})
+
+            self.gateway_node.feed_manager.publish_to_feed(
+                "pendingTxs", eth_transaction
+            )
+
+            subscription_message = await ws.get_next_subscription_notification_by_id(
+                subscription_id
+            )
+            self.assertEqual(
+                subscription_id, subscription_message.subscription_id
+            )
+            self.assertEqual(
+                expected_tx_hash, subscription_message.notification["tx_hash"]
+            )
+
+            # will publish twice
+            self.gateway_node.feed_manager.publish_to_feed(
+                "pendingTxs", eth_transaction
+            )
+            subscription_message = await ws.get_next_subscription_notification_by_id(
+                subscription_id
+            )
+            self.assertEqual(
+                subscription_id, subscription_message.subscription_id
+            )
+            self.assertEqual(
+                expected_tx_hash, subscription_message.notification["tx_hash"]
+            )
 
     @async_test
     async def test_connection_and_close(self):

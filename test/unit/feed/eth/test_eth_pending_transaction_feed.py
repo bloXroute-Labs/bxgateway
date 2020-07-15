@@ -50,7 +50,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
 
     @async_test
     async def test_publish_transaction_bytes(self):
-        subscriber = self.sut.subscribe()
+        subscriber = self.sut.subscribe({})
 
         tx_message = self.generate_new_eth_transaction()
         tx_hash_str = f"0x{str(tx_message.tx_hash())}"
@@ -75,7 +75,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
 
     @async_test
     async def test_publish_transaction_dictionary(self):
-        subscriber = self.sut.subscribe()
+        subscriber = self.sut.subscribe({})
 
         transaction_hash_str = SAMPLE_TRANSACTION_FROM_WS["hash"]
         transaction_hash = Sha256Hash(
@@ -110,7 +110,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
 
     @async_test
     async def test_publish_transaction_duplicate_transaction(self):
-        self.sut.subscribe()
+        self.sut.subscribe({})
 
         self.sut.serialize = MagicMock(wraps=self.sut.serialize)
         raw_transaction = self.generate_eth_raw_transaction()
@@ -121,8 +121,26 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
         self.sut.serialize.assert_called_once()
 
     @async_test
+    async def test_publish_duplicate_transaction_subscriber_wants_duplicates(self):
+        subscriber = self.sut.subscribe({"duplicates": True})
+
+        self.sut.serialize = MagicMock(wraps=self.sut.serialize)
+        subscriber.queue = MagicMock(wraps=subscriber.queue)
+        raw_transaction = self.generate_eth_raw_transaction()
+
+        self.sut.publish(raw_transaction)
+        self.sut.serialize.assert_called_once()
+        self.sut.serialize.reset_mock()
+        subscriber.queue.assert_called_once()
+        subscriber.queue.reset_mock()
+
+        self.sut.publish(raw_transaction)
+        self.sut.serialize.assert_called_once()
+        subscriber.queue.assert_called_once()
+
+    @async_test
     async def test_publish_invalid_transaction(self):
-        subscriber = self.sut.subscribe()
+        subscriber = self.sut.subscribe({})
 
         transaction_hash = helpers.generate_object_hash()
         transaction_contents = helpers.generate_bytearray(250)

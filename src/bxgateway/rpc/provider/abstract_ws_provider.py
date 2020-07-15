@@ -98,7 +98,7 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
         return await websockets.connect(self.uri)
 
     @abstractmethod
-    async def subscribe(self, channel: str, fields: Optional[List[str]] = None) -> str:
+    async def subscribe(self, channel: str, options: Optional[Dict[str, Any]] = None) -> str:
         pass
 
     @abstractmethod
@@ -153,17 +153,19 @@ class AbstractWsProvider(AbstractProvider, metaclass=ABCMeta):
         self,
         callback: Callable[[SubscriptionNotification], None],
         channel: str,
-        fields: Optional[List[str]] = None,
+        options: Optional[Dict[str, Any]] = None,
     ) -> None:
-        asyncio.create_task(self._handle_subscribe_callback(callback, channel, fields))
+        if options is None:
+            options = {}
+        asyncio.create_task(self._handle_subscribe_callback(callback, channel, options))
 
     async def _handle_subscribe_callback(
         self,
         callback: Callable[[SubscriptionNotification], None],
         channel: str,
-        fields: Optional[List[str]] = None,
+        options: Dict[str, Any],
     ) -> None:
-        subscription_id = await self.subscribe(channel, fields)
+        subscription_id = await self.subscribe(channel, options)
         while self.running:
             notification = await self.subscription_manager.get_next_subscription_notification_for_id(
                 subscription_id

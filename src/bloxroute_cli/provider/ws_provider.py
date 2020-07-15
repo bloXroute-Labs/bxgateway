@@ -66,9 +66,11 @@ class WsProvider(AbstractWsProvider):
             BxJsonRpcRequest(request_id, method, params)
         )
 
-    async def subscribe(self, channel: str, fields: Optional[List[str]] = None) -> str:
+    async def subscribe(self, channel: str, options: Optional[Dict[str, Any]] = None) -> str:
+        if options is None:
+            options = {}
         response = await self.call_bx(
-            RpcRequestType.SUBSCRIBE, [channel, {"include": fields}]
+            RpcRequestType.SUBSCRIBE, [channel, options]
         )
         subscription_id = response.result
         assert isinstance(subscription_id, str)

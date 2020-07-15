@@ -65,7 +65,7 @@ class EthWsSubscriberTest(AbstractTestCase):
         )
         self.subscriber: Subscriber[
             RawTransactionFeedEntry
-        ] = self.gateway_node.feed_manager.subscribe_to_feed(EthPendingTransactionFeed.NAME)
+        ] = self.gateway_node.feed_manager.subscribe_to_feed(EthPendingTransactionFeed.NAME, {})
         self.assertIsNotNone(self.subscriber)
 
         await self.eth_ws_subscriber.start()

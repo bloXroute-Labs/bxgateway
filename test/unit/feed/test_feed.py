@@ -22,7 +22,7 @@ class FeedTest(AbstractTestCase):
         test_feed.publish(1)
         self.assertEqual(0, test_feed.expensive_serialization_count)
 
-        subscriber = test_feed.subscribe()
+        subscriber = test_feed.subscribe({})
         test_feed.publish(2)
         self.assertEqual(1, test_feed.expensive_serialization_count)
         self.assertEqual(2, await subscriber.receive())
