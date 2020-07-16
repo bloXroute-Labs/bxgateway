@@ -347,7 +347,7 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
         raise NotImplementedError()
 
     @classmethod
-    def validate_payload(cls, buf, unpacked_args):
+    def validate_payload(cls, buf, unpacked_args) -> None:
         """
         Validates unpacked content.
         """
