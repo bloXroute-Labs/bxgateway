@@ -86,7 +86,10 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
     def msg_status(self, _msg):
         self.connection.on_connection_established()
 
-        self.connection.send_ping()
+        self.node.alarm_queue.register_alarm(
+            self.connection.ping_interval_s,
+            self.connection.send_ping
+        )
 
         self.node.on_blockchain_connection_ready(self.connection)
         self.node.alarm_queue.register_alarm(eth_constants.CHECKPOINT_BLOCK_HEADERS_REQUEST_WAIT_TIME_S,

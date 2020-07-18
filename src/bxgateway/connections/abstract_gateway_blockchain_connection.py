@@ -56,6 +56,9 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
         self.connection_protocol = None
         self.is_server = False
 
+        self.can_send_pings = True
+        self.pong_timeout_enabled = True
+
     def advance_bytes_written_to_socket(self, bytes_sent):
         if self.message_tracker and self.message_tracker.is_sending_block_message():
             assert self.node.opts.track_detailed_sent_messages
