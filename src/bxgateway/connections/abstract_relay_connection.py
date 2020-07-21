@@ -338,11 +338,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_notify(self, msg: NotificationMessage) -> None:
         if msg.notification_code() == NotificationCode.QUOTA_FILL_STATUS:
-            seconds_since_last_quota_notification = time.time() - self.node.last_quota_level_notification_time
-            if seconds_since_last_quota_notification < gateway_constants.QUOTA_NOTIFICATION_IGNORE_REPEAT_WINDOW_S:
-                return
-
-            self.node.last_quota_level_notification_time = time.time()
             args_list = msg.raw_message().split(",")
             entity_type = EntityType(int(args_list[1]))
             quota_level = int(args_list[0])
