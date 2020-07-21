@@ -969,6 +969,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.on_fully_updated_tx_service()
         return constants.CANCEL_ALARMS
 
+    def _get_next_retry_timeout(self, ip: str, port: int) -> int:
+        base_timeout = super(AbstractGatewayNode, self)._get_next_retry_timeout(ip, port)
+
+        if self.is_local_blockchain_address(ip, port):
+            return base_timeout + gateway_constants.ADDITIONAL_BLOCKCHAIN_RECONNECT_TIMEOUT_S
+
+        return base_timeout
+
     def _transaction_sync_timeout(self) -> int:
         if not self.opts.has_fully_updated_tx_service:
             logger.warning(log_messages.TX_SYNC_TIMEOUT)
