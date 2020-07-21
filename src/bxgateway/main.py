@@ -16,6 +16,14 @@ from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
 from bxcommon.models.node_type import NodeType
+from bxcommon.utils.init_task import AbstractInitTask
+from bxcommon.services import sdn_http_service
+from bxcommon.models.quota_type_model import QuotaType
+from bxcommon.common_opts import CommonOpts
+
+from bxutils import logging_messages_utils
+from bxutils.services.node_ssl_service import NodeSSLService
+
 from bxgateway import btc_constants, gateway_constants, eth_constants, ont_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
@@ -23,8 +31,6 @@ from bxgateway.utils.eth import crypto_utils
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway import argument_parsers
 from bxgateway.utils.gateway_start_args import GatewayStartArgs
-from bxcommon.models.quota_type_model import QuotaType
-from bxutils import logging_messages_utils
 
 
 MAX_NUM_CONN = 8192
@@ -303,6 +309,21 @@ def get_opts(args: Optional[List[str]] = None) -> GatewayOpts:
     return opts
 
 
+class SetAccountInfo(AbstractInitTask):
+    def action(self, opts: CommonOpts, node_ssl_service: NodeSSLService) -> None:
+        account_id = node_ssl_service.get_account_id()
+        if account_id:
+            # TODO: use local cache for account_model
+            account_model = sdn_http_service.fetch_account_model(account_id)
+            if account_model:
+                opts.set_account_options(account_model)
+
+
+class ValidateNetworkOpts(AbstractInitTask):
+    def action(self, opts: CommonOpts, node_ssl_service: NodeSSLService) -> None:
+        opts.validate_network_opts()
+
+
 def main():
     logger_names = node_runner.LOGGER_NAMES.copy()
     logger_names.append("bxgateway")
@@ -315,6 +336,9 @@ def main():
         get_node_class,
         NodeType.EXTERNAL_GATEWAY,
         logger_names=logger_names,
+        node_init_tasks=[
+            ValidateNetworkOpts(SetAccountInfo())
+        ]
     )
 
 
