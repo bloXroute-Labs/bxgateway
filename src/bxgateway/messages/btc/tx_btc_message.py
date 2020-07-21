@@ -1,7 +1,7 @@
 import struct
 
 from bxcommon.utils import convert
-from bxcommon.utils.blockchain_utils.btc import btc_common_util
+from bxcommon.utils.blockchain_utils.btc import btc_common_utils
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF
 from bxgateway.messages.btc.btc_message import BtcMessage
@@ -141,7 +141,7 @@ class TxBtcMessage(BtcMessage):
     def tx_in(self):
         if self._tx_in is None:
             off = BTC_HDR_COMMON_OFF + 4
-            self._tx_in_count, size = btc_common_util.btc_varint_to_int(self.buf, off)
+            self._tx_in_count, size = btc_common_utils.btc_varint_to_int(self.buf, off)
             off += size
             self._tx_in = []
 
@@ -150,13 +150,13 @@ class TxBtcMessage(BtcMessage):
 
             for _ in range(self._tx_in_count):
                 end += 36
-                script_len, size = btc_common_util.btc_varint_to_int(self.buf, end)
+                script_len, size = btc_common_utils.btc_varint_to_int(self.buf, end)
                 end += size + script_len + 4
                 self._tx_in.append(self.rawbytes()[start:end])
                 start = end
 
             off = end
-            self._tx_out_count, size = btc_common_util.btc_varint_to_int(self.buf, off)
+            self._tx_out_count, size = btc_common_utils.btc_varint_to_int(self.buf, off)
             self._tx_out = []
             off += size
 
@@ -164,7 +164,7 @@ class TxBtcMessage(BtcMessage):
             end = off
             for _ in range(self._tx_out_count):
                 end += 8
-                script_len, size = btc_common_util.btc_varint_to_int(self.buf, end)
+                script_len, size = btc_common_utils.btc_varint_to_int(self.buf, end)
                 end += size + script_len
                 self._tx_out.append(self.rawbytes()[start:end])
 
@@ -190,7 +190,7 @@ class TxBtcMessage(BtcMessage):
         :return: boolean indicating segwit
         """
         if self._is_segwit_tx is None:
-            self._is_segwit_tx = btc_common_util.is_segwit(self.payload())
+            self._is_segwit_tx = btc_common_utils.is_segwit(self.payload())
         return self._is_segwit_tx
 
     def tx_hash(self) -> BtcObjectHash:
@@ -199,7 +199,7 @@ class TxBtcMessage(BtcMessage):
         :return: BtcObjectHash
         """
         if self._tx_hash is None:
-            self._tx_hash = btc_common_util.get_txid(self.payload())
+            self._tx_hash = btc_common_utils.get_txid(self.payload())
         # pyre-fixme[7]: Expected `BtcObjectHash` but got `None`.
         return self._tx_hash
 

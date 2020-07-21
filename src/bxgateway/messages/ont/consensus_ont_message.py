@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Union
 
 from bxcommon.utils import crypto, model_loader
-from bxcommon.utils.blockchain_utils.ont.ont_common_util import ont_varint_to_int, get_txid
+from bxcommon.utils.blockchain_utils.ont.ont_common_utils import ont_varint_to_int, get_txid
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway import ont_constants
 from bxgateway.messages.ont.ont_message import OntMessage

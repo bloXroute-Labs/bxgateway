@@ -2,7 +2,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.exceptions import ParseError
 from bxcommon.utils import convert
 
-from bxgateway.utils.eth import rlp_utils
+from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
 
 
 class RlpUtilsTest(AbstractTestCase):
@@ -60,16 +60,16 @@ class RlpUtilsTest(AbstractTestCase):
 
     def test_big_endian_to_int(self):
         big_endian_0 = b"\x00"
-        self.assertEqual(0, rlp_utils.big_endian_to_int(big_endian_0))
+        self.assertEqual(0, eth_common_utils.big_endian_to_int(big_endian_0))
 
         big_endian_1 = b"\x01"
-        self.assertEqual(1, rlp_utils.big_endian_to_int(big_endian_1))
+        self.assertEqual(1, eth_common_utils.big_endian_to_int(big_endian_1))
 
         big_endian_1025 = b"\x04\x01"
-        self.assertEqual(1025, rlp_utils.big_endian_to_int(big_endian_1025))
+        self.assertEqual(1025, eth_common_utils.big_endian_to_int(big_endian_1025))
 
         big_endian_133124 = b"\x02\x08\x04"
-        self.assertEqual(133124, rlp_utils.big_endian_to_int(big_endian_133124))
+        self.assertEqual(133124, eth_common_utils.big_endian_to_int(big_endian_133124))
 
     def test_get_length_prefix_str(self):
         self.assertEqual(b"\x81",  rlp_utils.get_length_prefix_str(1))
@@ -115,11 +115,11 @@ class RlpUtilsTest(AbstractTestCase):
         self.assertRaises(ValueError, rlp_utils.consume_length_prefix, memoryview(b"\x82"), None)
 
     def test_safe_ord(self):
-        self.assertEqual(65, rlp_utils.safe_ord("A"))
-        self.assertEqual(97, rlp_utils.safe_ord("a"))
-        self.assertEqual(49, rlp_utils.safe_ord("1"))
-        self.assertEqual(1, rlp_utils.safe_ord(1))
-        self.assertEqual(64, rlp_utils.safe_ord(64))
+        self.assertEqual(65, eth_common_utils.safe_ord("A"))
+        self.assertEqual(97, eth_common_utils.safe_ord("a"))
+        self.assertEqual(49, eth_common_utils.safe_ord("1"))
+        self.assertEqual(1, eth_common_utils.safe_ord(1))
+        self.assertEqual(64, eth_common_utils.safe_ord(64))
 
     def test_ascii_chr(self):
         self.assertEqual(b"A", rlp_utils.ascii_chr(65))

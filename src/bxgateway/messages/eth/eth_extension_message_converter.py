@@ -13,7 +13,7 @@ from bxcommon.services.extension_transaction_service import ExtensionTransaction
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.utils.errors import message_conversion_error
 from bxgateway.utils.block_info import BlockInfo
-from bxgateway import eth_constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway.abstract_message_converter import BlockDecompressionResult
 from bxgateway.messages.eth.eth_abstract_message_converter import EthAbstractMessageConverter
 from bxutils import logging
@@ -23,8 +23,8 @@ logger = logging.get_logger(__name__)
 
 class EthExtensionMessageConverter(EthAbstractMessageConverter):
 
-    DEFAULT_BLOCK_SIZE = eth_constants.ETH_DEFAULT_BLOCK_SIZE
-    MINIMAL_SUB_TASK_TX_COUNT = eth_constants.ETH_MINIMAL_SUB_TASK_TX_COUNT
+    DEFAULT_BLOCK_SIZE = eth_common_constants.ETH_DEFAULT_BLOCK_SIZE
+    MINIMAL_SUB_TASK_TX_COUNT = eth_common_constants.ETH_MINIMAL_SUB_TASK_TX_COUNT
 
     def __init__(self):
         super().__init__()

@@ -35,9 +35,9 @@ from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlo
 from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
-from bxgateway import log_messages, eth_constants
+from bxgateway import log_messages
 from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
 
@@ -68,7 +68,7 @@ class EthGatewayNode(AbstractGatewayNode):
     }
 
     def __init__(self, opts, node_ssl_service: NodeSSLService):
-        super(EthGatewayNode, self).__init__(opts, node_ssl_service, eth_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S)
+        super(EthGatewayNode, self).__init__(opts, node_ssl_service, eth_common_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S)
 
         self._node_public_key = None
         self._remote_public_key = None
@@ -89,7 +89,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self.block_queuing_service: EthBlockQueuingService = EthBlockQueuingService(self)
 
         # List of know total difficulties, tuples of values (block hash, total difficulty)
-        self._last_known_difficulties = deque(maxlen=eth_constants.LAST_KNOWN_TOTAL_DIFFICULTIES_MAX_COUNT)
+        self._last_known_difficulties = deque(maxlen=eth_common_constants.LAST_KNOWN_TOTAL_DIFFICULTIES_MAX_COUNT)
 
         # queue of the block hashes requested from remote blockchain node during sync
         self._requested_remote_blocks_queue = deque()

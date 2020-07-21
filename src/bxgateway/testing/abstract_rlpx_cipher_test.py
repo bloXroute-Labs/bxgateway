@@ -1,8 +1,7 @@
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils import helpers
 
-from bxgateway import eth_constants
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 
 
@@ -27,15 +26,15 @@ class AbstractRLPxCipherTest(AbstractTestCase):
         self.assertFalse(cipher2.is_ready())
 
         auth_msg = cipher1.create_auth_message()
-        self.assertEqual(len(auth_msg), eth_constants.AUTH_MSG_LEN)
+        self.assertEqual(len(auth_msg), eth_common_constants.AUTH_MSG_LEN)
         self.assertTrue(auth_msg)
 
         enc_auth_msg = cipher1.encrypt_auth_message(auth_msg)
-        self.assertEqual(len(enc_auth_msg), eth_constants.ENC_AUTH_MSG_LEN)
+        self.assertEqual(len(enc_auth_msg), eth_common_constants.ENC_AUTH_MSG_LEN)
 
         decrypted_auth_msg, size = cipher2.decrypt_auth_message(enc_auth_msg)
-        self.assertEqual(len(decrypted_auth_msg), eth_constants.AUTH_MSG_LEN)
-        self.assertEqual(size, eth_constants.ENC_AUTH_MSG_LEN)
+        self.assertEqual(len(decrypted_auth_msg), eth_common_constants.AUTH_MSG_LEN)
+        self.assertEqual(size, eth_common_constants.ENC_AUTH_MSG_LEN)
 
         cipher2.parse_auth_message(decrypted_auth_msg)
 

@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-from bxgateway import eth_constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxutils import logging
 
 
@@ -14,7 +14,7 @@ class ParseEnode(argparse.Action):
         enode = values
 
         # Make sure enode is at least as long as the public key
-        if len(enode) < 2 * eth_constants.PUBLIC_KEY_LEN:
+        if len(enode) < 2 * eth_common_constants.PUBLIC_KEY_LEN:
             logger.fatal("Invalid enode. "
                          "Invalid enode length: {}", len(enode), exc_info=False)
             sys.exit(1)

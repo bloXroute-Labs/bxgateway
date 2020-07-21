@@ -5,7 +5,7 @@ from bxutils.logging.log_level import LogLevel
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
-from bxgateway.utils.eth import rlp_utils
+from bxcommon.utils.blockchain_utils.eth import rlp_utils
 
 
 class BlockHeadersEthProtocolMessage(EthProtocolMessage):

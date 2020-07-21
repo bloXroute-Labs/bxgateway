@@ -4,12 +4,11 @@ from bxcommon.exceptions import ParseError, UnrecognizedCommandError
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.abstract_message_factory import AbstractMessageFactory, MessagePreview
 from bxcommon.utils.buffers.input_buffer import InputBuffer
-from bxgateway import eth_constants
 from bxgateway.messages.eth.discovery.eth_discovery_message import EthDiscoveryMessage
 from bxgateway.messages.eth.discovery.eth_discovery_message_type import EthDiscoveryMessageType
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
 from bxgateway.messages.eth.discovery.pong_eth_discovery_message import PongEthDiscoveryMessage
-from bxgateway.utils.eth import rlp_utils
+from bxcommon.utils.blockchain_utils.eth import eth_common_utils, rlp_utils, eth_common_constants
 
 
 class _EthDiscoveryMessageFactory(AbstractMessageFactory):
@@ -64,13 +63,13 @@ class _EthDiscoveryMessageFactory(AbstractMessageFactory):
         if not isinstance(input_buffer, InputBuffer):
             raise ValueError("InputBuffer type is expected")
 
-        msg_type_position = eth_constants.MDC_LEN + eth_constants.SIGNATURE_LEN
+        msg_type_position = eth_common_constants.MDC_LEN + eth_common_constants.SIGNATURE_LEN
 
-        if input_buffer.length < msg_type_position + eth_constants.MSG_TYPE_LEN:
+        if input_buffer.length < msg_type_position + eth_common_constants.MSG_TYPE_LEN:
             return None
 
-        msg_type_bytes = input_buffer.get_slice(msg_type_position, msg_type_position + eth_constants.MSG_TYPE_LEN)
-        msg_type = rlp_utils.safe_ord(msg_type_bytes)
+        msg_type_bytes = input_buffer.get_slice(msg_type_position, msg_type_position + eth_common_constants.MSG_TYPE_LEN)
+        msg_type = eth_common_utils.safe_ord(msg_type_bytes)
 
         return msg_type
 
@@ -81,7 +80,7 @@ class _EthDiscoveryMessageFactory(AbstractMessageFactory):
         if not isinstance(input_buffer, InputBuffer):
             raise ValueError("InputBuffer type is expected")
 
-        msg_content_position = eth_constants.MDC_LEN + eth_constants.SIGNATURE_LEN + eth_constants.MSG_TYPE_LEN
+        msg_content_position = eth_common_constants.MDC_LEN + eth_common_constants.SIGNATURE_LEN + eth_common_constants.MSG_TYPE_LEN
 
         if input_buffer.length < msg_content_position:
             return None
@@ -94,12 +93,12 @@ class _EthDiscoveryMessageFactory(AbstractMessageFactory):
         return msg_content_position + length_prefix_size + content_length
 
     def _get_message_type(self, msg_bytes):
-        msg_type_position = eth_constants.MDC_LEN + eth_constants.SIGNATURE_LEN
+        msg_type_position = eth_common_constants.MDC_LEN + eth_common_constants.SIGNATURE_LEN
 
         if len(msg_bytes) <= msg_type_position:
             raise ParseError("Message length {0} is less then position of message type.".format(len(msg_bytes)))
 
-        msg_type = rlp_utils.safe_ord(msg_bytes[msg_type_position:msg_type_position + eth_constants.MSG_TYPE_LEN])
+        msg_type = eth_common_utils.safe_ord(msg_bytes[msg_type_position:msg_type_position + eth_common_constants.MSG_TYPE_LEN])
         return msg_type
 
 

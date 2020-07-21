@@ -5,7 +5,7 @@ from bxcommon.exceptions import ParseError
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.abstract_message_factory import AbstractMessageFactory, MessagePreview
 from bxcommon.utils.buffers.input_buffer import InputBuffer
-from bxgateway import eth_constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
 from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import DisconnectEthProtocolMessage
@@ -81,8 +81,8 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
         if self._expected_msg_type == EthProtocolMessageType.AUTH:
             return MessagePreview(True, EthProtocolMessageType.AUTH, input_buffer.length)
         elif self._expected_msg_type == EthProtocolMessageType.AUTH_ACK and \
-                input_buffer.length >= eth_constants.ENC_AUTH_ACK_MSG_LEN:
-            return MessagePreview(True, EthProtocolMessageType.AUTH_ACK, eth_constants.ENC_AUTH_ACK_MSG_LEN)
+                input_buffer.length >= eth_common_constants.ENC_AUTH_ACK_MSG_LEN:
+            return MessagePreview(True, EthProtocolMessageType.AUTH_ACK, eth_common_constants.ENC_AUTH_ACK_MSG_LEN)
         elif self._expected_msg_type is None:
             decryption_start_time = time.time()
             is_full_msg, command = self._framed_input_buffer.peek_message(input_buffer)

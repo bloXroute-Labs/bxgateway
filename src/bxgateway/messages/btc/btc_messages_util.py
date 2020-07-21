@@ -3,7 +3,7 @@ import struct
 
 from bxcommon import constants
 from bxcommon.constants import UL_INT_SIZE_IN_BYTES
-from bxcommon.utils.blockchain_utils.btc import btc_common_util
+from bxcommon.utils.blockchain_utils.btc import btc_common_utils
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway import btc_constants
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
@@ -64,7 +64,7 @@ def get_sizeof_btc_varint(val):
 
 
 def get_next_tx_size(buf, off, tail=-1):
-    segwit_flag = btc_common_util.is_segwit(buf, off)
+    segwit_flag = btc_common_utils.is_segwit(buf, off)
 
     if segwit_flag:
         return get_next_segwit_tx_size(buf, off, tail)
@@ -79,7 +79,7 @@ def get_next_non_segwit_tx_size(buf, off, tail=-1):
     """
     end = off + btc_constants.TX_VERSION_LEN
 
-    io_size, _, _ = btc_common_util.get_tx_io_count_and_size(buf, end, tail)
+    io_size, _, _ = btc_common_utils.get_tx_io_count_and_size(buf, end, tail)
 
     if io_size < 0:
         return -1
@@ -99,7 +99,7 @@ def get_next_segwit_tx_size(buf, off, tail=-1):
     """
     end = off + btc_constants.TX_VERSION_LEN + btc_constants.TX_SEGWIT_FLAG_LEN
 
-    io_size, txin_c, _ = btc_common_util.get_tx_io_count_and_size(buf, end, tail)
+    io_size, txin_c, _ = btc_common_utils.get_tx_io_count_and_size(buf, end, tail)
 
     if io_size < 0:
         return -1
@@ -107,11 +107,11 @@ def get_next_segwit_tx_size(buf, off, tail=-1):
     end += io_size
 
     for _ in range(txin_c):
-        witness_count, size = btc_common_util.btc_varint_to_int(buf, end)
+        witness_count, size = btc_common_utils.btc_varint_to_int(buf, end)
         end += size
 
         for _ in range(witness_count):
-            witness_len, size = btc_common_util.btc_varint_to_int(buf, end)
+            witness_len, size = btc_common_utils.btc_varint_to_int(buf, end)
             end += size + witness_len
 
     end += btc_constants.TX_LOCK_TIME_LEN

@@ -1,4 +1,3 @@
-import typing
 from typing import Union, cast, List, NamedTuple
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage

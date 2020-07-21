@@ -11,6 +11,7 @@ from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.utils.blockchain_utils.eth import crypto_utils
 from bxgateway.connections.abstract_gateway_blockchain_connection import (
     AbstractGatewayBlockchainConnection,
 )
@@ -41,7 +42,6 @@ from bxgateway.services.eth.eth_normal_block_cleanup_service import (
 )
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.eth import crypto_utils
 
 NETWORK_NUM = 1
 

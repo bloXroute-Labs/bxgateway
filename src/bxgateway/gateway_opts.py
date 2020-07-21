@@ -11,7 +11,7 @@ from bxcommon.utils.convert import hex_to_bytes
 from argparse import Namespace
 from bxcommon.utils import node_cache
 from bxgateway import gateway_constants
-from bxgateway import eth_constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway.utils.eth.eccx import ECCx
 from bxutils import logging
 from bxgateway import log_messages
@@ -207,7 +207,7 @@ def get_sdn_hostname(sdn_url: str) -> str:
 def validate_pub_key(key) -> None:
     if key.startswith("0x"):
         key = key[2:]
-    if len(key) != 2 * eth_constants.PUBLIC_KEY_LEN:
+    if len(key) != 2 * eth_common_constants.PUBLIC_KEY_LEN:
         logger.fatal(log_messages.INVALID_PUBLIC_KEY_LENGTH,
                      len(key), exc_info=False)
         sys.exit(1)

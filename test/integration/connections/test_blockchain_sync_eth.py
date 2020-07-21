@@ -4,7 +4,7 @@ from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
 
-from bxgateway import eth_constants
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
@@ -13,11 +13,11 @@ from bxgateway.messages.eth.protocol.eth_protocol_message_factory import EthProt
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
 from bxgateway.testing import spies
 from bxgateway.testing.mocks import mock_eth_messages
-from bxgateway.utils.eth import crypto_utils, frame_utils
+from bxgateway.utils.eth import frame_utils
 
 
 class BlockchainSyncEthTest(AbstractRLPxCipherTest):
-    BLOCK_HASH = helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
+    BLOCK_HASH = helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN)
 
     def setUp(self):
         self.local_node_fileno = 1

@@ -4,7 +4,7 @@ from typing import Iterator, Tuple
 from bxutils.logging.log_level import LogLevel
 
 from bxcommon.utils import convert
-from bxcommon.utils.blockchain_utils.btc import btc_common_util
+from bxcommon.utils.blockchain_utils.btc import btc_common_utils
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway import btc_constants
 from bxgateway.messages.btc import btc_messages_util
@@ -67,12 +67,12 @@ class InventoryBtcMessage(BtcMessage):
 
     def count(self):
         off = btc_constants.BTC_HDR_COMMON_OFF
-        num_items, size = btc_common_util.btc_varint_to_int(self.buf, off)
+        num_items, size = btc_common_utils.btc_varint_to_int(self.buf, off)
         return num_items
 
     def __iter__(self) -> Iterator[Tuple[int, BtcObjectHash]]:
         off = btc_constants.BTC_HDR_COMMON_OFF
-        num_items, size = btc_common_util.btc_varint_to_int(self.buf, off)
+        num_items, size = btc_common_utils.btc_varint_to_int(self.buf, off)
         off += size
         # pyre-fixme[16]: `InventoryBtcMessage` has no attribute `_num_items`.
         self._num_items = num_items

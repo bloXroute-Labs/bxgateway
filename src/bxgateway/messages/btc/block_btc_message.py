@@ -5,7 +5,7 @@ from bxutils.logging.log_level import LogLevel
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import crypto
-from bxcommon.utils.blockchain_utils.btc.btc_common_util import btc_varint_to_int
+from bxcommon.utils.blockchain_utils.btc.btc_common_utils import btc_varint_to_int
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN

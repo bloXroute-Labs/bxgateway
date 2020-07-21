@@ -14,9 +14,7 @@ from bxgateway.abstract_message_converter import BlockDecompressionResult
 from bxgateway.messages.eth.eth_abstract_message_converter import EthAbstractMessageConverter
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.utils.block_info import BlockInfo
-from bxgateway.utils.eth import crypto_utils
-from bxgateway.utils.eth import rlp_utils
-
+from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
 
 logger = logging.get_logger(__name__)
 
@@ -75,7 +73,7 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
 
             _, tx_item_length, tx_item_start = rlp_utils.consume_length_prefix(txs_bytes, tx_start_index)
             tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
-            tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
+            tx_hash_bytes = eth_common_utils.keccak_hash(tx_bytes)
             tx_hash = Sha256Hash(tx_hash_bytes)
             short_id = tx_service.get_short_id(tx_hash)
 
@@ -176,7 +174,7 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
         _, block_hdr_len, block_hdr_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
         full_hdr_bytes = block_itm_bytes[0:block_hdr_start + block_hdr_len]
 
-        block_hash_bytes = crypto_utils.keccak_hash(full_hdr_bytes)
+        block_hash_bytes = eth_common_utils.keccak_hash(full_hdr_bytes)
         block_hash = Sha256Hash(block_hash_bytes)
 
 

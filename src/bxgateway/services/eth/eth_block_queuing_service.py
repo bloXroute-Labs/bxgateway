@@ -2,13 +2,13 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator, cast, Tuple
 
 from bxcommon import constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxcommon.utils import memory_utils, crypto
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.memory_utils import ObjectSize
 from bxcommon.utils.object_hash import Sha256Hash
-from bxcommon.utils.stats import hooks
-from bxgateway import eth_constants, gateway_constants
+from bxgateway import gateway_constants
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import (
@@ -155,7 +155,7 @@ class EthBlockQueuingService(
             self.block_checking_alarms[
                 block_hash
             ] = self.node.alarm_queue.register_alarm(
-                eth_constants.CHECK_BLOCK_RECEIPT_DELAY_S,
+                eth_common_constants.CHECK_BLOCK_RECEIPT_DELAY_S,
                 self._check_for_block_on_repeat,
                 block_hash,
             )
@@ -477,7 +477,7 @@ class EthBlockQueuingService(
 
         if self.block_repeat_count[block_hash] < 5:
             self.block_repeat_count[block_hash] += 1
-            return eth_constants.CHECK_BLOCK_RECEIPT_INTERVAL_S
+            return eth_common_constants.CHECK_BLOCK_RECEIPT_INTERVAL_S
         else:
             del self.block_repeat_count[block_hash]
             del self.block_checking_alarms[block_hash]

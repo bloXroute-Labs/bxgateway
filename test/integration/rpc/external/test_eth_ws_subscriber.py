@@ -17,7 +17,7 @@ from bxcommon.utils import convert
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.subscriber import Subscriber
 from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages

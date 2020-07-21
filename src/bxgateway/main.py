@@ -20,10 +20,10 @@ from bxcommon.models.quota_type_model import QuotaType
 
 from bxutils import logging_messages_utils
 
-from bxgateway import btc_constants, gateway_constants, eth_constants, ont_constants
+from bxgateway import btc_constants, gateway_constants, ont_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway import argument_parsers
 from bxgateway.utils.gateway_start_args import GatewayStartArgs
@@ -61,7 +61,7 @@ def parse_peer_string(peer_string):
 
 
 def get_default_eth_private_key():
-    gateway_key_file_name = config.get_data_file(eth_constants.GATEWAY_PRIVATE_KEY_FILE_NAME)
+    gateway_key_file_name = config.get_data_file(eth_common_constants.GATEWAY_PRIVATE_KEY_FILE_NAME)
 
     if os.path.exists(gateway_key_file_name):
         with open(gateway_key_file_name, "r") as key_file:

@@ -7,7 +7,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 
 from bxcommon.connections.connection_state import ConnectionState

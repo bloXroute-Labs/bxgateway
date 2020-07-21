@@ -7,10 +7,10 @@ from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.abstract_eth_message import AbstractEthMessage
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
-from bxgateway.utils.eth import rlp_utils, crypto_utils
+from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
 
 
 class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
@@ -55,7 +55,7 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
 
     def block_hash(self) -> Sha256Hash:
         if self._block_hash is None:
-            raw_hash = crypto_utils.keccak_hash(self.block_header())
+            raw_hash = eth_common_utils.keccak_hash(self.block_header())
             self._block_hash = Sha256Hash(raw_hash)
 
         return self._block_hash

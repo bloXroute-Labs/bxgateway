@@ -3,7 +3,7 @@ from typing import Optional
 
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
-from bxgateway.utils.eth import crypto_utils, rlp_utils
+from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
 
 
 @dataclass
@@ -16,7 +16,7 @@ class NewBlockParts:
         if self.block_header_bytes is None:
             return None
 
-        raw_hash = crypto_utils.keccak_hash(self.block_header_bytes)
+        raw_hash = eth_common_utils.keccak_hash(self.block_header_bytes)
         return Sha256Hash(raw_hash)
 
     def get_previous_block_hash(self) -> Optional[Sha256Hash]:

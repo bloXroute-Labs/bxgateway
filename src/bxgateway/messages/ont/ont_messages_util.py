@@ -1,7 +1,7 @@
 import socket
 from typing import Union, Optional
 
-from bxcommon.utils.blockchain_utils.ont.ont_common_util import get_txid, ont_varint_to_int
+from bxcommon.utils.blockchain_utils.ont.ont_common_utils import get_txid, ont_varint_to_int
 from bxgateway import ont_constants
 from bxgateway.messages.btc.btc_messages_util import pack_int_to_btc_varint
 

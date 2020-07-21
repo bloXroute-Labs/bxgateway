@@ -1,6 +1,6 @@
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import convert
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.testing.mocks import mock_eth_messages
 
 SAMPLE_TRANSACTION = {

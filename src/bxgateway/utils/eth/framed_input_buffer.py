@@ -1,7 +1,7 @@
 from bxcommon.exceptions import ParseError
 from bxcommon.utils.buffers.input_buffer import InputBuffer
-from bxgateway import eth_constants
-from bxgateway.utils.eth import frame_utils, rlp_utils
+from bxgateway.utils.eth import frame_utils
+from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_constants
 from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 
 
@@ -47,15 +47,15 @@ class FramedInputBuffer(object):
         if self._full_message_received:
             raise ValueError("Get full message before trying to peek another one")
 
-        if not self._receiving_frame and input_buffer.length >= eth_constants.FRAME_HDR_TOTAL_LEN:
-            enc_header_bytes = input_buffer.remove_bytes(eth_constants.FRAME_HDR_TOTAL_LEN)
+        if not self._receiving_frame and input_buffer.length >= eth_common_constants.FRAME_HDR_TOTAL_LEN:
+            enc_header_bytes = input_buffer.remove_bytes(eth_common_constants.FRAME_HDR_TOTAL_LEN)
             header_bytes = self._rlpx_cipher.decrypt_frame_header(enc_header_bytes)
             body_size, protocol_id, sequence_id, total_payload_len = frame_utils.parse_frame_header(header_bytes)
 
             self._current_frame_body_size = body_size
             self._current_frame_protocol_id = protocol_id
             self._current_frame_size = frame_utils.get_full_frame_size(body_size)
-            self._current_frame_enc_body_size = self._current_frame_size - eth_constants.FRAME_HDR_TOTAL_LEN
+            self._current_frame_enc_body_size = self._current_frame_size - eth_common_constants.FRAME_HDR_TOTAL_LEN
             self._current_frame_sequence_id = sequence_id
 
             if sequence_id == 0 and total_payload_len is not None:

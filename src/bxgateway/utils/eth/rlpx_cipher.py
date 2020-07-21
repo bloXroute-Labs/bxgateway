@@ -11,9 +11,8 @@ from bxutils import logging
 
 from bxcommon.exceptions import ParseError
 
-from bxgateway import eth_constants
 from bxgateway.eth_exceptions import InvalidKeyError, AuthenticationError, CipherNotInitializedError
-from bxgateway.utils.eth import crypto_utils, rlp_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, rlp_utils, eth_common_utils, eth_common_constants
 from bxgateway.utils.eth.eccx import ECCx
 from bxgateway.utils.eth.frame import Frame
 
@@ -93,23 +92,23 @@ class RLPxCipher(object):
         ecdh_shared_secret = self._ecc.get_ecdh_key(self._remote_pubkey)
         token = ecdh_shared_secret
         flag = 0x0
-        self._initiator_nonce = crypto_utils.keccak_hash(rlp_utils.int_to_big_endian(random.randint(0, sys.maxsize)))
-        assert len(self._initiator_nonce) == eth_constants.SHA3_LEN_BYTES
+        self._initiator_nonce = eth_common_utils.keccak_hash(rlp_utils.int_to_big_endian(random.randint(0, sys.maxsize)))
+        assert len(self._initiator_nonce) == eth_common_constants.SHA3_LEN_BYTES
 
         token_xor_nonce = crypto_utils.string_xor(token, self._initiator_nonce)
-        assert len(token_xor_nonce) == eth_constants.SHA3_LEN_BYTES
+        assert len(token_xor_nonce) == eth_common_constants.SHA3_LEN_BYTES
 
         ephemeral_pubkey = self._ephemeral_ecc.get_raw_public_key()
-        assert len(ephemeral_pubkey) == eth_constants.PUBLIC_KEY_LEN
+        assert len(ephemeral_pubkey) == eth_common_constants.PUBLIC_KEY_LEN
         if not self._ecc.is_valid_key(ephemeral_pubkey):
             raise InvalidKeyError("Invalid ephemeral pubkey")
 
         # S(ephemeral-privk, ecdh-shared-secret ^ nonce)
         S = self._ephemeral_ecc.sign(token_xor_nonce)
-        assert len(S) == eth_constants.SIGNATURE_LEN
+        assert len(S) == eth_common_constants.SIGNATURE_LEN
 
         # S || H(ephemeral-pubk) || pubk || nonce || 0x0
-        auth_message = S + crypto_utils.keccak_hash(ephemeral_pubkey) + self._ecc.get_raw_public_key() + \
+        auth_message = S + eth_common_utils.keccak_hash(ephemeral_pubkey) + self._ecc.get_raw_public_key() + \
                        self._initiator_nonce + rlp_utils.ascii_chr(flag)
         return auth_message
 
@@ -135,28 +134,28 @@ class RLPxCipher(object):
 
         assert not self._is_initiator
 
-        if len(cipher_text) < eth_constants.ENC_AUTH_MSG_LEN:
+        if len(cipher_text) < eth_common_constants.ENC_AUTH_MSG_LEN:
             logger.debug("Minimal len of auth message is {0} but was {1}. Continue waiting for more bytes."
-                         .format(eth_constants.ENC_AUTH_MSG_LEN, len(cipher_text)))
+                         .format(eth_common_constants.ENC_AUTH_MSG_LEN, len(cipher_text)))
             return None, None
 
         try:
-            if len(cipher_text) == eth_constants.ENC_AUTH_MSG_LEN:
+            if len(cipher_text) == eth_common_constants.ENC_AUTH_MSG_LEN:
                 # Decrypt plain auth message
-                size = eth_constants.ENC_AUTH_MSG_LEN
+                size = eth_common_constants.ENC_AUTH_MSG_LEN
                 message = self._ecc.decrypt(cipher_text[:size])
             else:
                 # Decrypt EIP8 auth message
-                size = struct.unpack(">H", cipher_text[:eth_constants.EIP8_AUTH_PREFIX_LEN])[0] + \
-                       eth_constants.EIP8_AUTH_PREFIX_LEN
+                size = struct.unpack(">H", cipher_text[:eth_common_constants.EIP8_AUTH_PREFIX_LEN])[0] + \
+                       eth_common_constants.EIP8_AUTH_PREFIX_LEN
 
                 if len(cipher_text) < size:
                     logger.debug("Expected auth message size is {0} but was {1}. Continue waiting more bytes."
                                  .format(size, len(cipher_text)))
                     return None, None
 
-                message = self._ecc.decrypt(bytes(cipher_text[eth_constants.EIP8_AUTH_PREFIX_LEN:size]),
-                                            shared_mac_data=bytes(cipher_text[:eth_constants.EIP8_AUTH_PREFIX_LEN]))
+                message = self._ecc.decrypt(bytes(cipher_text[eth_common_constants.EIP8_AUTH_PREFIX_LEN:size]),
+                                            shared_mac_data=bytes(cipher_text[:eth_common_constants.EIP8_AUTH_PREFIX_LEN]))
                 self._is_eip8_auth = True
         except RuntimeError as e:
             raise AuthenticationError(e)
@@ -181,34 +180,34 @@ class RLPxCipher(object):
         self._remote_ephemeral_pubkey = remote_ephemeral_pubkey
         self._initiator_nonce = nonce
         self._remote_pubkey = pubkey
-        self._remote_version = eth_constants.P2P_PROTOCOL_VERSION
+        self._remote_version = eth_common_constants.P2P_PROTOCOL_VERSION
 
     def parse_plain_auth_message(self, message):
-        if len(message) != eth_constants.AUTH_MSG_LEN:
+        if len(message) != eth_common_constants.AUTH_MSG_LEN:
             raise ValueError("Authentication message of len {0} is expected but was {1}"
-                             .format(eth_constants.ENC_AUTH_MSG_LEN, len(message)))
+                             .format(eth_common_constants.ENC_AUTH_MSG_LEN, len(message)))
 
-        signature = message[:eth_constants.SIGNATURE_LEN]
+        signature = message[:eth_common_constants.SIGNATURE_LEN]
 
-        pubkey_start = eth_constants.SIGNATURE_LEN + eth_constants.MAC_LEN
-        pubkey = message[pubkey_start:pubkey_start + eth_constants.PUBLIC_KEY_LEN]
+        pubkey_start = eth_common_constants.SIGNATURE_LEN + eth_common_constants.MAC_LEN
+        pubkey = message[pubkey_start:pubkey_start + eth_common_constants.PUBLIC_KEY_LEN]
         if not self._ecc.is_valid_key(pubkey):
             raise InvalidKeyError("Invalid initiator pubkey")
 
-        nonce_start = eth_constants.SIGNATURE_LEN + eth_constants.MAC_LEN + eth_constants.PUBLIC_KEY_LEN
-        nonce = message[nonce_start: nonce_start + eth_constants.AUTH_NONCE_LEN]
-        known_flag = bool(rlp_utils.safe_ord(message[nonce_start + eth_constants.AUTH_NONCE_LEN:]))
+        nonce_start = eth_common_constants.SIGNATURE_LEN + eth_common_constants.MAC_LEN + eth_common_constants.PUBLIC_KEY_LEN
+        nonce = message[nonce_start: nonce_start + eth_common_constants.AUTH_NONCE_LEN]
+        known_flag = bool(eth_common_utils.safe_ord(message[nonce_start + eth_common_constants.AUTH_NONCE_LEN:]))
         assert known_flag == 0
 
-        return signature, pubkey, nonce, eth_constants.P2P_PROTOCOL_VERSION
+        return signature, pubkey, nonce, eth_common_constants.P2P_PROTOCOL_VERSION
 
     def parse_eip8_auth_message(self, message):
         eip8_auth_serializers = sedes.List(
             [
-                sedes.Binary(min_length=eth_constants.SIGNATURE_LEN, max_length=eth_constants.SIGNATURE_LEN),  # sig
-                sedes.Binary(min_length=eth_constants.PUBLIC_KEY_LEN, max_length=eth_constants.PUBLIC_KEY_LEN),
+                sedes.Binary(min_length=eth_common_constants.SIGNATURE_LEN, max_length=eth_common_constants.SIGNATURE_LEN),  # sig
+                sedes.Binary(min_length=eth_common_constants.PUBLIC_KEY_LEN, max_length=eth_common_constants.PUBLIC_KEY_LEN),
                 # pubkey
-                sedes.Binary(min_length=eth_constants.AUTH_NONCE_LEN, max_length=eth_constants.AUTH_NONCE_LEN),  # nonce
+                sedes.Binary(min_length=eth_common_constants.AUTH_NONCE_LEN, max_length=eth_common_constants.AUTH_NONCE_LEN),  # nonce
                 sedes.BigEndianInt()  # version
             ], strict=False)
 
@@ -228,17 +227,17 @@ class RLPxCipher(object):
         assert not self._is_initiator
 
         ephemeral_pubkey = self._ephemeral_ecc.get_raw_public_key()
-        encoded_nonce = rlp.sedes.big_endian_int.serialize(random.randint(0, eth_constants.MAX_NONCE))
-        self._responder_nonce = crypto_utils.keccak_hash(encoded_nonce)
+        encoded_nonce = rlp.sedes.big_endian_int.serialize(random.randint(0, eth_common_constants.MAX_NONCE))
+        self._responder_nonce = eth_common_utils.keccak_hash(encoded_nonce)
 
         if self._is_eip8_auth:
             msg = self.create_eip8_auth_ack_message(ephemeral_pubkey, self._responder_nonce,
-                                                    eth_constants.P2P_PROTOCOL_VERSION)
-            assert len(msg) > eth_constants.AUTH_ACK_MSG_LEN
+                                                    eth_common_constants.P2P_PROTOCOL_VERSION)
+            assert len(msg) > eth_common_constants.AUTH_ACK_MSG_LEN
         else:
             msg = self.create_plain_auth_ack_message(ephemeral_pubkey, self._responder_nonce,
-                                                     eth_constants.P2P_PROTOCOL_VERSION)
-            assert len(msg) == eth_constants.AUTH_ACK_MSG_LEN
+                                                     eth_common_constants.P2P_PROTOCOL_VERSION)
+            assert len(msg) == eth_common_constants.AUTH_ACK_MSG_LEN
 
         return msg
 
@@ -249,26 +248,26 @@ class RLPxCipher(object):
     def create_eip8_auth_ack_message(self, ephemeral_pubkey, nonce, version):
         eip8_ack_serializers = sedes.List(
             [
-                sedes.Binary(min_length=eth_constants.PUBLIC_KEY_LEN, max_length=eth_constants.PUBLIC_KEY_LEN),  # ephemeral pubkey
-                sedes.Binary(min_length=eth_constants.AUTH_NONCE_LEN, max_length=eth_constants.AUTH_NONCE_LEN),  # nonce
+                sedes.Binary(min_length=eth_common_constants.PUBLIC_KEY_LEN, max_length=eth_common_constants.PUBLIC_KEY_LEN),  # ephemeral pubkey
+                sedes.Binary(min_length=eth_common_constants.AUTH_NONCE_LEN, max_length=eth_common_constants.AUTH_NONCE_LEN),  # nonce
                 sedes.BigEndianInt()  # version
             ], strict=False)
 
         data = rlp.encode((ephemeral_pubkey, nonce, version), sedes=eip8_ack_serializers)
-        pad = os.urandom(random.randint(eth_constants.EIP8_ACK_PAD_MIN, eth_constants.EIP8_ACK_PAD_MAX))
+        pad = os.urandom(random.randint(eth_common_constants.EIP8_ACK_PAD_MIN, eth_common_constants.EIP8_ACK_PAD_MAX))
         return data + pad
 
     def encrypt_auth_ack_message(self, ack_message):
         assert not self._is_initiator
 
         if self._is_eip8_auth:
-            prefix = struct.pack(">H", len(ack_message) + eth_constants.ECIES_ENCRYPT_OVERHEAD_LENGTH)
+            prefix = struct.pack(">H", len(ack_message) + eth_common_constants.ECIES_ENCRYPT_OVERHEAD_LENGTH)
             enc_auth_ack = self._ecc.encrypt(ack_message, self._remote_pubkey, shared_mac_data=prefix)
 
             self._auth_ack = prefix + enc_auth_ack
         else:
             self._auth_ack = self._ecc.encrypt(ack_message, self._remote_pubkey)
-            assert len(self._auth_ack) == eth_constants.ENC_AUTH_ACK_MSG_LEN
+            assert len(self._auth_ack) == eth_common_constants.ENC_AUTH_ACK_MSG_LEN
 
         return self._auth_ack
 
@@ -281,15 +280,15 @@ class RLPxCipher(object):
 
         assert self._is_initiator
 
-        if len(cipher_text) != eth_constants.ENC_AUTH_ACK_MSG_LEN:
+        if len(cipher_text) != eth_common_constants.ENC_AUTH_ACK_MSG_LEN:
             raise ValueError("Expected length of auth ack message is {0} but was provided {1}"
-                             .format(eth_constants.ENC_AUTH_ACK_MSG_LEN, len(cipher_text)))
+                             .format(eth_common_constants.ENC_AUTH_ACK_MSG_LEN, len(cipher_text)))
 
         (size, eph_pubkey, nonce) = self._decode_auth_ack_message(cipher_text)
         self._auth_ack = cipher_text[:size]
-        self._remote_ephemeral_pubkey = eph_pubkey[:eth_constants.PUBLIC_KEY_LEN]
+        self._remote_ephemeral_pubkey = eph_pubkey[:eth_common_constants.PUBLIC_KEY_LEN]
         self._responder_nonce = nonce
-        self._remote_version = eth_constants.AUTH_MSG_VERSION
+        self._remote_version = eth_common_constants.AUTH_MSG_VERSION
 
         if not self._ecc.is_valid_key(self._remote_ephemeral_pubkey):
             raise InvalidKeyError("Invalid remote ephemeral pubkey")
@@ -315,20 +314,20 @@ class RLPxCipher(object):
         ecdhe_shared_secret = self._ephemeral_ecc.get_ecdh_key(self._remote_ephemeral_pubkey)
 
         # shared-secret = sha3(ecdhe-shared-secret || sha3(nonce || initiator-nonce))
-        shared_secret = crypto_utils.keccak_hash(
-            ecdhe_shared_secret + crypto_utils.keccak_hash(self._responder_nonce + self._initiator_nonce))
+        shared_secret = eth_common_utils.keccak_hash(
+            ecdhe_shared_secret + eth_common_utils.keccak_hash(self._responder_nonce + self._initiator_nonce))
 
         self.ecdhe_shared_secret = ecdhe_shared_secret  # used in tests
         self.shared_secret = shared_secret  # used in tests
 
         # token = sha3(shared-secret)
-        self._token = crypto_utils.keccak_hash(shared_secret)
+        self._token = eth_common_utils.keccak_hash(shared_secret)
 
         # aes-secret = sha3(ecdhe-shared-secret || shared-secret)
-        self._aes_secret = crypto_utils.keccak_hash(ecdhe_shared_secret + shared_secret)
+        self._aes_secret = eth_common_utils.keccak_hash(ecdhe_shared_secret + shared_secret)
 
         # mac-secret = sha3(ecdhe-shared-secret || aes-secret)
-        self.mac_secret = crypto_utils.keccak_hash(ecdhe_shared_secret + self._aes_secret)
+        self.mac_secret = eth_common_utils.keccak_hash(ecdhe_shared_secret + self._aes_secret)
 
         # setup sha3 instances for the MACs
         # egress-mac = sha3.update(mac-secret ^ recipient-nonce || auth-sent-init)
@@ -343,11 +342,11 @@ class RLPxCipher(object):
         else:
             self._egress_mac, self._ingress_mac = mac2, mac1
 
-        iv = "\x00" * eth_constants.IV_LEN
-        self._aes_enc = pyelliptic.Cipher(self._aes_secret, iv, eth_constants.CIPHER_ENCRYPT_DO,
-                                          ciphername=eth_constants.RLPX_CIPHER_NAME)
-        self._aes_dec = pyelliptic.Cipher(self._aes_secret, iv, eth_constants.CIPHER_DECRYPT_DO,
-                                          ciphername=eth_constants.RLPX_CIPHER_NAME)
+        iv = "\x00" * eth_common_constants.IV_LEN
+        self._aes_enc = pyelliptic.Cipher(self._aes_secret, iv, eth_common_constants.CIPHER_ENCRYPT_DO,
+                                          ciphername=eth_common_constants.RLPX_CIPHER_NAME)
+        self._aes_dec = pyelliptic.Cipher(self._aes_secret, iv, eth_common_constants.CIPHER_DECRYPT_DO,
+                                          ciphername=eth_common_constants.RLPX_CIPHER_NAME)
         self._mac_enc = AES.new(self.mac_secret, AES.MODE_ECB).encrypt
 
         self._is_ready = True
@@ -373,8 +372,8 @@ class RLPxCipher(object):
 
         # egress-mac.update(aes(mac-secret,egress-mac) ^ header-ciphertext).digest
         header_mac = self.mac_egress(
-            crypto_utils.string_xor(self._mac_enc(self.mac_egress()[:eth_constants.FRAME_MAC_LEN]),
-                                    header_ciphertext))[:eth_constants.FRAME_MAC_LEN]
+            crypto_utils.string_xor(self._mac_enc(self.mac_egress()[:eth_common_constants.FRAME_MAC_LEN]),
+                                    header_ciphertext))[:eth_common_constants.FRAME_MAC_LEN]
 
         # frame
         frame_ciphertext = self.aes_encode(body)
@@ -383,8 +382,8 @@ class RLPxCipher(object):
         # left128(egress-mac.update(frame-ciphertext).digest))
         fmac_seed = self.mac_egress(frame_ciphertext)
         frame_mac = self.mac_egress(
-            crypto_utils.string_xor(self._mac_enc(self.mac_egress()[:eth_constants.FRAME_MAC_LEN]),
-                                    fmac_seed[:eth_constants.FRAME_MAC_LEN]))[:eth_constants.FRAME_MAC_LEN]
+            crypto_utils.string_xor(self._mac_enc(self.mac_egress()[:eth_common_constants.FRAME_MAC_LEN]),
+                                    fmac_seed[:eth_common_constants.FRAME_MAC_LEN]))[:eth_common_constants.FRAME_MAC_LEN]
 
         return bytearray(header_ciphertext + header_mac + frame_ciphertext + frame_mac)
 
@@ -395,22 +394,22 @@ class RLPxCipher(object):
         :return: decrypted header data
         """
 
-        if len(data) != eth_constants.FRAME_HDR_TOTAL_LEN:
+        if len(data) != eth_common_constants.FRAME_HDR_TOTAL_LEN:
             raise ValueError("Frame header len is expected to be {0} but was {1}"
-                             .format(eth_constants.FRAME_HDR_TOTAL_LEN, len(data)))
+                             .format(eth_common_constants.FRAME_HDR_TOTAL_LEN, len(data)))
 
         if not self._is_ready:
             raise CipherNotInitializedError("failed to decrypt frame header, the cipher was never initialized!")
 
-        header_cipher_text = data[:eth_constants.FRAME_HDR_DATA_LEN]
-        header_mac = data[eth_constants.FRAME_HDR_DATA_LEN:eth_constants.FRAME_HDR_TOTAL_LEN]
+        header_cipher_text = data[:eth_common_constants.FRAME_HDR_DATA_LEN]
+        header_mac = data[eth_common_constants.FRAME_HDR_DATA_LEN:eth_common_constants.FRAME_HDR_TOTAL_LEN]
 
         # ingress-mac.update(aes(mac-secret,ingress-mac) ^ header-ciphertext).digest
-        mac1 = self.mac_ingress()[:eth_constants.FRAME_MAC_LEN]
+        mac1 = self.mac_ingress()[:eth_common_constants.FRAME_MAC_LEN]
         mac_enc = self._mac_enc(mac1)
         mac_sxor = crypto_utils.string_xor(mac_enc, header_cipher_text)
 
-        expected_header_mac = self.mac_ingress(mac_sxor)[:eth_constants.FRAME_MAC_LEN]
+        expected_header_mac = self.mac_ingress(mac_sxor)[:eth_common_constants.FRAME_MAC_LEN]
 
         # expected_header_mac = self.updateMAC(self.ingress_mac, header_ciphertext)
         if not expected_header_mac == header_mac:
@@ -435,18 +434,18 @@ class RLPxCipher(object):
 
         read_size = crypto_utils.get_padded_len_16(body_size)
 
-        if not len(data) >= read_size + eth_constants.FRAME_MAC_LEN:
+        if not len(data) >= read_size + eth_common_constants.FRAME_MAC_LEN:
             raise ParseError("Insufficient body length")
 
         frame_cipher_text = data[:read_size]
-        frame_mac = data[read_size:read_size + eth_constants.FRAME_MAC_LEN]
+        frame_mac = data[read_size:read_size + eth_common_constants.FRAME_MAC_LEN]
 
         # ingres-mac.update(aes(mac-secret,ingres-mac) ^
         # left128(ingres-mac.update(frame-ciphertext).digest))
         frame_mac_seed = self.mac_ingress(frame_cipher_text)
         expected_frame_mac = self.mac_ingress(
-            crypto_utils.string_xor(self._mac_enc(self.mac_ingress()[:eth_constants.FRAME_MAC_LEN]),
-                                    frame_mac_seed[:eth_constants.FRAME_MAC_LEN]))[:eth_constants.FRAME_MAC_LEN]
+            crypto_utils.string_xor(self._mac_enc(self.mac_ingress()[:eth_common_constants.FRAME_MAC_LEN]),
+                                    frame_mac_seed[:eth_common_constants.FRAME_MAC_LEN]))[:eth_common_constants.FRAME_MAC_LEN]
 
         if not frame_mac == expected_frame_mac:
             raise AuthenticationError("Invalid frame mac")
@@ -485,11 +484,11 @@ class RLPxCipher(object):
 
     def _decode_auth_ack_message(self, cipher_text):
         try:
-            message = self._ecc.decrypt(cipher_text[:eth_constants.ENC_AUTH_ACK_MSG_LEN])
+            message = self._ecc.decrypt(cipher_text[:eth_common_constants.ENC_AUTH_ACK_MSG_LEN])
         except RuntimeError as e:
             raise AuthenticationError(e)
-        eph_pubkey = message[:eth_constants.PUBLIC_KEY_LEN]
-        nonce = message[eth_constants.PUBLIC_KEY_LEN:eth_constants.PUBLIC_KEY_LEN + eth_constants.AUTH_NONCE_LEN]
-        known = rlp_utils.safe_ord(message[-1])
+        eph_pubkey = message[:eth_common_constants.PUBLIC_KEY_LEN]
+        nonce = message[eth_common_constants.PUBLIC_KEY_LEN:eth_common_constants.PUBLIC_KEY_LEN + eth_common_constants.AUTH_NONCE_LEN]
+        known = eth_common_utils.safe_ord(message[-1])
         assert known == 0
-        return (eth_constants.ENC_AUTH_ACK_MSG_LEN, eph_pubkey, nonce)
+        return (eth_common_constants.ENC_AUTH_ACK_MSG_LEN, eph_pubkey, nonce)

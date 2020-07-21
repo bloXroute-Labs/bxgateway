@@ -3,13 +3,13 @@ import struct
 import rlp
 
 from bxcommon.exceptions import ParseError
-from bxgateway import eth_constants
-from bxgateway.utils.eth.crypto_utils import get_padded_len_16
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
+from bxcommon.utils.blockchain_utils.eth.crypto_utils import get_padded_len_16
 from bxgateway.utils.eth.frame import Frame
 
 
-def get_frames(msg_type, payload_bytes, protocol_id=eth_constants.DEFAULT_FRAME_PROTOCOL_ID,
-               window_size=eth_constants.DEFAULT_FRAME_SIZE):
+def get_frames(msg_type, payload_bytes, protocol_id=eth_common_constants.DEFAULT_FRAME_PROTOCOL_ID,
+               window_size=eth_common_constants.DEFAULT_FRAME_SIZE):
     """
     Parses frames from message bytes
 
@@ -28,7 +28,7 @@ def get_frames(msg_type, payload_bytes, protocol_id=eth_constants.DEFAULT_FRAME_
         return [Frame(msg_type, payload_bytes, protocol_id)]
 
     frames = []
-    total_payload_size = eth_constants.FRAME_MSG_TYPE_LEN + len(payload_bytes)
+    total_payload_size = eth_common_constants.FRAME_MSG_TYPE_LEN + len(payload_bytes)
     sequence_id = 0
 
     while (True):
@@ -60,9 +60,9 @@ def get_max_frame_payload_size(window_size):
     :return: max payload size
     """
 
-    return window_size - eth_constants.FRAME_HDR_DATA_LEN - \
-           2 * eth_constants.FRAME_MAC_LEN - \
-           eth_constants.FRAME_MSG_TYPE_LEN
+    return window_size - eth_common_constants.FRAME_HDR_DATA_LEN - \
+           2 * eth_common_constants.FRAME_MAC_LEN - \
+           eth_common_constants.FRAME_MSG_TYPE_LEN
 
 
 def get_full_frame_size(body_size):
@@ -72,9 +72,9 @@ def get_full_frame_size(body_size):
     :return: size of full frame
     """
 
-    return eth_constants.FRAME_HDR_TOTAL_LEN + \
+    return eth_common_constants.FRAME_HDR_TOTAL_LEN + \
            get_padded_len_16(body_size) + \
-           eth_constants.FRAME_MAC_LEN
+           eth_common_constants.FRAME_MAC_LEN
 
 
 def parse_frame_header(header_bytes):

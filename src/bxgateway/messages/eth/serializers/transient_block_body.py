@@ -1,7 +1,7 @@
 import rlp
 
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 
 
 class TransientBlockBody(rlp.Serializable):

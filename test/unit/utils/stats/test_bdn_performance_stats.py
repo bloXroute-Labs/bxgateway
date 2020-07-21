@@ -25,7 +25,7 @@ from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import Tr
 from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 
 

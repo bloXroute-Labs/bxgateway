@@ -4,11 +4,10 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils import helpers
 from bxcommon.utils.buffers.input_buffer import InputBuffer
 
-from bxgateway import eth_constants
 from bxgateway.eth_exceptions import WrongMACError
 from bxgateway.messages.eth.discovery.eth_discovery_message_factory import eth_discovery_message_factory
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 
 
 class EthDiscoveryMessageFactoryTests(AbstractTestCase):
@@ -85,7 +84,7 @@ class EthDiscoveryMessageFactoryTests(AbstractTestCase):
     def _create_half_payload_msg_bytes(self):
         msg_bytes, msg_len = self._create_full_msg_bytes()
         # removing few bytes
-        bytes_to_remove = int((len(msg_bytes) - eth_constants.MDC_LEN - eth_constants.SIGNATURE_LEN) / 2)
+        bytes_to_remove = int((len(msg_bytes) - eth_common_constants.MDC_LEN - eth_common_constants.SIGNATURE_LEN) / 2)
         incomplete_msg_bytes = msg_bytes[:len(msg_bytes) - bytes_to_remove]
 
         return incomplete_msg_bytes, msg_len

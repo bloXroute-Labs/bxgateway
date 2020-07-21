@@ -3,7 +3,6 @@ from typing import Tuple, Union, List, Any
 from mock import MagicMock
 
 from bxcommon.test_utils import helpers
-from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.ont.ont_gateway_node import OntGatewayNode
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage

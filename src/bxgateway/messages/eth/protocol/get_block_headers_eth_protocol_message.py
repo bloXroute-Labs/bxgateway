@@ -3,7 +3,7 @@ from typing import Optional
 import rlp
 
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway import eth_constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxutils.logging.log_level import LogLevel
 
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
@@ -32,14 +32,14 @@ class GetBlockHeadersEthProtocolMessage(EthProtocolMessage):
 
     def get_block_hash(self) -> Optional[Sha256Hash]:
         block_hash_bytes = self.get_field_value("block_hash")
-        if len(block_hash_bytes) != eth_constants.BLOCK_HASH_LEN:
+        if len(block_hash_bytes) != eth_common_constants.BLOCK_HASH_LEN:
             return None
         else:
             return Sha256Hash(block_hash_bytes)
 
     def get_block_number(self) -> Optional[int]:
         block_hash_bytes = self.get_field_value("block_hash")
-        if len(block_hash_bytes) == eth_constants.BLOCK_HASH_LEN:
+        if len(block_hash_bytes) == eth_common_constants.BLOCK_HASH_LEN:
             return None
         else:
             return int.from_bytes(block_hash_bytes, byteorder="big")
