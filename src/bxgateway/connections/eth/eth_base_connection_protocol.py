@@ -120,14 +120,21 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         self.connection.msg_pong(msg)
         self._last_ping_pong_time = time.time()
 
-    def msg_hello(self, _msg):
-        self.connection.log_trace("Hello message received.")
+    def msg_hello(self, msg: HelloEthProtocolMessage):
+        client_version_string = msg.get_client_version_string()
+        version = msg.get_version()
+        self.connection.log_info("Exchanging handshake messages with blockchain node {}, with version field {}.",
+                                 client_version_string, version)
         self.connection_status.hello_message_received = True
-        self._enqueue_status_message()
 
-    def msg_status(self, _msg):
+    def msg_status(self, msg: StatusEthProtocolMessage):
         self.connection.log_trace("Status message received.")
         self.connection_status.status_message_received = True
+        chain_difficulty_from_status_msg = msg.get_chain_difficulty()
+        chain_difficulty = int(self.node.opts.chain_difficulty, 16)
+        if isinstance(chain_difficulty_from_status_msg, int) and chain_difficulty_from_status_msg > chain_difficulty:
+            chain_difficulty = chain_difficulty_from_status_msg
+        self._enqueue_status_message(chain_difficulty)
 
     def msg_disconnect(self, msg):
         self.connection_status.disconnect_message_received = True
@@ -186,9 +193,8 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         self.connection.enqueue_msg(hello_msg)
         self.connection_status.hello_message_sent = True
 
-    def _enqueue_status_message(self):
+    def _enqueue_status_message(self, chain_difficulty: int):
         network_id = self.node.opts.network_id
-        chain_difficulty = int(self.node.opts.chain_difficulty, 16)
         chain_head_hash = convert.hex_to_bytes(self.node.opts.genesis_hash)
         genesis_hash = convert.hex_to_bytes(self.node.opts.genesis_hash)
 

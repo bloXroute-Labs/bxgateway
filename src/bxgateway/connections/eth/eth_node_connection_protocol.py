@@ -26,6 +26,7 @@ from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message impo
 from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
+from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.serializers.transaction import Transaction
 from bxgateway.utils.eth import crypto_utils
 from bxutils import logging
@@ -83,7 +84,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             f"{str(self)}_eth_requested_blocks"
         )
 
-    def msg_status(self, _msg):
+    def msg_status(self, msg: StatusEthProtocolMessage):
+        super(EthNodeConnectionProtocol, self).msg_status(msg)
         self.connection.on_connection_established()
 
         self.node.alarm_queue.register_alarm(
