@@ -8,6 +8,7 @@ from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.memory_utils import ObjectSize
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.stats import hooks
 from bxgateway import gateway_constants
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
@@ -413,7 +414,7 @@ class EthBlockQueuingService(
             block_height = self._height_by_block_hash[block_hash]
         return block_height
 
-    def log_memory_stats(self):
+    def log_memory_stats(self) -> None:
         hooks.add_obj_mem_stats(
             self.__class__.__name__,
             self.node.network_num,
@@ -446,7 +447,7 @@ class EthBlockQueuingService(
 
     def _store_block_parts(
         self, block_hash: Sha256Hash, block_message: InternalEthBlockInfo
-    ):
+    ) -> None:
         new_block_parts = block_message.to_new_block_parts()
         self._block_parts[block_hash] = new_block_parts
         block_number = block_message.block_number()
