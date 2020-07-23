@@ -276,7 +276,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
     @async_test
     async def test_queuing_messages_no_blockchain_connection(self):
         node = self._initialize_gateway(True, True)
-        blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
+        blockchain_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
         blockchain_conn.mark_for_close()
 
         self.assertIsNone(node.node_conn)
@@ -287,7 +287,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(queued_message, node.node_msg_queue._queue[0])
 
         node.on_connection_added(MockSocketConnection(ip_address=LOCALHOST, port=8001))
-        next_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
+        next_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
         next_conn.outputbuf = OutputBuffer()  # clear buffer
 
         node.on_blockchain_connection_ready(next_conn)
@@ -295,7 +295,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
     def test_queuing_messages_cleared_after_timeout(self):
         node = self._initialize_gateway(True, True)
-        blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
+        blockchain_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
         blockchain_conn.mark_for_close()
 
         self.assertIsNone(node.node_conn)
@@ -310,7 +310,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.alarm_queue.fire_alarms()
 
         node.on_connection_added(MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001))
-        next_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
+        next_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
         next_conn.outputbuf = OutputBuffer()  # clear buffer
 
         node.on_blockchain_connection_ready(next_conn)
@@ -326,7 +326,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(queued_message, node.node_msg_queue._queue[0])
 
         node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8001))
-        reestablished_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
+        reestablished_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
         reestablished_conn.outputbuf = OutputBuffer()  # clear buffer
 
         node.on_blockchain_connection_ready(reestablished_conn)
@@ -349,7 +349,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
     def test_exit_after_losing_blockchain_connection(self):
         node = self._initialize_gateway(True, True)
 
-        blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
+        blockchain_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
         blockchain_conn.mark_for_close()
 
         self.assertIsNone(node.node_conn)
@@ -366,7 +366,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
     def test_exit_after_losing_relay_connection(self):
         node = self._initialize_gateway(True, True)
 
-        relay_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
+        relay_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])))
         # skip retries
         relay_conn.mark_for_close(False)
 
@@ -428,9 +428,9 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         ], any_order=True)
         node.on_connection_added(MockSocketConnection(3, ip_address=LOCALHOST, port=9001))
         node.on_connection_added(MockSocketConnection(4, ip_address=LOCALHOST, port=9002))
-        for conn in node.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK):
+        for conn in node.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK]):
             self.assertEqual(9001, conn.peer_port)
-        for conn in node.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION):
+        for conn in node.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION]):
             self.assertEqual(9002, conn.peer_port)
 
     def test_register_potential_relay_peers(self):
@@ -560,9 +560,9 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
     def _check_connection_pool(self, node, all, relay_block, relay_tx, relay_all):
         self.assertEqual(all, len(node.connection_pool))
-        self.assertEqual(relay_block, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)))
-        self.assertEqual(relay_tx, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION)))
-        self.assertEqual(relay_all, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
+        self.assertEqual(relay_block, len(list(node.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK]))))
+        self.assertEqual(relay_tx, len(list(node.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION]))))
+        self.assertEqual(relay_all, len(list(node.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL]))))
 
     def _initialize_gateway(self, initialize_blockchain_conn: bool, initialize_relay_conn: bool) -> GatewayNode:
         opts = gateway_helpers.get_gateway_opts(
@@ -577,16 +577,16 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         if initialize_blockchain_conn:
             node.on_connection_added(MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001))
-            self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
-            blockchain_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE)))
+            self.assertEqual(1, len(list(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))))
+            blockchain_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
 
             node.on_blockchain_connection_ready(blockchain_conn)
             self.assertIsNone(node._blockchain_liveliness_alarm)
 
         if initialize_relay_conn:
             node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
-            self.assertEqual(1, len(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
-            relay_conn = next(iter(node.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)))
+            self.assertEqual(1, len(list(node.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL]))))
+            relay_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])))
 
             node.on_relay_connection_ready()
             self.assertIsNone(node._relay_liveliness_alarm)

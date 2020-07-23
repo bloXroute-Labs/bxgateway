@@ -81,7 +81,7 @@ def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: s
     network.clear()
 
     for conn_type in CONN_TYPES:
-        for conn in conn_pool.get_by_connection_type(conn_type):
+        for conn in conn_pool.get_by_connection_types([conn_type]):
             network.add_connection(conn.CONNECTION_TYPE, conn.peer_desc, conn.file_no, conn.peer_id)
 
     summary = network.get_summary(ip_address, continent, country, update_required, account_id, quota_level)

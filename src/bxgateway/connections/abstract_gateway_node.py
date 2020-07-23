@@ -346,7 +346,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.feed_manager.register_feed(NewTransactionFeed())
 
     def send_bdn_performance_stats(self) -> int:
-        relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)
+        relay_connections = self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])
         if not relay_connections:
             gateway_bdn_performance_stats_service.create_interval_data_object()
             return gateway_bdn_performance_stats_service.interval
@@ -783,7 +783,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             logger.error(log_messages.NO_ACTIVE_BLOCKCHAIN_CONNECTION)
 
     def check_relay_liveliness(self) -> None:
-        if not self.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL):
+        if not list(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])):
             self.should_force_exit = True
             logger.error(log_messages.NO_ACTIVE_BDN_CONNECTIONS)
 
@@ -942,8 +942,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if self.opts.sync_tx_service:
             retry = True
             if self.opts.split_relays:
-                relay_tx_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_TRANSACTION)
-                relay_block_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_BLOCK)
+                relay_tx_connections = self.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION])
+                relay_block_connections = self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])
 
                 if relay_tx_connections and relay_block_connections:
                     relay_tx_connection = next(iter(relay_tx_connections))
@@ -954,7 +954,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                         relay_block_connection.send_tx_service_sync_req(self.network_num)
                         retry = False
             else:
-                relay_connections = self.connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL)
+                relay_connections = self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])
                 if relay_connections:
                     relay_connection = next(iter(relay_connections))
                     if relay_connection.is_active():
