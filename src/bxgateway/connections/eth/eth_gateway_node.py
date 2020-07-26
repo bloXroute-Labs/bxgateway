@@ -128,7 +128,7 @@ class EthGatewayNode(AbstractGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         return EthRemoteConnection(socket_connection, self)
 
-    def build_block_queuing_service(self) -> PushBlockQueuingService:
+    def build_block_queuing_service(self) -> EthBlockQueuingService:
         return EthBlockQueuingService(self)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:

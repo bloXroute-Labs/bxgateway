@@ -109,7 +109,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
         block_hash_number_pairs = []
         for block_hash, block_number in msg.get_block_hash_number_pairs():
-            block_height = self.node.block_queuing_service.get_block_height(block_hash)
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.BLOCK_ANNOUNCED_BY_BLOCKCHAIN_NODE,
@@ -119,17 +118,16 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     self.node.opts.blockchain_network,
                     msg.extra_stats_data()
                 ),
-                block_height=block_height,
+                block_height=block_number,
             )
 
             if block_hash in self.node.blocks_seen.contents:
-                self.node.on_block_seen_by_blockchain_node(block_hash)
-                block_height = self.node.block_queuing_service.get_block_height(block_hash)
+                self.node.on_block_seen_by_blockchain_node(block_hash, block_number=block_number)
                 block_stats.add_block_event_by_block_hash(
                     block_hash,
                     BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                     network_num=self.connection.network_num,
-                    block_height=block_height,
+                    block_height=block_number,
                 )
                 self.connection.log_info(
                     "Ignoring duplicate block {} from local blockchain node.",
@@ -139,7 +137,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
             self.node.track_block_from_node_handling_started(block_hash)
             block_hash_number_pairs.append((block_hash, block_number))
-            self.node.on_block_seen_by_blockchain_node(block_hash)
+            self.node.on_block_seen_by_blockchain_node(block_hash, block_number=block_number)
 
             self.connection.log_info(
                 "Fetching block {} from local Ethereum node.",
@@ -234,6 +232,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 elif self.node.block_cleanup_service.is_marked_for_cleanup(block_hash):
                     transactions_hashes = \
                         BlockBodiesEthProtocolMessage.from_body_bytes(block_body_bytes).get_block_transaction_hashes(0)
+                    # pyre-fixme[16]: `AbstractBlockCleanupService` has no attribute
+                    #  `clean_block_transactions_by_block_components`.
                     self.node.block_cleanup_service.clean_block_transactions_by_block_components(
                         transaction_service=self.node.get_tx_service(),
                         block_hash=block_hash,
@@ -263,14 +263,17 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         while self._ready_new_blocks:
             ready_block_hash = self._ready_new_blocks.pop()
             pending_new_block = self._pending_new_blocks_parts.contents[ready_block_hash]
-            last_known_total_difficulty = self.node.try_calculate_total_difficulty(ready_block_hash,
-                                                                                   pending_new_block)
-            new_block_msg = InternalEthBlockInfo.from_new_block_parts(pending_new_block,
-                                                                      last_known_total_difficulty)
+            last_known_total_difficulty = self.node.try_calculate_total_difficulty(
+                ready_block_hash,
+                pending_new_block
+            )
+            new_block_msg = InternalEthBlockInfo.from_new_block_parts(
+                pending_new_block,
+                last_known_total_difficulty
+            )
             self._pending_new_blocks_parts.remove_item(ready_block_hash)
 
             if self.is_valid_block_timestamp(new_block_msg):
-                block_height = self.node.block_queuing_service.get_block_height(ready_block_hash)
                 block_stats.add_block_event_by_block_hash(
                     ready_block_hash,
                     BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
@@ -280,12 +283,14 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                         self.node.opts.blockchain_network,
                         new_block_msg.extra_stats_data()
                     ),
-                    block_height=block_height,
+                    block_height=new_block_msg.block_number(),
                 )
                 self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
                     ready_block_hash, new_block_msg
                 )
-                self.node.block_processing_service.queue_block_for_processing(new_block_msg, self.connection)
+                self.node.block_processing_service.queue_block_for_processing(
+                    new_block_msg, self.connection
+                )
 
     def _request_blocks_confirmation(self):
         # TODO: remove unused method

@@ -41,7 +41,7 @@ def get_gateway_opts(
     block_interval=600,
     non_ssl_port: int = 9001,
     has_fully_updated_tx_service: bool = False,
-    max_block_interval: int = 10,
+    max_block_interval: float = 10,
     default_tx_quota_type: QuotaType = QuotaType.FREE_DAILY_QUOTA,
     log_level_overrides=None,
     enable_network_content_logs=False,

@@ -135,9 +135,9 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
             offset += difficulty_length
             self._block_number, _ = rlp_utils.decode_int(block_hdr_bytes, offset)
 
-        assert self._block_number is not None
-        # pyre-fixme[7]: Expected `int` but got `Optional[int]`.
-        return self._block_number
+        block_number = self._block_number
+        assert block_number is not None
+        return block_number
 
     @classmethod
     def from_new_block_msg(cls, new_block_msg: NewBlockEthProtocolMessage) -> "InternalEthBlockInfo":

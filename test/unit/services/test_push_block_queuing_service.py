@@ -147,7 +147,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
         # block still in service after confirmation
         self.assertIn(block_hash, self.block_queuing_service)
         self.block_queuing_service.mark_block_seen_by_blockchain_node(
-            block_hash
+            block_hash, None
         )
         self.assertIn(block_hash, self.block_queuing_service)
 
@@ -253,7 +253,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
 
         # confirmed, send immediately
         self.block_queuing_service.mark_block_seen_by_blockchain_node(
-            block_hash_1
+            block_hash_1, None
         )
         self.block_queuing_service.push(block_hash_2, block_msg_2)
         self.assertEqual(2, len(self.node.send_to_node_messages))
@@ -390,13 +390,13 @@ class BlockQueuingServiceTest(AbstractTestCase):
             block_hash1, block_msg1, waiting_for_recovery=False
         )
         self.block_queuing_service.mark_block_seen_by_blockchain_node(
-            block_hash1
+            block_hash1, None
         )
         self.block_queuing_service.push(
             block_hash2, block_msg2, waiting_for_recovery=False
         )
         self.block_queuing_service.mark_block_seen_by_blockchain_node(
-            block_hash2
+            block_hash2, None
         )
         self.block_queuing_service.push(
             block_hash3, block_msg3, waiting_for_recovery=True

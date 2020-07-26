@@ -1,6 +1,7 @@
 import time
-import typing
+from abc import ABCMeta
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, cast, Optional
 
 from bxcommon.utils import convert
 from bxgateway import gateway_constants
@@ -20,6 +21,9 @@ from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
 from bxutils import logging
 
+if TYPE_CHECKING:
+    from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
+
 logger = logging.get_logger(__name__)
 
 
@@ -34,10 +38,11 @@ class EthConnectionProtocolStatus:
     status_message_sent: bool = False
     status_message_received: bool = False
     disconnect_message_received: bool = False
-    disconnect_reason: typing.Optional[int] = None
+    disconnect_reason: Optional[int] = None
 
 
-class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
+class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=ABCMeta):
+    node: "EthGatewayNode"
 
     def __init__(self, connection, is_handshake_initiator, private_key, public_key):
         super(EthBaseConnectionProtocol, self).__init__(
@@ -45,7 +50,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             block_cleanup_poll_interval_s=eth_common_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S
         )
 
-        self.node = typing.cast("bxgateway.connections.eth.eth_gateway_node.EthGatewayNode", connection.node)
+        self.node = cast("EthGatewayNode", connection.node)
 
         self.rlpx_cipher = RLPxCipher(is_handshake_initiator, private_key, public_key)
 

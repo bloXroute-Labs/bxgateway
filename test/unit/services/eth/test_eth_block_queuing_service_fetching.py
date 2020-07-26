@@ -1,3 +1,5 @@
+import time
+
 from bxgateway.testing import gateway_helpers
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import \
     BlockBodiesEthProtocolMessage
@@ -15,7 +17,7 @@ from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 
 
-class EthBlockQueuingServiceTest(AbstractTestCase):
+class EthBlockQueuingServiceFetchingTest(AbstractTestCase):
     def setUp(self):
         self.node = MockGatewayNode(
             gateway_helpers.get_gateway_opts(8000, max_block_interval=0)
@@ -60,6 +62,12 @@ class EthBlockQueuingServiceTest(AbstractTestCase):
 
             self.block_queuing_service.push(block_hash, block_message)
             prev_block_hash = block_hash
+
+        for block_hash in self.block_hashes:
+            self.block_queuing_service.remove_from_queue(block_hash)
+
+        self.block_queuing_service.best_sent_block = (1019, self.block_hashes[-1], time.time())
+        self.block_queuing_service.best_accepted_block = (1019, self.block_hashes[-1])
 
     def test_get_block_hashes_from_hash(self):
         # request: start: 1019, count: 1
@@ -109,13 +117,7 @@ class EthBlockQueuingServiceTest(AbstractTestCase):
         self.assertEqual(1, len(hashes))
         self.assertEqual(self.block_hashes[19], hashes[0])
 
-    def test_get_block_hashes_fork_aborts(self):
-        success, hashes = self.block_queuing_service.get_block_hashes_starting_from_hash(
-            self.block_hashes[10], 5, 0, False
-        )
-        self.assertTrue(success)
-        self.assertEqual(5, len(hashes))
-
+    def test_get_block_by_hash_orphaned_not_found(self):
         # create fork at block 17
         block_message = InternalEthBlockInfo.from_new_block_msg(
             mock_eth_messages.new_block_eth_protocol_message(21, 1017)
@@ -123,10 +125,38 @@ class EthBlockQueuingServiceTest(AbstractTestCase):
         block_hash = block_message.block_hash()
         self.block_queuing_service.push(block_hash, block_message)
         success, hashes = self.block_queuing_service.get_block_hashes_starting_from_hash(
-            self.block_hashes[10], 10, 0, False
+            block_hash, 1, 0, False
         )
-        self.assertFalse(success)
+        self.assertTrue(success)
         self.assertEqual(0, len(hashes))
+
+    def test_get_block_by_number_ambiguous_succeeds(self):
+        # create fork at block 17
+        block_message = InternalEthBlockInfo.from_new_block_msg(
+            mock_eth_messages.new_block_eth_protocol_message(21, 1017)
+        )
+        block_hash = block_message.block_hash()
+        self.block_queuing_service.push(block_hash, block_message)
+
+        success, hashes = self.block_queuing_service.get_block_hashes_starting_from_height(
+            1017, 1, 0, False
+        )
+        self.assertTrue(success)
+        self.assertEqual(self.block_hashes[17], hashes[0])
+
+    def test_get_block_hashes_fork_follows_last_sent(self):
+        # create fork at block 17
+        block_message = InternalEthBlockInfo.from_new_block_msg(
+            mock_eth_messages.new_block_eth_protocol_message(21, 1017)
+        )
+        block_hash = block_message.block_hash()
+        self.block_queuing_service.push(block_hash, block_message)
+        success, hashes = self.block_queuing_service.get_block_hashes_starting_from_hash(
+            self.block_hashes[15], 5, 0, False
+        )
+        self.assertTrue(success)
+        self.assertEqual(5, len(hashes))
+        self.assertEqual(self.block_hashes[15:20], hashes)
 
     def test_get_blocks_from_height_not_all_found_at_end(self):
         success, hashes = self.block_queuing_service.get_block_hashes_starting_from_height(
@@ -143,32 +173,6 @@ class EthBlockQueuingServiceTest(AbstractTestCase):
         )
         self.assertFalse(success)
         self.assertEqual(0, len(hashes))
-
-    def test_update_recovered_block(self):
-        self.block_queuing_service = EthBlockQueuingService(self.node)
-        self.node.send_to_node_messages.clear()
-
-        block_message_1 = InternalEthBlockInfo.from_new_block_msg(
-            mock_eth_messages.new_block_eth_protocol_message(1, 1)
-        )
-        block_hash_1 = block_message_1.block_hash()
-        block_message_2 = InternalEthBlockInfo.from_new_block_msg(
-            mock_eth_messages.new_block_eth_protocol_message(2, 2)
-        )
-        block_hash_2 = block_message_2.block_hash()
-
-        self.block_queuing_service.push(block_hash_1, waiting_for_recovery=True)
-        self.block_queuing_service.push(block_hash_2, block_message_2)
-
-        self.assertEqual(0, len(self.node.send_to_node_messages))
-        self.assertEqual(2, len(self.block_queuing_service))
-
-        self.block_queuing_service.update_recovered_block(
-            block_hash_1,
-            block_message_1
-        )
-        self.assertEqual(2, len(self.node.send_to_node_messages))
-        self.assertEqual(0, len(self.block_queuing_service))
 
     def test_iterate_recent_block_hashes(self):
         top_blocks = list(self.block_queuing_service.iterate_recent_block_hashes(max_count=10))

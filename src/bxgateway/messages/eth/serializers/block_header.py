@@ -27,14 +27,15 @@ class BlockHeader(rlp.Serializable):
     ]
     
     number: int
+    prev_hash: bytearray
 
     def __repr__(self):
         return f"EthBlockHeader<{self.hash_object()}>"
 
-    def hash(self) -> Sha256Hash:
+    def hash(self) -> bytearray:
         """The binary block hash"""
         return eth_common_utils.keccak_hash(rlp.encode(self))
 
-    def hash_object(self):
+    def hash_object(self) -> Sha256Hash:
         return Sha256Hash(eth_common_utils.keccak_hash(rlp.encode(self)))
 

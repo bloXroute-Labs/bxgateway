@@ -1,3 +1,5 @@
+from typing import List
+
 import rlp
 
 from bxutils.logging.log_level import LogLevel
@@ -21,7 +23,7 @@ class BlockHeadersEthProtocolMessage(EthProtocolMessage):
         return f"BlockHeadersEthProtocolMessage<headers_count: {len(headers)} " \
                f"headers: [{'...'.join([h.hash().hex() for h in headers_repr])}]>"
 
-    def get_block_headers(self):
+    def get_block_headers(self) -> List[BlockHeader]:
         return self.get_field_value("block_headers")
 
     def get_block_headers_bytes(self):

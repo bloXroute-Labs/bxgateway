@@ -70,7 +70,7 @@ class PushBlockQueuingService(
 
         if (
             not waiting_for_recovery
-            and self._is_node_ready_to_accept_blocks()
+            and self.is_node_connection_ready()
         ):
             assert block_msg is not None
             if self._can_send_block_message(block_hash, block_msg):
@@ -111,13 +111,14 @@ class PushBlockQueuingService(
         Marks blocks seen and retries the top block(s).
         """
         for block_hash in block_hashes:
-            self.mark_block_seen_by_blockchain_node(block_hash)
+            self.mark_block_seen_by_blockchain_node(block_hash, None)
         self._retry_send()
 
     def mark_block_seen_by_blockchain_node(
         self,
         block_hash: Sha256Hash,
-        block_message: Optional[TBlockMessage] = None,
+        block_message: Optional[TBlockMessage],
+        block_number: Optional[int] = None
     ) -> None:
         super().mark_block_seen_by_blockchain_node(block_hash, block_message)
         self._blocks_seen_by_blockchain_node.add(block_hash)
@@ -220,7 +221,7 @@ class PushBlockQueuingService(
             self._last_alarm_id = self.node.alarm_queue.register_alarm(
                 timeout, func
             )
-        elif not self._is_node_ready_to_accept_blocks():
+        elif not self.is_node_connection_ready():
             self.node.alarm_queue.register_alarm(
                 gateway_constants.NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S,
                 func,
@@ -232,7 +233,7 @@ class PushBlockQueuingService(
         if len(self._block_queue) == 0:
             return constants.CANCEL_ALARMS
 
-        if not self._is_node_ready_to_accept_blocks():
+        if not self.is_node_connection_ready():
             self._schedule_alarm_for_next_item()
             return constants.CANCEL_ALARMS
 
@@ -310,11 +311,11 @@ class PushBlockQueuingService(
         Removes old blocks from block queue even if block_hash is not in self._blocks, similar to remove_from_queue
         """
         logger.trace("Checking block queue and removing old blocks from queue.")
-        currrent_time = time.time()
+        current_time = time.time()
         block_queue_start_len = len(self._block_queue)
         while len(self._block_queue) > 0:
             block_hash, timestamp = self._block_queue[0]
-            if currrent_time - timestamp < self.node.opts.blockchain_message_ttl:
+            if current_time - timestamp < self.node.opts.blockchain_message_ttl:
                 return
 
             last_alarm_id = self._last_alarm_id
@@ -324,9 +325,3 @@ class PushBlockQueuingService(
 
             del self._block_queue[0]
             del self._blocks_waiting_for_recovery[block_hash]
-
-    def _is_node_ready_to_accept_blocks(self) -> bool:
-        return (
-            # pyre-fixme[16]: `Optional` has no attribute `is_active`.
-            self.node.node_conn is not None and self.node.node_conn.is_active()
-        )

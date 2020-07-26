@@ -724,7 +724,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def on_block_seen_by_blockchain_node(
         self,
         block_hash: Sha256Hash,
-        block_message: Optional[AbstractBlockMessage] = None
+        block_message: Optional[AbstractBlockMessage] = None,
+        block_number: Optional[int] = None
     ):
         self.blocks_seen.add(block_hash)
         recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
@@ -734,7 +735,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                                       network_num=self.network_num)
         self.block_queuing_service.mark_block_seen_by_blockchain_node(
             block_hash,
-            block_message
+            block_message,
+            block_number
         )
 
         self.log_blocks_network_content(self.network_num, block_message)
@@ -746,7 +748,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self,
         block_hash: Sha256Hash,
         short_ids: Iterable[int],
-        unknown_tx_hashes: Iterable[Sha256Hash]):
+        unknown_tx_hashes: Iterable[Sha256Hash]
+    ):
         """post cleanup tasks for blocks, override method to implement"""
         pass
 
