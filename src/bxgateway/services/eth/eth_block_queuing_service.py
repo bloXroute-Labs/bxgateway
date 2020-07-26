@@ -258,8 +258,10 @@ class EthBlockQueuingService(
         if block_message is not None:
             self.store_block_data(block_hash, block_message)
             block_number = block_message.block_number()
-        else:
-            assert block_number is not None
+        if block_number is None and block_hash in self._height_by_block_hash:
+            block_number = self._height_by_block_hash[block_hash]
+
+        assert block_number is not None
 
         super().mark_block_seen_by_blockchain_node(block_hash, block_message)
         self.accepted_block_hash_at_height[block_number] = block_hash

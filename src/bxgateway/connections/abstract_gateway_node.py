@@ -346,14 +346,12 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.feed_manager.register_feed(NewTransactionFeed())
 
     def send_bdn_performance_stats(self) -> int:
-        relay_connections = self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])
-        if not relay_connections:
+        relay_connection = next(iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])), None)
+        if not relay_connection:
             gateway_bdn_performance_stats_service.create_interval_data_object()
             return gateway_bdn_performance_stats_service.interval
 
-        relay_connection = cast(AbstractRelayConnection, next(iter(relay_connections)))
         gateway_bdn_performance_stats_service.close_interval_data()
-        # pyre-ignore
         relay_connection.send_bdn_performance_stats(gateway_bdn_performance_stats_service.interval_data)
         gateway_bdn_performance_stats_service.create_interval_data_object()
         return gateway_bdn_performance_stats_service.interval
@@ -945,24 +943,25 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if self.opts.sync_tx_service:
             retry = True
             if self.opts.split_relays:
-                relay_tx_connections = self.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION])
-                relay_block_connections = self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])
+                relay_tx_connection = next(
+                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION])), None
+                )
+                relay_block_connection = next(
+                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])), None
+                )
 
-                if relay_tx_connections and relay_block_connections:
-                    relay_tx_connection = next(iter(relay_tx_connections))
-                    relay_block_connection = next(iter(relay_block_connections))
-
-                    if relay_tx_connection.is_active() and relay_block_connection.is_active():
-                        relay_tx_connection.send_tx_service_sync_req(self.network_num)
-                        relay_block_connection.send_tx_service_sync_req(self.network_num)
-                        retry = False
+                if relay_tx_connection and relay_block_connection and \
+                    relay_tx_connection.is_active() and relay_block_connection.is_active():
+                    relay_tx_connection.send_tx_service_sync_req(self.network_num)
+                    relay_block_connection.send_tx_service_sync_req(self.network_num)
+                    retry = False
             else:
-                relay_connections = self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])
-                if relay_connections:
-                    relay_connection = next(iter(relay_connections))
-                    if relay_connection.is_active():
-                        relay_connection.send_tx_service_sync_req(self.network_num)
-                        retry = False
+                relay_connection = next(
+                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])), None
+                )
+                if relay_connection and relay_connection.is_active():
+                    relay_connection.send_tx_service_sync_req(self.network_num)
+                    retry = False
 
             if retry:
                 logger.info("Relay connection is not ready to sync transaction state with BDN. Scheduling retry.")
