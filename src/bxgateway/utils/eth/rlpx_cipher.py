@@ -196,7 +196,7 @@ class RLPxCipher(object):
 
         nonce_start = eth_common_constants.SIGNATURE_LEN + eth_common_constants.MAC_LEN + eth_common_constants.PUBLIC_KEY_LEN
         nonce = message[nonce_start: nonce_start + eth_common_constants.AUTH_NONCE_LEN]
-        known_flag = bool(eth_common_utils.safe_ord(message[nonce_start + eth_common_constants.AUTH_NONCE_LEN:]))
+        known_flag = bool(rlp_utils.safe_ord(message[nonce_start + eth_common_constants.AUTH_NONCE_LEN:]))
         assert known_flag == 0
 
         return signature, pubkey, nonce, eth_common_constants.P2P_PROTOCOL_VERSION
@@ -489,6 +489,6 @@ class RLPxCipher(object):
             raise AuthenticationError(e)
         eph_pubkey = message[:eth_common_constants.PUBLIC_KEY_LEN]
         nonce = message[eth_common_constants.PUBLIC_KEY_LEN:eth_common_constants.PUBLIC_KEY_LEN + eth_common_constants.AUTH_NONCE_LEN]
-        known = eth_common_utils.safe_ord(message[-1])
+        known = rlp_utils.safe_ord(message[-1])
         assert known == 0
         return (eth_common_constants.ENC_AUTH_ACK_MSG_LEN, eph_pubkey, nonce)

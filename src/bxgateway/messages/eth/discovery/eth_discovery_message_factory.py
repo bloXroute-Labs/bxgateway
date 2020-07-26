@@ -8,7 +8,7 @@ from bxgateway.messages.eth.discovery.eth_discovery_message import EthDiscoveryM
 from bxgateway.messages.eth.discovery.eth_discovery_message_type import EthDiscoveryMessageType
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
 from bxgateway.messages.eth.discovery.pong_eth_discovery_message import PongEthDiscoveryMessage
-from bxcommon.utils.blockchain_utils.eth import eth_common_utils, rlp_utils, eth_common_constants
+from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_constants
 
 
 class _EthDiscoveryMessageFactory(AbstractMessageFactory):
@@ -69,7 +69,7 @@ class _EthDiscoveryMessageFactory(AbstractMessageFactory):
             return None
 
         msg_type_bytes = input_buffer.get_slice(msg_type_position, msg_type_position + eth_common_constants.MSG_TYPE_LEN)
-        msg_type = eth_common_utils.safe_ord(msg_type_bytes)
+        msg_type = rlp_utils.safe_ord(msg_type_bytes)
 
         return msg_type
 
@@ -98,7 +98,7 @@ class _EthDiscoveryMessageFactory(AbstractMessageFactory):
         if len(msg_bytes) <= msg_type_position:
             raise ParseError("Message length {0} is less then position of message type.".format(len(msg_bytes)))
 
-        msg_type = eth_common_utils.safe_ord(msg_bytes[msg_type_position:msg_type_position + eth_common_constants.MSG_TYPE_LEN])
+        msg_type = rlp_utils.safe_ord(msg_bytes[msg_type_position:msg_type_position + eth_common_constants.MSG_TYPE_LEN])
         return msg_type
 
 

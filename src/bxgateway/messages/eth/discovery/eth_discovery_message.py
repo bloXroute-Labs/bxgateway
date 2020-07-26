@@ -46,7 +46,7 @@ class EthDiscoveryMessage(AbstractEthMessage):
         mdc_sig_len = eth_common_constants.MDC_LEN + eth_common_constants.SIGNATURE_LEN
         signature = self._memory_view[eth_common_constants.MDC_LEN:mdc_sig_len].tobytes()
 
-        self._msg_type = eth_common_utils.safe_ord(self._memory_view[mdc_sig_len])
+        self._msg_type = rlp_utils.safe_ord(self._memory_view[mdc_sig_len])
 
         encoded_data = self._memory_view[mdc_sig_len:].tobytes()
         signed_data = eth_common_utils.keccak_hash(encoded_data)
