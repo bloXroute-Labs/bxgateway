@@ -1,5 +1,5 @@
 import asyncio
-from typing import Tuple, Optional, List, Any, Union, Iterable, AsyncIterable
+from typing import Tuple, Optional, List, Any, Union, Iterable, AsyncIterable, Dict
 from unittest.mock import patch
 
 import websockets
@@ -40,7 +40,7 @@ class TestWsProvider(AbstractWsProvider):
         super().__init__(uri)
         self.fail_connect = False
 
-    async def subscribe(self, channel: str, fields: Optional[List[str]] = None) -> str:
+    async def subscribe(self, channel: str, options: Optional[Dict[str, Any]] = None) -> str:
         pass
 
     async def unsubscribe(self, subscription_id: str) -> Tuple[bool, Optional[RpcError]]:

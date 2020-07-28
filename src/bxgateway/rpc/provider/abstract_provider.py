@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from typing import Optional, List, NamedTuple, Any, Callable, Tuple
+from typing import Optional, NamedTuple, Any, Callable, Tuple, Dict
 
 from bxcommon.rpc.json_rpc_request import JsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
@@ -43,7 +43,7 @@ class AbstractProvider(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def subscribe(self, channel: str, fields: Optional[List[str]] = None) -> str:
+    async def subscribe(self, channel: str, options: Optional[Dict[str, Any]] = None) -> str:
         pass
 
     @abstractmethod
@@ -55,7 +55,7 @@ class AbstractProvider(metaclass=ABCMeta):
         self,
         callback: Callable[[SubscriptionNotification], None],
         channel: str,
-        fields: Optional[List[str]] = None
+        options: Optional[Dict[str, Any]] = None,
     ) -> None:
         pass
 

@@ -21,12 +21,12 @@ class Subscriber(Generic[T]):
     changes.
     """
 
-    include_fields: Optional[List[str]]
     subscription_id: str
     messages: 'asyncio.Queue[Union[T, Dict[str, Any]]]'
+    options: Dict[str, Any]
 
-    def __init__(self, include_fields: Optional[List[str]] = None) -> None:
-        self.include_fields = include_fields
+    def __init__(self, options: Dict[str, Any]) -> None:
+        self.options = options
         self.subscription_id = str(uuid.uuid4())
         self.messages = asyncio.Queue(
             gateway_constants.RPC_SUBSCRIBER_MAX_QUEUE_SIZE
@@ -48,7 +48,7 @@ class Subscriber(Generic[T]):
         If too many messages are queued without a listener, this task
         will eventually fail and must be handled.
         """
-        include_fields = self.include_fields
+        include_fields = self.options.get("include", None)
         if include_fields is not None:
             if isinstance(message, dict):
                 filtered_message = {

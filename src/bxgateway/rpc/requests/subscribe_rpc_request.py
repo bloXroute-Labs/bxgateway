@@ -15,9 +15,11 @@ if TYPE_CHECKING:
 
 class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {
-        "params": "[feed_name, {\"include\": [field_1, field_2]}].\n"
+        "params": "[feed_name, {\"include\": [field_1, field_2], \"duplicates\": false}].\n"
                   "Available feeds: newTxs, pendingTxs\n"
-                  "Available fields: tx_hash, tx_contents (default: all)",
+                  "Available fields: tx_hash, tx_contents (default: all)\n"
+                  "duplicates: False (filter out duplicates from feed, typically low fee "
+                  "transactions, default), True (include all duplicates)",
         "description": "Subscribe to a named feed for notifications"
     }
 
@@ -29,9 +31,9 @@ class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
         subscribe_handler: Callable[[Subscriber, str], None],
     ) -> None:
         self.feed_name = ""
-        self.include: List[str] = []
         self.feed_manager = feed_manager
         self.subscribe_handler = subscribe_handler
+        self.options = {}
 
         super().__init__(request, node)
 
@@ -84,17 +86,14 @@ class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
             ):
                 raise invalid_options
 
-            self.include = include
+        self.options = options
 
     async def process_request(self) -> JsonRpcResponse:
         params = self.params
         assert isinstance(params, list)
 
-        options = params[1]
-        assert isinstance(options, dict)
-
         subscriber = self.feed_manager.subscribe_to_feed(
-            self.feed_name, options.get("include", None)
+            self.feed_name, self.options
         )
         assert subscriber is not None  # already validated
         self.subscribe_handler(subscriber, self.feed_name)

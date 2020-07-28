@@ -6,7 +6,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
-from bxgateway.utils.eth import rlp_utils, crypto_utils
+from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
 from bxutils.logging.log_level import LogLevel
 
 
@@ -41,7 +41,7 @@ class BlockBodiesEthProtocolMessage(EthProtocolMessage):
         tx_hashes = []
 
         for tx_bytes in self.get_block_transaction_bytes(block_index):
-            tx_hash_bytes = crypto_utils.keccak_hash(tx_bytes)
+            tx_hash_bytes = eth_common_utils.keccak_hash(tx_bytes)
             tx_hashes.append(Sha256Hash(tx_hash_bytes))
 
         return tx_hashes

@@ -18,8 +18,6 @@ from bxgateway import gateway_constants
 from bxgateway import log_messages
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
-from bxgateway.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory

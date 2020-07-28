@@ -5,7 +5,7 @@ from bxgateway.messages.btc.btc_message import BtcMessage
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.btc_messages_util import pack_int_to_btc_varint
 from bxcommon.utils import crypto
-from bxcommon.utils.blockchain_utils.btc.btc_common_util import btc_varint_to_int
+from bxcommon.utils.blockchain_utils.btc.btc_common_utils import btc_varint_to_int
 
 
 # A BlockHeader is the first 80 bytes of the corresponding block message payload

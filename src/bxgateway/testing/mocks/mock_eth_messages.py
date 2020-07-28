@@ -2,14 +2,14 @@ from typing import Optional
 
 from bxcommon.test_utils import helpers
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway import eth_constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import \
     NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
 from bxgateway.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.eth.serializers.transient_block_body import \
     TransientBlockBody
 
@@ -20,7 +20,7 @@ def get_dummy_transaction(nonce: int, v: int = 27) -> Transaction:
         nonce,
         2 * nonce,
         3 * nonce,
-        helpers.generate_bytes(eth_constants.ADDRESS_LEN),
+        helpers.generate_bytes(eth_common_constants.ADDRESS_LEN),
         4 * nonce,
         helpers.generate_bytes(15 * nonce),
         v,
@@ -34,17 +34,17 @@ def get_dummy_block_header(nonce, timestamp=None, block_number=None, prev_block_
     if block_number is None:
         block_number = 2 * nonce
     if prev_block_hash is None:
-        prev_block_hash = helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
+        prev_block_hash = helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN)
     else:
         prev_block_hash = prev_block_hash.binary
     # create BlockHeader object with dummy values multiplied by nonce to be able generate txs with different value
     return BlockHeader(
         prev_block_hash,
-        helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
-        helpers.generate_bytes(eth_constants.ADDRESS_LEN),
-        helpers.generate_bytes(eth_constants.MERKLE_ROOT_LEN),
-        helpers.generate_bytes(eth_constants.MERKLE_ROOT_LEN),
-        helpers.generate_bytes(eth_constants.MERKLE_ROOT_LEN),
+        helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+        helpers.generate_bytes(eth_common_constants.ADDRESS_LEN),
+        helpers.generate_bytes(eth_common_constants.MERKLE_ROOT_LEN),
+        helpers.generate_bytes(eth_common_constants.MERKLE_ROOT_LEN),
+        helpers.generate_bytes(eth_common_constants.MERKLE_ROOT_LEN),
         100 * nonce,
         nonce,
         block_number,
@@ -52,7 +52,7 @@ def get_dummy_block_header(nonce, timestamp=None, block_number=None, prev_block_
         4 * nonce,
         timestamp,
         helpers.generate_bytes(100 * nonce),
-        helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+        helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
         helpers.generate_bytes(nonce)
     )
 

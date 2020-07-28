@@ -95,7 +95,7 @@ class AbstractBlockQueuingService(
     @abstractmethod
     def update_recovered_block(
         self, block_hash: Sha256Hash, block_msg: TBlockMessage
-    ):
+    ) -> None:
         """
         Updates status of the block in the queue as recovered and ready to send to blockchain node
 
@@ -113,10 +113,21 @@ class AbstractBlockQueuingService(
     def mark_block_seen_by_blockchain_node(
         self,
         block_hash: Sha256Hash,
-        block_message: Optional[TBlockMessage] = None,
+        block_message: Optional[TBlockMessage],
+        block_number: Optional[int] = None,
     ):
+        """
+        Marks a block as seen by the blockchain node.
+
+        Currently, block_number is only used for Ethereum.
+        """
         if block_message is not None:
             self.store_block_data(block_hash, block_message)
+
+        self._blocks_seen_by_blockchain_node.add(block_hash)
+        logger.debug(
+            "Blockchain node confirmed receipt of block {}", block_hash
+        )
 
     def push(
         self,
@@ -131,25 +142,6 @@ class AbstractBlockQueuingService(
         :param waiting_for_recovery: flag indicating if gateway is waiting for recovery of the block
         """
         if block_msg is None and not waiting_for_recovery:
-            raise ValueError("Must provided block_msg if recovery not needed.")
-
-        if self.can_add_block_to_queuing_service(
-            block_hash, block_msg, waiting_for_recovery
-        ):
-            self._block_queue.append(BlockQueueEntry(block_hash, time.time()))
-            self._blocks_waiting_for_recovery[block_hash] = waiting_for_recovery
-            if block_msg is None:
-                self._blocks[block_hash] = None
-            else:
-                self.store_block_data(block_hash, block_msg)
-
-    def can_add_block_to_queuing_service(
-        self,
-        block_hash: Sha256Hash,
-        block_msg: Optional[TBlockMessage] = None,
-        waiting_for_recovery: bool = False,
-    ) -> bool:
-        if block_msg is None and not waiting_for_recovery:
             raise ValueError(
                 "Block message is required if not waiting "
                 "for recovery of the block."
@@ -162,6 +154,15 @@ class AbstractBlockQueuingService(
                 )
             )
 
+        if self.can_add_block_to_queuing_service(block_hash):
+            self._block_queue.append(BlockQueueEntry(block_hash, time.time()))
+            self._blocks_waiting_for_recovery[block_hash] = waiting_for_recovery
+            if block_msg is None:
+                self._blocks[block_hash] = None
+            else:
+                self.store_block_data(block_hash, block_msg)
+
+    def can_add_block_to_queuing_service(self, block_hash: Sha256Hash) -> bool:
         if block_hash in self._blocks_seen_by_blockchain_node:
             block_stats.add_block_event_by_block_hash(
                 block_hash,
@@ -175,7 +176,7 @@ class AbstractBlockQueuingService(
         self,
         block_hash: Sha256Hash,
         block_msg: TBlockMessage
-    ):
+    ) -> None:
         self._blocks[block_hash] = block_msg
 
     def send_block_to_node(
@@ -195,6 +196,7 @@ class AbstractBlockQueuingService(
             handling_time,
             relay_desc,
         ) = self.node.track_block_from_bdn_handling_ended(block_hash)
+
         # if tracking detailed send info, log this event only after all
         # bytes written to sockets
         if not self.node.opts.track_detailed_sent_messages:
@@ -263,8 +265,13 @@ class AbstractBlockQueuingService(
 
     def iterate_recent_block_hashes(
         self,
-        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP
+    ) -> Iterator[Sha256Hash]:
         raise NotImplementedError
+
+    def is_node_connection_ready(self) -> bool:
+        node_conn = self.node.node_conn
+        return node_conn is not None and node_conn.is_active()
 
     def log_memory_stats(self):
         pass

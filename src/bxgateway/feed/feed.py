@@ -1,6 +1,6 @@
 from abc import abstractmethod, ABCMeta
 from asyncio import QueueFull
-from typing import TypeVar, Generic, List, Dict, Optional
+from typing import TypeVar, Generic, List, Dict, Optional, Any
 
 from bxgateway import log_messages
 from bxgateway.feed.subscriber import Subscriber
@@ -22,9 +22,9 @@ class Feed(Generic[T, S], metaclass=ABCMeta):
         self.subscribers = {}
 
     def subscribe(
-        self, include_fields: Optional[List[str]] = None
+        self, options: Dict[str, Any]
     ) -> Subscriber[T]:
-        subscriber: Subscriber[T] = Subscriber(include_fields)
+        subscriber: Subscriber[T] = Subscriber(options)
         self.subscribers[subscriber.subscription_id] = subscriber
         return subscriber
 
@@ -43,6 +43,11 @@ class Feed(Generic[T, S], metaclass=ABCMeta):
 
         bad_subscribers = []
         for subscriber in self.subscribers.values():
+            if not self.should_publish_message_to_subscriber(
+                subscriber, raw_message, serialized_message
+            ):
+                continue
+
             try:
                 subscriber.queue(serialized_message)
             except QueueFull:
@@ -66,3 +71,8 @@ class Feed(Generic[T, S], metaclass=ABCMeta):
 
     def subscriber_count(self) -> int:
         return len(self.subscribers)
+
+    def should_publish_message_to_subscriber(
+        self, subscriber: Subscriber[T], raw_message: S, serialized_message: T
+    ) -> bool:
+        return True

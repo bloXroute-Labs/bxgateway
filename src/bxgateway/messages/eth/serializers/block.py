@@ -3,7 +3,7 @@ from typing import List
 import rlp
 
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 
 
 # pyre-fixme[13]: Attribute `header` is never initialized.

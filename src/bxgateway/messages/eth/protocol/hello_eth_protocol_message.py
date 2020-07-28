@@ -1,5 +1,6 @@
 import rlp
 
+from bxcommon import constants
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 
@@ -17,7 +18,7 @@ class HelloEthProtocolMessage(EthProtocolMessage):
         return self.get_field_value("version")
 
     def get_client_version_string(self):
-        return self.get_field_value("client_version_string")
+        return self.get_field_value("client_version_string").decode(constants.DEFAULT_TEXT_ENCODING)
 
     def get_capabilities(self):
         return self.get_field_value("capabilities")

@@ -3,13 +3,13 @@ import time
 from typing import TYPE_CHECKING
 
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
-from bxgateway import eth_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.messages.eth.discovery.eth_discovery_message_factory import eth_discovery_message_factory
 from bxgateway.messages.eth.discovery.eth_discovery_message_type import EthDiscoveryMessageType
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
 from bxutils import logging
 from bxgateway import log_messages
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 
 if TYPE_CHECKING:
     from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
@@ -35,17 +35,17 @@ class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection["EthGateway
         self.can_send_pings = True
         self.ping_message = PingEthDiscoveryMessage(None,
                                                     self.node.get_private_key(),
-                                                    eth_constants.P2P_PROTOCOL_VERSION,
+                                                    eth_common_constants.P2P_PROTOCOL_VERSION,
                                                     (self.external_ip, self.external_port, self.external_port),
                                                     (
                                                     socket.gethostbyname(self.peer_ip), self.peer_port, self.peer_port),
-                                                    int(time.time()) + eth_constants.PING_MSG_TTL_SEC)
+                                                    int(time.time()) + eth_common_constants.PING_MSG_TTL_SEC)
         self.pong_message = None
 
         self._pong_received = False
 
         self.send_ping()
-        self.node.alarm_queue.register_alarm(eth_constants.DISCOVERY_PONG_TIMEOUT_SEC, self._pong_timeout)
+        self.node.alarm_queue.register_alarm(eth_common_constants.DISCOVERY_PONG_TIMEOUT_SEC, self._pong_timeout)
 
         self.hello_messages = [EthDiscoveryMessageType.PING, EthDiscoveryMessageType.PONG]
 

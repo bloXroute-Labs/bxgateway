@@ -10,9 +10,9 @@ from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.serializers.block import Block
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
-from bxgateway.utils.eth import rlp_utils, crypto_utils
+from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
 
 
 class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
@@ -114,7 +114,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
 
     def block_hash(self) -> Sha256Hash:
         if self._block_hash is None:
-            raw_hash = crypto_utils.keccak_hash(self.block_header())
+            raw_hash = eth_common_utils.keccak_hash(self.block_header())
             self._block_hash = Sha256Hash(raw_hash)
 
         block_hash = self._block_hash

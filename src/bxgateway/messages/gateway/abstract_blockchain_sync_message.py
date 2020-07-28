@@ -13,8 +13,6 @@ class AbstractBlockchainSyncMessage(AbstractBloxrouteMessage):
 
     __metaclass__ = ABCMeta
 
-    # pyre-fixme[15]: `MESSAGE_TYPE` overrides attribute defined in
-    #  `AbstractBloxrouteMessage` inconsistently.
     MESSAGE_TYPE = ""
     BASE_LENGTH = 12
 
@@ -48,7 +46,6 @@ class AbstractBlockchainSyncMessage(AbstractBloxrouteMessage):
                 self._command = int(self._command)
             except:
                 pass
-
 
         return self._command
 

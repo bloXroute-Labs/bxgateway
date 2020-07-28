@@ -16,16 +16,18 @@ from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.utils import cli, convert, config, ip_resolver
 from bxcommon.models.node_type import NodeType
-from bxgateway import btc_constants, gateway_constants, eth_constants, ont_constants
+from bxcommon.models.quota_type_model import QuotaType
+
+from bxutils import logging_messages_utils
+
+from bxgateway import btc_constants, gateway_constants, ont_constants
 from bxgateway.connections.gateway_node_factory import get_gateway_node_type
 from bxgateway.testing.test_modes import TestModes
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway import argument_parsers
 from bxgateway.utils.gateway_start_args import GatewayStartArgs
-from bxcommon.models.quota_type_model import QuotaType
-from bxutils import logging_messages_utils
-
+from bxgateway import node_init_tasks
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -59,7 +61,7 @@ def parse_peer_string(peer_string):
 
 
 def get_default_eth_private_key():
-    gateway_key_file_name = config.get_data_file(eth_constants.GATEWAY_PRIVATE_KEY_FILE_NAME)
+    gateway_key_file_name = config.get_data_file(eth_common_constants.GATEWAY_PRIVATE_KEY_FILE_NAME)
 
     if os.path.exists(gateway_key_file_name):
         with open(gateway_key_file_name, "r") as key_file:
@@ -241,7 +243,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
         help="Close gateway if connection with blockchain node can't be established "
              "when the flag is set to True",
         type=convert.str_to_bool,
-        default=False,
+        default=True,
     )
     default_tx_quota_type = config.get_env_default(
         GatewayStartArgs.DEFAULT_TX_QUOTA_TYPE
@@ -303,7 +305,7 @@ def get_opts(args: Optional[List[str]] = None) -> GatewayOpts:
     return opts
 
 
-def main():
+def main() -> None:
     logger_names = node_runner.LOGGER_NAMES.copy()
     logger_names.append("bxgateway")
     logging_messages_utils.logger_names = set(logger_names)
@@ -315,6 +317,8 @@ def main():
         get_node_class,
         NodeType.EXTERNAL_GATEWAY,
         logger_names=logger_names,
+        # pyre-fixme[6] Expected `Optional[List[AbstractInitTask]]` but got `List[ValidateNetworkOpts]`
+        node_init_tasks=node_init_tasks.gateway_node_init_tasks
     )
 
 

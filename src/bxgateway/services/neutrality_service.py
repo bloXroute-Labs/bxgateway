@@ -174,7 +174,7 @@ class NeutralityService(object):
 
         active_gateway_peer_count = len(
             list(filter(lambda conn: conn.is_active(),
-                        self._node.connection_pool.get_by_connection_type(ConnectionType.GATEWAY))))
+                        self._node.connection_pool.get_by_connection_types([ConnectionType.GATEWAY]))))
         if active_gateway_peer_count == 0:
             logger.debug("No active gateway peers to get block receipts from.")
             enough_by_percent = False

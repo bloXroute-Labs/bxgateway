@@ -77,7 +77,7 @@ class EthWsSubscriber(AbstractWsProvider):
         else:
             logger.warning(log_messages.ETH_RPC_COULD_NOT_RECONNECT)
 
-    async def subscribe(self, channel: str, fields: Optional[List[str]] = None) -> str:
+    async def subscribe(self, channel: str, options: Optional[Dict[str, Any]] = None) -> str:
         response = await self.call_rpc(
             "eth_subscribe",
             [channel]

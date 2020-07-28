@@ -191,6 +191,7 @@ class OntBlockQueuingService(
         self,
         block_hash: Sha256Hash,
         block_message: Optional[Union[BlockOntMessage, OntConsensusMessage]] = None,
+        _block_number: Optional[int] = None,
     ):
         self._blocks_seen_by_blockchain_node.add(block_hash)
 

@@ -8,7 +8,6 @@ from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 
-from bxgateway import eth_constants
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
 from bxgateway.messages.eth.discovery.pong_eth_discovery_message import PongEthDiscoveryMessage
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
@@ -31,10 +30,10 @@ from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import Tr
 from bxgateway.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.block_hash import BlockHash
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
 from bxgateway.testing.mocks import mock_eth_messages
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 
 
 class EthMessagesTests(AbstractTestCase):
@@ -42,7 +41,7 @@ class EthMessagesTests(AbstractTestCase):
     def test_discovery_ping_eth_message(self):
         self._test_msg_serialization(PingEthDiscoveryMessage,
                                      True,
-                                     eth_constants.P2P_PROTOCOL_VERSION,
+                                     eth_common_constants.P2P_PROTOCOL_VERSION,
                                      # random addresses
                                      ("192.1.2.3", 11111, 22222),
                                      ("193.4.5.6", 33333, 44444),
@@ -52,7 +51,7 @@ class EthMessagesTests(AbstractTestCase):
         self._test_msg_serialization(PongEthDiscoveryMessage,
                                      True,
                                      ("192.1.2.3", 11111, 22222),
-                                     helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+                                     helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
                                      int(time.time()))
 
     def test_hello_eth_message(self):
@@ -61,9 +60,9 @@ class EthMessagesTests(AbstractTestCase):
 
         self._test_msg_serialization(HelloEthProtocolMessage,
                                      False,
-                                     eth_constants.P2P_PROTOCOL_VERSION,
-                                     eth_constants.BX_ETH_CLIENT_NAME,
-                                     eth_constants.CAPABILITIES,
+                                     eth_common_constants.P2P_PROTOCOL_VERSION,
+                                     eth_common_constants.BX_ETH_CLIENT_NAME,
+                                     eth_common_constants.CAPABILITIES,
                                      30303,  # random port value
                                      dummy_public_key)
 
@@ -81,7 +80,7 @@ class EthMessagesTests(AbstractTestCase):
 
         self._test_msg_serialization(StatusEthProtocolMessage,
                                      False,
-                                     eth_constants.ETH_PROTOCOL_VERSION,
+                                     eth_common_constants.ETH_PROTOCOL_VERSION,
                                      dummy_network_id,
                                      dummy_chain_difficulty,
                                      dummy_chain_head_hash,
@@ -96,15 +95,15 @@ class EthMessagesTests(AbstractTestCase):
                                      False,
                                      # passing few dummy block hashes
                                      [
-                                         BlockHash(helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN), 111),
-                                         BlockHash(helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN), 222),
-                                         BlockHash(helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN), 333)
+                                         BlockHash(helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 111),
+                                         BlockHash(helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 222),
+                                         BlockHash(helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 333)
                                      ])
 
     def test_get_block_headers_eth_message(self):
         self._test_msg_serialization(GetBlockHeadersEthProtocolMessage,
                                      False,
-                                     helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
+                                     helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
                                      111,
                                      222,
                                      0)
@@ -123,9 +122,9 @@ class EthMessagesTests(AbstractTestCase):
                                      False,
                                      # passing randomly generated hashes
                                      [
-                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
+                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN)
                                      ])
 
     def test_block_bodies_eth_message(self):
@@ -158,9 +157,9 @@ class EthMessagesTests(AbstractTestCase):
                                      False,
                                      # passing randomly generated hashes
                                      [
-                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
+                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN)
                                      ])
 
     def test_node_data_eth_message(self):
@@ -173,9 +172,9 @@ class EthMessagesTests(AbstractTestCase):
                                      False,
                                      # passing randomly generated hashes
                                      [
-                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
+                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN)
                                      ])
 
     def test_receipts_eth_message(self):
@@ -403,7 +402,7 @@ class EthMessagesTests(AbstractTestCase):
             self.assertEqual(parsed_tx_hash, txs_hashes[index])
 
     def test_new_block_hashes_msg_from_block_hash(self):
-        block_hash_bytes = helpers.generate_bytes(eth_constants.BLOCK_HASH_LEN)
+        block_hash_bytes = helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN)
         block_hash = Sha256Hash(block_hash_bytes)
         block_number = 1000
 

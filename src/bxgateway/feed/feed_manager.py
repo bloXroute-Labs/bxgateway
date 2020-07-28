@@ -25,10 +25,10 @@ class FeedManager:
         self.feeds[feed.name] = feed
 
     def subscribe_to_feed(
-        self, name: str, include_fields: Optional[List[str]] = None
+        self, name: str, options: Dict[str, Any]
     ) -> Optional[Subscriber]:
         if name in self.feeds:
-            subscriber = self.feeds[name].subscribe(include_fields)
+            subscriber = self.feeds[name].subscribe(options)
             logger.debug(
                 "Creating new subscriber ({}) to {}",
                 subscriber.subscription_id,

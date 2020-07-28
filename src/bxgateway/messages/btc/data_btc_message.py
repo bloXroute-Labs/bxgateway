@@ -1,6 +1,6 @@
 import struct
 
-from bxcommon.utils.blockchain_utils.btc.btc_common_util import btc_varint_to_int
+from bxcommon.utils.blockchain_utils.btc.btc_common_utils import btc_varint_to_int
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_SHA_HASH_LEN
 from bxgateway.messages.btc.btc_message import BtcMessage

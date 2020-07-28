@@ -10,7 +10,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils import convert
-from bxcommon.utils.blockchain_utils.btc import btc_common_util
+from bxcommon.utils.blockchain_utils.btc import btc_common_utils
 from bxgateway.connections.btc.btc_node_connection import BtcNodeConnection
 from bxgateway.connections.btc.btc_node_connection_protocol import BtcNodeConnectionProtocol
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
@@ -49,7 +49,7 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
 
         short_id = 1
         for tx in full_block_msg.txns():
-            tx_hash = btc_common_util.get_txid(tx)
+            tx_hash = btc_common_utils.get_txid(tx)
             transaction_service.set_transaction_contents(tx_hash, tx)
             transaction_service.assign_short_id(tx_hash, short_id)
             short_id += 1

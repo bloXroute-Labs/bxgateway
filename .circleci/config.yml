@@ -71,7 +71,7 @@ jobs:
             {{ checksum \"bxcommon/requirements.txt\"}}-\
             {{ checksum \"bxcommon/requirements-dev.txt\"}}-\
             {{ checksum \"bxcommon/requirements-optional.txt\"}}"
-          
+
       - run: # install and activate virtual environment with pip
           name: installing virtual env
           command: |

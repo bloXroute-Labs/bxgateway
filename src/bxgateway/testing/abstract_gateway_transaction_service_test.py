@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 from typing import Union, Tuple, List
-from unittest.mock import MagicMock
 
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_transaction_service_test_case import AbstractTransactionServiceTestCase

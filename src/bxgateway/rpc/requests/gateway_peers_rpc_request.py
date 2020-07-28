@@ -23,10 +23,10 @@ class GatewayPeersRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
         data = []
         connection_pool = self.node.connection_pool
         connections = (
-            list(connection_pool.get_by_connection_type(ConnectionType.BLOCKCHAIN_NODE))
-            + list(connection_pool.get_by_connection_type(ConnectionType.RELAY_ALL))
-            + list(connection_pool.get_by_connection_type(ConnectionType.REMOTE_BLOCKCHAIN_NODE))
-            + list(connection_pool.get_by_connection_type(ConnectionType.GATEWAY))
+            list(connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))
+            + list(connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL]))
+            + list(connection_pool.get_by_connection_types([ConnectionType.REMOTE_BLOCKCHAIN_NODE]))
+            + list(connection_pool.get_by_connection_types([ConnectionType.GATEWAY]))
         )
         for conn in connections:
             connection_type = (

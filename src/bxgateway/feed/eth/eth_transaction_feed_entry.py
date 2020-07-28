@@ -4,7 +4,7 @@ import rlp
 
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import log_messages
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxutils import logging
 
 logger = logging.get_logger(__name__)

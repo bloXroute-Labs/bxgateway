@@ -1,5 +1,5 @@
 from bxcommon.test_utils import helpers
-from bxgateway import eth_constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway.testing.abstract_rlpx_cipher_test import AbstractRLPxCipherTest
 from bxgateway.utils.eth import frame_utils
 from bxgateway.utils.eth.frame import Frame
@@ -56,7 +56,7 @@ class FrameUtilsTests(AbstractRLPxCipherTest):
             if expected_sequence_id == 0:
                 self.assertEqual(frame.get_msg_type(), msg_type)
 
-                expected_total_size = len(dummy_payload) + eth_constants.FRAME_MSG_TYPE_LEN
+                expected_total_size = len(dummy_payload) + eth_common_constants.FRAME_MSG_TYPE_LEN
                 self.assertEqual(frame.get_total_payload_size(), expected_total_size)
             else:
                 self.assertIsNone(frame.get_msg_type())
@@ -116,12 +116,12 @@ class FrameUtilsTests(AbstractRLPxCipherTest):
         encrypted_frame = memoryview(frame)
         self.assertTrue(encrypted_frame)
 
-        decrypted_header = cipher.decrypt_frame_header(encrypted_frame[:eth_constants.FRAME_HDR_TOTAL_LEN].tobytes())
-        self.assertEqual(len(decrypted_header), eth_constants.FRAME_HDR_DATA_LEN)
+        decrypted_header = cipher.decrypt_frame_header(encrypted_frame[:eth_common_constants.FRAME_HDR_TOTAL_LEN].tobytes())
+        self.assertEqual(len(decrypted_header), eth_common_constants.FRAME_HDR_DATA_LEN)
 
         body_size, protocol_id, sequence_id, total_payload_size = frame_utils.parse_frame_header(decrypted_header)
 
-        decrypted_body = cipher.decrypt_frame_body(encrypted_frame[eth_constants.FRAME_HDR_TOTAL_LEN:].tobytes(),
+        decrypted_body = cipher.decrypt_frame_body(encrypted_frame[eth_common_constants.FRAME_HDR_TOTAL_LEN:].tobytes(),
                                                    body_size)
 
         payload, msg_type = frame_utils.parse_frame_body(decrypted_body, sequence_id is None or sequence_id == 0)

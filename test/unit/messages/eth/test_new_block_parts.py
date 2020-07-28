@@ -4,7 +4,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.serializers.block_header import BlockHeader
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
 from bxgateway.testing.mocks import mock_eth_messages
 

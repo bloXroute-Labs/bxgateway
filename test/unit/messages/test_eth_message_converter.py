@@ -28,7 +28,7 @@ from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import Tr
 from bxgateway.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.compact_block import CompactBlock
 from bxgateway.messages.eth.serializers.short_transaction import ShortTransaction
-from bxgateway.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.testing.mocks import mock_eth_messages
 
 

@@ -2,9 +2,8 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
 
-from bxgateway import eth_constants
-from bxgateway.utils.eth import crypto_utils
-from bxgateway.utils.eth.crypto_utils import generate_random_private_key_hex_str
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_utils, eth_common_constants
+from bxcommon.utils.blockchain_utils.eth.crypto_utils import generate_random_private_key_hex_str
 
 
 class CryptoUtilsTests(AbstractTestCase):
@@ -15,7 +14,7 @@ class CryptoUtilsTests(AbstractTestCase):
 
         # generate random bytes
         msg = helpers.generate_bytearray(222)
-        msg_hash = crypto_utils.keccak_hash(msg)
+        msg_hash = eth_common_utils.keccak_hash(msg)
 
         signature = crypto_utils.sign(msg_hash, dummy_private_key)
 
@@ -28,7 +27,7 @@ class CryptoUtilsTests(AbstractTestCase):
 
         # generate random bytes
         msg = helpers.generate_bytearray(333)
-        msg_hash = crypto_utils.keccak_hash(msg)
+        msg_hash = eth_common_utils.keccak_hash(msg)
 
         signature = crypto_utils.sign(msg_hash, dummy_private_key1)
 
@@ -38,11 +37,11 @@ class CryptoUtilsTests(AbstractTestCase):
         dummy_msg1 = helpers.generate_bytearray(111)
         dummy_msg2 = helpers.generate_bytearray(1111)
 
-        sha1 = crypto_utils.keccak_hash(dummy_msg1)
-        sha2 = crypto_utils.keccak_hash(dummy_msg2)
+        sha1 = eth_common_utils.keccak_hash(dummy_msg1)
+        sha2 = eth_common_utils.keccak_hash(dummy_msg2)
 
-        self.assertEqual(len(sha1), eth_constants.SHA3_LEN_BYTES)
-        self.assertEqual(len(sha2), eth_constants.SHA3_LEN_BYTES)
+        self.assertEqual(len(sha1), eth_common_constants.SHA3_LEN_BYTES)
+        self.assertEqual(len(sha2), eth_common_constants.SHA3_LEN_BYTES)
 
         self.assertNotEqual(sha1, sha2)
 
@@ -58,8 +57,8 @@ class CryptoUtilsTests(AbstractTestCase):
         sha_calculator.update(input1)
         sha1_2 = sha_calculator.digest()
 
-        self.assertEqual(len(sha1), eth_constants.SHA3_LEN_BYTES)
-        self.assertEqual(len(sha2), eth_constants.SHA3_LEN_BYTES)
+        self.assertEqual(len(sha1), eth_common_constants.SHA3_LEN_BYTES)
+        self.assertEqual(len(sha2), eth_common_constants.SHA3_LEN_BYTES)
 
         self.assertNotEqual(sha1, sha2)
         self.assertNotEqual(sha1, sha1_2)
@@ -69,7 +68,7 @@ class CryptoUtilsTests(AbstractTestCase):
         public_key = crypto_utils.private_to_public_key(dummy_private_key)
 
         msg = helpers.generate_bytearray(222)
-        msg_hash = crypto_utils.keccak_hash(msg)
+        msg_hash = eth_common_utils.keccak_hash(msg)
 
         signature = crypto_utils.sign(msg_hash, dummy_private_key)
 
@@ -80,7 +79,7 @@ class CryptoUtilsTests(AbstractTestCase):
     def test_encode_decode_signature(self):
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
         msg = helpers.generate_bytearray(222)
-        msg_hash = crypto_utils.keccak_hash(msg)
+        msg_hash = eth_common_utils.keccak_hash(msg)
 
         signature = crypto_utils.sign(msg_hash, dummy_private_key)
 
@@ -135,10 +134,10 @@ class CryptoUtilsTests(AbstractTestCase):
 
     def test_generate_random_private_key_hex_str(self):
         private_key_hex_1 = generate_random_private_key_hex_str()
-        self.assertEqual(eth_constants.PRIVATE_KEY_LEN, len(convert.hex_to_bytes(private_key_hex_1)))
+        self.assertEqual(eth_common_constants.PRIVATE_KEY_LEN, len(convert.hex_to_bytes(private_key_hex_1)))
 
         private_key_hex_2 = generate_random_private_key_hex_str()
-        self.assertEqual(eth_constants.PRIVATE_KEY_LEN, len(convert.hex_to_bytes(private_key_hex_2)))
+        self.assertEqual(eth_common_constants.PRIVATE_KEY_LEN, len(convert.hex_to_bytes(private_key_hex_2)))
         self.assertNotEqual(private_key_hex_1, private_key_hex_2)
 
     def _from_hex(self, x):

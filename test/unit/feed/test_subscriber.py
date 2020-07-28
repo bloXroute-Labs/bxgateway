@@ -10,7 +10,7 @@ from bxgateway.feed.subscriber import Subscriber
 
 class SubscriberTest(AbstractTestCase):
     def setUp(self) -> None:
-        self.subscriber: Subscriber[int] = Subscriber()
+        self.subscriber: Subscriber[int] = Subscriber({})
 
     @async_test
     async def test_receive_message(self):
@@ -64,7 +64,7 @@ class SubscriberTest(AbstractTestCase):
             drink: str
             dessert: str
 
-        subscriber: Subscriber[Meal] = Subscriber(["drink", "dessert"])
+        subscriber: Subscriber[Meal] = Subscriber({"include": ["drink", "dessert"]})
         subscriber.queue(Meal("steak", "wine", "chocolate cake"))
         subscriber.queue(Meal("lobster", "lemonade", "cookie"))
 
@@ -82,7 +82,7 @@ class SubscriberTest(AbstractTestCase):
 
     @async_test
     async def test_field_filtering_dict(self):
-        subscriber: Subscriber[Dict[str, str]] = Subscriber(["food", "drink"])
+        subscriber: Subscriber[Dict[str, str]] = Subscriber({"include": ["food", "drink"]})
         subscriber.queue({
             "food": "steak",
             "drink": "wine",

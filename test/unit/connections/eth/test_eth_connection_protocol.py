@@ -11,7 +11,7 @@ from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnec
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils
 
 
 def _block_with_timestamp(timestamp):

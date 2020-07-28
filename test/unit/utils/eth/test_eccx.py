@@ -1,8 +1,7 @@
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils import helpers
 
-from bxgateway import eth_constants
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_utils, eth_common_constants
 from bxgateway.utils.eth.eccx import ECCx
 
 
@@ -23,7 +22,7 @@ class ECCxTests(AbstractTestCase):
 
     def test_sign_and_verify__valid(self):
         msg = helpers.generate_bytearray(111)
-        msg_hash = crypto_utils.keccak_hash(msg)
+        msg_hash = eth_common_utils.keccak_hash(msg)
 
         signature = self._eccx.sign(msg_hash)
 
@@ -31,7 +30,7 @@ class ECCxTests(AbstractTestCase):
 
     def test_sign_and_verify__invalid(self):
         msg = helpers.generate_bytearray(111)
-        msg_hash = crypto_utils.keccak_hash(msg)
+        msg_hash = eth_common_utils.keccak_hash(msg)
 
         signature = self._eccx.sign(msg_hash)
 
@@ -72,13 +71,13 @@ class ECCxTests(AbstractTestCase):
     def test_is_valid_key(self):
         for i in range(10):
             eccx = self._get_test_eccx(i + 1)
-            self.assertEqual(len(eccx.get_raw_public_key()), eth_constants.PUBLIC_KEY_LEN)
+            self.assertEqual(len(eccx.get_raw_public_key()), eth_common_constants.PUBLIC_KEY_LEN)
 
             self.assertTrue(eccx.is_valid_key(eccx.get_raw_public_key()))
             self.assertTrue(eccx.is_valid_key(eccx.get_raw_public_key(), eccx.get_raw_private_key()))
 
         invalid_eccx = self._get_test_eccx(111)
-        invalid_pubkey = "\x00" * eth_constants.PUBLIC_KEY_LEN
+        invalid_pubkey = "\x00" * eth_common_constants.PUBLIC_KEY_LEN
         self.assertFalse(invalid_eccx.is_valid_key(invalid_pubkey))
 
     def _get_test_eccx(self, nonce):

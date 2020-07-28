@@ -5,31 +5,17 @@ from bxutils import logging
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.models.quota_type_model import QuotaType
-from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.blockchain_utils.bdn_tx_to_bx_tx import bdn_tx_to_bx_tx
-from bxcommon.utils.blockchain_utils.eth.eth_common_util import raw_tx_to_bx_tx
+from bxcommon.utils.blockchain_utils.eth.eth_common_utils import raw_tx_to_bx_tx
+from bxgateway.utils.eth.eth_utils import parse_transaction_bytes
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.block_info import BlockInfo
-from bxgateway.utils.eth import rlp_utils
-
+from bxcommon.utils.blockchain_utils.eth import rlp_utils
 
 logger = logging.get_logger(__name__)
-
-
-def parse_transaction_bytes(tx_bytes: memoryview) -> TransactionsEthProtocolMessage:
-    size = len(tx_bytes)
-
-    txs_prefix = rlp_utils.get_length_prefix_list(size)
-    size += len(txs_prefix)
-
-    buf = bytearray(size)
-
-    buf[0:len(txs_prefix)] = txs_prefix
-    buf[len(txs_prefix):] = tx_bytes
-    return TransactionsEthProtocolMessage(buf)
 
 
 class EthAbstractMessageConverter(AbstractMessageConverter):
@@ -37,8 +23,9 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
     def __init__(self):
         self._last_recovery_idx: int = 0
 
-    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None) ->\
-            List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
+    def tx_to_bx_txs(
+        self, tx_msg, network_num, quota_type: Optional[QuotaType] = None
+    ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         """
         Converts Ethereum transactions message to array of internal transaction messages
 
@@ -74,10 +61,10 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         return bx_tx_msgs
 
     def bdn_tx_to_bx_tx(
-            self,
-            raw_tx: Union[bytes, bytearray, memoryview],
-            network_num: int,
-            quota_type: Optional[QuotaType] = None
+        self,
+        raw_tx: Union[bytes, bytearray, memoryview],
+        network_num: int,
+        quota_type: Optional[QuotaType] = None
     ) -> TxMessage:
         return bdn_tx_to_bx_tx(raw_tx, network_num, quota_type)
 

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Union, Optional
+from typing import Union
 
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.utils.object_hash import Sha256Hash

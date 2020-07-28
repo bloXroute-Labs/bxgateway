@@ -4,7 +4,7 @@ from typing import List, Dict
 from bxcommon.constants import UL_INT_SIZE_IN_BYTES
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import crypto
-from bxcommon.utils.blockchain_utils.btc.btc_common_util import btc_varint_to_int
+from bxcommon.utils.blockchain_utils.btc.btc_common_utils import btc_varint_to_int
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
 from bxgateway.btc_constants import BTC_HDR_COMMON_OFF, BTC_BLOCK_HDR_SIZE, BTC_SHA_HASH_LEN, \
     BTC_COMPACT_BLOCK_SHORT_ID_LEN, BTC_SHORT_NONCE_SIZE, BTC_VARINT_MIN_SIZE

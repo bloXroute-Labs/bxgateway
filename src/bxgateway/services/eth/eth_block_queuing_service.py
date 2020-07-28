@@ -1,14 +1,19 @@
-from collections import defaultdict
-from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator, cast, Tuple
+import time
+from collections import defaultdict, deque
+from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator, cast, Tuple, NamedTuple, \
+    Deque, Callable
 
 from bxcommon import constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxcommon.utils import memory_utils, crypto
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.memory_utils import ObjectSize
-from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.utils.object_hash import Sha256Hash, NULL_SHA256_HASH
 from bxcommon.utils.stats import hooks
-from bxgateway import eth_constants, gateway_constants
+from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
+from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway import gateway_constants
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import (
@@ -26,9 +31,8 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import (
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import (
     NewBlockHashesEthProtocolMessage,
 )
-from bxgateway.services.push_block_queuing_service import (
-    PushBlockQueuingService,
-)
+from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService, \
+    BlockQueueEntry
 from bxutils import logging
 
 if TYPE_CHECKING:
@@ -36,25 +40,78 @@ if TYPE_CHECKING:
     from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 
 logger = logging.get_logger(__name__)
+INITIAL_BLOCK_HEIGHT = -1
+
+
+class OrderedQueuedBlock(NamedTuple):
+    block_hash: Sha256Hash
+    timestamp: float
+    block_number: Optional[int]
+
+
+class EthBlockInfo(NamedTuple):
+    block_number: int
+    block_hash: Sha256Hash
+
+
+class SentEthBlockInfo(NamedTuple):
+    block_number: int
+    block_hash: Sha256Hash
+    timestamp: float
 
 
 class EthBlockQueuingService(
-    PushBlockQueuingService[
+    AbstractBlockQueuingService[
         InternalEthBlockInfo, BlockHeadersEthProtocolMessage
     ]
 ):
+    """
+    Queues, pushes blocks to the Ethereum node, and handles get headers/bodies requests.
+
+    If there are missing blocks in the network this class will not function optimally.
+    """
+    ordered_block_queue: Deque[OrderedQueuedBlock]
+
     block_checking_alarms: Dict[Sha256Hash, AlarmId]
-    block_repeat_count: Dict[Sha256Hash, int]
+    block_check_repeat_count: Dict[Sha256Hash, int]
+
+    accepted_block_hash_at_height: ExpiringDict[int, Sha256Hash]
+    sent_block_at_height: ExpiringDict[int, Sha256Hash]
+
+    # best block sent to the Ethereum node
+    best_sent_block: SentEthBlockInfo
+    # best block accepted by Ethereum node
+    best_accepted_block: EthBlockInfo
+
     _block_parts: ExpiringDict[Sha256Hash, NewBlockParts]
     _block_hashes_by_height: ExpiringDict[int, Set[Sha256Hash]]
     _height_by_block_hash: ExpiringDict[Sha256Hash, int]
     _highest_block_number: int = 0
+    _recovery_alarms_by_block_hash: Dict[Sha256Hash, AlarmId]
+    _next_push_alarm_id: Optional[AlarmId] = None
+    _partial_chainstate: Deque[EthBlockInfo]
 
     def __init__(self, node: "AbstractGatewayNode"):
         super().__init__(node)
         self.node: "EthGatewayNode" = cast("EthGatewayNode", node)
+
+        self.ordered_block_queue = deque(maxlen=gateway_constants.BLOCK_QUEUE_LENGTH_LIMIT)
         self.block_checking_alarms = {}
-        self.block_repeat_count = defaultdict(int)
+        self.block_check_repeat_count = defaultdict(int)
+
+        self.accepted_block_hash_at_height = ExpiringDict(
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_accepted_block_by_height"
+        )
+        self.sent_block_at_height = ExpiringDict(
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_sent_block_at_height"
+        )
+        self.best_sent_block = SentEthBlockInfo(INITIAL_BLOCK_HEIGHT, NULL_SHA256_HASH, 0)
+        self.best_accepted_block = EthBlockInfo(INITIAL_BLOCK_HEIGHT, NULL_SHA256_HASH)
+
         self._block_parts = ExpiringDict(
             node.alarm_queue,
             gateway_constants.MAX_BLOCK_CACHE_TIME_S,
@@ -70,6 +127,8 @@ class EthBlockQueuingService(
             gateway_constants.MAX_BLOCK_CACHE_TIME_S,
             "eth_block_queue_height_by_hash"
         )
+        self._recovery_alarms_by_block_hash = {}
+        self._partial_chainstate = deque()
 
     def build_block_header_message(
         self, block_hash: Sha256Hash, block_message: InternalEthBlockInfo
@@ -86,10 +145,170 @@ class EthBlockQueuingService(
             block_header_bytes
         )
 
+    def push(
+        self,
+        block_hash: Sha256Hash,
+        block_msg: Optional[InternalEthBlockInfo] = None,
+        waiting_for_recovery: bool = False,
+    ) -> None:
+        if block_msg is None and not waiting_for_recovery:
+            raise ValueError(
+                "Block message is required if not waiting for recovery of the block."
+            )
+
+        if block_hash in self._blocks:
+            raise ValueError(f"Block with hash {block_hash} already exists in the queue.")
+
+        if not self.can_add_block_to_queuing_service(block_hash):
+            return
+
+        if waiting_for_recovery:
+            self._add_to_queue(block_hash, waiting_for_recovery, block_msg)
+            logger.debug(
+                "Appended recovering block {} to the end of the queue (behind {} others).",
+                block_hash,
+                len(self.ordered_block_queue) - 1
+            )
+            self._schedule_recovery_timeout(block_hash)
+            return
+
+        assert block_msg is not None
+        block_number = block_msg.block_number()
+        if self._check_for_sent_or_queued_forked_block(block_hash, block_number):
+            # TODO: this line needs testing
+            self.store_block_data(block_hash, block_msg)
+            return
+
+        position = self._add_to_queue(block_hash, waiting_for_recovery, block_msg)
+        logger.debug(
+            "Queued up block {} for sending to the blockchain node. "
+            "Block is behind {} others (total size: {}).",
+            block_hash,
+            position,
+            len(self.ordered_block_queue)
+        )
+        if position == 0:
+            self._schedule_alarm_for_next_item()
+
+    def update_recovered_block(
+        self, block_hash: Sha256Hash, block_msg: InternalEthBlockInfo
+    ) -> None:
+        if block_hash not in self._blocks:
+            return
+
+        self.remove_from_queue(block_hash)
+        timeout_alarm = self._recovery_alarms_by_block_hash.pop(block_hash)
+        self.node.alarm_queue.unregister_alarm(timeout_alarm)
+
+        self._blocks_waiting_for_recovery[block_hash] = False
+        self.store_block_data(block_hash, block_msg)
+
+        block_number = block_msg.block_number()
+        if self._is_block_stale(block_number):
+            logger.info(
+                "Discarding block {} at height {}. Block is stale.",
+                block_hash,
+                block_number
+            )
+            return
+
+        if self._check_for_sent_or_queued_forked_block(block_hash, block_number):
+            return
+
+        position = self._ordered_insert(block_hash, block_number, time.time())
+        logger.debug(
+            "Recovered block {}. Inserting into queue behind {} blocks (total length: {})",
+            block_hash,
+            position,
+            len(self.ordered_block_queue)
+        )
+        if position == 0:
+            self._schedule_alarm_for_next_item()
+
+    def store_block_data(
+        self,
+        block_hash: Sha256Hash,
+        block_msg: InternalEthBlockInfo
+    ) -> None:
+        super().store_block_data(block_hash, block_msg)
+        self._store_block_parts(block_hash, block_msg)
+
+    def mark_blocks_seen_by_blockchain_node(
+        self, block_hashes: List[Sha256Hash]
+    ):
+        """
+        Unused by Ethereum.
+        """
+        pass
+
+    def mark_block_seen_by_blockchain_node(
+        self,
+        block_hash: Sha256Hash,
+        block_message: Optional[InternalEthBlockInfo],
+        block_number: Optional[int] = None,
+    ) -> None:
+        """
+        Stores information about the block and marks the block heights to
+        track the Ethereum node's blockchain state.
+        Either block message or block number must be provided.
+
+        This function may be called multiple times with blocks at the same height,
+        and each subsequent call will updated the currently known chain state.
+        """
+        if block_message is not None:
+            self.store_block_data(block_hash, block_message)
+            block_number = block_message.block_number()
+        if block_number is None and block_hash in self._height_by_block_hash:
+            block_number = self._height_by_block_hash[block_hash]
+
+        assert block_number is not None
+
+        super().mark_block_seen_by_blockchain_node(block_hash, block_message)
+        self.accepted_block_hash_at_height[block_number] = block_hash
+        best_height, _ = self.best_accepted_block
+        if block_number >= best_height:
+            self.best_accepted_block = EthBlockInfo(block_number, block_hash)
+
+        if block_hash in self.block_checking_alarms:
+            self.node.alarm_queue.unregister_alarm(
+                self.block_checking_alarms[block_hash]
+            )
+            del self.block_checking_alarms[block_hash]
+            self.block_check_repeat_count.pop(block_hash, 0)
+
+        self.remove_from_queue(block_hash)
+        self._schedule_alarm_for_next_item()
+
+    def remove(self, block_hash: Sha256Hash) -> int:
+        index = super().remove(block_hash)
+        if block_hash in self._block_parts:
+            del self._block_parts[block_hash]
+            height = self._height_by_block_hash.contents.pop(block_hash, None)
+            logger.trace("Removing block {} at height {}", block_hash, height)
+            if height:
+                self._block_hashes_by_height.contents.get(
+                    height, set()
+                ).discard(block_hash)
+        return index
+
+    def remove_from_queue(self, block_hash: Sha256Hash) -> int:
+        index = super().remove_from_queue(block_hash)
+        for i in range(len(self.ordered_block_queue)):
+            if self.ordered_block_queue[i].block_hash == block_hash:
+                del self.ordered_block_queue[i]
+                break
+        return index
+
     def send_block_to_node(
-        self, block_hash: Sha256Hash, block_msg: Optional[InternalEthBlockInfo],
+        self, block_hash: Sha256Hash, block_msg: Optional[InternalEthBlockInfo] = None,
     ) -> None:
         assert block_msg is not None
+
+        # block must always be greater than previous best
+        block_number = block_msg.block_number()
+        best_height, _best_hash, _ = self.best_sent_block
+        assert block_number > best_height
+
         new_block_parts = self._block_parts[block_hash]
 
         if block_msg.has_total_difficulty():
@@ -125,88 +344,66 @@ class EthBlockQueuingService(
                 )
 
         self.node.log_blocks_network_content(self.node.network_num, block_msg)
+        self.sent_block_at_height[block_number] = block_hash
+        self.best_sent_block = SentEthBlockInfo(block_number, block_hash, time.time())
+        self._schedule_confirmation_check(block_hash)
 
-    # pyre-fixme[14]: `get_previous_block_hash_from_message` overrides method defined in
-    #  `PushBlockQueuingService` inconsistently.
-    def get_previous_block_hash_from_message(
-        self, block_message: NewBlockEthProtocolMessage
-    ) -> Sha256Hash:
-        return block_message.prev_block_hash()
+    def partial_chainstate(self, required_length: int) -> Deque[EthBlockInfo]:
+        """
+        Builds a current chainstate based on the current head. Attempts to maintain
+        the minimal length required chainstate as required by the length from the
+        head as specified.
 
-    def get_block_parts(self, block_hash: Sha256Hash) -> Optional[NewBlockParts]:
-        if block_hash not in self._block_parts:
-            logger.debug("requested transaction info for a block not in the queueing service {}", block_hash)
-            return None
-        return self._block_parts[block_hash]
+        :param required_length: length to extend partial chainstate to if needed
+        """
+        best_sent_height, best_sent_hash, _ = self.best_sent_block
+        if best_sent_height == INITIAL_BLOCK_HEIGHT:
+            return deque()
 
-    def get_block_body_from_message(self, block_hash: Sha256Hash) -> Optional[BlockBodiesEthProtocolMessage]:
-        block_parts = self.get_block_parts(block_hash)
-        if block_parts is None:
-            return None
-        return BlockBodiesEthProtocolMessage.from_body_bytes(block_parts.block_body_bytes)
+        if len(self._partial_chainstate) == 0:
+            self._partial_chainstate.append(EthBlockInfo(best_sent_height, best_sent_hash))
 
-    # pyre-fixme[14]: `on_block_sent` overrides method defined in
-    #  `PushBlockQueuingService` inconsistently.
-    def on_block_sent(
-        self, block_hash: Sha256Hash, _block_message: NewBlockEthProtocolMessage
-    ):
-        if block_hash not in self.block_checking_alarms:
-            # requires delay to have time to validate and process block
-            self.block_checking_alarms[
-                block_hash
-            ] = self.node.alarm_queue.register_alarm(
-                eth_constants.CHECK_BLOCK_RECEIPT_DELAY_S,
-                self._check_for_block_on_repeat,
-                block_hash,
-            )
+        chain_head_height, chain_head_hash = self._partial_chainstate[-1]
+        if chain_head_hash != best_sent_hash:
+            height = best_sent_height
+            head_hash = best_sent_hash
+            missing_entries = deque()
+            while height > chain_head_height:
 
-    def push(
-        self,
-        block_hash: Sha256Hash,
-        block_msg: Optional[InternalEthBlockInfo] = None,
-        waiting_for_recovery: bool = False,
-    ) -> None:
-        if not waiting_for_recovery:
-            assert block_msg is not None
-            self._store_block_parts(block_hash, block_msg)
-        super().push(block_hash, block_msg, waiting_for_recovery)
+                try:
+                    head = self._blocks[head_hash]
+                    if head is None:
+                        break
+                    missing_entries.appendleft(EthBlockInfo(height, head_hash))
 
-    def store_block_data(
-        self,
-        block_hash: Sha256Hash,
-        block_msg: InternalEthBlockInfo
-    ):
-        super().store_block_data(block_hash, block_msg)
-        self._store_block_parts(block_hash, block_msg)
+                    head_hash = head.prev_block_hash()
+                    height -= 1
+                except KeyError:
+                    break
 
-    def mark_block_seen_by_blockchain_node(
-        self,
-        block_hash: Sha256Hash,
-        block_message: Optional[InternalEthBlockInfo] = None,
-    ) -> None:
-        if block_message is not None:
-            self._store_block_parts(block_hash, block_message)
+            # append to partial chain state
+            if head_hash == chain_head_height:
+                self._partial_chainstate.extend(missing_entries)
+            # reorganization is required, rebuild to expected length
+            else:
+                self._partial_chainstate = missing_entries
 
-        super().mark_block_seen_by_blockchain_node(block_hash, block_message)
+        tail_height, tail_hash = self._partial_chainstate[0]
+        tail = self._blocks[tail_hash]
+        assert tail is not None
 
-        if block_hash in self.block_checking_alarms:
-            self.node.alarm_queue.unregister_alarm(
-                self.block_checking_alarms[block_hash]
-            )
-            del self.block_checking_alarms[block_hash]
-            self.block_repeat_count.pop(block_hash, 0)
+        while len(self._partial_chainstate) < required_length:
+            try:
+                tail_hash = tail.prev_block_hash()
+                tail_height -= 1
+                tail = self._blocks[tail_hash]
+                if tail is None:
+                    break
+                self._partial_chainstate.appendleft(EthBlockInfo(tail_height, tail_hash))
+            except KeyError:
+                break
 
-    def remove(self, block_hash: Sha256Hash) -> int:
-        index = super().remove(block_hash)
-        if block_hash in self._block_parts:
-            del self._block_parts[block_hash]
-            height = self._height_by_block_hash.contents.pop(block_hash, None)
-            logger.trace("Removing block {} at height {}", block_hash, height)
-            if height:
-                self._block_hashes_by_height.contents.get(
-                    height, set()
-                ).discard(block_hash)
-        return index
+        return self._partial_chainstate
 
     def try_send_bodies_to_node(self, block_hashes: List[Sha256Hash]) -> bool:
         """
@@ -297,7 +494,21 @@ class EthBlockQueuingService(
         if block_hash not in self._blocks:
             return False, []
 
+        best_height, _, _ = self.best_sent_block
         starting_height = self._height_by_block_hash[block_hash]
+        look_back_length = best_height - starting_height + 1
+        partial_chainstate = self.partial_chainstate(look_back_length)
+
+        if not any(block_hash == chain_hash for _, chain_hash in partial_chainstate):
+            block_too_far_back = len(partial_chainstate) != look_back_length
+            logger.trace(
+                "Block {} is not included in the current chainstate. "
+                "Returning empty set. Chainstate missing entries: {}",
+                block_hash,
+                block_too_far_back
+            )
+            return not block_too_far_back, []
+
         logger.trace(
             "Found block {} had height {}. Continuing...",
             block_hash,
@@ -326,11 +537,14 @@ class EthBlockQueuingService(
         """
         block_hashes: List[Sha256Hash] = []
         height = block_height
-
         if reverse:
+            lowest_requested_height = block_height - (max_count * skip)
             multiplier = -1
         else:
+            lowest_requested_height = block_height
             multiplier = 1
+
+        chain_state: Optional[Set[Sha256Hash]] = None
 
         while (
             len(block_hashes) < max_count
@@ -347,11 +561,28 @@ class EthBlockQueuingService(
                     max_count,
                     block_height,
                 )
-                return False, []
+                if chain_state is None:
+                    best_height, _, _ = self.best_sent_block
+                    partial_state = self.partial_chainstate(
+                        best_height - lowest_requested_height + 1
+                    )
+                    chain_state = set(block_hash for _, block_hash in partial_state)
 
-            block_hashes.append(
-                next(iter(self._block_hashes_by_height[height]))
-            )
+                for candidate_hash in matching_hashes:
+                    if candidate_hash in chain_state:
+                        block_hashes.append(candidate_hash)
+                        break
+                else:
+                    logger.debug(
+                        "Unexpectedly, none of the blocks at height {} were part "
+                        "of the chainstate.",
+                        block_height
+                    )
+                    return False, []
+            else:
+                block_hashes.append(
+                    next(iter(matching_hashes))
+                )
             height += (1 + skip) * multiplier
 
         # If a block is requested too far in the past, abort and fallback
@@ -376,7 +607,8 @@ class EthBlockQueuingService(
     def iterate_block_hashes_starting_from_hash(
         self,
         block_hash: Sha256Hash,
-        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP
+    ) -> Iterator[Sha256Hash]:
         """
         iterate over cached blocks headers in descending order
         :param block_hash: starting block hash
@@ -393,7 +625,8 @@ class EthBlockQueuingService(
 
     def iterate_recent_block_hashes(
         self,
-        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP) -> Iterator[Sha256Hash]:
+        max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP
+    ) -> Iterator[Sha256Hash]:
         """
         :param max_count:
         :return: Iterator[Sha256Hash] in descending order (last -> first)
@@ -407,13 +640,19 @@ class EthBlockQueuingService(
 
         return self.iterate_block_hashes_starting_from_hash(block_hash, max_count=max_count)
 
-    def get_block_height(self, block_hash: Sha256Hash) -> Optional[int]:
-        block_height: Optional[int] = None
-        if block_hash and block_hash in self._height_by_block_hash:
-            block_height = self._height_by_block_hash[block_hash]
-        return block_height
+    def get_block_parts(self, block_hash: Sha256Hash) -> Optional[NewBlockParts]:
+        if block_hash not in self._block_parts:
+            logger.debug("requested transaction info for a block not in the queueing service {}", block_hash)
+            return None
+        return self._block_parts[block_hash]
 
-    def log_memory_stats(self):
+    def get_block_body_from_message(self, block_hash: Sha256Hash) -> Optional[BlockBodiesEthProtocolMessage]:
+        block_parts = self.get_block_parts(block_hash)
+        if block_parts is None:
+            return None
+        return BlockBodiesEthProtocolMessage.from_body_bytes(block_parts.block_body_bytes)
+
+    def log_memory_stats(self) -> None:
         hooks.add_obj_mem_stats(
             self.__class__.__name__,
             self.node.network_num,
@@ -432,21 +671,21 @@ class EthBlockQueuingService(
         hooks.add_obj_mem_stats(
             self.__class__.__name__,
             self.node.network_num,
-            self.block_repeat_count,
+            self.block_check_repeat_count,
             "block_queue_block_repeat_count",
             ObjectSize(
-                size=len(self.block_repeat_count) * (crypto.SHA256_HASH_LEN + constants.UL_INT_SIZE_IN_BYTES),
+                size=len(self.block_check_repeat_count) * (crypto.SHA256_HASH_LEN + constants.UL_INT_SIZE_IN_BYTES),
                 flat_size=0,
                 is_actual_size=False
             ),
-            object_item_count=len(self.block_repeat_count),
+            object_item_count=len(self.block_check_repeat_count),
             object_type=memory_utils.ObjectType.BASE,
             size_type=memory_utils.SizeType.ESTIMATE
         )
 
     def _store_block_parts(
         self, block_hash: Sha256Hash, block_message: InternalEthBlockInfo
-    ):
+    ) -> None:
         new_block_parts = block_message.to_new_block_parts()
         self._block_parts[block_hash] = new_block_parts
         block_number = block_message.block_number()
@@ -468,6 +707,15 @@ class EthBlockQueuingService(
                 "No block height could be parsed for block: {}", block_hash
             )
 
+    def _schedule_confirmation_check(self, block_hash: Sha256Hash) -> None:
+        self.block_checking_alarms[
+            block_hash
+        ] = self.node.alarm_queue.register_alarm(
+            eth_common_constants.CHECK_BLOCK_RECEIPT_DELAY_S,
+            self._check_for_block_on_repeat,
+            block_hash,
+        )
+
     def _check_for_block_on_repeat(self, block_hash: Sha256Hash) -> float:
         get_confirmation_message = GetBlockHeadersEthProtocolMessage(
             None, block_hash.binary, 1, 0, 0
@@ -475,10 +723,242 @@ class EthBlockQueuingService(
 
         self.node.send_msg_to_node(get_confirmation_message)
 
-        if self.block_repeat_count[block_hash] < 5:
-            self.block_repeat_count[block_hash] += 1
-            return eth_constants.CHECK_BLOCK_RECEIPT_INTERVAL_S
+        if self.block_check_repeat_count[block_hash] < 5:
+            self.block_check_repeat_count[block_hash] += 1
+            return eth_common_constants.CHECK_BLOCK_RECEIPT_INTERVAL_S
         else:
-            del self.block_repeat_count[block_hash]
+            del self.block_check_repeat_count[block_hash]
             del self.block_checking_alarms[block_hash]
             return constants.CANCEL_ALARMS
+
+    def _schedule_alarm_for_next_item(self) -> None:
+        """
+        Sends the next top block if immediately available, otherwise schedules
+        an alarm to check back in. Cancels all other instances of this alarm.
+        Cleans out all stale blocks at front of queue.
+        """
+        next_push_alarm_id = self._next_push_alarm_id
+        if next_push_alarm_id is not None:
+            self.node.alarm_queue.unregister_alarm(next_push_alarm_id)
+            self._next_push_alarm_id = None
+
+        if len(self.ordered_block_queue) == 0:
+            return
+
+        while self.ordered_block_queue:
+            block_hash, queued_time, block_number = self.ordered_block_queue[0]
+            waiting_recovery = self._blocks_waiting_for_recovery[block_hash]
+
+            if waiting_recovery:
+                return
+
+            assert block_number is not None
+
+            if self._is_block_stale(block_number):
+                logger.info(
+                    "Discarding block {} at height {}. Block is stale.",
+                    block_hash,
+                    block_number
+                )
+                self.remove_from_queue(block_hash)
+                continue
+
+            block_msg = self._blocks[block_hash]
+            assert block_msg is not None
+            self._try_immediate_send(block_hash, block_number, block_msg)
+            _best_height, _best_hash, sent_time = self.best_sent_block
+            elapsed_time = time.time() - sent_time
+            timeout = self.node.opts.max_block_interval - elapsed_time
+            self._run_or_schedule_alarm(timeout, self._send_top_block_to_node)
+            break
+
+    def _schedule_recovery_timeout(self, block_hash: Sha256Hash) -> None:
+        self._recovery_alarms_by_block_hash[
+            block_hash
+        ] = self.node.alarm_queue.register_alarm(
+            gateway_constants.BLOCK_RECOVERY_MAX_QUEUE_TIME,
+            self._on_block_recovery_timeout,
+            block_hash
+        )
+
+    def _run_or_schedule_alarm(self, timeout: float, func: Callable) -> None:
+        if timeout > 0:
+            self._next_push_alarm_id = self.node.alarm_queue.register_alarm(
+                timeout, func
+            )
+        elif not self.is_node_connection_ready():
+            self.node.alarm_queue.register_alarm(
+                gateway_constants.NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S,
+                func,
+            )
+        else:
+            func()
+
+    def _send_top_block_to_node(self) -> None:
+        if len(self.ordered_block_queue) == 0:
+            return
+
+        if not self.is_node_connection_ready():
+            self._schedule_alarm_for_next_item()
+            return
+
+        block_hash, timestamp, _ = self.ordered_block_queue[0]
+        waiting_recovery = self._blocks_waiting_for_recovery[block_hash]
+
+        if waiting_recovery:
+            logger.debug(
+                "Unable to send block to node, requires recovery. "
+                "Block hash {}.",
+                block_hash,
+            )
+            self._schedule_alarm_for_next_item()
+            return
+
+        block_msg = self._blocks[block_hash]
+        self.remove_from_queue(block_hash)
+
+        self.send_block_to_node(block_hash, block_msg)
+
+        self._schedule_alarm_for_next_item()
+        return
+
+    def _on_block_recovery_timeout(self, block_hash: Sha256Hash) -> None:
+        logger.debug(
+            "Removing block {} from queue. Recovery period has timed out.",
+            block_hash
+        )
+        self.remove_from_queue(block_hash)
+
+    def _check_for_sent_or_queued_forked_block(self, block_hash: Sha256Hash, block_number: int) -> bool:
+        """
+        Returns True if a block has already been queued or sent at the same height.
+        """
+
+        is_duplicate = False
+        more_info = ""
+        for queued_block_hash, timestamp in self._block_queue:
+            if (
+                not self._blocks_waiting_for_recovery[queued_block_hash]
+                and queued_block_hash in self._height_by_block_hash
+            ):
+                if block_number == self._height_by_block_hash[queued_block_hash]:
+                    logger.info(
+                        "Fork detected at height {}. Setting aside block {} in favor of {}.",
+                        block_number,
+                        block_hash,
+                        queued_block_hash
+
+                    )
+                    is_duplicate = True
+                    more_info = "already queued"
+
+        if block_number in self.sent_block_at_height:
+            logger.info(
+                "Fork detected at height {}. Setting aside block {} in favor of already sent {}.",
+                block_number,
+                block_hash,
+                self.sent_block_at_height[block_number]
+            )
+            is_duplicate = True
+            more_info = "already sent"
+
+        if block_number in self.accepted_block_hash_at_height:
+            logger.info(
+                "Fork detected at height {}. Setting aside block {} in favor of already accepted {}.",
+                block_number,
+                block_hash,
+                self.accepted_block_hash_at_height[block_number]
+
+            )
+            is_duplicate = True
+            more_info = "already accepted"
+
+        if is_duplicate:
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_IGNORE_DUPLICATE_HEIGHT,
+                self.node.network_num,
+                more_info=more_info
+            )
+
+        return is_duplicate
+
+    def _is_block_stale(self, block_number: int) -> bool:
+        """
+        Check the best sent block to ensure the current block isn't in the past.
+
+        Don't need to check ordered queue, since best sent block is always < its smallest entry.
+        """
+        best_sent_height, _, _ = self.best_sent_block
+        best_accepted_height, _ = self.best_accepted_block
+        return block_number <= best_sent_height or block_number <= best_accepted_height
+
+    def _add_to_queue(
+        self,
+        block_hash: Sha256Hash,
+        waiting_for_recovery: bool,
+        block_msg: Optional[InternalEthBlockInfo]
+    ) -> int:
+        timestamp = time.time()
+        self._block_queue.append(BlockQueueEntry(block_hash, timestamp))
+        self._blocks_waiting_for_recovery[block_hash] = waiting_for_recovery
+        self._blocks[block_hash] = block_msg
+
+        if block_msg is not None:
+            self.store_block_data(block_hash, block_msg)
+            return self._ordered_insert(block_hash, block_msg.block_number(), timestamp)
+        else:
+            # blocks with no number go to the end of the queue
+            self.ordered_block_queue.append(
+                OrderedQueuedBlock(block_hash, timestamp, None)
+            )
+            return len(self.ordered_block_queue) - 1
+
+    def _ordered_insert(
+        self,
+        block_hash: Sha256Hash,
+        block_number: int,
+        timestamp: float
+    ) -> int:
+        index = 0
+        while index < len(self.ordered_block_queue):
+            queued_block_number = self.ordered_block_queue[index].block_number
+            if (
+                queued_block_number is not None
+                and block_number > queued_block_number
+            ):
+                index += 1
+            else:
+                break
+
+        if index == len(self.ordered_block_queue):
+            self.ordered_block_queue.append(
+                OrderedQueuedBlock(block_hash, timestamp, block_number)
+            )
+            return index
+
+        if block_number == self.ordered_block_queue[index]:
+            raise ValueError(f"Cannot insert block with duplicate number {block_number}")
+
+        self.ordered_block_queue.insert(
+            index, OrderedQueuedBlock(block_hash, timestamp, block_number)
+        )
+        return index
+
+    def _try_immediate_send(self, block_hash: Sha256Hash, block_number: int, block_msg: InternalEthBlockInfo) -> bool:
+        best_sent_height, _, _ = self.best_sent_block
+        best_height, _ = self.best_accepted_block
+        if (
+            (best_height == INITIAL_BLOCK_HEIGHT and best_sent_height == INITIAL_BLOCK_HEIGHT)
+            or best_height + 1 == block_number
+        ):
+            logger.debug(
+                "Immediately propagating block {} at height {}. Block is of the next "
+                "expected height.",
+                block_hash, block_number
+            )
+            self.send_block_to_node(block_hash, block_msg)
+            self.remove_from_queue(block_hash)
+            return True
+        return False
+

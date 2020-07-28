@@ -2,8 +2,7 @@ import struct
 
 import rlp
 
-from bxgateway import eth_constants
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 
 
 class Frame(object):
@@ -63,8 +62,8 @@ class Frame(object):
         :return: frame size
         """
 
-        return eth_constants.FRAME_HDR_DATA_LEN + eth_constants.FRAME_MAC_LEN + \
-               self.get_body_size(padded=True) + eth_constants.FRAME_MAC_LEN
+        return eth_common_constants.FRAME_HDR_DATA_LEN + eth_common_constants.FRAME_MAC_LEN + \
+               self.get_body_size(padded=True) + eth_common_constants.FRAME_MAC_LEN
 
     def get_payload(self):
         """
@@ -155,10 +154,10 @@ class Frame(object):
         # frame-size: 3-byte integer size of frame, big endian encoded (excludes padding)
         # frame relates to body w/o padding w/o mac
         body_size = self.get_body_size()
-        assert body_size < eth_constants.FRAME_MAX_BODY_SIZE
+        assert body_size < eth_common_constants.FRAME_MAX_BODY_SIZE
         header = struct.pack(">I", body_size)[1:] + header_data
         header = crypto_utils.right_0_pad_16(header)  # padding
-        assert len(header) == eth_constants.FRAME_HDR_DATA_LEN
+        assert len(header) == eth_common_constants.FRAME_HDR_DATA_LEN
         return header
 
     def get_body(self):

@@ -11,12 +11,10 @@ from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 
-
-from bxgateway import eth_constants
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
-from bxgateway.utils.eth import crypto_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from unittest import skip
 
 from mock import MagicMock
@@ -63,13 +61,13 @@ class EthGatewayNodeTest(AbstractTestCase):
         node = self._set_up_test_node(False, generate_pub_key=True)
         private_key = node.get_private_key()
         self.assertTrue(private_key)
-        self.assertEqual(len(private_key), eth_constants.PRIVATE_KEY_LEN)
+        self.assertEqual(len(private_key), eth_common_constants.PRIVATE_KEY_LEN)
 
     def test_get_public_key(self):
         node = self._set_up_test_node(False, generate_pub_key=True)
         public_key = node.get_public_key()
         self.assertTrue(public_key)
-        self.assertEqual(len(public_key), eth_constants.PUBLIC_KEY_LEN)
+        self.assertEqual(len(public_key), eth_common_constants.PUBLIC_KEY_LEN)
 
     def test_get_node_public_key__default(self):
         node = self._set_up_test_node(False, generate_pub_key=True)

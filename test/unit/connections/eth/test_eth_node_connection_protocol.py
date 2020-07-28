@@ -11,6 +11,7 @@ from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.utils.blockchain_utils.eth import crypto_utils
 from bxgateway.connections.abstract_gateway_blockchain_connection import (
     AbstractGatewayBlockchainConnection,
 )
@@ -41,7 +42,6 @@ from bxgateway.services.eth.eth_normal_block_cleanup_service import (
 )
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.eth import crypto_utils
 
 NETWORK_NUM = 1
 
@@ -226,7 +226,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         )
 
         self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
-            block_hash
+            block_hash, eth_block_info
         )
         self.sut.msg_get_block_headers(message)
         self.sut.msg_proxy_request.assert_not_called()
@@ -269,13 +269,17 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.node.opts.max_block_interval = 0
 
         block_hashes = []
+        block_hash = None
         for i in range(20):
             block_message = InternalEthBlockInfo.from_new_block_msg(
-                mock_eth_messages.new_block_eth_protocol_message(i, i + 1000)
+                mock_eth_messages.new_block_eth_protocol_message(
+                    i, i + 1000, block_hash
+                )
             )
             block_hash = block_message.block_hash()
             block_hashes.append(block_hash)
             self.node.block_queuing_service.push(block_hash, block_message)
+        self.node.block_queuing_service.best_sent_block = (1019, block_hashes[-1], 0)
 
         self.node.send_to_node_messages.clear()
 
@@ -389,18 +393,22 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
 
         block_hashes = []
         block_messages = []
+        block_hash = None
         for i in range(20):
             block_message = InternalEthBlockInfo.from_new_block_msg(
-                mock_eth_messages.new_block_eth_protocol_message(i, i + 1000)
+                mock_eth_messages.new_block_eth_protocol_message(i, i + 1000, block_hash)
             )
             block_hash = block_message.block_hash()
             block_hashes.append(block_hash)
             block_messages.append(block_message)
 
+        # push all blocks, except for # 17
         for i in (j for j in range(20) if j != 17):
             self.node.block_queuing_service.push(
                 block_hashes[i], block_messages[i]
             )
+            self.node.block_queuing_service.remove_from_queue(block_hashes[i])
+        self.node.block_queuing_service.best_sent_block = (1019, block_hashes[-1], 0)
 
         self.node.send_to_node_messages.clear()
 

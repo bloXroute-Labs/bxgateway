@@ -2,7 +2,7 @@ from rlp import utils as rlp_utils
 
 from bxcommon.test_utils import helpers
 from bxcommon.utils.buffers.input_buffer import InputBuffer
-from bxgateway import eth_constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway.testing.abstract_rlpx_cipher_test import AbstractRLPxCipherTest
 from bxgateway.utils.eth import frame_utils
 from bxgateway.utils.eth.framed_input_buffer import FramedInputBuffer
@@ -19,7 +19,7 @@ class FramedInputBufferTests(AbstractRLPxCipherTest):
         dummy_protocol = 0
 
         frames = frame_utils.get_frames(dummy_msg_type, memoryview(dummy_payload), dummy_protocol,
-                                        eth_constants.DEFAULT_FRAME_SIZE)
+                                        eth_common_constants.DEFAULT_FRAME_SIZE)
 
         input_buffer = InputBuffer()
 
@@ -29,7 +29,7 @@ class FramedInputBufferTests(AbstractRLPxCipherTest):
             input_buffer.add_bytes(encrypted_frame_bytes)
 
         # adding some dummy bytes but less than header size len
-        dummy_bytes_len = int(eth_constants.FRAME_HDR_TOTAL_LEN / 2)
+        dummy_bytes_len = int(eth_common_constants.FRAME_HDR_TOTAL_LEN / 2)
         input_buffer.add_bytes(helpers.generate_bytearray(dummy_bytes_len))
 
         framed_input_buffer = FramedInputBuffer(cipher2)
@@ -64,14 +64,14 @@ class FramedInputBufferTests(AbstractRLPxCipherTest):
             frames_bytes += encrypted_frame_bytes
 
         # adding some dummy bytes but less than header size len
-        dummy_bytes_len = int(eth_constants.FRAME_HDR_TOTAL_LEN / 2)
+        dummy_bytes_len = int(eth_common_constants.FRAME_HDR_TOTAL_LEN / 2)
         frames_bytes += helpers.generate_bytearray(dummy_bytes_len)
 
         input_buffer = InputBuffer()
         framed_input_buffer = FramedInputBuffer(cipher2)
 
         read_start = 0
-        read_size = eth_constants.FRAME_HDR_TOTAL_LEN
+        read_size = eth_common_constants.FRAME_HDR_TOTAL_LEN
         is_full = False
         msg_type = None
 
