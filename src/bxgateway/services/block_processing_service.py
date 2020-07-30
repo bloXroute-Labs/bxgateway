@@ -507,6 +507,9 @@ class BlockProcessingService:
 
     def start_transaction_recovery(self, unknown_sids: Iterable[int], unknown_hashes: Iterable[Sha256Hash],
                                    block_hash: Sha256Hash, connection: Optional[AbstractRelayConnection] = None):
+        if not self._node.opts.request_recovery:
+            return
+
         all_unknown_sids = []
         all_unknown_sids.extend(unknown_sids)
         tx_service = self._node.get_tx_service()

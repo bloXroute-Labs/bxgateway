@@ -70,6 +70,7 @@ class GatewayOpts(CommonOpts):
     account_model: Optional[BdnAccountModelBase]
     process_node_txs_in_extension: bool
     enable_eth_extensions: bool     # TODO remove
+    request_recovery: bool
 
     # IPC
     ipc: bool

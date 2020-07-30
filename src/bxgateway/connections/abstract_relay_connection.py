@@ -241,10 +241,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         )
 
     def msg_txs(self, msg: TxsMessage):
-        if ConnectionType.RELAY_TRANSACTION not in self.CONNECTION_TYPE:
-            self.log_error(log_messages.UNEXPECTED_TXS_ON_NON_RELAY_CONN, msg)
-            return
-
         transactions = msg.get_txs()
         tx_service = self.node.get_tx_service()
 
