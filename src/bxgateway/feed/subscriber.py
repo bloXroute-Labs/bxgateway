@@ -1,7 +1,6 @@
 import asyncio
 import uuid
-from asyncio import QueueFull
-from typing import Generic, TypeVar, Optional, List, Union, Dict, Any
+from typing import Generic, TypeVar, Union, Dict, Any
 
 from bxgateway import gateway_constants
 
@@ -17,8 +16,9 @@ class Subscriber(Generic[T]):
     users should be careful about ensuring that the object is serializable if
     the object should be received over the websocket or IPC subscriptions.
 
-    If `include_fields` is None, the message will be passed onward with no
-    changes.
+    If `options` is None, the message will be passed onward with no changes.
+
+    Make sure to update documentation page with any input format change
     """
 
     subscription_id: str
