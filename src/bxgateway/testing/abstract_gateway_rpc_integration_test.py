@@ -102,37 +102,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         )
 
     @async_test
-    async def test_blxr_tx_no_account(self):
-        self.gateway_node.account_model = None
-        result = await self.request(BxJsonRpcRequest(
-            "1",
-            RpcRequestType.BLXR_TX,
-            {
-                rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "quota_type": "paid_daily_quota"
-            }
-        ))
-        self.assertEqual("1", result.id)
-        self.assertIsNone(result.result)
-        self.assertEqual(RpcErrorCode.ACCOUNT_ID_ERROR, result.error.code)
-
-    @async_test
-    async def test_blxr_tx_service_expired(self):
-        if self.gateway_node.account_model:
-            self.gateway_node.account_model.cloud_api.expire_date = constants.EPOCH_DATE
-        result = await self.request(BxJsonRpcRequest(
-            "1",
-            RpcRequestType.BLXR_TX,
-            {
-                rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "quota_type": "paid_daily_quota"
-            }
-        ))
-        self.assertEqual("1", result.id)
-        self.assertIsNone(result.result)
-        self.assertEqual(RpcErrorCode.ACCOUNT_ID_ERROR, result.error.code)
-
-    @async_test
     async def test_gateway_status(self):
         result_summary = await self.request(BxJsonRpcRequest(
             "2",

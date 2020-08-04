@@ -7,8 +7,7 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.exceptions import ParseError
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
-from bxcommon.rpc.requests.abstract_blxr_transaction_rpc_request import \
-    AbstractBlxrTransactionRpcRequest
+from bxcommon.rpc.requests.abstract_blxr_transaction_rpc_request import AbstractBlxrTransactionRpcRequest
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
@@ -56,11 +55,6 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
     async def process_transaction(
         self, network_num: int, account_id: str, quota_type: QuotaType, transaction_str: str
     ) -> JsonRpcResponse:
-
-        if not(self.node.account_model and self.node.account_model.cloud_api.is_service_valid()):
-            raise RpcAccountIdError(
-                self.request_id, "Account does not have cloud-api service. Please contact bloXroute support."
-            )
 
         if self.synchronous:
             return await self.post_process_transaction(
