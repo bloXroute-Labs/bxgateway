@@ -1,6 +1,7 @@
+import struct
 import time
 from abc import ABCMeta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Set, Tuple
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
@@ -17,7 +18,7 @@ from bxcommon.messages.validation.message_size_validation_settings import Messag
 from bxcommon.models.entity_type_model import EntityType
 from bxcommon.models.notification_code import NotificationCode
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
-from bxcommon.utils import convert, performance_utils
+from bxcommon.utils import convert, performance_utils, crypto
 from bxcommon.utils import memory_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks, stats_format
@@ -31,6 +32,7 @@ from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_
     GatewayBdnPerformanceStatInterval
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
+from bxgateway.services.gateway_transaction_service import MissingTransactions
 from bxutils import logging
 from bxutils.logging import LogLevel
 from bxutils.logging import LogRecordType
@@ -243,7 +245,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     def msg_txs(self, msg: TxsMessage):
         transactions = msg.get_txs()
         tx_service = self.node.get_tx_service()
-
+        missing_txs: Set[MissingTransactions] = tx_service.process_txs_message(msg)
         tx_stats.add_txs_by_short_ids_event(
             map(lambda x: x.short_id, transactions),
             TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REPLY_RECEIVED_BY_GATEWAY_FROM_RELAY,
@@ -254,26 +256,17 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                                 )
         )
 
-        for transaction in transactions:
-            tx_hash, transaction_contents, short_id = transaction
-
-            assert tx_hash is not None
-            assert short_id is not None
-
+        for (short_id, transaction_hash) in missing_txs:
             self.node.block_recovery_service.check_missing_sid(short_id)
+            self.node.block_recovery_service.check_missing_tx_hash(transaction_hash)
 
-            if not tx_service.has_short_id(short_id):
-                tx_service.assign_short_id(tx_hash, short_id)
-
-            self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
-
-            if not tx_service.has_transaction_contents(tx_hash):
-                assert transaction_contents is not None
-                tx_service.set_transaction_contents(tx_hash, transaction_contents)
-
-            tx_stats.add_tx_by_hash_event(tx_hash,
-                                          TransactionStatEventType.TX_UNKNOWN_TRANSACTION_RECEIVED_BY_GATEWAY_FROM_RELAY,
-                                          self.node.network_num, short_id, peer=stats_format.connection(self))
+            tx_stats.add_tx_by_hash_event(
+                transaction_hash,
+                TransactionStatEventType.TX_UNKNOWN_TRANSACTION_RECEIVED_BY_GATEWAY_FROM_RELAY,
+                self.node.network_num,
+                short_id,
+                peer=stats_format.connection(self)
+            )
 
         self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
 
