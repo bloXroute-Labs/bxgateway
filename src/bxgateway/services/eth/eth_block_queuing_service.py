@@ -494,6 +494,9 @@ class EthBlockQueuingService(
         if block_hash not in self._blocks:
             return False, []
 
+        if block_hash in self._blocks_waiting_for_recovery and self._blocks_waiting_for_recovery[block_hash]:
+            return False, []
+
         best_height, _, _ = self.best_sent_block
         starting_height = self._height_by_block_hash[block_hash]
         look_back_length = best_height - starting_height + 1
