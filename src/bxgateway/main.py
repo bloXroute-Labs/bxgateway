@@ -297,6 +297,13 @@ def get_argument_parser() -> argparse.ArgumentParser:
         default=False,
         type=convert.str_to_bool,
     )
+    arg_parser.add_argument(
+        "--enable-block-compression",
+        help="If set, overrides value from the SDN, and might be changed if SDN sent an update",
+        type=convert.str_to_bool,
+        nargs='?',
+    )
+
     return arg_parser
 
 

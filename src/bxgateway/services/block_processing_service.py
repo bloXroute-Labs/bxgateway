@@ -41,7 +41,7 @@ class BlockHold:
     holding_connection: connection that sent the original hold message
     block_message: message being delayed due to an existing hold
     alarm: reference to alarm object for hold timeout
-    held_connection: connection from which the message is being delayed for
+    connection: connection from which the message is being delayed for
     """
 
     def __init__(self, hold_message_time, holding_connection):
@@ -50,7 +50,7 @@ class BlockHold:
 
         self.block_message = None
         self.alarm = None
-        self.held_connection = None
+        self.connection = None
 
 
 class BlockProcessingService:
@@ -68,7 +68,7 @@ class BlockProcessingService:
             f"block_processing_holds"
         )
 
-    def place_hold(self, block_hash, connection):
+    def place_hold(self, block_hash, connection) -> None:
         """
         Places hold on block hash and propagates message.
         :param block_hash: ObjectHash
@@ -92,7 +92,7 @@ class BlockProcessingService:
                                                           network_num=self._node.network_num,
                                                           more_info=stats_format.connections(conns))
 
-    def queue_block_for_processing(self, block_message, connection):
+    def queue_block_for_processing(self, block_message, connection) -> None:
         """
         Queues up block for processing on timeout if hold message received.
         If no hold exists, compress and broadcast block immediately.
@@ -129,7 +129,7 @@ class BlockProcessingService:
                                                           more_info=stats_format.connections(conns))
             self._process_and_broadcast_block(block_message, connection)
 
-    def cancel_hold_timeout(self, block_hash, connection):
+    def cancel_hold_timeout(self, block_hash, connection) -> None:
         """
         Lifts hold on block hash and cancels timeout.
         :param block_hash: ObjectHash
@@ -145,7 +145,7 @@ class BlockProcessingService:
                 self._node.alarm_queue.unregister_alarm(hold.alarm)
             del self._holds.contents[block_hash]
 
-    def process_block_broadcast(self, msg, connection: AbstractRelayConnection):
+    def process_block_broadcast(self, msg, connection: AbstractRelayConnection) -> None:
         """
         Handle broadcast message receive from bloXroute.
         This is typically an encrypted block.
@@ -211,7 +211,7 @@ class BlockProcessingService:
                 more_info=stats_format.connections(conns)
             )
 
-    def process_block_key(self, msg, connection: AbstractRelayConnection):
+    def process_block_key(self, msg, connection: AbstractRelayConnection) -> None:
         """
         Handles key message receive from bloXroute.
         Looks for the encrypted block and decrypts; otherwise stores for later.
@@ -264,14 +264,14 @@ class BlockProcessingService:
                                                       network_num=self._node.network_num,
                                                       more_info=stats_format.connections(conns))
 
-    def retry_broadcast_recovered_blocks(self, connection):
+    def retry_broadcast_recovered_blocks(self, connection) -> None:
         if self._node.block_recovery_service.recovered_blocks and self._node.opts.has_fully_updated_tx_service:
             for msg in self._node.block_recovery_service.recovered_blocks:
                 self._handle_decrypted_block(msg, connection, recovered=True)
 
             self._node.block_recovery_service.clean_up_recovered_blocks()
 
-    def _compute_hold_timeout(self, block_message):
+    def _compute_hold_timeout(self, _block_message) -> int:
         """
         Computes timeout after receiving block message before sending the block anyway if not received from network.
         TODO: implement algorithm for computing hold timeout
@@ -286,9 +286,9 @@ class BlockProcessingService:
                                                   more_info=stats_format.connection(hold.connection))
         self._process_and_broadcast_block(hold.block_message, hold.connection)
 
-    def _process_and_broadcast_block(self, block_message, connection: AbstractGatewayBlockchainConnection):
+    def _process_and_broadcast_block(self, block_message, connection: AbstractGatewayBlockchainConnection) -> None:
         """
-        Compresses and propagates block message.
+        Compresses and propagates block message if enabled, else return.
         :param block_message: block message to propagate
         :param connection: receiving connection (AbstractBlockchainConnection)
         """
@@ -297,7 +297,7 @@ class BlockProcessingService:
         assert message_converter is not None
         try:
             bx_block, block_info = message_converter.block_to_bx_block(
-                block_message, self._node.get_tx_service()
+                block_message, self._node.get_tx_service(), self._node.opts.enable_block_compression
             )
         except MessageConversionError as e:
             block_stats.add_block_event_by_block_hash(
@@ -346,11 +346,13 @@ class BlockProcessingService:
 
         self._node.log_blocks_network_content(self._node.network_num, block_message)
 
-    def _process_and_broadcast_compressed_block(self,
-                                                bx_block,
-                                                connection: AbstractGatewayBlockchainConnection,
-                                                block_info,
-                                                block_hash: Sha256Hash):
+    def _process_and_broadcast_compressed_block(
+        self,
+        bx_block,
+        connection: AbstractGatewayBlockchainConnection,
+        block_info,
+        block_hash: Sha256Hash
+    ) -> None:
         """
         Process a compressed block.
         :param bx_block: compress block message to process
@@ -367,7 +369,7 @@ class BlockProcessingService:
         connection: AbstractRelayConnection,
         encrypted_block_hash_hex: Optional[str] = None,
         recovered: bool = False
-    ):
+    ) -> None:
         transaction_service = self._node.get_tx_service()
         message_converter = self._node.message_converter
         assert message_converter is not None
@@ -512,8 +514,13 @@ class BlockProcessingService:
             else:
                 self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
 
-    def start_transaction_recovery(self, unknown_sids: Iterable[int], unknown_hashes: Iterable[Sha256Hash],
-                                   block_hash: Sha256Hash, connection: Optional[AbstractRelayConnection] = None):
+    def start_transaction_recovery(
+        self,
+        unknown_sids: Iterable[int],
+        unknown_hashes: Iterable[Sha256Hash],
+        block_hash: Sha256Hash,
+        connection: Optional[AbstractRelayConnection] = None
+    ) -> None:
         if not self._node.opts.request_recovery:
             if connection is not None:
                 network_num = connection.network_num
@@ -566,7 +573,7 @@ class BlockProcessingService:
                 )
             )
 
-    def schedule_recovery_retry(self, block_awaiting_recovery: BlockRecoveryInfo):
+    def schedule_recovery_retry(self, block_awaiting_recovery: BlockRecoveryInfo) -> None:
         """
         Schedules a block recovery attempt. Repeated block recovery attempts result in longer timeouts,
         following `gateway_constants.BLOCK_RECOVERY_INTERVAL_S`'s pattern, until giving up.
@@ -586,7 +593,7 @@ class BlockProcessingService:
             self._node.alarm_queue.register_approx_alarm(delay, delay / 2, self._trigger_recovery_retry,
                                                          block_awaiting_recovery)
 
-    def _trigger_recovery_retry(self, block_awaiting_recovery: BlockRecoveryInfo):
+    def _trigger_recovery_retry(self, block_awaiting_recovery: BlockRecoveryInfo) -> None:
         block_hash = block_awaiting_recovery.block_hash
         if self._node.block_recovery_service.awaiting_recovery(block_hash):
             self._node.block_recovery_service.recovery_attempts_by_block[block_hash] += 1
@@ -596,5 +603,5 @@ class BlockProcessingService:
                 block_hash
             )
 
-    def _on_block_decompressed(self, block_msg):
+    def _on_block_decompressed(self, block_msg) -> None:
         pass

@@ -160,7 +160,7 @@ class BtcMessageConverterTests(AbstractTestCase):
         )
         block_hash = btc_block.block_hash()
 
-        bloxroute_block, block_info = self.btc_message_converter.block_to_bx_block(btc_block, self.tx_service)
+        bloxroute_block, block_info = self.btc_message_converter.block_to_bx_block(btc_block, self.tx_service, True)
         self.assertEqual(10, block_info.txn_count)
         self.assertEqual("5a77d1e9612d350b3734f6282259b7ff0a3f87d62cfef5f35e91a5604c0490a3",
                          block_info.prev_block_hash)
@@ -190,7 +190,7 @@ class BtcMessageConverterTests(AbstractTestCase):
     @multi_setup()
     def test_plain_compression(self):
         parsed_block = get_sample_block()
-        bx_block, bx_block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
+        bx_block, bx_block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service, True)
         ref_block, block_info, _, _ = self.btc_message_converter.bx_block_to_block(
             bx_block, self.tx_service
         )
@@ -208,7 +208,7 @@ class BtcMessageConverterTests(AbstractTestCase):
             bx_tx_hash = btc_common_utils.get_txid(txn)
             self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
             self.tx_service.set_transaction_contents(bx_tx_hash, txn)
-        bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
+        bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service, True)
         ref_block, _, unknown_tx_sids, unknown_tx_hashes = self.btc_message_converter.bx_block_to_block(
             bx_block, self.tx_service
         )
@@ -227,7 +227,7 @@ class BtcMessageConverterTests(AbstractTestCase):
             bx_tx_hash = btc_common_utils.get_txid(txn)
             self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
             self.tx_service.set_transaction_contents(bx_tx_hash, txn)
-        bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
+        bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service, True)
         ref_block, ref_lock_info, unknown_tx_sids, unknown_tx_hashes = self.btc_message_converter.bx_block_to_block(
             bx_block, self.tx_service
         )
@@ -249,7 +249,7 @@ class BtcMessageConverterTests(AbstractTestCase):
             bx_tx_hash = btc_common_utils.get_txid(txn)
             self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
             self.tx_service.set_transaction_contents(bx_tx_hash, txn)
-        bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service)
+        bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service, True)
         self.assertEqual(len(transactions_short), len(block_info.short_ids), "not all txs were compressed")
         self.assertEqual(int(block_info.txn_count * 0.9), len(block_info.short_ids), "not all txs were compressed")
         ref_block, _, _, _ = self.btc_message_converter.bx_block_to_block(
@@ -334,3 +334,19 @@ class BtcMessageConverterTests(AbstractTestCase):
                     tx_service.assign_short_id(sha, self.short_ids[int(idx/2)])
                     tx_service.set_transaction_contents(sha, txn)
         return tx_service, btc_message_converter
+
+    @multi_setup()
+    def test_no_compression(self):
+        parsed_block = get_sample_block()
+        bx_block, block_info = self.btc_message_converter.block_to_bx_block(parsed_block, self.tx_service, False)
+        ref_block, _, unknown_tx_sids, unknown_tx_hashes = self.btc_message_converter.bx_block_to_block(
+            bx_block, self.tx_service
+        )
+
+        self.assertTrue(len(bx_block) >= len(parsed_block.rawbytes()))
+        self.assertEqual(0, len(block_info.short_ids))
+        self.assertEqual(len(unknown_tx_hashes), 0)
+        self.assertEqual(len(unknown_tx_sids), 0)
+        self.assertEqual(
+            parsed_block.rawbytes().tobytes(), ref_block.rawbytes().tobytes()
+        )

@@ -196,8 +196,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
     def test_bdn_stats_block_new_from_bdn(self):
         block_msg = mock_eth_messages.new_block_eth_protocol_message(21, 1017)
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
-        msg_bytes, block_info = self.node.message_converter.block_to_bx_block(internal_new_block_msg,
-                                                                              self.node._tx_service)
+        msg_bytes, block_info = self.node.message_converter.block_to_bx_block(
+            internal_new_block_msg, self.node._tx_service, True
+        )
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
 
         broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
@@ -208,8 +209,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
     def test_bdn_stats_block_new_from_bdn_ignore_duplicate(self):
         block_msg = mock_eth_messages.new_block_eth_protocol_message(21, 1017)
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
-        msg_bytes, block_info = self.node.message_converter.block_to_bx_block(internal_new_block_msg,
-                                                                              self.node._tx_service)
+        msg_bytes, block_info = self.node.message_converter.block_to_bx_block(
+            internal_new_block_msg, self.node._tx_service, True
+        )
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
 
         broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
@@ -228,8 +230,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         )
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
-        msg_bytes, block_info = self.node.message_converter.block_to_bx_block(internal_new_block_msg,
-                                                                              self.node._tx_service)
+        msg_bytes, block_info = self.node.message_converter.block_to_bx_block(
+            internal_new_block_msg, self.node._tx_service, True
+        )
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
         broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
         self.relay_connection.msg_broadcast(broadcast_msg)
@@ -254,7 +257,7 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
         msg_bytes, block_info = self.node.message_converter.block_to_bx_block(
-            internal_new_block_msg, self.node._tx_service
+            internal_new_block_msg, self.node._tx_service, True
         )
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
         broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)

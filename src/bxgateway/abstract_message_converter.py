@@ -1,10 +1,17 @@
+import struct
+import time
 from abc import ABCMeta, abstractmethod
-from typing import Tuple, Optional, List, Set, Union, NamedTuple
+from collections import deque
+from datetime import datetime
+from typing import Tuple, Optional, List, Set, Union, NamedTuple, Deque
 
+from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.models.quota_type_model import QuotaType
+from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash, convert
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
 
@@ -16,6 +23,26 @@ class BlockDecompressionResult(NamedTuple):
     block_info: BlockInfo
     unknown_short_ids: List[int]
     unknown_tx_hashes: List[Sha256Hash]
+
+
+def finalize_block_bytes(
+        buf: Deque[Union[bytes, bytearray, memoryview]], size: int, short_ids: List[int]
+) -> memoryview:
+    serialized_short_ids = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
+    buf.append(serialized_short_ids)
+    size += constants.UL_ULL_SIZE_IN_BYTES
+    offset_buf = struct.pack("<Q", size)
+    buf.appendleft(offset_buf)
+    size += len(serialized_short_ids)
+
+    block = bytearray(size)
+    off = 0
+    for blob in buf:
+        next_off = off + len(blob)
+        block[off:next_off] = blob
+        off = next_off
+
+    return memoryview(block)
 
 
 class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
@@ -51,15 +78,17 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
+    def block_to_bx_block(
+        self, block_msg, tx_service, enable_block_compression: bool
+    ) -> Tuple[memoryview, BlockInfo]:
         """
         Convert blockchain block message to internal broadcast message with transactions replaced with short ids
 
         :param block_msg: blockchain new block message
         :param tx_service: Transactions service
+        :param enable_block_compression
         :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash, short ids)
         """
-
         pass
 
     @abstractmethod
@@ -73,7 +102,6 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         :param tx_service: Transactions service
         :return: block decompression result
         """
-
         pass
 
     @abstractmethod

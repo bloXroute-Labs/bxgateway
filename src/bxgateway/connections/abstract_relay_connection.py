@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Set, Tuple
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
+from bxcommon.messages.blockchain_network_message import RefreshBlockchainNetworkMessage
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bdn_performance_stats_message import BdnPerformanceStatsMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
@@ -18,6 +19,7 @@ from bxcommon.messages.validation.message_size_validation_settings import Messag
 from bxcommon.models.entity_type_model import EntityType
 from bxcommon.models.notification_code import NotificationCode
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
+from bxcommon.services import sdn_http_service
 from bxcommon.utils import convert, performance_utils, crypto
 from bxcommon.utils import memory_utils
 from bxcommon.utils.object_hash import Sha256Hash
@@ -25,8 +27,7 @@ from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import log_messages, gateway_constants
-from bxgateway.feed.new_transaction_feed import NewTransactionFeed, \
-    RawTransactionFeedEntry
+from bxgateway.feed.new_transaction_feed import NewTransactionFeed, RawTransactionFeedEntry
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
@@ -74,6 +75,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             BloxrouteMessageType.BLOCK_CONFIRMATION: self.msg_cleanup,
             BloxrouteMessageType.TRANSACTION_CLEANUP: self.msg_cleanup,
             BloxrouteMessageType.NOTIFICATION: self.msg_notify,
+            BloxrouteMessageType.REFRESH_BLOCKCHAIN_NETWORK: self.msg_refresh_blockchain_network
         }
 
         msg_size_validation_settings = MessageSizeValidationSettings(self.node.network.max_block_size_bytes,
@@ -347,9 +349,16 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         else:
             self.log(msg.level(), "Notification from Relay: {}", msg.formatted_message())
 
-    def publish_new_transaction(
-        self, tx_hash: Sha256Hash, tx_contents: memoryview
-    ) -> None:
+    def msg_refresh_blockchain_network(self, _msg: RefreshBlockchainNetworkMessage) -> None:
+        updated_blockchain_networks = sdn_http_service.fetch_blockchain_networks()
+        self.node.opts.blockchain_networks = updated_blockchain_networks
+        for blockchain_network in updated_blockchain_networks:
+            if blockchain_network.network == self.node.opts.blockchain_network \
+                    and blockchain_network.protocol == self.node.opts.blockchain_protocol:
+                self.node.opts.enable_block_compression = blockchain_network.enable_block_compression
+                break
+
+    def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:
         self.node.feed_manager.publish_to_feed(
             NewTransactionFeed.NAME,
             RawTransactionFeedEntry(tx_hash, tx_contents)

@@ -20,6 +20,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import btc_constants
 from bxgateway.utils.errors import message_conversion_error
+from bxgateway.abstract_message_converter import finalize_block_bytes
 from bxgateway.messages.btc.abstract_btc_message_converter import AbstractBtcMessageConverter, get_block_info, \
     CompactBlockCompressionResult
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
@@ -134,9 +135,7 @@ def compute_short_id(key: bytes, tx_hash_binary: Union[bytearray, memoryview]) -
 
 class BtcNormalMessageConverter(AbstractBtcMessageConverter):
 
-    def block_to_bx_block(
-            self, block_msg, tx_service
-    ) -> Tuple[memoryview, BlockInfo]:
+    def block_to_bx_block(self, block_msg, tx_service, enable_block_compression: bool) -> Tuple[memoryview, BlockInfo]:
         """
         Compresses a Bitcoin block's transactions and packs it into a bloXroute block.
         """
@@ -145,15 +144,16 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         size = 0
         buf = deque()
         short_ids = []
+        original_size = len(block_msg.rawbytes())
+
         header = block_msg.header()
         size += len(header)
         buf.append(header)
 
         for tx in block_msg.txns():
-
             tx_hash = btc_common_utils.get_txid(tx)
             short_id = tx_service.get_short_id(tx_hash)
-            if short_id == constants.NULL_TX_SID:
+            if short_id == constants.NULL_TX_SID or not enable_block_compression:
                 buf.append(tx)
                 size += len(tx)
             else:
@@ -161,23 +161,10 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
                 buf.append(btc_constants.BTC_SHORT_ID_INDICATOR_AS_BYTEARRAY)
                 size += 1
 
-        serialized_short_ids = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
-        buf.append(serialized_short_ids)
-        size += constants.UL_ULL_SIZE_IN_BYTES
-        offset_buf = struct.pack("<Q", size)
-        buf.appendleft(offset_buf)
-        size += len(serialized_short_ids)
-
-        block = bytearray(size)
-        off = 0
-        for blob in buf:
-            next_off = off + len(blob)
-            block[off:next_off] = blob
-            off = next_off
+        block = finalize_block_bytes(buf, size, short_ids)
 
         prev_block_hash = convert.bytes_to_hex(block_msg.prev_block_hash().binary)
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
-        original_size = len(block_msg.rawbytes())
 
         block_info = BlockInfo(
             block_msg.block_hash(),
@@ -251,9 +238,9 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         return BlockDecompressionResult(btc_block_msg, block_info, unknown_tx_sids, unknown_tx_hashes)
 
     def compact_block_to_bx_block(
-            self,
-            compact_block: CompactBlockBtcMessage,
-            transaction_service: TransactionService
+        self,
+        compact_block: CompactBlockBtcMessage,
+        transaction_service: TransactionService
     ) -> CompactBlockCompressionResult:
         """
          Handle decompression of Bitcoin compact block.
@@ -354,8 +341,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         return self._recovered_compact_block_to_bx_block(result, recovered_item)
 
     def recovered_compact_block_to_bx_block(
-            self,
-            failed_compression_result: CompactBlockCompressionResult,
+        self,
+        failed_compression_result: CompactBlockCompressionResult,
     ) -> CompactBlockCompressionResult:
         failed_block_info = failed_compression_result.block_info
         start_datetime = datetime.utcnow()
@@ -379,9 +366,9 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         )
 
     def _recovered_compact_block_to_bx_block(
-            self,
-            compression_result: CompactBlockCompressionResult,
-            recovery_item: CompactBlockRecoveryData
+        self,
+        compression_result: CompactBlockCompressionResult,
+        recovery_item: CompactBlockRecoveryData
     ) -> CompactBlockCompressionResult:
         """
         Handle recovery of Bitcoin compact block message.
@@ -436,8 +423,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         checksum = crypto.bitcoin_hash(block_msg_bytes[btc_constants.BTC_HDR_COMMON_OFF:size])
         block_msg_bytes[btc_constants.BTC_HEADER_MINUS_CHECKSUM:btc_constants.BTC_HDR_COMMON_OFF] = checksum[0:4]
         bx_block, compression_block_info = self.block_to_bx_block(
-            BlockBtcMessage(buf=block_msg_bytes), recovery_item.tx_service
-        )
+            BlockBtcMessage(buf=block_msg_bytes), recovery_item.tx_service, True
+        ) # TODO need to think about a better algorithm
         compress_start_datetime = compression_block_info.start_datetime
         compress_end_datetime = datetime.utcnow()
         block_info = BlockInfo(
