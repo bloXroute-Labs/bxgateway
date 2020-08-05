@@ -1,12 +1,11 @@
-import struct
 import time
 from abc import ABCMeta
-from typing import TYPE_CHECKING, Set, Tuple
+from typing import TYPE_CHECKING, Set
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
-from bxcommon.messages.blockchain_network_message import RefreshBlockchainNetworkMessage
+from bxcommon.messages.bloxroute.blockchain_network_message import RefreshBlockchainNetworkMessage
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bdn_performance_stats_message import BdnPerformanceStatsMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
@@ -20,7 +19,7 @@ from bxcommon.models.entity_type_model import EntityType
 from bxcommon.models.notification_code import NotificationCode
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.services import sdn_http_service
-from bxcommon.utils import convert, performance_utils, crypto
+from bxcommon.utils import convert, performance_utils
 from bxcommon.utils import memory_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks, stats_format
@@ -350,12 +349,19 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             self.log(msg.level(), "Notification from Relay: {}", msg.formatted_message())
 
     def msg_refresh_blockchain_network(self, _msg: RefreshBlockchainNetworkMessage) -> None:
-        updated_blockchain_networks = sdn_http_service.fetch_blockchain_networks()
-        self.node.opts.blockchain_networks = updated_blockchain_networks
-        for blockchain_network in updated_blockchain_networks:
-            if blockchain_network.network == self.node.opts.blockchain_network \
-                    and blockchain_network.protocol == self.node.opts.blockchain_protocol:
-                self.node.opts.enable_block_compression = blockchain_network.enable_block_compression
+        blockchain_protocol = self.node.opts.blockchain_protocol
+        assert blockchain_protocol is not None
+        blockchain_network = self.node.opts.blockchain_network
+        assert blockchain_network is not None
+
+        updated_blockchain_network = sdn_http_service.fetch_blockchain_network(blockchain_protocol, blockchain_network)
+        assert updated_blockchain_network is not None
+        self.node.opts.enable_block_compression = updated_blockchain_network.enable_block_compression
+
+        for blockchain_network_config in self.node.opts.blockchain_networks:
+            if blockchain_network_config.protocol.lower() == blockchain_protocol.lower() \
+                    and blockchain_network_config.network.lower() == blockchain_network.lower():
+                blockchain_network_config.enable_block_compression = self.node.opts.enable_block_compression
                 break
 
     def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:
