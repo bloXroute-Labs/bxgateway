@@ -396,33 +396,40 @@ class BlockProcessingService:
         all_sids = block_info.short_ids
 
         if encrypted_block_hash_hex is not None:
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_TO_ENC_BLOCK_MATCH,
-                                                      matching_block_hash=encrypted_block_hash_hex,
-                                                      matching_block_type=StatBlockType.ENCRYPTED.value,
-                                                      network_num=connection.network_num)
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_TO_ENC_BLOCK_MATCH,
+                matching_block_hash=encrypted_block_hash_hex,
+                matching_block_type=StatBlockType.ENCRYPTED.value,
+                network_num=connection.network_num
+            )
 
         self.cancel_hold_timeout(block_hash, connection)
 
         if recovered:
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_RECOVERY_COMPLETED,
-                                                      network_num=connection.network_num)
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_RECOVERY_COMPLETED,
+                network_num=connection.network_num
+            )
 
         if block_hash in self._node.blocks_seen.contents:
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_IGNORE_SEEN,
-                                                      start_date_time=block_info.start_datetime,
-                                                      end_date_time=block_info.end_datetime,
-                                                      network_num=connection.network_num,
-                                                      prev_block_hash=block_info.prev_block_hash,
-                                                      original_size=block_info.original_size,
-                                                      compressed_size=block_info.compressed_size,
-                                                      txs_count=block_info.txn_count,
-                                                      blockchain_network=self._node.opts.blockchain_network,
-                                                      blockchain_protocol=self._node.opts.blockchain_protocol,
-                                                      matching_block_hash=block_info.compressed_block_hash,
-                                                      matching_block_type=StatBlockType.COMPRESSED.value,
-                                                      more_info=stats_format.duration(block_info.duration_ms))
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_DECOMPRESSED_IGNORE_SEEN,
+                start_date_time=block_info.start_datetime,
+                end_date_time=block_info.end_datetime,
+                network_num=connection.network_num,
+                prev_block_hash=block_info.prev_block_hash,
+                original_size=block_info.original_size,
+                compressed_size=block_info.compressed_size,
+                txs_count=block_info.txn_count,
+                blockchain_network=self._node.opts.blockchain_network,
+                blockchain_protocol=self._node.opts.blockchain_protocol,
+                matching_block_hash=block_info.compressed_block_hash,
+                matching_block_type=StatBlockType.COMPRESSED.value,
+                more_info=stats_format.duration(block_info.duration_ms)
+            )
             self._node.track_block_from_bdn_handling_ended(block_hash)
             transaction_service.track_seen_short_ids(block_hash, all_sids)
             connection.log_info(
@@ -508,6 +515,17 @@ class BlockProcessingService:
     def start_transaction_recovery(self, unknown_sids: Iterable[int], unknown_hashes: Iterable[Sha256Hash],
                                    block_hash: Sha256Hash, connection: Optional[AbstractRelayConnection] = None):
         if not self._node.opts.request_recovery:
+            if connection is not None:
+                network_num = connection.network_num
+            else:
+                network_num = self._node.network_num
+            # log recovery started to match with recovery completing
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_RECOVERY_STARTED,
+                network_num=network_num,
+                more_info="recovery from relay is disabled",
+            )
             return
 
         all_unknown_sids = []
@@ -523,23 +541,30 @@ class BlockProcessingService:
         self._node.broadcast(get_txs_message, connection_types=[ConnectionType.RELAY_TRANSACTION])
 
         if connection is not None:
-            tx_stats.add_txs_by_short_ids_event(all_unknown_sids,
-                                                TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
-                                                network_num=self._node.network_num,
-                                                peer=connection.peer_desc,
-                                                block_hash=convert.bytes_to_hex(block_hash.binary))
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_RECOVERY_STARTED,
-                                                      network_num=connection.network_num,
-                                                      request_hash=convert.bytes_to_hex(
-                                                          crypto.double_sha256(get_txs_message.rawbytes())))
+            tx_stats.add_txs_by_short_ids_event(
+                all_unknown_sids,
+                TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
+                network_num=self._node.network_num,
+                peer=connection.peer_desc,
+                block_hash=convert.bytes_to_hex(block_hash.binary)
+            )
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_RECOVERY_STARTED,
+                network_num=connection.network_num,
+                request_hash=convert.bytes_to_hex(
+                    crypto.double_sha256(get_txs_message.rawbytes())
+                )
+            )
         else:
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_RECOVERY_REPEATED,
-                                                      network_num=self._node.network_num,
-                                                      request_hash=convert.bytes_to_hex(
-                                                          crypto.double_sha256(get_txs_message.rawbytes())
-                                                      ))
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_RECOVERY_REPEATED,
+                network_num=self._node.network_num,
+                request_hash=convert.bytes_to_hex(
+                    crypto.double_sha256(get_txs_message.rawbytes())
+                )
+            )
 
     def schedule_recovery_retry(self, block_awaiting_recovery: BlockRecoveryInfo):
         """
