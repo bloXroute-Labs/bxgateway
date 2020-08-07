@@ -53,6 +53,7 @@ def get_gateway_opts(
     ws_host=constants.LOCALHOST,
     ws_port=28333,
     request_remote_transaction_streaming: bool = False,
+    enable_block_compression: bool = True,
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:
@@ -134,7 +135,9 @@ def get_gateway_opts(
             "ipc_file": "bxgateway.ipc",
             "request_remote_transaction_streaming": request_remote_transaction_streaming,
             "process_node_txs_in_extension": True,
-            "enable_eth_extensions": True   # TODO remove
+            "enable_eth_extensions": True,   # TODO remove,
+            "request_recovery": True,
+            "enable_block_compression": enable_block_compression,
         }
     )
 

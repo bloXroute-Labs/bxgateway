@@ -1,10 +1,11 @@
 import time
 from abc import ABCMeta
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Set
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
+from bxcommon.messages.bloxroute.blockchain_network_message import RefreshBlockchainNetworkMessage
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bdn_performance_stats_message import BdnPerformanceStatsMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
@@ -17,6 +18,7 @@ from bxcommon.messages.validation.message_size_validation_settings import Messag
 from bxcommon.models.entity_type_model import EntityType
 from bxcommon.models.notification_code import NotificationCode
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
+from bxcommon.services import sdn_http_service
 from bxcommon.utils import convert, performance_utils
 from bxcommon.utils import memory_utils
 from bxcommon.utils.object_hash import Sha256Hash
@@ -24,13 +26,13 @@ from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import log_messages, gateway_constants
-from bxgateway.feed.new_transaction_feed import NewTransactionFeed, \
-    RawTransactionFeedEntry
+from bxgateway.feed.new_transaction_feed import NewTransactionFeed, RawTransactionFeedEntry
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
+from bxgateway.services.gateway_transaction_service import MissingTransactions
 from bxutils import logging
 from bxutils.logging import LogLevel
 from bxutils.logging import LogRecordType
@@ -72,6 +74,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             BloxrouteMessageType.BLOCK_CONFIRMATION: self.msg_cleanup,
             BloxrouteMessageType.TRANSACTION_CLEANUP: self.msg_cleanup,
             BloxrouteMessageType.NOTIFICATION: self.msg_notify,
+            BloxrouteMessageType.REFRESH_BLOCKCHAIN_NETWORK: self.msg_refresh_blockchain_network
         }
 
         msg_size_validation_settings = MessageSizeValidationSettings(self.node.network.max_block_size_bytes,
@@ -241,13 +244,9 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         )
 
     def msg_txs(self, msg: TxsMessage):
-        if ConnectionType.RELAY_TRANSACTION not in self.CONNECTION_TYPE:
-            self.log_error(log_messages.UNEXPECTED_TXS_ON_NON_RELAY_CONN, msg)
-            return
-
         transactions = msg.get_txs()
         tx_service = self.node.get_tx_service()
-
+        missing_txs: Set[MissingTransactions] = tx_service.process_txs_message(msg)
         tx_stats.add_txs_by_short_ids_event(
             map(lambda x: x.short_id, transactions),
             TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REPLY_RECEIVED_BY_GATEWAY_FROM_RELAY,
@@ -258,26 +257,17 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                                 )
         )
 
-        for transaction in transactions:
-            tx_hash, transaction_contents, short_id = transaction
-
-            assert tx_hash is not None
-            assert short_id is not None
-
+        for (short_id, transaction_hash) in missing_txs:
             self.node.block_recovery_service.check_missing_sid(short_id)
+            self.node.block_recovery_service.check_missing_tx_hash(transaction_hash)
 
-            if not tx_service.has_short_id(short_id):
-                tx_service.assign_short_id(tx_hash, short_id)
-
-            self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
-
-            if not tx_service.has_transaction_contents(tx_hash):
-                assert transaction_contents is not None
-                tx_service.set_transaction_contents(tx_hash, transaction_contents)
-
-            tx_stats.add_tx_by_hash_event(tx_hash,
-                                          TransactionStatEventType.TX_UNKNOWN_TRANSACTION_RECEIVED_BY_GATEWAY_FROM_RELAY,
-                                          self.node.network_num, short_id, peer=stats_format.connection(self))
+            tx_stats.add_tx_by_hash_event(
+                transaction_hash,
+                TransactionStatEventType.TX_UNKNOWN_TRANSACTION_RECEIVED_BY_GATEWAY_FROM_RELAY,
+                self.node.network_num,
+                short_id,
+                peer=stats_format.connection(self)
+            )
 
         self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
 
@@ -358,9 +348,23 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         else:
             self.log(msg.level(), "Notification from Relay: {}", msg.formatted_message())
 
-    def publish_new_transaction(
-        self, tx_hash: Sha256Hash, tx_contents: memoryview
-    ) -> None:
+    def msg_refresh_blockchain_network(self, _msg: RefreshBlockchainNetworkMessage) -> None:
+        blockchain_protocol = self.node.opts.blockchain_protocol
+        assert blockchain_protocol is not None
+        blockchain_network = self.node.opts.blockchain_network
+        assert blockchain_network is not None
+
+        updated_blockchain_network = sdn_http_service.fetch_blockchain_network(blockchain_protocol, blockchain_network)
+        assert updated_blockchain_network is not None
+        self.node.opts.enable_block_compression = updated_blockchain_network.enable_block_compression
+
+        for blockchain_network_config in self.node.opts.blockchain_networks:
+            if blockchain_network_config.protocol.lower() == blockchain_protocol.lower() \
+                    and blockchain_network_config.network.lower() == blockchain_network.lower():
+                blockchain_network_config.enable_block_compression = self.node.opts.enable_block_compression
+                break
+
+    def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:
         self.node.feed_manager.publish_to_feed(
             NewTransactionFeed.NAME,
             RawTransactionFeedEntry(tx_hash, tx_contents)

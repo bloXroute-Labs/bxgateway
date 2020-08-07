@@ -1,6 +1,7 @@
-from typing import Union, cast, List, NamedTuple
+from typing import Union, cast, List, NamedTuple, Set
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
@@ -17,6 +18,11 @@ class ProcessTransactionMessageFromNodeResult(NamedTuple):
 
 class OntTxMessage(object):
     pass
+
+
+class MissingTransactions(NamedTuple):
+    short_id: int
+    transaction_hash: Sha256Hash
 
 
 class GatewayTransactionService(TransactionService):
@@ -52,3 +58,32 @@ class GatewayTransactionService(TransactionService):
             ))
 
         return result
+
+    def process_txs_message(
+        self,
+        msg: TxsMessage
+    ) -> Set[MissingTransactions]:
+        missing_transactions: Set[MissingTransactions] = set()
+        transactions = msg.get_txs()
+        missing: bool
+        for transaction in transactions:
+            transaction_hash, transaction_contents, short_id = transaction
+            missing = False
+
+            assert transaction_hash is not None
+            assert short_id is not None
+
+            if not self.has_short_id(short_id):
+                self.assign_short_id(transaction_hash, short_id)
+                missing = True
+
+            if not self.has_transaction_contents(transaction_hash):
+                assert transaction_contents is not None
+                self.set_transaction_contents(transaction_hash, transaction_contents)
+
+                missing = True
+
+            if missing:
+                missing_transactions.add(MissingTransactions(short_id, transaction_hash))
+
+        return missing_transactions

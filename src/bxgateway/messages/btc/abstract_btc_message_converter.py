@@ -92,13 +92,6 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
         self._recovery_items: Dict[int, CompactBlockRecoveryData] = {}
 
     @abstractmethod
-    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
-        """
-        Compresses a blockchain block's transactions and packs it into a bloXroute block.
-        """
-        pass
-
-    @abstractmethod
     def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         """
         Uncompresses a bx_block from a broadcast bx_block message and converts to a raw BTC bx_block.

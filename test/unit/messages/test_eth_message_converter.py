@@ -173,7 +173,9 @@ class EthMessageConverterTests(AbstractTestCase):
         block_msg = NewBlockEthProtocolMessage(None, block, dummy_chain_difficulty)
         self.assertTrue(block_msg.rawbytes())
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
-        bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(internal_new_block_msg, self.tx_service)
+        bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(
+            internal_new_block_msg, self.tx_service, True
+        )
 
         self.assertEqual(len(txs), block_info.txn_count)
 
@@ -226,7 +228,9 @@ class EthMessageConverterTests(AbstractTestCase):
         self.assertTrue(block_msg.rawbytes())
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
 
-        bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(internal_new_block_msg, self.tx_service)
+        bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(
+            internal_new_block_msg, self.tx_service, True
+        )
 
         self.assertEqual(0, block_info.txn_count)
         self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info.prev_block_hash)
@@ -421,7 +425,9 @@ class EthMessageConverterTests(AbstractTestCase):
         self.assertTrue(block_msg_bytes)
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
 
-        bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(internal_new_block_msg, self.tx_service)
+        bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(
+            internal_new_block_msg, self.tx_service, True
+        )
         self.assertIsNotNone(bx_block_msg)
 
         self.assertEqual(len(txs), block_info.txn_count)
@@ -435,6 +441,78 @@ class EthMessageConverterTests(AbstractTestCase):
 
         self.assertEqual(len(converted_block_msg_bytes), len(block_msg_bytes))
         self.assertEqual(converted_block_msg_bytes, block_msg_bytes)
+
+    @multi_setup()
+    def test_block_to_bx_block__no_compressed_block(self):
+        txs = []
+        txs_bytes = []
+        txs_hashes = []
+        short_ids = []
+        used_short_ids = []
+
+        tx_count = 150
+
+        for i in range(1, tx_count):
+            tx = mock_eth_messages.get_dummy_transaction(1)
+            txs.append(tx)
+
+            tx_bytes = rlp.encode(tx, Transaction)
+            txs_bytes.append(tx_bytes)
+
+            tx_hash = tx.hash()
+            txs_hashes.append(tx_hash)
+            short_ids.append(0)
+
+        block = Block(
+            mock_eth_messages.get_dummy_block_header(1),
+            txs,
+            [
+                mock_eth_messages.get_dummy_block_header(2),
+                mock_eth_messages.get_dummy_block_header(3),
+            ]
+        )
+
+        dummy_chain_difficulty = 10
+        block_msg = NewBlockEthProtocolMessage(None, block, dummy_chain_difficulty)
+        self.assertTrue(block_msg.rawbytes())
+        internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
+        bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(
+            internal_new_block_msg, self.tx_service, False
+        )
+
+        self.assertTrue(len(bx_block_msg) >= len(internal_new_block_msg.rawbytes()))
+
+        self.assertEqual(len(txs), block_info.txn_count)
+
+        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info.prev_block_hash)
+        self.assertEqual(used_short_ids, list(block_info.short_ids))
+
+        self.assertTrue(bx_block_msg)
+        self.assertIsInstance(bx_block_msg, memoryview)
+
+        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block_msg)
+        compact_block = rlp.decode(
+            bx_block_msg[block_offsets.block_begin_offset: block_offsets.short_id_offset].tobytes(),
+            CompactBlock
+        )
+        self.assertTrue(compact_block)
+        self.assertIsInstance(compact_block, CompactBlock)
+
+        self._assert_values_equal(compact_block.header, block.header)
+        self._assert_values_equal(compact_block.uncles, block.uncles)
+
+        self.assertEqual(len(compact_block.transactions), len(block.transactions))
+
+        for tx, short_tx, i in zip(block.transactions, compact_block.transactions, range(1, tx_count)):
+            self.assertIsInstance(tx, Transaction)
+            self.assertIsInstance(short_tx, ShortTransaction)
+            self.assertEqual(1, short_tx.full_transaction)
+            self.assertEqual(short_tx.transaction_bytes, txs_bytes[i - 1])
+
+        self.assertEqual(compact_block.chain_difficulty, block_msg.chain_difficulty)
+
+        converted_block_msg, _, _, _ = self.eth_message_converter.bx_block_to_block(bx_block_msg, self.tx_service)
+        self.assertIsNotNone(converted_block_msg)
 
     def _assert_values_equal(self, actual_value, expected_value, ):
 

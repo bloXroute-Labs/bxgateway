@@ -1,8 +1,6 @@
 import random
 from typing import TYPE_CHECKING, cast, Optional
 
-import rlp
-
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection

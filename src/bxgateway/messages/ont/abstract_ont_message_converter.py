@@ -60,9 +60,11 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
         self._ont_magic = ont_magic
 
     @abstractmethod
-    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
+    def block_to_bx_block(
+        self, block_msg, tx_service, enable_block_compression: bool
+    ) -> Tuple[memoryview, BlockInfo]:
         """
-        Compresses a blockchain block's transactions and packs it into a bloXroute block.
+        Pack a blockchain block's transactions into a bloXroute block.
         """
         pass
 

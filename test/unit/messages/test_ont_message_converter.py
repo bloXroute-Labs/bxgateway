@@ -34,10 +34,11 @@ class multi_setup(object):
         @functools.wraps(func)
         def run_multi_setup(instance):
             normal_tx_service, normal_converter = instance.init(False)
-            extension_tx_service, extension_converter = instance.init(True)
             instance.ont_message_converter = normal_converter
             instance.tx_service = normal_tx_service
             func(instance)
+
+            extension_tx_service, extension_converter = instance.init(True)
             instance.ont_message_converter = extension_converter
             instance.tx_service = extension_tx_service
             func(instance)
@@ -60,7 +61,7 @@ class OntMessageConverterTests(AbstractTestCase):
     @multi_setup()
     def test_plain_compression(self):
         parsed_block = get_sample_block()
-        bx_block, bx_block_info = self.ont_message_converter.block_to_bx_block(parsed_block, self.tx_service)
+        bx_block, bx_block_info = self.ont_message_converter.block_to_bx_block(parsed_block, self.tx_service, True)
         ref_block, block_info, _, _ = self.ont_message_converter.bx_block_to_block(bx_block, self.tx_service)
         self.assertEqual(parsed_block.rawbytes().tobytes(), ref_block.rawbytes().tobytes())
         self.assertEqual(self.SAMPLE_BLOCK_TX_COUNT, parsed_block.txn_count())
@@ -84,7 +85,7 @@ class OntMessageConverterTests(AbstractTestCase):
             bx_tx_hash, _ = ont_messages_util.get_txid(txn)
             self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
             self.tx_service.set_transaction_contents(bx_tx_hash, txn)
-        bx_block, block_info = self.ont_message_converter.block_to_bx_block(parsed_block, self.tx_service)
+        bx_block, block_info = self.ont_message_converter.block_to_bx_block(parsed_block, self.tx_service, True)
         ref_block, _, unknown_tx_sids, unknown_tx_hashes = self.ont_message_converter.bx_block_to_block(
             bx_block, self.tx_service
         )
@@ -103,7 +104,7 @@ class OntMessageConverterTests(AbstractTestCase):
             bx_tx_hash, _ = ont_messages_util.get_txid(txn)
             self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
             self.tx_service.set_transaction_contents(bx_tx_hash, txn)
-        bx_block, block_info = self.ont_message_converter.block_to_bx_block(parsed_block, self.tx_service)
+        bx_block, block_info = self.ont_message_converter.block_to_bx_block(parsed_block, self.tx_service, True)
         ref_block, ref_lock_info, unknown_tx_sids, unknown_tx_hashes = self.ont_message_converter.bx_block_to_block(
             bx_block, self.tx_service
         )
@@ -139,7 +140,7 @@ class OntMessageConverterTests(AbstractTestCase):
             consensus_payload, next_bookkeeper, bookkeepers, sig_data, txns, merkle_root
         )
         block_hash = ont_block.block_hash()
-        bloxroute_block, block_info = self.ont_message_converter.block_to_bx_block(ont_block, self.tx_service)
+        bloxroute_block, block_info = self.ont_message_converter.block_to_bx_block(ont_block, self.tx_service, True)
         self.assertEqual(0, block_info.txn_count)
         self.assertEqual(self.short_ids, list(block_info.short_ids))
         self.assertEqual(ont_block.block_hash(), block_info.block_hash)
@@ -156,6 +157,13 @@ class OntMessageConverterTests(AbstractTestCase):
         self.assertEqual(block_hash, parsed_ont_block.block_hash())
         self.assertEqual(block_hash.binary, block_info.block_hash.binary)
         self.assertEqual(timestamp, parsed_ont_block.timestamp())
+
+    @multi_setup()
+    def test_no_compression(self):
+        parsed_block = get_sample_block()
+        bx_block, block_info = self.ont_message_converter.block_to_bx_block(parsed_block, self.tx_service, False)
+        self.assertTrue(len(parsed_block.rawbytes()) <= len(bx_block))
+        self.assertEqual(len(block_info.short_ids), 0)
 
     def init(self, use_extensions: bool):
         opts = Namespace()

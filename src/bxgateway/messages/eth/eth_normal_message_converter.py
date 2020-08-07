@@ -1,17 +1,16 @@
 import datetime
-import struct
 import time
 from collections import deque
 from typing import Tuple
 
 from bxutils import logging
-from bxcommon import constants
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.services.transaction_service import TransactionService
+from bxgateway.abstract_message_converter import finalize_block_bytes
 from bxcommon.utils import convert, crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import BlockDecompressionResult
-from bxgateway.messages.eth.eth_abstract_message_converter import EthAbstractMessageConverter
+from bxgateway.messages.eth.eth_abstract_message_converter import EthAbstractMessageConverter, parse_block_message
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.utils.block_info import BlockInfo
 from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
@@ -24,8 +23,9 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
     def __init__(self):
         super().__init__()
 
-    def block_to_bx_block(self, block_msg: InternalEthBlockInfo, tx_service: TransactionService) -> Tuple[
-        memoryview, BlockInfo]:
+    def block_to_bx_block(
+        self, block_msg: InternalEthBlockInfo, tx_service: TransactionService, enable_block_compression: bool
+    ) -> Tuple[memoryview, BlockInfo]:
         """
         Convert Ethereum new block message to internal broadcast message with transactions replaced with short ids
 
@@ -33,30 +33,14 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
 
         :param block_msg: Ethereum new block message
         :param tx_service: Transactions service
+        :param enable_block_compression
         :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash)
         """
 
         compress_start_datetime = datetime.datetime.utcnow()
         compress_start_timestamp = time.time()
-        msg_bytes = memoryview(block_msg.rawbytes())
 
-        _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(msg_bytes, 0)
-
-        block_msg_bytes = msg_bytes[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
-
-        _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
-        block_hdr_full_bytes = block_msg_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
-        block_hdr_bytes = block_msg_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
-
-        _, prev_block_itm_len, prev_block_itm_start = rlp_utils.consume_length_prefix(block_hdr_bytes, 0)
-        prev_block_bytes = block_hdr_bytes[prev_block_itm_start:prev_block_itm_start + prev_block_itm_len]
-
-        _, txs_itm_len, txs_itm_start = rlp_utils.consume_length_prefix(
-            block_msg_bytes, block_hdr_itm_start + block_hdr_itm_len
-        )
-        txs_bytes = block_msg_bytes[txs_itm_start:txs_itm_start + txs_itm_len]
-
-        remaining_bytes = block_msg_bytes[txs_itm_start + txs_itm_len:]
+        txs_bytes, block_hdr_full_bytes, remaining_bytes, prev_block_bytes = parse_block_message(block_msg)
 
         used_short_ids = []
 
@@ -66,6 +50,7 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
 
         tx_start_index = 0
         tx_count = 0
+        original_size = len(block_msg.rawbytes())
 
         while True:
             if tx_start_index >= len(txs_bytes):
@@ -77,7 +62,7 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
             tx_hash = Sha256Hash(tx_hash_bytes)
             short_id = tx_service.get_short_id(tx_hash)
 
-            if short_id <= 0:
+            if short_id <= 0 or not enable_block_compression:
                 is_full_tx_bytes = rlp_utils.encode_int(1)
                 tx_content_bytes = tx_bytes
             else:
@@ -116,28 +101,22 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
         buf.appendleft(compact_block_msg_prefix)
         content_size += len(compact_block_msg_prefix)
 
-        short_ids_bytes = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(used_short_ids)
-        buf.append(short_ids_bytes)
-        content_size += constants.UL_ULL_SIZE_IN_BYTES
-        offset_buf = struct.pack("<Q", content_size)
-        buf.appendleft(offset_buf)
-        content_size += len(short_ids_bytes)
-
-        # Parse it into the bloXroute message format and send it along
-        block = bytearray(content_size)
-        off = 0
-        for blob in buf:
-            next_off = off + len(blob)
-            block[off:next_off] = blob
-            off = next_off
-
+        block = finalize_block_bytes(buf, content_size, used_short_ids)
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
-        original_size = len(block_msg.rawbytes())
 
-        block_info = BlockInfo(block_msg.block_hash(), used_short_ids, compress_start_datetime,
-                               datetime.datetime.utcnow(), (time.time() - compress_start_timestamp) * 1000,
-                               tx_count, bx_block_hash, convert.bytes_to_hex(prev_block_bytes), original_size,
-                               content_size, 100 - float(content_size) / original_size * 100)
+        block_info = BlockInfo(
+            block_msg.block_hash(),
+            used_short_ids,
+            compress_start_datetime,
+            datetime.datetime.utcnow(),
+            (time.time() - compress_start_timestamp) * 1000,
+            tx_count,
+            bx_block_hash,
+            convert.bytes_to_hex(prev_block_bytes),
+            original_size,
+            content_size,
+            100 - float(content_size) / original_size * 100
+        )
         return memoryview(block), block_info
 
     def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:

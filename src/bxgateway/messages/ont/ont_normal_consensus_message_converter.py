@@ -18,7 +18,7 @@ from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway import ont_constants, log_messages
-from bxgateway.abstract_message_converter import BlockDecompressionResult
+from bxgateway.abstract_message_converter import BlockDecompressionResult, finalize_block_bytes
 from bxgateway.messages.ont import ont_messages_util
 from bxgateway.messages.ont.abstract_ont_message_converter import AbstractOntMessageConverter, get_block_info
 from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage, ConsensusMsgPayload
@@ -130,10 +130,10 @@ def build_ont_block(block_pieces: Deque[Union[bytearray, memoryview]]) -> OntCon
 class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
 
     def block_to_bx_block(
-            self, block_msg: OntConsensusMessage, tx_service: TransactionService
+        self, block_msg: OntConsensusMessage, tx_service: TransactionService, enable_block_compression: bool
     ) -> Tuple[memoryview, BlockInfo]:
         """
-        Compresses a Ontology consensus message's transactions and packs it into a bloXroute block.
+        Pack an Ontology consensus message's transactions into a bloXroute block.
         """
         consensus_msg = block_msg
         compress_start_datetime = datetime.utcnow()
@@ -141,6 +141,8 @@ class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
         size = 0
         buf = deque()
         short_ids = []
+        original_size = len(consensus_msg.rawbytes())
+
         consensus_payload_header = consensus_msg.consensus_payload_header()
         consensus_payload_header_len = bytearray(ont_constants.ONT_INT_LEN)
         struct.pack_into("<L", consensus_payload_header_len, 0, len(consensus_payload_header))
@@ -170,7 +172,7 @@ class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
         for tx in consensus_msg.txns():
             tx_hash, _ = ont_messages_util.get_txid(tx)
             short_id = tx_service.get_short_id(tx_hash)
-            if short_id == constants.NULL_TX_SID:
+            if short_id == constants.NULL_TX_SID or not enable_block_compression:
                 buf.append(tx)
                 size += len(tx)
             else:
@@ -205,23 +207,10 @@ class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
         buf.appendleft(is_consensus_msg_buf)
         size += 1
 
-        serialized_short_ids = compact_block_short_ids_serializer.serialize_short_ids_into_bytes(short_ids)
-        buf.append(serialized_short_ids)
-        size += constants.UL_ULL_SIZE_IN_BYTES
-        offset_buf = struct.pack("<Q", size)
-        buf.appendleft(offset_buf)
-        size += len(serialized_short_ids)
-
-        block = bytearray(size)
-        off = 0
-        for blob in buf:
-            next_off = off + len(blob)
-            block[off:next_off] = blob
-            off = next_off
+        block = finalize_block_bytes(buf, size, short_ids)
 
         prev_block_hash = convert.bytes_to_hex(consensus_msg.prev_block_hash().binary)
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
-        original_size = len(consensus_msg.rawbytes())
 
         block_info = BlockInfo(
             consensus_msg.block_hash(),

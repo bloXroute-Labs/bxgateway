@@ -190,7 +190,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
 
         try:
             bx_block, block_info = self.node.consensus_message_converter.block_to_bx_block(
-                msg, self.node.get_tx_service()
+                msg, self.node.get_tx_service(), self.node.opts.enable_block_compression
             )
         except MessageConversionError as e:
             block_stats.add_block_event_by_block_hash(

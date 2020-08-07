@@ -95,16 +95,20 @@ def build_ont_block(block_pieces: Deque[Union[bytearray, memoryview]], size: int
 
 
 class OntNormalMessageConverter(AbstractOntMessageConverter):
-    def block_to_bx_block(self, block_msg: BlockOntMessage, tx_service: TransactionService) -> \
-            Tuple[memoryview, BlockInfo]:
+
+    def block_to_bx_block(
+        self, block_msg, tx_service, enable_block_compression: bool
+    ) -> Tuple[memoryview, BlockInfo]:
         """
-        Compresses a Ontology block's transactions and packs it into a bloXroute block.
+        Pack an Ontology block's transactions into a bloXroute block.
         """
         compress_start_datetime = datetime.utcnow()
         compress_start_timestamp = time.time()
         size = 0
         buf = deque()
         short_ids = []
+        original_size = len(block_msg.rawbytes())
+
         header = block_msg.txn_header()
         size += len(header)
         buf.append(header)
@@ -112,7 +116,7 @@ class OntNormalMessageConverter(AbstractOntMessageConverter):
         for tx in block_msg.txns():
             tx_hash, _ = ont_messages_util.get_txid(tx)
             short_id = tx_service.get_short_id(tx_hash)
-            if short_id == constants.NULL_TX_SID:
+            if short_id == constants.NULL_TX_SID or not enable_block_compression:
                 buf.append(tx)
                 size += len(tx)
             else:
@@ -145,7 +149,6 @@ class OntNormalMessageConverter(AbstractOntMessageConverter):
 
         prev_block_hash = convert.bytes_to_hex(block_msg.prev_block_hash().binary)
         bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(block))
-        original_size = len(block_msg.rawbytes())
 
         block_info = BlockInfo(
             block_msg.block_hash(),

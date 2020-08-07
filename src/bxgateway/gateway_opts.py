@@ -28,6 +28,7 @@ class GatewayOpts(CommonOpts):
     blockchain_network: Optional[str]
     blockchain_networks: List[BlockchainNetworkModel]
     blockchain_block_recovery_timeout_s: int
+    blockchain_block_hold_timeout_s: int
     blockchain_ip: str
     peer_gateways: Set[OutboundPeerModel]
     peer_transaction_relays: Set[OutboundPeerModel]
@@ -70,6 +71,8 @@ class GatewayOpts(CommonOpts):
     account_model: Optional[BdnAccountModelBase]
     process_node_txs_in_extension: bool
     enable_eth_extensions: bool     # TODO remove
+    request_recovery: bool
+    enable_block_compression: bool
 
     # IPC
     ipc: bool
@@ -134,7 +137,8 @@ class GatewayOpts(CommonOpts):
 
         if not opts.cookie_file_path:
             opts.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
-                "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip))
+                "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip)
+            )
 
         return opts
 

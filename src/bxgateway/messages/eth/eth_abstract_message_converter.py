@@ -1,4 +1,3 @@
-
 from typing import Tuple, Optional, Union, List
 
 from bxutils import logging
@@ -16,6 +15,29 @@ from bxgateway.utils.block_info import BlockInfo
 from bxcommon.utils.blockchain_utils.eth import rlp_utils
 
 logger = logging.get_logger(__name__)
+
+
+def parse_block_message(block_msg: InternalEthBlockInfo):
+    msg_bytes = memoryview(block_msg.rawbytes())
+    _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(msg_bytes, 0)
+
+    block_msg_bytes = msg_bytes[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
+
+    _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
+    block_hdr_full_bytes = block_msg_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
+    block_hdr_bytes = block_msg_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
+
+    _, prev_block_itm_len, prev_block_itm_start = rlp_utils.consume_length_prefix(block_hdr_bytes, 0)
+    prev_block_bytes = block_hdr_bytes[prev_block_itm_start:prev_block_itm_start + prev_block_itm_len]
+
+    _, txs_itm_len, txs_itm_start = rlp_utils.consume_length_prefix(
+        block_msg_bytes, block_hdr_itm_start + block_hdr_itm_len
+    )
+    txs_bytes = block_msg_bytes[txs_itm_start:txs_itm_start + txs_itm_len]
+
+    remaining_bytes = block_msg_bytes[txs_itm_start + txs_itm_len:]
+
+    return txs_bytes, block_hdr_full_bytes, remaining_bytes, prev_block_bytes
 
 
 class EthAbstractMessageConverter(AbstractMessageConverter):
@@ -84,8 +106,9 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
 
         return parse_transaction_bytes(bx_tx_msg.tx_val())
 
-    def block_to_bx_block(self, block_msg: InternalEthBlockInfo, tx_service) -> Tuple[
-        memoryview, BlockInfo]:
+    def block_to_bx_block(
+        self, block_msg: InternalEthBlockInfo, tx_service, enable_block_compression: bool
+    ) -> Tuple[memoryview, BlockInfo]:
         """
         Convert Ethereum new block message to internal broadcast message with transactions replaced with short ids
 
@@ -93,6 +116,7 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
 
         :param block_msg: Ethereum new block message
         :param tx_service: Transactions service
+        :param enable_block_compression
         :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash)
         """
         raise NotImplementedError

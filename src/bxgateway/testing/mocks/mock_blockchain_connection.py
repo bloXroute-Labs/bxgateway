@@ -28,7 +28,9 @@ class MockMessageConverter(AbstractMessageConverter):
     def bx_tx_to_tx(self, bx_tx_msg):
         return bx_tx_msg
 
-    def block_to_bx_block(self, block_msg, tx_service) -> Tuple[memoryview, BlockInfo]:
+    def block_to_bx_block(
+        self, block_msg, tx_service, enable_block_compression: bool
+    ) -> Tuple[memoryview, BlockInfo]:
         return block_msg.rawbytes(), \
                BlockInfo(convert.bytes_to_hex(self.PREV_BLOCK.binary), [], datetime.datetime.utcnow(),
                          datetime.datetime.utcnow(), 0, 0, None, None, 0, 0, 0)
