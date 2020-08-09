@@ -488,21 +488,22 @@ class BlockProcessingService:
                 return
 
             self._node.block_recovery_service.add_block(bx_block, block_hash, unknown_sids, unknown_hashes)
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_DECOMPRESSED_WITH_UNKNOWN_TXS,
-                                                      start_date_time=block_info.start_datetime,
-                                                      end_date_time=block_info.end_datetime,
-                                                      network_num=connection.network_num,
-                                                      prev_block_hash=block_info.prev_block_hash,
-                                                      original_size=block_info.original_size,
-                                                      compressed_size=block_info.compressed_size,
-                                                      txs_count=block_info.txn_count,
-                                                      blockchain_network=self._node.opts.blockchain_network,
-                                                      blockchain_protocol=self._node.opts.blockchain_protocol,
-                                                      matching_block_hash=block_info.compressed_block_hash,
-                                                      matching_block_type=StatBlockType.COMPRESSED.value,
-                                                      more_info="{} sids, {} hashes".format(
-                                                          len(unknown_sids), len(unknown_hashes)))
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_DECOMPRESSED_WITH_UNKNOWN_TXS,
+                start_date_time=block_info.start_datetime,
+                end_date_time=block_info.end_datetime,
+                network_num=connection.network_num,
+                prev_block_hash=block_info.prev_block_hash,
+                original_size=block_info.original_size,
+                compressed_size=block_info.compressed_size,
+                txs_count=block_info.txn_count,
+                blockchain_network=self._node.opts.blockchain_network,
+                blockchain_protocol=self._node.opts.blockchain_protocol,
+                matching_block_hash=block_info.compressed_block_hash,
+                matching_block_type=StatBlockType.COMPRESSED.value,
+                more_info="{} sids, {} hashes".format(len(unknown_sids), len(unknown_hashes))
+            )
 
             connection.log_warning(log_messages.BLOCK_REQUIRES_RECOVERY, block_hash)
 
@@ -521,6 +522,15 @@ class BlockProcessingService:
         block_hash: Sha256Hash,
         connection: Optional[AbstractRelayConnection] = None
     ) -> None:
+        all_unknown_sids = []
+        all_unknown_sids.extend(unknown_sids)
+        tx_service = self._node.get_tx_service()
+
+        # retrieving sids of txs with unknown contents
+        for tx_hash in unknown_hashes:
+            tx_sid = tx_service.get_short_id(tx_hash)
+            all_unknown_sids.append(tx_sid)
+
         if not self._node.opts.request_recovery:
             if connection is not None:
                 network_num = connection.network_num
@@ -531,18 +541,10 @@ class BlockProcessingService:
                 block_hash,
                 BlockStatEventType.BLOCK_RECOVERY_STARTED,
                 network_num=network_num,
+                txs_count=len(all_unknown_sids),
                 more_info="recovery from relay is disabled",
             )
             return
-
-        all_unknown_sids = []
-        all_unknown_sids.extend(unknown_sids)
-        tx_service = self._node.get_tx_service()
-
-        # retrieving sids of txs with unknown contents
-        for tx_hash in unknown_hashes:
-            tx_sid = tx_service.get_short_id(tx_hash)
-            all_unknown_sids.append(tx_sid)
 
         get_txs_message = GetTxsMessage(short_ids=all_unknown_sids)
         self._node.broadcast(get_txs_message, connection_types=[ConnectionType.RELAY_TRANSACTION])
@@ -559,6 +561,7 @@ class BlockProcessingService:
                 block_hash,
                 BlockStatEventType.BLOCK_RECOVERY_STARTED,
                 network_num=connection.network_num,
+                txs_count=len(all_unknown_sids),
                 request_hash=convert.bytes_to_hex(
                     crypto.double_sha256(get_txs_message.rawbytes())
                 )
@@ -568,6 +571,7 @@ class BlockProcessingService:
                 block_hash,
                 BlockStatEventType.BLOCK_RECOVERY_REPEATED,
                 network_num=self._node.network_num,
+                txs_count=len(all_unknown_sids),
                 request_hash=convert.bytes_to_hex(
                     crypto.double_sha256(get_txs_message.rawbytes())
                 )
