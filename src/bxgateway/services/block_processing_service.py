@@ -380,6 +380,7 @@ class BlockProcessingService:
                 (
                     block_message, block_info, unknown_sids, unknown_hashes
                 ) = message_converter.bx_block_to_block(bx_block, transaction_service)
+                transaction_service.log_compressed_block_debug_info(bx_block)
             except MessageConversionError as e:
                 block_stats.add_block_event_by_block_hash(
                     e.msg_hash,

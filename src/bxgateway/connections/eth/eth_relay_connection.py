@@ -13,4 +13,3 @@ class EthRelayConnection(AbstractRelayConnection):
             EthRawTransaction(tx_hash, tx_contents)
         )
 
-

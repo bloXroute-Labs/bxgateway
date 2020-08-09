@@ -1,15 +1,16 @@
 import time
 from abc import ABCMeta
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING, Set, Union
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
-from bxcommon.messages.bloxroute.blockchain_network_message import RefreshBlockchainNetworkMessage
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bdn_performance_stats_message import BdnPerformanceStatsMessage
+from bxcommon.messages.bloxroute.blockchain_network_message import RefreshBlockchainNetworkMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.messages.bloxroute.bloxroute_message_validator import BloxrouteMessageValidator
+from bxcommon.messages.bloxroute.compressed_block_txs_message import CompressedBlockTxsMessage
 from bxcommon.messages.bloxroute.disconnect_relay_peer_message import DisconnectRelayPeerMessage
 from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.notification_message import NotificationMessage
@@ -23,16 +24,18 @@ from bxcommon.utils import convert, performance_utils
 from bxcommon.utils import memory_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks, stats_format
+from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
+from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import log_messages, gateway_constants
 from bxgateway.feed.new_transaction_feed import NewTransactionFeed, RawTransactionFeedEntry
+from bxgateway.services.gateway_transaction_service import MissingTransactions
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
     GatewayBdnPerformanceStatInterval
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
-from bxgateway.services.gateway_transaction_service import MissingTransactions
 from bxutils import logging
 from bxutils.logging import LogLevel
 from bxutils.logging import LogRecordType
@@ -67,6 +70,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             BloxrouteMessageType.KEY: self.msg_key,
             BloxrouteMessageType.TRANSACTION: self.msg_tx,
             BloxrouteMessageType.TRANSACTIONS: self.msg_txs,
+            BloxrouteMessageType.COMPRESSED_BLOCK_TXS: self.msg_compressed_block_txs,
             BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding,
             BloxrouteMessageType.DISCONNECT_RELAY_PEER: self.msg_disconnect_relay_peer,
             BloxrouteMessageType.TX_SERVICE_SYNC_TXS: self.msg_tx_service_sync_txs,
@@ -247,6 +251,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         transactions = msg.get_txs()
         tx_service = self.node.get_tx_service()
         missing_txs: Set[MissingTransactions] = tx_service.process_txs_message(msg)
+
         tx_stats.add_txs_by_short_ids_event(
             map(lambda x: x.short_id, transactions),
             TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REPLY_RECEIVED_BY_GATEWAY_FROM_RELAY,
@@ -273,6 +278,21 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         for block_awaiting_recovery in self.node.block_recovery_service.get_blocks_awaiting_recovery():
             self.node.block_processing_service.schedule_recovery_retry(block_awaiting_recovery)
+
+    def msg_compressed_block_txs(self, msg: CompressedBlockTxsMessage):
+        start_time = time.time()
+
+        self.msg_txs(msg.to_txs_message())
+
+        block_stats.add_block_event_by_block_hash(
+            msg.block_hash(),
+            BlockStatEventType.ENC_BLOCK_COMPRESSED_TXS_RECEIVED_BY_GATEWAY,
+            network_num=msg.network_num(),
+            more_info="{}. processing time: {}".format(
+                stats_format.connection(self),
+                stats_format.timespan(start_time, time.time())
+            )
+        )
 
     def msg_block_holding(self, msg):
         """
@@ -360,7 +380,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         for blockchain_network_config in self.node.opts.blockchain_networks:
             if blockchain_network_config.protocol.lower() == blockchain_protocol.lower() \
-                    and blockchain_network_config.network.lower() == blockchain_network.lower():
+                and blockchain_network_config.network.lower() == blockchain_network.lower():
                 blockchain_network_config.enable_block_compression = self.node.opts.enable_block_compression
                 break
 
