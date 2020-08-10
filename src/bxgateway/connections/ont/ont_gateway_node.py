@@ -37,6 +37,7 @@ class OntGatewayNode(AbstractGatewayNode):
 
         self.current_block_height = 0
         self.current_block_hash = NULL_ONT_BLOCK_HASH
+        self.opts.has_fully_updated_tx_service = True
 
     def build_blockchain_connection(
         self, socket_connection: AbstractSocketConnectionProtocol
