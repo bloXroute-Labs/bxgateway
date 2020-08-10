@@ -51,7 +51,7 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
             set_buffer_size = transport.get_write_buffer_size()
             if set_buffer_size < gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE:
                 self.log_warning(log_messages.SET_SOCKET_BUFFER_SIZE, set_buffer_size, previous_buffer_size)
-                transport.set_write_buffer_limits(high=previous_buffer_size)
+                # transport.set_write_buffer_limits(high=previous_buffer_size)
 
         self.connection_protocol = None
         self.is_server = False
