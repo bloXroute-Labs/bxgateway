@@ -194,7 +194,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
     arg_parser.add_argument(
         "--tune-send-buffer-size",
         help="If true, then the gateway will increase the send buffer's size for the blockchain connection",
-        default=False,
+        default=True,
         type=convert.str_to_bool,
     )
     arg_parser.add_argument(

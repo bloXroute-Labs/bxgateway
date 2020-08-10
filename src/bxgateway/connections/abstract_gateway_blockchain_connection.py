@@ -36,19 +36,21 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
             # Requires OS tuning (for Linux here; MacOS and windows require different commands):
             # echo 'net.core.wmem_max=16777216' >> /etc/sysctl.conf && sysctl -p
             # cat /proc/sys/net/core/wmem_max # to check
-            previous_buffer_size = transport.get_write_buffer_size()
+
+            # pyre-fixme[16]: `Transport` has no attribute `get_write_buffer_limits`.
+            previous_buffer_size = transport.get_write_buffer_limits()
             try:
                 transport.set_write_buffer_limits(high=gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE)
                 self.log_debug(
                     "Setting socket send buffer size for blockchain connection to {}",
-                    transport.get_write_buffer_size()
+                    transport.get_write_buffer_limits()
                 )
             except Exception as e:
                 self.log_warning(log_messages.SOCKET_BUFFER_SEND_FAIL, e)
 
             # Linux systems generally set the value to 2x what was passed in, so just make sure
             # the socket buffer is at least the size set
-            set_buffer_size = transport.get_write_buffer_size()
+            set_buffer_size = transport.get_write_buffer_limits()
             if set_buffer_size < gateway_constants.BLOCKCHAIN_SOCKET_SEND_BUFFER_SIZE:
                 self.log_warning(log_messages.SET_SOCKET_BUFFER_SIZE, set_buffer_size, previous_buffer_size)
                 # transport.set_write_buffer_limits(high=previous_buffer_size)
