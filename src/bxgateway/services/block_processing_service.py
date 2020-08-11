@@ -506,7 +506,7 @@ class BlockProcessingService:
                 more_info="{} sids, {} hashes".format(len(unknown_sids), len(unknown_hashes))
             )
 
-            connection.log_warning(log_messages.BLOCK_REQUIRES_RECOVERY, block_hash)
+            connection.log_info("Block {} requires short id recovery. Querying BDN...", block_hash)
 
             self.start_transaction_recovery(unknown_sids, unknown_hashes, block_hash, connection)
             if recovered:

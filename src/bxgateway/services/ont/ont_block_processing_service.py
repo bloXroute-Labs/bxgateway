@@ -167,7 +167,7 @@ class OntBlockProcessingService(BlockProcessingService):
                                                       more_info="{} sids, {} hashes".format(
                                                           len(unknown_sids), len(unknown_hashes)))
 
-            connection.log_warning(log_messages.BLOCK_REQUIRES_RECOVERY_ONT_CONSENSUS, block_hash)
+            connection.log_info("Consensus block {} requires short id recovery. Querying BDN...", block_hash)
 
             self.start_transaction_recovery(unknown_sids, unknown_hashes, block_hash, connection)
             if recovered:

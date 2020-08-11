@@ -176,7 +176,7 @@ PONG_MESSAGE_TIMEOUT = LogMessage(
     CONNECTION_PROBLEM_CATEGORY,
     "Pong message was not received within allocated timeout connection. Closing."
 )
-BLOCK_REQUIRES_RECOVERY = LogMessage(
+_BLOCK_REQUIRES_RECOVERY = LogMessage(
     "G-000033",
     GENERAL_CATEGORY,
     "Block {} requires short id recovery. Querying BDN..."
@@ -282,7 +282,7 @@ BLOCK_COMPRESSION_FAIL_ONT_CONSENSUS = LogMessage(
     PROCESSING_FAILED_CATEGORY,
     "Failed to compress consensus block {} - {}"
 )
-BLOCK_REQUIRES_RECOVERY_ONT_CONSENSUS = LogMessage(
+_BLOCK_REQUIRES_RECOVERY_ONT_CONSENSUS = LogMessage(
     "G-000053",
     GENERAL_CATEGORY,
     "Consensus block {} requires short id recovery. Querying BDN..."
