@@ -118,7 +118,7 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
             100 - float(content_size) / original_size * 100
         )
         return memoryview(block), block_info
-
+    
     def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         """
         Converts internal broadcast message to Ethereum new block message

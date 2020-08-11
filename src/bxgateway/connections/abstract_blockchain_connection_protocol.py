@@ -49,6 +49,13 @@ class AbstractBlockchainConnectionProtocol:
 
         process_tx_msg_result = tx_service.process_transactions_message_from_node(msg)
 
+        if not self.connection.node.opts.has_fully_updated_tx_service:
+            logger.debug(
+                "Gateway received {} transaction messages while syncing, skipping..",
+                len(process_tx_msg_result)
+            )
+            return
+
         broadcast_start_time = time.time()
 
         for tx_result in process_tx_msg_result:
