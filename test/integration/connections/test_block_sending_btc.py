@@ -93,10 +93,6 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         # propagate block
         helpers.receive_node_message(self.node1, self.blockchain_fileno, send_block.rawbytes())
 
-        block_hold_msg = self.node1.get_bytes_to_send(self.relay_fileno)
-        self.assertIn(BlockHoldingMessage.MESSAGE_TYPE, block_hold_msg.tobytes())
-        self.node1.on_bytes_sent(self.relay_fileno, len(block_hold_msg))
-
         relayed_block = self.node1.get_bytes_to_send(self.relay_fileno)
         self.assertIn(BroadcastMessage.MESSAGE_TYPE, relayed_block.tobytes())
         self.node1.on_bytes_sent(self.relay_fileno, len(relayed_block))

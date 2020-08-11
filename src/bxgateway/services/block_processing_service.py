@@ -118,15 +118,21 @@ class BlockProcessingService:
                 hold.block_message = block_message
                 hold.connection = connection
         else:
-            # Broadcast BlockHoldingMessage through relays and gateways
-            conns = self._node.broadcast(BlockHoldingMessage(block_hash, self._node.network_num),
-                                         broadcasting_conn=connection, prepend_to_queue=True,
-                                         connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY])
-            if len(conns) > 0:
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
-                                                          network_num=self._node.network_num,
-                                                          more_info=stats_format.connections(conns))
+            if self._node.opts.encrypt_blocks:
+                # Broadcast holding message if gateway wants to encrypt blocks
+                conns = self._node.broadcast(
+                    BlockHoldingMessage(block_hash, self._node.network_num),
+                    broadcasting_conn=connection,
+                    prepend_to_queue=True,
+                    connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY]
+                )
+                if len(conns) > 0:
+                    block_stats.add_block_event_by_block_hash(
+                        block_hash,
+                        BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
+                        network_num=self._node.network_num,
+                        more_info=stats_format.connections(conns)
+                    )
             self._process_and_broadcast_block(block_message, connection)
 
     def cancel_hold_timeout(self, block_hash, connection) -> None:
