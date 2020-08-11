@@ -211,7 +211,7 @@ class PushBlockQueuingService(
             if self._can_send_block_message(block_hash, block_message):
                 timeout = 0
             else:
-                timeout = self.node.opts.max_block_interval - (
+                timeout = self.node.opts.max_block_interval_s - (
                     time.time() - self._last_block_sent_time
                 )
             self._run_or_schedule_alarm(timeout, self._send_top_block_to_node)

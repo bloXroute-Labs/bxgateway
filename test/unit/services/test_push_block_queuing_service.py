@@ -117,7 +117,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.node = MockGatewayNode(
             gateway_helpers.get_gateway_opts(
                 8000,
-                max_block_interval=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S,
+                max_block_interval_s=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S,
                 blockchain_message_ttl=TTL
             )
         )

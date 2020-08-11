@@ -266,7 +266,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         )
 
     def test_msg_get_block_headers_known_many(self):
-        self.node.opts.max_block_interval = 0
+        self.node.opts.max_block_interval_s = 0
 
         block_hashes = []
         block_hash = None
@@ -303,7 +303,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
             )
 
     def test_msg_get_block_headers_fork(self):
-        self.node.opts.max_block_interval = 0
+        self.node.opts.max_block_interval_s = 0
 
         block_hashes = []
         for i in range(20):
@@ -334,7 +334,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.assertEqual(0, len(self.node.send_to_node_messages))
 
     def test_msg_get_block_headers_missing_block(self):
-        self.node.opts.max_block_interval = 0
+        self.node.opts.max_block_interval_s = 0
 
         block_hashes = []
         for i in (j for j in range(20) if j != 17):
@@ -357,7 +357,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.assertEqual(0, len(self.node.send_to_node_messages))
 
     def test_msg_get_block_headers_future_block(self):
-        self.node.opts.max_block_interval = 0
+        self.node.opts.max_block_interval_s = 0
 
         block_hashes = []
         block_heights = []
@@ -388,7 +388,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.assertEqual(0, len(headers_sent.get_block_headers()))
 
     def test_msg_block_adds_headers_and_bodies(self):
-        self.node.opts.max_block_interval = 0
+        self.node.opts.max_block_interval_s = 0
         self.sut.is_valid_block_timestamp = MagicMock(return_value=True)
 
         block_hashes = []

@@ -18,7 +18,7 @@ from bxcommon import constants
 class BtcBlockQueuingServiceTest(AbstractTestCase):
     def setUp(self):
         self.node = MockGatewayNode(
-            gateway_helpers.get_gateway_opts(8000, max_block_interval=0)
+            gateway_helpers.get_gateway_opts(8000, max_block_interval_s=0)
         )
 
         self.node_connection = Mock()

@@ -198,7 +198,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
         type=convert.str_to_bool,
     )
     arg_parser.add_argument(
-        "--max-block-interval",
+        "--max-block-interval-s",
         help="Maximum time gateway holds a block while waiting for confirmation of receipt from blockchain node",
         type=int,
         default=gateway_constants.MAX_INTERVAL_BETWEEN_BLOCKS_S,
