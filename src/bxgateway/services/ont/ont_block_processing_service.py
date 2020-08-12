@@ -9,6 +9,7 @@ from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxgateway import log_messages
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.services.block_processing_service import BlockProcessingService
+from bxgateway.services.block_recovery_service import RecoveredTxsSource
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 from bxutils import logging
 
@@ -29,25 +30,59 @@ class OntBlockProcessingService(BlockProcessingService):
 
     def retry_broadcast_recovered_blocks(self, connection):
         if self._node.block_recovery_service.recovered_blocks and self._node.opts.has_fully_updated_tx_service:
-            for msg in self._node.block_recovery_service.recovered_blocks:
+            for msg, recovered_txs_source in self._node.block_recovery_service.recovered_blocks:
                 is_consensus_msg, = struct.unpack_from("?", msg[8:9])
                 if is_consensus_msg and self._node.opts.is_consensus:
-                    self._handle_decrypted_consensus_block(msg, connection, recovered=True)
+                    self._handle_decrypted_consensus_block(
+                        msg,
+                        connection,
+                        recovered=True,
+                        recovered_txs_source=recovered_txs_source
+                    )
                 else:
-                    self._handle_decrypted_block(msg, connection, recovered=True)
+                    self._handle_decrypted_block(
+                        msg,
+                        connection,
+                        recovered=True,
+                        recovered_txs_source=recovered_txs_source
+                    )
 
             self._node.block_recovery_service.clean_up_recovered_blocks()
 
-    def _handle_decrypted_block(self, bx_block: memoryview, connection: AbstractRelayConnection,
-                                encrypted_block_hash_hex: Optional[str] = None, recovered: bool = False):
+    def _handle_decrypted_block(
+        self,
+        bx_block: memoryview,
+        connection: AbstractRelayConnection,
+        encrypted_block_hash_hex: Optional[str] = None,
+        recovered: bool = False,
+        recovered_txs_source: Optional[RecoveredTxsSource] = None
+    ):
         is_consensus_msg, = struct.unpack_from("?", bx_block[8:9])
         if is_consensus_msg and self._node.opts.is_consensus:
-            return self._handle_decrypted_consensus_block(bx_block, connection, encrypted_block_hash_hex, recovered)
+            return self._handle_decrypted_consensus_block(
+                bx_block,
+                connection,
+                encrypted_block_hash_hex,
+                recovered,
+                recovered_txs_source
+            )
         else:
-            return super()._handle_decrypted_block(bx_block, connection, encrypted_block_hash_hex, recovered)
+            return super()._handle_decrypted_block(
+                bx_block,
+                connection,
+                encrypted_block_hash_hex,
+                recovered,
+                recovered_txs_source
+            )
 
-    def _handle_decrypted_consensus_block(self, bx_block: memoryview, connection: AbstractRelayConnection,
-                                          encrypted_block_hash_hex: Optional[str] = None, recovered: bool = False):
+    def _handle_decrypted_consensus_block(
+        self,
+        bx_block: memoryview,
+        connection: AbstractRelayConnection,
+        encrypted_block_hash_hex: Optional[str] = None,
+        recovered: bool = False,
+        recovered_txs_source: Optional[RecoveredTxsSource] = None
+    ):
         transaction_service = self._node.get_tx_service()
 
         if self._node.node_conn or self._node.remote_node_conn:
@@ -86,7 +121,8 @@ class OntBlockProcessingService(BlockProcessingService):
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_RECOVERY_COMPLETED,
                                                       network_num=connection.network_num,
-                                                      broadcast_type=BroadcastMessageType.CONSENSUS)
+                                                      broadcast_type=BroadcastMessageType.CONSENSUS,
+                                                      more_info=str(recovered_txs_source))
 
         if block_hash in self._node.blocks_seen.contents:
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_DECOMPRESSED_IGNORE_SEEN,

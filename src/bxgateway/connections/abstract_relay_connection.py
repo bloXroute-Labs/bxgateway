@@ -30,6 +30,7 @@ from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEven
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import log_messages, gateway_constants
 from bxgateway.feed.new_transaction_feed import NewTransactionFeed, RawTransactionFeedEntry
+from bxgateway.services.block_recovery_service import RecoveredTxsSource
 from bxgateway.services.gateway_transaction_service import MissingTransactions
 from bxgateway.utils.logging.status import status_log
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service, \
@@ -175,7 +176,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         )
 
         if processing_result.assigned_short_id:
-            was_missing = self.node.block_recovery_service.check_missing_sid(short_id)
+            was_missing = self.node.block_recovery_service.check_missing_sid(short_id, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
             attempt_recovery |= was_missing
             tx_stats.add_tx_by_hash_event(
                 tx_hash,
@@ -200,7 +201,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         if processing_result.set_content:
             self.log_trace("Adding hash value to tx service and forwarding it to node")
             gateway_bdn_performance_stats_service.log_tx_from_bdn()
-            attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash)
+            attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
             if self.node.node_conn is not None:
                 blockchain_tx_message = self.node.message_converter.bx_tx_to_tx(msg)
@@ -247,7 +248,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             duration_after_ext_ms=duration_after_ext_ms
         )
 
-    def msg_txs(self, msg: TxsMessage):
+    def msg_txs(self, msg: TxsMessage, recovered_txs_source: RecoveredTxsSource = RecoveredTxsSource.TXS_RECOVERED):
         transactions = msg.get_txs()
         tx_service = self.node.get_tx_service()
         missing_txs: Set[MissingTransactions] = tx_service.process_txs_message(msg)
@@ -263,8 +264,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         )
 
         for (short_id, transaction_hash) in missing_txs:
-            self.node.block_recovery_service.check_missing_sid(short_id)
-            self.node.block_recovery_service.check_missing_tx_hash(transaction_hash)
+            self.node.block_recovery_service.check_missing_sid(short_id, recovered_txs_source)
+            self.node.block_recovery_service.check_missing_tx_hash(transaction_hash, recovered_txs_source)
 
             tx_stats.add_tx_by_hash_event(
                 transaction_hash,
@@ -282,7 +283,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     def msg_compressed_block_txs(self, msg: CompressedBlockTxsMessage):
         start_time = time.time()
 
-        self.msg_txs(msg.to_txs_message())
+        self.msg_txs(msg.to_txs_message(), RecoveredTxsSource.COMPRESSED_BLOCK_TXS_RECEIVED)
 
         block_stats.add_block_event_by_block_hash(
             msg.block_hash(),

@@ -1,14 +1,14 @@
 import time
 from collections import defaultdict
+from enum import Enum
 from typing import Dict, Set, List, NamedTuple
-
-from bxgateway import gateway_constants
-from bxutils import logging
 
 from bxcommon.utils import crypto
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.expiration_queue import ExpirationQueue
 from bxcommon.utils.object_hash import Sha256Hash
+from bxgateway import gateway_constants
+from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
@@ -18,6 +18,16 @@ class BlockRecoveryInfo(NamedTuple):
     unknown_short_ids: Set[int]
     unknown_transaction_hashes: Set[Sha256Hash]
     recovery_start_time: float
+
+
+class RecoveredTxsSource(Enum):
+    TXS_RECEIVED_FROM_BDN = "TransactionsReceivedFromBdn"
+    TXS_RECEIVED_FROM_NODE = "TransactionsReceivedFromNode"
+    TXS_RECOVERED = "TxsRecovered"
+    COMPRESSED_BLOCK_TXS_RECEIVED = "CompressedBlockTxsReceived"
+
+    def __str__(self):
+        return self.name
 
 
 class BlockRecoveryService:
@@ -111,10 +121,11 @@ class BlockRecoveryService:
                                                               time.time()))
         return blocks_awaiting_recovery
 
-    def check_missing_sid(self, sid: int) -> bool:
+    def check_missing_sid(self, sid: int, recovered_txs_source: RecoveredTxsSource) -> bool:
         """
         Resolves recovering blocks depend on sid.
         :param sid: SID info that has been processed
+        :param recovered_txs_source: source of recovered transaction
         """
         if sid in self._sid_to_bx_block_hashes:
             logger.trace("Resolved previously unknown short id: {0}.", sid)
@@ -124,17 +135,18 @@ class BlockRecoveryService:
                 if bx_block_hash in self._bx_block_hash_to_sids:
                     if sid in self._bx_block_hash_to_sids[bx_block_hash]:
                         self._bx_block_hash_to_sids[bx_block_hash].discard(sid)
-                        self._check_if_recovered(bx_block_hash)
+                        self._check_if_recovered(bx_block_hash, recovered_txs_source)
 
             del self._sid_to_bx_block_hashes[sid]
             return True
         else:
             return False
 
-    def check_missing_tx_hash(self, tx_hash: Sha256Hash) -> bool:
+    def check_missing_tx_hash(self, tx_hash: Sha256Hash, recovered_txs_source: RecoveredTxsSource) -> bool:
         """
         Resolves recovering blocks depend on transaction hash.
         :param tx_hash: transaction info that has been processed
+        :param recovered_txs_source: source of recovered transaction
         """
         if tx_hash in self._tx_hash_to_bx_block_hashes:
             logger.trace("Resolved previously unknown transaction hash {0}.", tx_hash)
@@ -144,7 +156,7 @@ class BlockRecoveryService:
                 if bx_block_hash in self._bx_block_hash_to_tx_hashes:
                     if tx_hash in self._bx_block_hash_to_tx_hashes[bx_block_hash]:
                         self._bx_block_hash_to_tx_hashes[bx_block_hash].discard(tx_hash)
-                        self._check_if_recovered(bx_block_hash)
+                        self._check_if_recovered(bx_block_hash, recovered_txs_source)
 
             del self._tx_hash_to_bx_block_hashes[tx_hash]
             return True
@@ -194,7 +206,7 @@ class BlockRecoveryService:
         logger.trace("Cleaning up {} recovered blocks.", len(self.recovered_blocks))
         del self.recovered_blocks[:]
 
-    def _check_if_recovered(self, bx_block_hash: Sha256Hash):
+    def _check_if_recovered(self, bx_block_hash: Sha256Hash, recovered_txs_source: RecoveredTxsSource):
         """
         Checks if a compressed block has received all short ids and transaction hashes necessary to recover.
         Adds block to recovered blocks if so.
@@ -202,11 +214,12 @@ class BlockRecoveryService:
         :return:
         """
         if self._is_block_recovered(bx_block_hash):
-            logger.trace("Recovered block: {}", bx_block_hash)
+            logger.debug("Recovery status for block {}: Block recovered by gateway. Source of recovered txs is {}.",
+                         bx_block_hash, recovered_txs_source)
             bx_block = self._bx_block_hash_to_block[bx_block_hash]
             block_hash = self._bx_block_hash_to_block_hash[bx_block_hash]
             self._remove_recovered_block_hash(block_hash)
-            self.recovered_blocks.append(bx_block)
+            self.recovered_blocks.append((bx_block, recovered_txs_source))
 
     def _is_block_recovered(self, bx_block_hash: Sha256Hash):
         """

@@ -18,7 +18,7 @@ from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
-from bxgateway.services.block_recovery_service import BlockRecoveryInfo
+from bxgateway.services.block_recovery_service import BlockRecoveryInfo, RecoveredTxsSource
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxutils import logging
@@ -272,8 +272,8 @@ class BlockProcessingService:
 
     def retry_broadcast_recovered_blocks(self, connection) -> None:
         if self._node.block_recovery_service.recovered_blocks and self._node.opts.has_fully_updated_tx_service:
-            for msg in self._node.block_recovery_service.recovered_blocks:
-                self._handle_decrypted_block(msg, connection, recovered=True)
+            for msg, recovery_source in self._node.block_recovery_service.recovered_blocks:
+                self._handle_decrypted_block(msg, connection, recovered=True, recovered_txs_source=recovery_source)
 
             self._node.block_recovery_service.clean_up_recovered_blocks()
 
@@ -374,7 +374,8 @@ class BlockProcessingService:
         bx_block: memoryview,
         connection: AbstractRelayConnection,
         encrypted_block_hash_hex: Optional[str] = None,
-        recovered: bool = False
+        recovered: bool = False,
+        recovered_txs_source: Optional[RecoveredTxsSource] = None
     ) -> None:
         transaction_service = self._node.get_tx_service()
         message_converter = self._node.message_converter
@@ -419,7 +420,8 @@ class BlockProcessingService:
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.BLOCK_RECOVERY_COMPLETED,
-                network_num=connection.network_num
+                network_num=connection.network_num,
+                more_info=str(recovered_txs_source)
             )
 
         if block_hash in self._node.blocks_seen.contents:

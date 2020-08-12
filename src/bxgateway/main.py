@@ -294,7 +294,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
     arg_parser.add_argument(
         "--request-recovery",
         help="If true, gateway will send transaction recovery request to relay when unable to decompress a block",
-        default=False,
+        default=True,
         type=convert.str_to_bool,
     )
     arg_parser.add_argument(

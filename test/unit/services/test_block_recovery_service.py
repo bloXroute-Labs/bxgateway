@@ -10,7 +10,7 @@ from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import gateway_constants
 
-from bxgateway.services.block_recovery_service import BlockRecoveryService
+from bxgateway.services.block_recovery_service import BlockRecoveryService, RecoveredTxsSource
 
 
 def _create_block():
@@ -40,7 +40,7 @@ class BlockRecoveryManagerTest(AbstractTestCase):
 
         sid = self.unknown_tx_sids[0][0]
 
-        self.block_recovery_service.check_missing_sid(sid)
+        self.block_recovery_service.check_missing_sid(sid, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
         self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_sids[self.bx_block_hashes[0]]), 2)
         self.assertNotIn(sid, self.block_recovery_service._sid_to_bx_block_hashes)
@@ -50,7 +50,7 @@ class BlockRecoveryManagerTest(AbstractTestCase):
 
         tx_hash = self.unknown_tx_hashes[0][0]
 
-        self.block_recovery_service.check_missing_tx_hash(tx_hash)
+        self.block_recovery_service.check_missing_tx_hash(tx_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
         self.assertEqual(len(self.block_recovery_service._bx_block_hash_to_tx_hashes[self.bx_block_hashes[0]]), 1)
         self.assertNotIn(tx_hash, self.block_recovery_service._tx_hash_to_bx_block_hashes)
@@ -66,30 +66,32 @@ class BlockRecoveryManagerTest(AbstractTestCase):
 
         # Missing sids arrive first
         for sid in self.unknown_tx_sids[0]:
-            self.block_recovery_service.check_missing_sid(sid)
+            self.block_recovery_service.check_missing_sid(sid, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
         # Then tx hashes arrive
         for tx_hash in self.unknown_tx_hashes[0]:
-            self.block_recovery_service.check_missing_tx_hash(tx_hash)
+            self.block_recovery_service.check_missing_tx_hash(tx_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
         self._assert_no_blocks_awaiting_recovery()
         self.assertEqual(len(self.block_recovery_service.recovered_blocks), 1)
-        self.assertEqual(self.block_recovery_service.recovered_blocks[0], self.blocks[0])
+        self.assertEqual(self.block_recovery_service.recovered_blocks[0][0], self.blocks[0])
+        self.assertEqual(self.block_recovery_service.recovered_blocks[0][1], RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
     def test_recovered_blocks__tx_contents_arrive_first(self):
         self._add_block()
 
         # Missing tx hashes arrive first
         for tx_hash in self.unknown_tx_hashes[0]:
-            self.block_recovery_service.check_missing_tx_hash(tx_hash)
+            self.block_recovery_service.check_missing_tx_hash(tx_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
         # Then missing sids arrive
         for sid in self.unknown_tx_sids[0]:
-            self.block_recovery_service.check_missing_sid(sid)
+            self.block_recovery_service.check_missing_sid(sid, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
         self._assert_no_blocks_awaiting_recovery()
         self.assertEqual(len(self.block_recovery_service.recovered_blocks), 1)
-        self.assertEqual(self.block_recovery_service.recovered_blocks[0], self.blocks[0])
+        self.assertEqual(self.block_recovery_service.recovered_blocks[0][0], self.blocks[0])
+        self.assertEqual(self.block_recovery_service.recovered_blocks[0][1], RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
     def test_clean_up_old_blocks__single_block(self):
         self.assertFalse(self.block_recovery_service._cleanup_scheduled)
@@ -120,9 +122,9 @@ class BlockRecoveryManagerTest(AbstractTestCase):
         self.assertTrue(len(self.block_recovery_service.recovered_blocks) == 0)
 
         # Adding ready to retry messages
-        self.block_recovery_service.recovered_blocks.append(_create_block())
-        self.block_recovery_service.recovered_blocks.append(_create_block())
-        self.block_recovery_service.recovered_blocks.append(_create_block())
+        self.block_recovery_service.recovered_blocks.append((_create_block(),RecoveredTxsSource.TXS_RECEIVED_FROM_BDN))
+        self.block_recovery_service.recovered_blocks.append((_create_block(), RecoveredTxsSource.TXS_RECEIVED_FROM_BDN))
+        self.block_recovery_service.recovered_blocks.append((_create_block(), RecoveredTxsSource.TXS_RECEIVED_FROM_BDN))
 
         self.assertEqual(len(self.block_recovery_service.recovered_blocks), 3)
 
@@ -226,9 +228,9 @@ class BlockRecoveryManagerTest(AbstractTestCase):
         self.assertEqual(10, len(self.block_recovery_service._sid_to_bx_block_hashes))
         self.assertEqual(10, len(self.block_recovery_service._tx_hash_to_bx_block_hashes))
 
-        self.block_recovery_service.check_missing_sid(unknown_sids_v1[0])
-        self.block_recovery_service.check_missing_sid(unknown_sids_v1[1])
-        self.block_recovery_service.check_missing_tx_hash(unknown_hashes_v1[0])
+        self.block_recovery_service.check_missing_sid(unknown_sids_v1[0], RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
+        self.block_recovery_service.check_missing_sid(unknown_sids_v1[1], RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
+        self.block_recovery_service.check_missing_tx_hash(unknown_hashes_v1[0], RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
         self.assertEqual(8, len(self.block_recovery_service._bx_block_hash_to_sids[bx_block_1_v1_hash]))
         self.assertEqual(9, len(self.block_recovery_service._bx_block_hash_to_tx_hashes[bx_block_1_v1_hash]))
@@ -245,9 +247,9 @@ class BlockRecoveryManagerTest(AbstractTestCase):
         self.assertEqual(0, len(self.block_recovery_service.recovered_blocks))
 
         for unknown_sid in unknown_sids_v2:
-            self.block_recovery_service.check_missing_sid(unknown_sid)
+            self.block_recovery_service.check_missing_sid(unknown_sid, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
         for unknown_hash in unknown_hashes_v2:
-            self.block_recovery_service.check_missing_tx_hash(unknown_hash)
+            self.block_recovery_service.check_missing_tx_hash(unknown_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
         # recovering one block should cancel recovery for the second
         self.assertNotIn(block_hash, self.block_recovery_service._bx_block_hash_to_sids)
