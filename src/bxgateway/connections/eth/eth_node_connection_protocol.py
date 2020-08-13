@@ -163,9 +163,14 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 )
                 continue
 
+            recovery_cancelled = self.node.on_block_seen_by_blockchain_node(
+                block_hash, block_number=block_number
+            )
+            if recovery_cancelled:
+                continue
+
             self.node.track_block_from_node_handling_started(block_hash)
             block_hash_number_pairs.append((block_hash, block_number))
-            self.node.on_block_seen_by_blockchain_node(block_hash, block_number=block_number)
 
             self.connection.log_info(
                 "Fetching block {} from local Ethereum node.",

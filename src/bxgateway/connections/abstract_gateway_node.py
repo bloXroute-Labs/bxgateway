@@ -724,13 +724,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         block_hash: Sha256Hash,
         block_message: Optional[AbstractBlockMessage] = None,
         block_number: Optional[int] = None
-    ):
+    ) -> bool:
         self.blocks_seen.add(block_hash)
         recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
         if recovery_canceled:
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_RECOVERY_CANCELED,
-                                                      network_num=self.network_num)
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_RECOVERY_CANCELED,
+                network_num=self.network_num
+            )
         self.block_queuing_service.mark_block_seen_by_blockchain_node(
             block_hash,
             block_message,
@@ -738,6 +740,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         )
 
         self.log_blocks_network_content(self.network_num, block_message)
+        return recovery_canceled
 
     def log_blocks_network_content(self, network_num: int, block_msg) -> None:
         pass

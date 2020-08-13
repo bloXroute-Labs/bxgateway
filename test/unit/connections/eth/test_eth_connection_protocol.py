@@ -65,3 +65,11 @@ class EthConnectionProtocolTest(AbstractTestCase):
         message.serialize()
         self.sut.msg_block(message)
         self.node.block_processing_service.queue_block_for_processing.assert_not_called()
+
+    def test_msg_block_in_recovery(self):
+        message = NewBlockEthProtocolMessage(None, _block_with_timestamp(time.time()), 10)
+        self.node.block_recovery_service.add_block(
+            message.rawbytes(), message.block_hash(), [1], []
+        )
+        self.sut.msg_block(message)
+        self.node.block_processing_service.queue_block_for_processing.assert_not_called()
