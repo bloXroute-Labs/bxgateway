@@ -214,10 +214,13 @@ class BlockRecoveryService:
         :return:
         """
         if self._is_block_recovered(bx_block_hash):
-            logger.debug("Recovery status for block {}: Block recovered by gateway. Source of recovered txs is {}.",
-                         bx_block_hash, recovered_txs_source)
             bx_block = self._bx_block_hash_to_block[bx_block_hash]
             block_hash = self._bx_block_hash_to_block_hash[bx_block_hash]
+            logger.debug(
+                "Recovery status for block {}, compress block hash {}: "
+                "Block recovered by gateway. Source of recovered txs is {}.",
+                block_hash, bx_block_hash, recovered_txs_source
+            )
             self._remove_recovered_block_hash(block_hash)
             self.recovered_blocks.append((bx_block, recovered_txs_source))
 
