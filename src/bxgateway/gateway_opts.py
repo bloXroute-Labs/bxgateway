@@ -58,7 +58,7 @@ class GatewayOpts(CommonOpts):
     dump_short_id_mapping_compression: bool
     dump_short_id_mapping_compression_path: str
     tune_send_buffer_size: bool
-    max_block_interval: int
+    max_block_interval_s: int
     cookie_file_path: str
     blockchain_message_ttl: int
     remote_blockchain_message_ttl: int

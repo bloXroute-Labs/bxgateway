@@ -23,7 +23,7 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
         self,
         msg
     ) -> List[ProcessTransactionMessageFromNodeResult]:
-        opts = cast(GatewayOpts, self.node.opts)
+        opts = self.node.opts
         msg_bytes = msg.rawbytes()
 
         if isinstance(self.node, OntGatewayNode) and opts.process_node_txs_in_extension:

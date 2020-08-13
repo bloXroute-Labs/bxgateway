@@ -27,7 +27,7 @@ BLOCK_INTERVAL = 0.1
 class EthBlockQueuingServicePushingTest(AbstractTestCase):
     def setUp(self):
         self.node = MockGatewayNode(
-            gateway_helpers.get_gateway_opts(8000, max_block_interval=BLOCK_INTERVAL)
+            gateway_helpers.get_gateway_opts(8000, max_block_interval_s=BLOCK_INTERVAL)
         )
         self.node.alarm_queue = AlarmQueue()
 

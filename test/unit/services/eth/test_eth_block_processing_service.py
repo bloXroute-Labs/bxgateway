@@ -19,7 +19,7 @@ from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 class EthBlockProcessingServiceTest(AbstractTestCase):
     def setUp(self) -> None:
         self.node = MockGatewayNode(
-            gateway_helpers.get_gateway_opts(8000, max_block_interval=0)
+            gateway_helpers.get_gateway_opts(8000, max_block_interval_s=0)
         )
 
         self.node.send_msg_to_node = MagicMock()

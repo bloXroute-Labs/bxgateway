@@ -7,7 +7,6 @@ from bxgateway.testing import gateway_helpers
 from bxgateway.testing.abstract_btc_gateway_integration_test import AbstractBtcGatewayIntegrationTest
 
 from bxcommon.constants import LOCALHOST
-from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
@@ -89,8 +88,6 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
 
         helpers.receive_node_message(self.node2, self.blockchain_fileno, self.block.rawbytes())
 
-        _block_hold_bytes = helpers.get_queued_node_bytes(self.node2, self.relay_fileno,
-                                                          BlockHoldingMessage.MESSAGE_TYPE)
         broadcast_bytes = helpers.get_queued_node_bytes(self.node2, self.relay_fileno, BroadcastMessage.MESSAGE_TYPE)
 
         helpers.receive_node_message(self.node1, self.relay_fileno, broadcast_bytes)

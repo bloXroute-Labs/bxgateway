@@ -160,6 +160,9 @@ class EthBlockQueuingService(
             raise ValueError(f"Block with hash {block_hash} already exists in the queue.")
 
         if not self.can_add_block_to_queuing_service(block_hash):
+            logger.debug(
+                "Skipping adding {} to queue. Block already seen.", block_hash
+            )
             return
 
         if waiting_for_recovery:
@@ -213,6 +216,9 @@ class EthBlockQueuingService(
             return
 
         if self._check_for_sent_or_queued_forked_block(block_hash, block_number):
+            logger.debug(
+                "Discarding recovered block."
+            )
             return
 
         position = self._ordered_insert(block_hash, block_number, time.time())
@@ -726,7 +732,7 @@ class EthBlockQueuingService(
 
         self.node.send_msg_to_node(get_confirmation_message)
 
-        if self.block_check_repeat_count[block_hash] < 5:
+        if self.block_check_repeat_count[block_hash] < eth_common_constants.CHECK_BLOCK_RECEIPT_MAX_COUNT:
             self.block_check_repeat_count[block_hash] += 1
             return eth_common_constants.CHECK_BLOCK_RECEIPT_INTERVAL_S
         else:
@@ -771,7 +777,7 @@ class EthBlockQueuingService(
             self._try_immediate_send(block_hash, block_number, block_msg)
             _best_height, _best_hash, sent_time = self.best_sent_block
             elapsed_time = time.time() - sent_time
-            timeout = self.node.opts.max_block_interval - elapsed_time
+            timeout = self.node.opts.max_block_interval_s - elapsed_time
             self._run_or_schedule_alarm(timeout, self._send_top_block_to_node)
             break
 

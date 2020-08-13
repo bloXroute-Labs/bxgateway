@@ -144,19 +144,23 @@ class AbstractBlockchainConnectionProtocol:
             return
 
         node.block_cleanup_service.on_new_block_received(block_hash, msg.prev_block_hash())
-        block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
-                                                  network_num=self.connection.network_num,
-                                                  more_info="Protocol: {}, Network: {}".format(
-                                                      node.opts.blockchain_protocol,
-                                                      node.opts.blockchain_network,
-                                                      msg.extra_stats_data()
-                                                  )
-                                                  )
+        block_stats.add_block_event_by_block_hash(
+            block_hash, 
+            BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE,
+            network_num=self.connection.network_num,
+            more_info="Protocol: {}, Network: {}".format(
+                node.opts.blockchain_protocol,
+                node.opts.blockchain_network,
+                msg.extra_stats_data()
+            )
+        )
         if block_hash in self.connection.node.blocks_seen.contents:
             node.on_block_seen_by_blockchain_node(block_hash)
-            block_stats.add_block_event_by_block_hash(block_hash,
-                                                      BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
-                                                      network_num=self.connection.network_num)
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
+                network_num=self.connection.network_num
+            )
             self.connection.log_info(
                 "Discarding duplicate block {} from local blockchain node.",
                 block_hash
@@ -166,8 +170,11 @@ class AbstractBlockchainConnectionProtocol:
         if not self.is_valid_block_timestamp(msg):
             return
 
+        canceled_recovery = node.on_block_seen_by_blockchain_node(block_hash, msg)
+        if canceled_recovery:
+            return
+
         node.track_block_from_node_handling_started(block_hash)
-        node.on_block_seen_by_blockchain_node(block_hash, msg)
         node.block_processing_service.queue_block_for_processing(msg, self.connection)
         gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
         node.block_queuing_service.store_block_data(block_hash, msg)

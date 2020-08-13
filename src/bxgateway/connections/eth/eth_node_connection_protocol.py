@@ -1,12 +1,13 @@
+import time
 from collections import deque
 from typing import List, Deque
-from time import time
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.blockchain_utils.eth import eth_common_utils, eth_common_constants
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash, NULL_SHA256_HASH
+from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
@@ -26,6 +27,8 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBl
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway import log_messages
+from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
+    TransactionsEthProtocolMessage
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
@@ -78,6 +81,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             eth_common_constants.BLOCK_CONFIRMATION_REQUEST_CACHE_INTERVAL_S,
             f"{str(self)}_eth_requested_blocks"
         )
+        self._connection_established_time = 0.0
+        self._total_tx_bytes_skipped = 0
 
     def msg_status(self, msg: StatusEthProtocolMessage):
         super(EthNodeConnectionProtocol, self).msg_status(msg)
@@ -89,8 +94,31 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         )
 
         self.node.on_blockchain_connection_ready(self.connection)
-        self.node.alarm_queue.register_alarm(eth_common_constants.CHECKPOINT_BLOCK_HEADERS_REQUEST_WAIT_TIME_S,
-                                             self._stop_waiting_checkpoint_headers_request)
+        self.node.alarm_queue.register_alarm(
+            eth_common_constants.CHECKPOINT_BLOCK_HEADERS_REQUEST_WAIT_TIME_S,
+            self._stop_waiting_checkpoint_headers_request
+        )
+
+        self._connection_established_time = time.time()
+        self.node.alarm_queue.register_alarm(
+            eth_common_constants.ETH_SKIP_TRANSACTIONS_LEAD_TIME_S,
+            self._check_bytes_skipped
+        )
+
+    def msg_tx(self, msg: TransactionsEthProtocolMessage) -> None:
+        if (
+            time.time() - self._connection_established_time
+            < eth_common_constants.ETH_SKIP_TRANSACTIONS_LEAD_TIME_S
+            and len(msg.rawbytes()) >= eth_common_constants.ETH_SKIP_TRANSACTIONS_SIZE
+        ):
+            self.connection.log_debug(
+                "Skipping {} bytes of transactions during blockchain mempool sync.",
+                len(msg.rawbytes())
+            )
+            self._total_tx_bytes_skipped += len(msg.rawbytes())
+        else:
+            super().msg_tx(msg)
+
 
     # pyre-fixme[14]: `msg_block` overrides method defined in
     #  `AbstractBlockchainConnectionProtocol` inconsistently.
@@ -135,9 +163,14 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 )
                 continue
 
+            recovery_cancelled = self.node.on_block_seen_by_blockchain_node(
+                block_hash, block_number=block_number
+            )
+            if recovery_cancelled:
+                continue
+
             self.node.track_block_from_node_handling_started(block_hash)
             block_hash_number_pairs.append((block_hash, block_number))
-            self.node.on_block_seen_by_blockchain_node(block_hash, block_number=block_number)
 
             self.connection.log_info(
                 "Fetching block {} from local Ethereum node.",
@@ -314,7 +347,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         else:
             block_hash = hashes[0]
 
-        self.requested_blocks_for_confirmation.add(block_hash, time())
+        self.requested_blocks_for_confirmation.add(block_hash, time.time())
         return GetBlockHeadersEthProtocolMessage(
                 None,
                 block_hash=bytes(block_hash.binary),
@@ -332,3 +365,10 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self.node.feed_manager.publish_to_feed(
             EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
         )
+
+    def _check_bytes_skipped(self) -> None:
+        self.connection.log_debug(
+            "Skipped total {} during mempool sync. Restoring old behavior.",
+            stats_format.byte_count(self._total_tx_bytes_skipped)
+        )
+
