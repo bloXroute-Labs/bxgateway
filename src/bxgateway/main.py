@@ -27,7 +27,7 @@ from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constan
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway import argument_parsers
 from bxgateway.utils.gateway_start_args import GatewayStartArgs
-from bxgateway import node_init_tasks
+from bxgateway import gateway_init_tasks
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -324,14 +324,14 @@ def main() -> None:
     logging_messages_utils.logger_names = set(logger_names)
     opts = get_opts()
     get_node_class = functools.partial(get_gateway_node_type, opts.blockchain_protocol)
+
     node_runner.run_node(
         config.get_data_file(PID_FILE_NAME),
         opts,
         get_node_class,
         NodeType.EXTERNAL_GATEWAY,
         logger_names=logger_names,
-        # pyre-fixme[6] Expected `Optional[List[AbstractInitTask]]` but got `List[ValidateNetworkOpts]`
-        node_init_tasks=node_init_tasks.gateway_node_init_tasks
+        node_init_tasks=gateway_init_tasks.init_tasks
     )
 
 
