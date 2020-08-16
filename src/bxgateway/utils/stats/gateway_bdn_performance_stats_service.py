@@ -18,8 +18,8 @@ class GatewayBdnPerformanceStatInterval(StatsIntervalData):
     new_tx_received_from_blockchain_node: int
     new_tx_received_from_bdn: int
 
-    def __init__(self, *args, **kwargs):
-        super(GatewayBdnPerformanceStatInterval, self).__init__(*args, **kwargs)
+    def __init__(self,) -> None:
+        super(GatewayBdnPerformanceStatInterval, self).__init__()
         self.new_blocks_received_from_blockchain_node = 0
         self.new_blocks_received_from_bdn = 0
         self.new_tx_received_from_blockchain_node = 0
@@ -41,7 +41,7 @@ class _GatewayBdnPerformanceStatsService(
         self,
         interval=gateway_constants.GATEWAY_BDN_PERFORMANCE_STATS_INTERVAL_S,
         look_back=gateway_constants.GATEWAY_BDN_PERFORMANCE_STATS_LOOKBACK,
-    ):
+    ) -> None:
         super(_GatewayBdnPerformanceStatsService, self).__init__(
             "GatewayBdnPerformanceStats",
             interval,
@@ -57,28 +57,18 @@ class _GatewayBdnPerformanceStatsService(
         return {}
 
     def log_block_from_blockchain_node(self) -> None:
-        assert self.interval_data is not None
-        # pyre-fixme[16]: `Optional` has no attribute
-        #  `new_blocks_received_from_blockchain_node`.
         self.interval_data.new_blocks_received_from_blockchain_node += 1
         blocks_from_blockchain.inc()
 
     def log_block_from_bdn(self) -> None:
-        assert self.interval_data is not None
-        # pyre-fixme[16]: `Optional` has no attribute `new_blocks_received_from_bdn`.
         self.interval_data.new_blocks_received_from_bdn += 1
         blocks_from_bdn.inc()
 
     def log_tx_from_blockchain_node(self) -> None:
-        assert self.interval_data is not None
-        # pyre-fixme[16]: `Optional` has no attribute
-        #  `new_tx_received_from_blockchain_node`.
         self.interval_data.new_tx_received_from_blockchain_node += 1
         transactions_from_blockchain.inc()
 
     def log_tx_from_bdn(self) -> None:
-        assert self.interval_data is not None
-        # pyre-fixme[16]: `Optional` has no attribute `new_tx_received_from_bdn`.
         self.interval_data.new_tx_received_from_bdn += 1
         transactions_from_bdn.inc()
 
