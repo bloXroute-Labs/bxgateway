@@ -38,3 +38,6 @@ class PongBtcMessage(BtcMessage):
             else:
                 self._nonce = struct.unpack_from('<Q', self.buf, BTC_HDR_COMMON_OFF)[0]
         return self._nonce
+
+    def log_level(self) -> LogLevel:
+        return LogLevel.DEBUG

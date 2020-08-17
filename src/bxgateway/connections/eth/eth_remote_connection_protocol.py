@@ -32,7 +32,7 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
         self.connection.on_connection_established()
         self.node.on_remote_blockchain_connection_ready(self.connection)
 
-        self.connection.send_ping()
+        self.connection.schedule_pings()
 
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage) -> None:
         self.node.log_received_remote_blocks(len(msg.get_block_bodies_bytes()))

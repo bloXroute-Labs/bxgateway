@@ -88,10 +88,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         super(EthNodeConnectionProtocol, self).msg_status(msg)
         self.connection.on_connection_established()
 
-        self.node.alarm_queue.register_alarm(
-            self.connection.ping_interval_s,
-            self.connection.send_ping
-        )
+        self.connection.schedule_pings()
 
         self.node.on_blockchain_connection_ready(self.connection)
         self.node.alarm_queue.register_alarm(

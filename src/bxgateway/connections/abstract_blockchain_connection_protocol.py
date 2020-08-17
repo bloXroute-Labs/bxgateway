@@ -1,6 +1,6 @@
 import time
 from abc import ABCMeta, abstractmethod
-from typing import List, Union
+from typing import List
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
@@ -14,8 +14,6 @@ from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEven
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
-from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging

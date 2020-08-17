@@ -81,11 +81,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
         self.node.alarm_queue.register_alarm(
             2, self.connection.enqueue_msg, send_compact_msg
         )
-
-        self.node.alarm_queue.register_alarm(
-            self.ping_interval_s,
-            self.connection.send_ping
-        )
+        self.connection.schedule_pings()
 
         if self.connection.is_active():
             self.node.on_blockchain_connection_ready(self.connection)

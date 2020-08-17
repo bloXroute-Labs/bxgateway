@@ -1,8 +1,8 @@
 from typing import TYPE_CHECKING
 
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
 from bxutils import logging
-
-from bxcommon.connections.connection_state import ConnectionState
 
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 
@@ -14,6 +14,9 @@ logger = logging.get_logger(__name__)
 
 
 class EthBaseConnection(AbstractGatewayBlockchainConnection["EthGatewayNode"]):
+    def ping_message(self) -> AbstractMessage:
+        return PingEthProtocolMessage(None)
+
     def enqueue_msg(self, msg, prepend=False):
         if not self.is_alive():
             return

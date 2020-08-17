@@ -1,28 +1,24 @@
-from typing import List, TYPE_CHECKING, Union
+from typing import List, TYPE_CHECKING
 
-from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
 from bxcommon.utils import crypto
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import NULL_ONT_BLOCK_HASH, OntObjectHash
-from bxcommon.rpc import rpc_constants
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
-from bxgateway import ont_constants, gateway_constants, log_messages
+from bxgateway import ont_constants, log_messages
 from bxgateway.connections.ont.ont_base_connection_protocol import OntBaseConnectionProtocol
 from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
-from bxgateway.messages.ont.get_blocks_ont_message import GetBlocksOntMessage
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
 from bxgateway.messages.ont.get_headers_ont_message import GetHeadersOntMessage
 from bxgateway.messages.ont.headers_ont_message import HeadersOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InvOntMessage, InventoryOntType
 from bxgateway.messages.ont.ont_message_type import OntMessageType
-from bxgateway.messages.ont.ping_ont_message import PingOntMessage
 from bxgateway.messages.ont.pong_ont_message import PongOntMessage
 from bxgateway.messages.ont.ver_ack_ont_message import VerAckOntMessage
 from bxgateway.messages.ont.version_ont_message import VersionOntMessage
@@ -49,7 +45,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
             OntMessageType.CONSENSUS: self.msg_consensus
         })
 
-        self.ping_interval_s: int = gateway_constants.BLOCKCHAIN_PING_INTERVAL_S
+        self.ping_interval_s = ont_constants.ONT_PING_INTERVAL_S
 
         # TODO: re-enable when  block cleanup polling is supported
         # if self.block_cleanup_poll_interval_s > 0:
@@ -58,15 +54,12 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
         #         self._request_blocks_confirmation
         #     )
 
-    def msg_version(self, msg: VersionOntMessage) -> None:
+    def msg_version(self, _msg: VersionOntMessage) -> None:
         self.connection.on_connection_established()
         reply = VerAckOntMessage(self.magic, self.is_consensus)
         self.connection.enqueue_msg(reply)
 
-        self.node.alarm_queue.register_alarm(
-            ont_constants.ONT_PING_INTERVAL_S,
-            self.send_ping
-        )
+        self.connection.schedule_pings()
 
         if self.connection.is_active():
             self.node.on_blockchain_connection_ready(self.connection)
@@ -226,15 +219,9 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                                                   )
                                                   )
 
-        self.node.block_processing_service._process_and_broadcast_compressed_block(bx_block, self.connection,
-                                                                                   block_info, block_hash)
-
-    def send_ping(self):
-        ping_msg = PingOntMessage(magic=self.magic, height=self.node.current_block_height)
-        if self.connection.is_alive():
-            self.connection.enqueue_msg(ping_msg)
-            return ont_constants.ONT_PING_INTERVAL_S
-        return constants.CANCEL_ALARMS
+        self.node.block_processing_service._process_and_broadcast_compressed_block(
+            bx_block, self.connection, block_info, block_hash
+        )
 
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
         raise NotImplementedError

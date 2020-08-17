@@ -1,6 +1,6 @@
 import typing
 from abc import abstractmethod
-from typing import List, Union
+from typing import List
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.object_hash import Sha256Hash
@@ -10,7 +10,6 @@ from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
 from bxgateway.messages.btc.btc_message_factory import btc_message_factory
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType
-from bxgateway.messages.btc.ping_btc_message import PingBtcMessage
 from bxgateway.messages.btc.pong_btc_message import PongBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 from bxutils import logging
@@ -33,7 +32,6 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             BtcMessageType.PONG: self.msg_pong,
             BtcMessageType.GET_ADDRESS: self.msg_getaddr
         }
-        connection.ping_message = PingBtcMessage(self.magic)
 
         # Establish connection with blockchain node
         version_msg = VersionBtcMessage(self.magic, self.version, connection.peer_ip, connection.peer_port,
