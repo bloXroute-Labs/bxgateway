@@ -16,6 +16,7 @@ from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.notification_message import NotificationMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.messages.validation.message_size_validation_settings import MessageSizeValidationSettings
+from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.entity_type_model import EntityType
 from bxcommon.models.notification_code import NotificationCode
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
@@ -371,19 +372,18 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_refresh_blockchain_network(self, _msg: RefreshBlockchainNetworkMessage) -> None:
         blockchain_protocol = self.node.opts.blockchain_protocol
-        assert blockchain_protocol is not None
         blockchain_network = self.node.opts.blockchain_network
+        assert blockchain_protocol is not None
         assert blockchain_network is not None
 
         updated_blockchain_network = sdn_http_service.fetch_blockchain_network(blockchain_protocol, blockchain_network)
         assert updated_blockchain_network is not None
-        self.node.opts.enable_block_compression = updated_blockchain_network.enable_block_compression
+        self.node.network = updated_blockchain_network
 
-        for blockchain_network_config in self.node.opts.blockchain_networks:
-            if blockchain_network_config.protocol.lower() == blockchain_protocol.lower() \
-                and blockchain_network_config.network.lower() == blockchain_network.lower():
-                blockchain_network_config.enable_block_compression = self.node.opts.enable_block_compression
-                break
+        # TODO: cleanup blockchain networks settings in opts
+        self.node.opts.blockchain_networks = [updated_blockchain_network]
+
+        self.node.update_node_settings_from_blockchain_network(updated_blockchain_network)
 
     def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:
         self.node.feed_manager.publish_to_feed(

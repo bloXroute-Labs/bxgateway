@@ -1159,3 +1159,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.check_relay_alarm_id = self.alarm_queue.register_alarm(
             delay, self.send_request_for_relay_peers
         )
+
+    def update_node_settings_from_blockchain_network(self, blockchain_network: BlockchainNetworkModel) -> None:
+        self.opts.enable_block_compression = blockchain_network.enable_block_compression
