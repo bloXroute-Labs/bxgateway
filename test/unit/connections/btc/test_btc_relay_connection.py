@@ -80,7 +80,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
             btc_block = self.btc_block()
         return bytes(
             self.gateway_node.message_converter.block_to_bx_block(
-                btc_block, self.gateway_node.get_tx_service(), True
+                btc_block, self.gateway_node.get_tx_service(), True, self.gateway_node.network.min_tx_age_seconds
             )[0]
         )
 
@@ -133,7 +133,10 @@ class BtcRelayConnectionTest(AbstractTestCase):
             unknown_sid_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx_val())
 
         unknown_short_id_block = bytes(
-            self.gateway_node.message_converter.block_to_bx_block(btc_block, unknown_sid_transaction_service, True)[0])
+            self.gateway_node.message_converter.block_to_bx_block(
+                btc_block, unknown_sid_transaction_service, True, self.gateway_node.network.min_tx_age_seconds
+            )[0]
+        )
         unknown_key, unknown_cipher = symmetric_encrypt(unknown_short_id_block)
         unknown_block_hash = crypto.double_sha256(unknown_cipher)
         unknown_message = BroadcastMessage(Sha256Hash(unknown_block_hash), self.TEST_NETWORK_NUM, "",
@@ -146,7 +149,9 @@ class BtcRelayConnectionTest(AbstractTestCase):
             local_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx_val())
 
         known_short_id_block = bytes(
-            self.gateway_node.message_converter.block_to_bx_block(btc_block, local_transaction_service, True)[0]
+            self.gateway_node.message_converter.block_to_bx_block(
+                btc_block, local_transaction_service, True, self.gateway_node.network.min_tx_age_seconds
+            )[0]
         )
         known_key, known_cipher = symmetric_encrypt(known_short_id_block)
         known_block_hash = crypto.double_sha256(known_cipher)
@@ -260,7 +265,9 @@ class BtcRelayConnectionTest(AbstractTestCase):
             short_id_mapping[transaction.tx_hash()] = TransactionInfo(transaction.tx_hash(), transaction.tx(), i + 1)
 
         bx_block = bytes(
-            self.gateway_node.message_converter.block_to_bx_block(btc_block, remote_transaction_service, True)[0]
+            self.gateway_node.message_converter.block_to_bx_block(
+                btc_block, remote_transaction_service, True, self.gateway_node.network.min_tx_age_seconds
+            )[0]
         )
 
         self.gateway_node.block_recovery_service.add_block = \

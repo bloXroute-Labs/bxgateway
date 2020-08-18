@@ -3,6 +3,7 @@ import time
 from collections import deque
 from typing import Tuple
 
+from bxcommon import constants
 from bxutils import logging
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.services.transaction_service import TransactionService
@@ -24,7 +25,11 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
         super().__init__()
 
     def block_to_bx_block(
-        self, block_msg: InternalEthBlockInfo, tx_service: TransactionService, enable_block_compression: bool
+        self,
+        block_msg: InternalEthBlockInfo,
+        tx_service: TransactionService,
+        enable_block_compression: bool,
+        min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         """
         Convert Ethereum new block message to internal broadcast message with transactions replaced with short ids
@@ -34,6 +39,7 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
         :param block_msg: Ethereum new block message
         :param tx_service: Transactions service
         :param enable_block_compression
+        :param min_tx_age_seconds
         :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash)
         """
 
@@ -51,6 +57,7 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
         tx_start_index = 0
         tx_count = 0
         original_size = len(block_msg.rawbytes())
+        max_timestamp_for_compression = time.time() - min_tx_age_seconds
 
         while True:
             if tx_start_index >= len(txs_bytes):
@@ -61,8 +68,13 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
             tx_hash_bytes = eth_common_utils.keccak_hash(tx_bytes)
             tx_hash = Sha256Hash(tx_hash_bytes)
             short_id = tx_service.get_short_id(tx_hash)
+            short_id_assign_time = 0
 
-            if short_id <= 0 or not enable_block_compression:
+            if short_id != constants.NULL_TX_SID:
+                short_id_assign_time = tx_service.get_short_id_assign_time(short_id)
+
+            if short_id <= constants.NULL_TX_SID or \
+                    not enable_block_compression or short_id_assign_time > max_timestamp_for_compression:
                 is_full_tx_bytes = rlp_utils.encode_int(1)
                 tx_content_bytes = tx_bytes
             else:

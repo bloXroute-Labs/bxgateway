@@ -174,7 +174,7 @@ class EthMessageConverterTests(AbstractTestCase):
         self.assertTrue(block_msg.rawbytes())
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
         bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(
-            internal_new_block_msg, self.tx_service, True
+            internal_new_block_msg, self.tx_service, True, 0
         )
 
         self.assertEqual(len(txs), block_info.txn_count)
@@ -229,7 +229,7 @@ class EthMessageConverterTests(AbstractTestCase):
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
 
         bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(
-            internal_new_block_msg, self.tx_service, True
+            internal_new_block_msg, self.tx_service, True, 0
         )
 
         self.assertEqual(0, block_info.txn_count)
@@ -426,7 +426,7 @@ class EthMessageConverterTests(AbstractTestCase):
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
 
         bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(
-            internal_new_block_msg, self.tx_service, True
+            internal_new_block_msg, self.tx_service, True, 0
         )
         self.assertIsNotNone(bx_block_msg)
 
@@ -477,7 +477,7 @@ class EthMessageConverterTests(AbstractTestCase):
         self.assertTrue(block_msg.rawbytes())
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
         bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(
-            internal_new_block_msg, self.tx_service, False
+            internal_new_block_msg, self.tx_service, False, 0
         )
 
         self.assertTrue(len(bx_block_msg) >= len(internal_new_block_msg.rawbytes()))

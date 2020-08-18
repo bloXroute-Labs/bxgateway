@@ -97,7 +97,7 @@ def build_ont_block(block_pieces: Deque[Union[bytearray, memoryview]], size: int
 class OntNormalMessageConverter(AbstractOntMessageConverter):
 
     def block_to_bx_block(
-        self, block_msg, tx_service, enable_block_compression: bool
+        self, block_msg, tx_service, enable_block_compression: bool, min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         """
         Pack an Ontology block's transactions into a bloXroute block.
@@ -112,11 +112,19 @@ class OntNormalMessageConverter(AbstractOntMessageConverter):
         header = block_msg.txn_header()
         size += len(header)
         buf.append(header)
+        max_timestamp_for_compression = time.time() - min_tx_age_seconds
 
         for tx in block_msg.txns():
             tx_hash, _ = ont_messages_util.get_txid(tx)
             short_id = tx_service.get_short_id(tx_hash)
-            if short_id == constants.NULL_TX_SID or not enable_block_compression:
+            short_id_assign_time = 0
+
+            if short_id != constants.NULL_TX_SID:
+                short_id_assign_time = tx_service.get_short_id_assign_time(short_id)
+
+            if short_id == constants.NULL_TX_SID or \
+                    not enable_block_compression or \
+                    short_id_assign_time > max_timestamp_for_compression:
                 buf.append(tx)
                 size += len(tx)
             else:

@@ -107,7 +107,7 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         return parse_transaction_bytes(bx_tx_msg.tx_val())
 
     def block_to_bx_block(
-        self, block_msg: InternalEthBlockInfo, tx_service, enable_block_compression: bool
+        self, block_msg: InternalEthBlockInfo, tx_service, enable_block_compression: bool, min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         """
         Convert Ethereum new block message to internal broadcast message with transactions replaced with short ids
@@ -117,6 +117,7 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         :param block_msg: Ethereum new block message
         :param tx_service: Transactions service
         :param enable_block_compression
+        :param min_tx_age_seconds
         :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash)
         """
         raise NotImplementedError

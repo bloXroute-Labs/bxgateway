@@ -61,7 +61,7 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
 
     @abstractmethod
     def block_to_bx_block(
-        self, block_msg, tx_service, enable_block_compression: bool
+        self, block_msg, tx_service, enable_block_compression: bool, min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         """
         Pack a blockchain block's transactions into a bloXroute block.

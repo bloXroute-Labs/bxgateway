@@ -197,7 +197,7 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         block_msg = mock_eth_messages.new_block_eth_protocol_message(21, 1017)
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
         msg_bytes, block_info = self.node.message_converter.block_to_bx_block(
-            internal_new_block_msg, self.node._tx_service, True
+            internal_new_block_msg, self.node._tx_service, True, self.node.network.min_tx_age_seconds
         )
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
 
@@ -210,7 +210,7 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         block_msg = mock_eth_messages.new_block_eth_protocol_message(21, 1017)
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
         msg_bytes, block_info = self.node.message_converter.block_to_bx_block(
-            internal_new_block_msg, self.node._tx_service, True
+            internal_new_block_msg, self.node._tx_service, True, self.node.network.min_tx_age_seconds
         )
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
 
@@ -231,7 +231,7 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
         msg_bytes, block_info = self.node.message_converter.block_to_bx_block(
-            internal_new_block_msg, self.node._tx_service, True
+            internal_new_block_msg, self.node._tx_service, True, self.node.network.min_tx_age_seconds
         )
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
         broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
@@ -257,7 +257,7 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
         msg_bytes, block_info = self.node.message_converter.block_to_bx_block(
-            internal_new_block_msg, self.node._tx_service, True
+            internal_new_block_msg, self.node._tx_service, True, self.node.network.min_tx_age_seconds
         )
         msg_hash = Sha256Hash(crypto.double_sha256(msg_bytes))
         broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)

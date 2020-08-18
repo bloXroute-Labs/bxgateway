@@ -33,13 +33,17 @@ class EthExtensionMessageConverter(EthAbstractMessageConverter):
         self.decompression_tasks = TaskQueueProxy(self._create_decompression_task)
 
     def block_to_bx_block(
-        self, block_msg: InternalEthBlockInfo, tx_service: ExtensionTransactionService, enable_block_compression: bool
+        self,
+        block_msg: InternalEthBlockInfo,
+        tx_service: ExtensionTransactionService,
+        enable_block_compression: bool,
+        min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         compress_start_datetime = datetime.datetime.utcnow()
         compress_start_timestamp = time.time()
         self._default_block_size = max(self._default_block_size, len(block_msg.rawbytes()))
         tsk = self.compression_tasks.borrow_task()
-        tsk.init(tpe.InputBytes(block_msg.rawbytes()), tx_service.proxy, enable_block_compression)
+        tsk.init(tpe.InputBytes(block_msg.rawbytes()), tx_service.proxy, enable_block_compression, min_tx_age_seconds)
         try:
             task_pool_proxy.run_task(tsk)
         except tpe.AggregatedException as e:

@@ -303,7 +303,10 @@ class BlockProcessingService:
         assert message_converter is not None
         try:
             bx_block, block_info = message_converter.block_to_bx_block(
-                block_message, self._node.get_tx_service(), self._node.opts.enable_block_compression
+                block_message,
+                self._node.get_tx_service(),
+                self._node.opts.enable_block_compression,
+                self._node.network.min_tx_age_seconds
             )
         except MessageConversionError as e:
             block_stats.add_block_event_by_block_hash(

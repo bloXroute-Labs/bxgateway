@@ -79,7 +79,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
 
     @abstractmethod
     def block_to_bx_block(
-        self, block_msg, tx_service, enable_block_compression: bool
+        self, block_msg, tx_service, enable_block_compression: bool, min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         """
         Convert blockchain block message to internal broadcast message with transactions replaced with short ids
@@ -87,6 +87,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         :param block_msg: blockchain new block message
         :param tx_service: Transactions service
         :param enable_block_compression
+        :param min_tx_age_seconds
         :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash, short ids)
         """
         pass
