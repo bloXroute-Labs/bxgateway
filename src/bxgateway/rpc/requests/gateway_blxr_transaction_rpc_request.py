@@ -90,7 +90,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             )
         tx_service = self.node.get_tx_service()
         tx_hash = bx_tx.tx_hash()
-        if tx_service.has_transaction_contents(tx_hash) or tx_service.removed_transaction(tx_hash):
+        if tx_service.has_transaction_contents(tx_hash):
             short_id = tx_service.get_short_id(tx_hash)
             tx_stats.add_tx_by_hash_event(
                 tx_hash,

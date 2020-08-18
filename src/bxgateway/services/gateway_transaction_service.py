@@ -47,12 +47,10 @@ class GatewayTransactionService(TransactionService):
 
             tx_cache_key = self._tx_hash_to_cache_key(tx_hash)
 
-            tx_seen_flag = self.has_transaction_contents_by_cache_key(tx_cache_key) or \
-                           self.removed_transaction_by_cache_key(tx_cache_key)
+            tx_seen_flag = self.has_transaction_contents_by_cache_key(tx_cache_key)
 
             if not tx_seen_flag:
                 self.set_transaction_contents(tx_hash, tx_bytes)
-
 
             result.append(ProcessTransactionMessageFromNodeResult(
                 tx_seen_flag,
