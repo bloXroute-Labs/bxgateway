@@ -1,8 +1,17 @@
-from typing import NamedTuple
+from enum import Enum, auto
+from typing import NamedTuple, Dict, Any
 
+from bxcommon.rpc.rpc_errors import RpcInvalidParams
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.feed.feed import Feed
+from bxgateway.feed.subscriber import Subscriber
+
+
+class FeedSource(Enum):
+    BLOCKCHAIN_SOCKET = auto()
+    BLOCKCHAIN_RPC = auto()
+    BDN_SOCKET = auto()
 
 
 class RawTransactionFeedEntry:
@@ -28,6 +37,7 @@ class RawTransactionFeedEntry:
 class RawTransaction(NamedTuple):
     tx_hash: Sha256Hash
     tx_contents: memoryview
+    source: FeedSource
 
 
 class NewTransactionFeed(Feed[RawTransactionFeedEntry, RawTransaction]):
@@ -37,5 +47,30 @@ class NewTransactionFeed(Feed[RawTransactionFeedEntry, RawTransaction]):
     def __init__(self) -> None:
         super().__init__(self.NAME)
 
+    def subscribe(
+        self, options: Dict[str, Any]
+    ) -> Subscriber[RawTransactionFeedEntry]:
+        include_from_blockchain = options.get("include_from_blockchain", None)
+        if include_from_blockchain is not None:
+            if not isinstance(include_from_blockchain, bool):
+                raise RpcInvalidParams(
+                    "\"include_from_blockchain\" must be a boolean"
+                )
+        return super().subscribe(options)
+
     def serialize(self, raw_message: RawTransaction) -> RawTransactionFeedEntry:
         return RawTransactionFeedEntry(raw_message.tx_hash, raw_message.tx_contents)
+
+    def should_publish_message_to_subscriber(
+        self,
+        subscriber: Subscriber[RawTransactionFeedEntry],
+        raw_message: RawTransaction,
+        serialized_message: RawTransactionFeedEntry
+    ) -> bool:
+        if (
+            raw_message.source == FeedSource.BLOCKCHAIN_SOCKET
+            and not subscriber.options.get("include_from_blockchain", False)
+        ):
+            return False
+        else:
+            return True

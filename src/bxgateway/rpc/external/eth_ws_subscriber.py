@@ -10,6 +10,7 @@ from bxgateway import log_messages
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.rpc.provider.abstract_ws_provider import AbstractWsProvider, WsException
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 from bxutils import logging
@@ -140,7 +141,8 @@ class EthWsSubscriber(AbstractWsProvider):
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
 
         self.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+            EthPendingTransactionFeed.NAME,
+            EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_RPC)
         )
 
     async def fetch_missing_transaction(self, tx_hash: Sha256Hash) -> None:
@@ -169,7 +171,8 @@ class EthWsSubscriber(AbstractWsProvider):
             transaction_feed_stats_service.log_pending_transaction_missing_contents()
         else:
             self.feed_manager.publish_to_feed(
-                EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, parsed_tx)
+                EthPendingTransactionFeed.NAME,
+                EthRawTransaction(tx_hash, parsed_tx, FeedSource.BLOCKCHAIN_RPC)
             )
 
     async def stop(self) -> None:

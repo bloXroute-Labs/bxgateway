@@ -16,6 +16,7 @@ from bxgateway import gateway_constants
 from bxgateway import log_messages
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
@@ -202,7 +203,8 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 return
 
         self.node.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+            EthPendingTransactionFeed.NAME,
+            EthRawTransaction(tx_hash, tx_contents, FeedSource.BDN_SOCKET)
         )
 
         transaction_feed_stats_service.log_pending_transaction_from_internal(tx_hash)

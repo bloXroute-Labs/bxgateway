@@ -12,7 +12,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test, AsyncMock
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import RawTransaction, RawTransactionFeedEntry
+from bxgateway.feed.new_transaction_feed import RawTransaction, RawTransactionFeedEntry, FeedSource
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
@@ -69,7 +69,7 @@ class WsProviderTest(AbstractTestCase):
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val()
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -108,7 +108,7 @@ class WsProviderTest(AbstractTestCase):
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val()
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -175,7 +175,8 @@ class WsProviderTest(AbstractTestCase):
 
             raw_published_message = RawTransaction(
                 helpers.generate_object_hash(),
-                memoryview(tx_contents)
+                memoryview(tx_contents),
+                FeedSource.BDN_SOCKET
             )
             serialized_published_message = RawTransactionFeedEntry(
                 raw_published_message.tx_hash,

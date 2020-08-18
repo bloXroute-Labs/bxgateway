@@ -15,6 +15,7 @@ from bxgateway.eth_exceptions import CipherNotInitializedError
 from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
@@ -357,10 +358,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self, tx_hash: Sha256Hash, tx_contents: memoryview
     ) -> None:
         self.node.feed_manager.publish_to_feed(
-            EthNewTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+            EthNewTransactionFeed.NAME,
+            EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )
         self.node.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+            EthPendingTransactionFeed.NAME,
+            EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )
 
     def _check_bytes_skipped(self) -> None:

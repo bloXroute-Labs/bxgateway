@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock
 
-from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
@@ -9,9 +8,7 @@ from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
-from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
-    TransactionsEthProtocolMessage
+from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.testing.mocks import mock_eth_messages
 
 SAMPLE_TRANSACTION_FROM_WS = {
@@ -34,29 +31,16 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
     def setUp(self) -> None:
         self.alarm_queue = AlarmQueue()
         self.sut = EthPendingTransactionFeed(self.alarm_queue)
-        self.message_converter = EthNormalMessageConverter()
-
-    def generate_new_eth_transaction(self) -> TxMessage:
-        transaction = mock_eth_messages.get_dummy_transaction(1)
-        transactions_eth_message = TransactionsEthProtocolMessage(None, [transaction])
-        tx_message = self.message_converter.tx_to_bx_txs(
-            transactions_eth_message, 5
-        )[0][0]
-        return tx_message
-
-    def generate_eth_raw_transaction(self) -> EthRawTransaction:
-        tx_message = self.generate_new_eth_transaction()
-        return EthRawTransaction(tx_message.tx_hash(), tx_message.tx_val())
 
     @async_test
     async def test_publish_transaction_bytes(self):
         subscriber = self.sut.subscribe({})
 
-        tx_message = self.generate_new_eth_transaction()
+        tx_message = mock_eth_messages.generate_eth_tx_message()
         tx_hash_str = f"0x{str(tx_message.tx_hash())}"
 
         self.sut.publish(
-            EthRawTransaction(tx_message.tx_hash(), tx_message.tx_val())
+            EthRawTransaction(tx_message.tx_hash(), tx_message.tx_val(), FeedSource.BDN_SOCKET)
         )
 
         received_tx = await subscriber.receive()
@@ -83,7 +67,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
         )
 
         self.sut.publish(
-            EthRawTransaction(transaction_hash, SAMPLE_TRANSACTION_FROM_WS)
+            EthRawTransaction(transaction_hash, SAMPLE_TRANSACTION_FROM_WS, FeedSource.BLOCKCHAIN_RPC)
         )
 
         received_tx = await subscriber.receive()
@@ -104,7 +88,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
     async def test_publish_transaction_no_subscribers(self):
         self.sut.serialize = MagicMock(wraps=self.sut.serialize)
 
-        self.sut.publish(self.generate_eth_raw_transaction())
+        self.sut.publish(mock_eth_messages.generate_eth_raw_transaction())
 
         self.sut.serialize.assert_not_called()
 
@@ -113,7 +97,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
         self.sut.subscribe({})
 
         self.sut.serialize = MagicMock(wraps=self.sut.serialize)
-        raw_transaction = self.generate_eth_raw_transaction()
+        raw_transaction = mock_eth_messages.generate_eth_raw_transaction()
 
         self.sut.publish(raw_transaction)
         self.sut.publish(raw_transaction)
@@ -126,7 +110,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
 
         self.sut.serialize = MagicMock(wraps=self.sut.serialize)
         subscriber.queue = MagicMock(wraps=subscriber.queue)
-        raw_transaction = self.generate_eth_raw_transaction()
+        raw_transaction = mock_eth_messages.generate_eth_raw_transaction()
 
         self.sut.publish(raw_transaction)
         self.sut.serialize.assert_called_once()
@@ -146,7 +130,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
         transaction_contents = helpers.generate_bytearray(250)
 
         self.sut.publish(
-            EthRawTransaction(transaction_hash, transaction_contents)
+            EthRawTransaction(transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )
 
         self.assertEqual(0, subscriber.messages.qsize())

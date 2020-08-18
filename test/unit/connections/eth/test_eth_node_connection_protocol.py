@@ -5,6 +5,7 @@ from mock import MagicMock, call
 from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
@@ -454,11 +455,11 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
             [
                 call(
                     EthNewTransactionFeed.NAME,
-                    EthRawTransaction(transaction_hash, transaction_contents)
+                    EthRawTransaction(transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET)
                 ),
                 call(
                     EthPendingTransactionFeed.NAME,
-                    EthRawTransaction(transaction_hash, transaction_contents)
+                    EthRawTransaction(transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET)
                 ),
             ]
         )

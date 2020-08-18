@@ -15,11 +15,12 @@ if TYPE_CHECKING:
 
 class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {
-        "params": "[feed_name, {\"include\": [field_1, field_2], \"duplicates\": false}].\n"
+        "params": "[feed_name, {\"include\": [field_1, field_2], \"duplicates\": false, \"include_from_blockchain\": true}].\n"
                   "Available feeds: newTxs, pendingTxs\n"
                   "Available fields: tx_hash, tx_contents (default: all)\n"
                   "duplicates: False (filter out duplicates from feed, typically low fee "
-                  "transactions, default), True (include all duplicates)",
+                  "transactions, default), True (include all duplicates)\n"
+                  "include_from_blockchain: include transactions received from the connected blockchain node (default: True)\n",
         "description": "Subscribe to a named feed for notifications"
     }
 
