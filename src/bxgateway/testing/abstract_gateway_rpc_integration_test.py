@@ -1,8 +1,13 @@
+import datetime
+import time
 import unittest
 from abc import abstractmethod
 import base64
+from unittest.mock import MagicMock
+
 from bxcommon import constants
 from bxcommon.rpc import rpc_constants
+from bxcommon.test_utils import helpers
 from bxutils import constants as utils_constants
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_base import BdnServiceModelBase
@@ -182,3 +187,32 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertIsNone(result.error)
         self.assertEqual("66.67%", result.result["blocks_from_bdn_percentage"])
         self.assertEqual("33.33%", result.result["transactions_from_bdn_percentage"])
+
+    @async_test
+    async def test_transaction_status(self):
+        time.time = MagicMock(return_value=time.time())
+        expected_assignment_time = datetime.datetime.fromtimestamp(time.time()).isoformat()
+
+        short_id = 123
+        transaction_hash = helpers.generate_object_hash()
+        transaction_contents = helpers.generate_bytearray(250)
+
+        tx_service = self.gateway_node.get_tx_service()
+        tx_service.set_transaction_contents(transaction_hash, transaction_contents)
+        tx_service.assign_short_id(transaction_hash, short_id)
+
+        result = await self.request(BxJsonRpcRequest(
+            "7",
+            RpcRequestType.TX_STATUS,
+            {"transaction_hash": convert.bytes_to_hex(transaction_hash.binary)}
+        ))
+        self.assertEqual("7", result.id)
+        self.assertIsNone(result.error)
+        self.assertEqual(
+            {
+                "status": "assigned short ID",
+                "short_ids": [123],
+                "assignment_time": expected_assignment_time
+            },
+            result.result
+        )

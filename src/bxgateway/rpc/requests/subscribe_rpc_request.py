@@ -1,9 +1,9 @@
-from typing import TYPE_CHECKING, Callable, List
+from typing import TYPE_CHECKING, Callable
 
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
-from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcInternalError, RpcAccountIdError
+from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.subscriber import Subscriber
 

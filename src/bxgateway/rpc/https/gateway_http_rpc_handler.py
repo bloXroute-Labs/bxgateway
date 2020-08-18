@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 from bxcommon.rpc.https.http_rpc_handler import HttpRpcHandler
+from bxcommon.rpc.requests.transaction_status_rpc_request import TransactionStatusRpcRequest
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxgateway.rpc.requests.bdn_performance_rpc_request import BdnPerformanceRpcRequest
 from bxgateway.rpc.requests.gateway_blxr_transaction_rpc_request import GatewayBlxrTransactionRpcRequest
@@ -34,5 +35,6 @@ class GatewayHttpRpcHandler(HttpRpcHandler["AbstractGatewayNode"]):
             RpcRequestType.PEERS: GatewayPeersRpcRequest,
             RpcRequestType.BDN_PERFORMANCE: BdnPerformanceRpcRequest,
             RpcRequestType.QUOTA_USAGE: QuotaUsageRpcRequest,
-            RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest
+            RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest,
+            RpcRequestType.TX_STATUS: TransactionStatusRpcRequest,
         }

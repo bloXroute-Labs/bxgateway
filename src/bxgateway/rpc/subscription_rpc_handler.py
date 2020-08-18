@@ -7,6 +7,7 @@ from bxcommon.rpc.abstract_rpc_handler import AbstractRpcHandler
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
+from bxcommon.rpc.requests.transaction_status_rpc_request import TransactionStatusRpcRequest
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxgateway import gateway_constants, log_messages
 from bxgateway.feed.feed_manager import FeedManager
@@ -56,7 +57,8 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             RpcRequestType.SUBSCRIBE: SubscribeRpcRequest,
             RpcRequestType.UNSUBSCRIBE: UnsubscribeRpcRequest,
             RpcRequestType.QUOTA_USAGE: QuotaUsageRpcRequest,
-            RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest
+            RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest,
+            RpcRequestType.TX_STATUS: TransactionStatusRpcRequest,
         }
         self.feed_manager = feed_manager
         self.subscriptions = {}
