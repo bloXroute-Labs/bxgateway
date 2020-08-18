@@ -588,7 +588,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             self.assertEqual(1, len(list(node.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL]))))
             relay_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])))
 
-            node.on_relay_connection_ready()
+            node.on_relay_connection_ready(relay_conn.CONNECTION_TYPE)
             self.assertIsNone(node._relay_liveliness_alarm)
 
         return node

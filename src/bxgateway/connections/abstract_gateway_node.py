@@ -214,7 +214,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.schedule_relay_liveliness_check(opts.initial_liveliness_check)
 
         self.opts.has_fully_updated_tx_service = False
-        self.alarm_queue.register_alarm(constants.TX_SERVICE_SYNC_PROGRESS_S, self.sync_tx_services)
 
         self.block_cleanup_processed_blocks = ExpiringSet(
             self.alarm_queue,
@@ -676,7 +675,18 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.remote_node_conn = None
         self.remote_node_msg_queue.pop_items()
 
-    def on_relay_connection_ready(self) -> None:
+    def on_relay_connection_ready(self, conn_type: ConnectionType) -> None:
+        # when gateway connects to a relay, check if the gateway doesn't have another syncing process and
+        # that the connection is relay tx (to avoid double syncing when gateway connects to both block and tx)
+        if self.opts.sync_tx_service \
+            and self.network_num not in self.last_sync_message_received_by_network \
+                and ConnectionType.RELAY_TRANSACTION in conn_type \
+                and len(list(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION]))) == 1:
+            # set sync to false and updating sdn
+            self.opts.has_fully_updated_tx_service = False
+            self.requester.send_threaded_request(sdn_http_service.submit_tx_not_synced_event, self.opts.node_id)
+            self.alarm_queue.register_alarm(constants.FIRST_TX_SERVICE_SYNC_PROGRESS_S, self.sync_tx_services)
+
         self.cancel_relay_liveliness_check()
 
     def on_failed_connection_retry(self, ip: str, port: int, connection_type: ConnectionType) -> None:

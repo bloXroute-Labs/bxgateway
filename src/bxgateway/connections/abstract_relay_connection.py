@@ -88,7 +88,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_hello(self, msg):
         super(AbstractRelayConnection, self).msg_hello(msg)
-        self.node.on_relay_connection_ready()
+        self.node.on_relay_connection_ready(self.CONNECTION_TYPE)
 
     def msg_broadcast(self, msg):
         """
