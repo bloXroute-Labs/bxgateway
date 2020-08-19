@@ -956,24 +956,26 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if self.opts.sync_tx_service:
             retry = True
             if self.opts.split_relays:
-                relay_tx_connection = next(
+                relay_tx_connection: Optional[AbstractRelayConnection] = next(
                     iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION])), None
                 )
-                relay_block_connection = next(
+                relay_block_connection: Optional[AbstractRelayConnection] = next(
                     iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])), None
                 )
 
-                if relay_tx_connection and relay_block_connection and \
-                    relay_tx_connection.is_active() and relay_block_connection.is_active():
-                    relay_tx_connection.send_tx_service_sync_req(self.network_num)
-                    relay_block_connection.send_tx_service_sync_req(self.network_num)
+                if (
+                    relay_tx_connection and relay_block_connection and
+                    relay_tx_connection.is_active() and relay_block_connection.is_active()
+                ):
+                    relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    relay_block_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
                     retry = False
             else:
-                relay_connection = next(
+                relay_connection: Optional[AbstractRelayConnection] = next(
                     iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])), None
                 )
                 if relay_connection and relay_connection.is_active():
-                    relay_connection.send_tx_service_sync_req(self.network_num)
+                    relay_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
                     retry = False
 
             if retry:
