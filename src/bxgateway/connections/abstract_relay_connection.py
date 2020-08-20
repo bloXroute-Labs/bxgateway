@@ -378,11 +378,9 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         updated_blockchain_network = sdn_http_service.fetch_blockchain_network(blockchain_protocol, blockchain_network)
         assert updated_blockchain_network is not None
+
         self.node.network = updated_blockchain_network
-
-        # TODO: cleanup blockchain networks settings in opts
-        self.node.opts.blockchain_networks = [updated_blockchain_network]
-
+        self.node.opts.blockchain_networks[self.node.network_num] = updated_blockchain_network
         self.node.update_node_settings_from_blockchain_network(updated_blockchain_network)
 
     def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:

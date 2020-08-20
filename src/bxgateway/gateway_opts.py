@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from bxcommon.common_opts import CommonOpts
 from bxcommon.utils import ip_resolver
-from typing import List, Optional, Set
+from typing import Optional, Set, Dict
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
@@ -26,7 +26,7 @@ class GatewayOpts(CommonOpts):
     blockchain_port: int
     blockchain_protocol: Optional[str]
     blockchain_network: Optional[str]
-    blockchain_networks: List[BlockchainNetworkModel]
+    blockchain_networks: Dict[int, BlockchainNetworkModel]
     blockchain_block_recovery_timeout_s: int
     blockchain_block_hold_timeout_s: int
     blockchain_ip: str

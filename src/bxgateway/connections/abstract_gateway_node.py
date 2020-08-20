@@ -942,12 +942,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         return None
 
     def _get_blockchain_network(self) -> BlockchainNetworkModel:
-        for network in self.opts.blockchain_networks:
-            if network.network_num == self.network_num:
-                return network
+        if self.network_num in self.opts.blockchain_networks:
+            return self.opts.blockchain_networks[self.network_num]
         raise EnvironmentError(
             f"Unexpectedly did not find network num {self.network_num} in set of blockchain networks: "
-            f"{self.opts.blockchain_networks}"
+            f"{self.opts.blockchain_networks.values()}"
         )
 
     def sync_tx_services(self) -> int:
