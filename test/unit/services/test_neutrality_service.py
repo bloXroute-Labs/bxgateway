@@ -147,7 +147,7 @@ class NeutralityServiceTest(AbstractTestCase):
                                datetime.datetime.utcnow(), datetime.datetime.utcnow(), 0, 1,
                                helpers.generate_bytearray(crypto.SHA256_HASH_LEN),
                                helpers.generate_bytearray(crypto.SHA256_HASH_LEN),
-                               0, 0, 0)
+                               0, 0, 0, [])
 
         connection = MockConnection(
             MockSocketConnection(1, self.node, ip_address=LOCALHOST, port=9000), self.node

@@ -50,7 +50,8 @@ def get_block_info(
         prev_block_hash,
         ont_block_len,
         compressed_size,
-        compression_rate
+        compression_rate,
+        []
     )
 
 

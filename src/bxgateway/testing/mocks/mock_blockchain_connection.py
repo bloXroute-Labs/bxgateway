@@ -33,7 +33,7 @@ class MockMessageConverter(AbstractMessageConverter):
     ) -> Tuple[memoryview, BlockInfo]:
         return block_msg.rawbytes(), \
                BlockInfo(convert.bytes_to_hex(self.PREV_BLOCK.binary), [], datetime.datetime.utcnow(),
-                         datetime.datetime.utcnow(), 0, 0, None, None, 0, 0, 0)
+                         datetime.datetime.utcnow(), 0, 0, None, None, 0, 0, 0, [])
 
     def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         block_message = MockBlockMessage(buf=bx_block_msg)

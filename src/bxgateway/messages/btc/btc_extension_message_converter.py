@@ -87,7 +87,8 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
             tsk.prev_block_hash().hex_string(),
             original_size,
             compressed_size,
-            100 - float(compressed_size) / original_size * 100
+            100 - float(compressed_size) / original_size * 100,
+            tsk.ignored_short_ids()
         )
         self.compression_tasks.return_task(tsk)
         return block, block_info
@@ -168,7 +169,8 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
             None,
             len(compact_block.rawbytes()),
             None,
-            None
+            None,
+            []
         )
         if success:
             result = CompactBlockCompressionResult(
@@ -204,7 +206,8 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
             None,
             failed_block_info.original_size,  # pyre-ignore
             None,
-            None
+            None,
+            []
         )
         failed_mapping_result.block_info = block_info
         recovered_item = self._extension_recovered_items.pop(failed_mapping_result.recovery_index)  # pyre-ignore
@@ -257,7 +260,8 @@ class BtcExtensionMessageConverter(AbstractBtcMessageConverter):
             prev_block_hash,
             original_size,
             compressed_size,
-            100 - float(compressed_size) / original_size * 100
+            100 - float(compressed_size) / original_size * 100,
+            []
         )
         self.compact_mapping_tasks.return_task(mapping_task)
         return CompactBlockCompressionResult(True, block_info, bx_block, None, [], [])

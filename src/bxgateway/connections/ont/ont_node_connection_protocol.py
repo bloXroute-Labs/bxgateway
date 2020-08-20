@@ -199,6 +199,12 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
             self.connection.log_error(log_messages.BLOCK_COMPRESSION_FAIL_ONT_CONSENSUS, e.msg_hash, e)
             return
 
+        if block_info.ignored_short_ids:
+            self.connection.log_debug(
+                "Ignoring {} new SIDs for {}: {}",
+                len(block_info.ignored_short_ids), block_info.block_hash, block_info.ignored_short_ids
+            )
+
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.BLOCK_COMPRESSED,
                                                   start_date_time=block_info.start_datetime,

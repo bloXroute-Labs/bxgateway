@@ -16,3 +16,4 @@ class BlockInfo(NamedTuple):
     original_size: Optional[float]
     compressed_size: Optional[float]
     compression_rate: Optional[float]
+    ignored_short_ids: List[Optional[int]]

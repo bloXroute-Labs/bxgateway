@@ -77,7 +77,8 @@ def get_block_info(
         prev_block_hash,
         btc_block_len,
         compressed_size,
-        compression_rate
+        compression_rate,
+        []
     )
 
 

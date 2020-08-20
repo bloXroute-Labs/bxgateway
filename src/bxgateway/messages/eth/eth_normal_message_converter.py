@@ -53,6 +53,7 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
         # creating transactions content
         content_size = 0
         buf = deque()
+        ignored_sids = []
 
         tx_start_index = 0
         tx_count = 0
@@ -75,6 +76,8 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
 
             if short_id <= constants.NULL_TX_SID or \
                     not enable_block_compression or short_id_assign_time > max_timestamp_for_compression:
+                if short_id > constants.NULL_TX_SID:
+                    ignored_sids.append(short_id)
                 is_full_tx_bytes = rlp_utils.encode_int(1)
                 tx_content_bytes = tx_bytes
             else:
@@ -127,8 +130,10 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
             convert.bytes_to_hex(prev_block_bytes),
             original_size,
             content_size,
-            100 - float(content_size) / original_size * 100
+            100 - float(content_size) / original_size * 100,
+            ignored_sids
         )
+
         return memoryview(block), block_info
     
     def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
@@ -251,11 +256,20 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
             bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block_msg))
             compressed_size = len(bx_block_msg)
 
-            block_info = BlockInfo(block_hash, short_ids, decompress_start_datetime, datetime.datetime.utcnow(),
-                                   (time.time() - decompress_start_timestamp) * 1000, tx_count, bx_block_hash,
-                                   convert.bytes_to_hex(block_msg.prev_block_hash().binary),
-                                   len(block_msg.rawbytes()), compressed_size,
-                                   100 - float(compressed_size) / content_size * 100)
+            block_info = BlockInfo(
+                block_hash,
+                short_ids,
+                decompress_start_datetime,
+                datetime.datetime.utcnow(),
+                (time.time() - decompress_start_timestamp) * 1000,
+                tx_count,
+                bx_block_hash,
+                convert.bytes_to_hex(block_msg.prev_block_hash().binary),
+                len(block_msg.rawbytes()),
+                compressed_size,
+                100 - float(compressed_size) / content_size * 100,
+                []
+            )
 
             return BlockDecompressionResult(block_msg, block_info, unknown_tx_sids, unknown_tx_hashes)
         else:
@@ -280,7 +294,8 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
                     None,
                     None,
                     None,
-                    None
+                    None,
+                    []
                 ),
                 unknown_tx_sids,
                 unknown_tx_hashes

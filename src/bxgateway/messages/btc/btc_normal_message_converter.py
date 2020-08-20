@@ -147,6 +147,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         buf = deque()
         short_ids = []
         original_size = len(block_msg.rawbytes())
+        ignored_sids = []
 
         header = block_msg.header()
         size += len(header)
@@ -165,6 +166,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             if short_id == constants.NULL_TX_SID or \
                     not enable_block_compression or \
                     short_id_assign_time > max_timestamp_for_compression:
+                if short_id != constants.NULL_TX_SIDS:
+                    ignored_sids.append(short_id)
                 buf.append(tx)
                 size += len(tx)
             else:
@@ -188,8 +191,10 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             prev_block_hash,
             original_size,
             size,
-            100 - float(size) / original_size * 100
+            100 - float(size) / original_size * 100,
+            ignored_sids
         )
+
         return memoryview(block), block_info
 
     def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
@@ -333,7 +338,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             None,
             len(compact_block.rawbytes()),
             None,
-            None
+            None,
+            []
         )
 
         if len(missing_transactions_indices) > 0:
@@ -368,7 +374,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             None,
             failed_block_info.original_size,  # pyre-ignore
             None,
-            None
+            None,
+            []
         )
         failed_compression_result.block_info = block_info
         return self._recovered_compact_block_to_bx_block(
@@ -449,7 +456,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             compression_block_info.prev_block_hash,
             compression_block_info.original_size,
             compression_block_info.compressed_size,
-            compression_block_info.compression_rate
+            compression_block_info.compression_rate,
+            compression_block_info.ignored_short_ids
         )
         return CompactBlockCompressionResult(True, block_info, bx_block, None, [], [])
 

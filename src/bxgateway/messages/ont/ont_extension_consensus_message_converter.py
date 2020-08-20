@@ -73,8 +73,10 @@ class OntExtensionConsensusMessageConverter(AbstractOntMessageConverter):
             tsk.prev_block_hash().hex_string(),
             original_size,
             compressed_size,
-            100 - float(compressed_size) / original_size * 100
+            100 - float(compressed_size) / original_size * 100,
+            tsk.ignored_short_ids()
         )
+
         self.compression_tasks.return_task(tsk)
         return block, block_info
 

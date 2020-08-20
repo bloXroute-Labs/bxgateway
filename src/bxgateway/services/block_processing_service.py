@@ -318,6 +318,13 @@ class BlockProcessingService:
             connection.log_error(log_messages.BLOCK_COMPRESSION_FAIL, e.msg_hash, e)
             return
 
+        if block_info.ignored_short_ids:
+            assert block_info.ignored_short_ids is not None
+            logger.debug(
+                "Ignoring {} new SIDs for {}: {}",
+                len(block_info.ignored_short_ids), block_info.block_hash, block_info.ignored_short_ids
+            )
+
         compression_rate = block_info.compression_rate
         assert compression_rate is not None
         block_stats.add_block_event_by_block_hash(

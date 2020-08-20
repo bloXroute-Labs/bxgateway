@@ -145,6 +145,7 @@ class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
         size = 0
         buf = deque()
         short_ids = []
+        ignored_sids = []
         original_size = len(consensus_msg.rawbytes())
 
         consensus_payload_header = consensus_msg.consensus_payload_header()
@@ -185,6 +186,8 @@ class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
             if short_id == constants.NULL_TX_SID or \
                     not enable_block_compression or \
                     short_id_assign_time > max_timestamp_for_compression:
+                if short_id != constants.NULL_TX_SIDS:
+                    ignored_sids.append(short_id)
                 buf.append(tx)
                 size += len(tx)
             else:
@@ -235,8 +238,10 @@ class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
             prev_block_hash,
             original_size,
             size,
-            100 - float(size) / original_size * 100
+            100 - float(size) / original_size * 100,
+            ignored_sids
         )
+
         return memoryview(block), block_info
 
     def bx_block_to_block(self, bx_block_msg: memoryview, tx_service: TransactionService) -> BlockDecompressionResult:
