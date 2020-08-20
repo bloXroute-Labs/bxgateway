@@ -203,20 +203,23 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             gateway_bdn_performance_stats_service.log_tx_from_bdn()
             attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
+            self.publish_new_transaction(
+                tx_hash, tx_contents
+            )
+
             if self.node.node_conn is not None:
                 blockchain_tx_message = self.node.message_converter.bx_tx_to_tx(msg)
-                self.publish_new_transaction(
-                    tx_hash, tx_contents
-                )
                 transaction_feed_stats_service.log_new_transaction(tx_hash)
-                self.node.send_msg_to_node(blockchain_tx_message)
-
-                tx_stats.add_tx_by_hash_event(
-                    tx_hash,
-                    TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
-                    network_num,
-                    short_id
-                )
+                sent = self.node.send_transaction_to_node(blockchain_tx_message)
+                if sent:
+                    tx_stats.add_tx_by_hash_event(
+                        tx_hash,
+                        TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
+                        network_num,
+                        short_id
+                    )
+                else:
+                    gateway_transaction_stats_service.log_dropped_transaction_from_relay()
 
         if attempt_recovery:
             self.node.block_processing_service.retry_broadcast_recovered_blocks(self)

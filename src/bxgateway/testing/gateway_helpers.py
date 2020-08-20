@@ -54,6 +54,7 @@ def get_gateway_opts(
     ws_port=28333,
     request_remote_transaction_streaming: bool = False,
     enable_block_compression: bool = True,
+    filter_txs_factor: float = 0,
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:
@@ -137,7 +138,8 @@ def get_gateway_opts(
             "process_node_txs_in_extension": True,
             "enable_eth_extensions": True,   # TODO remove,
             "request_recovery": True,
-            "enable_block_compression": enable_block_compression
+            "enable_block_compression": enable_block_compression,
+            "filter_txs_factor": filter_txs_factor
         }
     )
 

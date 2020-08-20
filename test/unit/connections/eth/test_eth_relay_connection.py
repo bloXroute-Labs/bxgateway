@@ -1,31 +1,36 @@
 from asynctest import MagicMock
 
+from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
+from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
+from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.new_transaction_feed import NewTransactionFeed, FeedSource
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
+from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
+    TransactionsEthProtocolMessage
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
-from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 
 
 class EthRelayConnectionTest(AbstractTestCase):
     def setUp(self) -> None:
-        opts = gateway_helpers.get_gateway_opts(8000)
+        pub_key = "a04f30a45aae413d0ca0f219b4dcb7049857bc3f91a6351288cce603a2c9646294a02b987bf6586b370b2c22d74662355677007a14238bb037aedf41c2d08866"
+        opts = gateway_helpers.get_gateway_opts(8000, pub_key=pub_key)
 
-        self.node = MockGatewayNode(opts)
-        self.node.message_converter = EthNormalMessageConverter()
+        node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
+        self.node = EthGatewayNode(opts, node_ssl_service)
         self.connection = helpers.create_connection(
             EthRelayConnection,
             self.node
         )
+        self.node_connection = None
 
     def test_publish_new_transaction(self):
-        bx_tx_message, _, _ = self.node.message_converter.tx_to_bx_txs(
-            mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE, 5
-        )[0]
+        bx_tx_message = self._convert_to_bx_message(mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE)
 
         self.node.feed_manager.publish_to_feed = MagicMock()
         self.connection.msg_tx(bx_tx_message)
@@ -37,3 +42,40 @@ class EthRelayConnectionTest(AbstractTestCase):
             NewTransactionFeed.NAME, expected_publication
         )
 
+    def test_transaction_updates_filters_based_on_factor(self):
+        self.node.opts.filter_txs_factor = 1
+        self._set_bc_connection()
+
+        transactions = [
+            mock_eth_messages.get_dummy_transaction(i, 10) for i in range(100)
+        ]
+        self.node.on_transactions_in_block(transactions)
+
+        cheap_tx = self._convert_to_bx_message(
+            TransactionsEthProtocolMessage(None, [mock_eth_messages.get_dummy_transaction(1, 5)])
+        )
+        self.connection.msg_tx(cheap_tx)
+        self.node_connection.enqueue_msg.assert_not_called()
+
+        expensive_tx = self._convert_to_bx_message(
+            TransactionsEthProtocolMessage(None, [mock_eth_messages.get_dummy_transaction(1, 15)])
+        )
+        self.connection.msg_tx(expensive_tx)
+        self.node_connection.enqueue_msg.assert_called_once()
+
+    def _convert_to_bx_message(self, transactions_eth_msg: TransactionsEthProtocolMessage) -> TxMessage:
+        bx_tx_message, _, _ = self.node.message_converter.tx_to_bx_txs(
+            transactions_eth_msg, 5
+        )[0]
+        return bx_tx_message
+
+    def _set_bc_connection(self) -> None:
+        node_connection = helpers.create_connection(
+            EthNodeConnection,
+            self.node,
+            port=10001
+        )
+        self.node_connection = node_connection
+        self.node.node_conn = node_connection
+        node_connection.on_connection_established()
+        node_connection.enqueue_msg = MagicMock()

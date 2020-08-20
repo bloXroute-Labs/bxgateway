@@ -6,6 +6,8 @@ from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.peer_info import ConnectionPeerInfo
@@ -27,6 +29,8 @@ from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
+from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
+    TransactionsEthProtocolMessage
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
@@ -35,9 +39,10 @@ from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlo
 from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
+from bxgateway.utils.running_average import RunningAverage
 from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
-from bxgateway import log_messages
+from bxgateway import log_messages, gateway_constants
 from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
 
@@ -103,6 +108,8 @@ class EthGatewayNode(AbstractGatewayNode):
         self.eth_ws_subscriber = EthWsSubscriber(opts.eth_ws_uri, self.feed_manager, self._tx_service)
         if self.opts.ws and not self.opts.eth_ws_uri:
             logger.warning(log_messages.ETH_WS_SUBSCRIBER_NOT_STARTED)
+
+        self.average_gas_price = RunningAverage(gateway_constants.ETH_GAS_RUNNING_AVERAGE_SIZE)
 
         logger.info("Gateway enode url: {}", self.get_enode())
 
@@ -371,3 +378,26 @@ class EthGatewayNode(AbstractGatewayNode):
     def on_new_subscriber_request(self) -> None:
         if self.opts.eth_ws_uri and not self.eth_ws_subscriber.running:
             asyncio.create_task(self.eth_ws_subscriber.revive())
+
+    def on_transactions_in_block(self, transactions: List[Transaction]) -> None:
+        for transaction in transactions:
+            self.average_gas_price.add_value(transaction.gas_price)
+
+    def send_transaction_to_node(self, msg: AbstractMessage) -> bool:
+        msg = cast(TransactionsEthProtocolMessage, msg)
+        assert len(msg.get_transactions()) == 1
+        transaction = msg.get_transactions()[0]
+
+        if (
+            float(transaction.gas_price)
+            >= self.average_gas_price.average * self.opts.filter_txs_factor
+        ):
+            return super().send_transaction_to_node(msg)
+        else:
+            logger.trace(
+                "Skipping sending transaction {} with gas price: {}. Average was {}",
+                transaction.hash(),
+                float(transaction.gas_price),
+                self.average_gas_price.average
+            )
+            return False

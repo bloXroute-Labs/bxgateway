@@ -34,11 +34,15 @@ def generate_eth_raw_transaction(source: FeedSource = FeedSource.BDN_SOCKET) -> 
     )
 
 
-def get_dummy_transaction(nonce: int, v: int = 27) -> Transaction:
+def get_dummy_transaction(
+    nonce: int, gas_price: Optional[int] = None, v: int = 27
+) -> Transaction:
+    if gas_price is None:
+        gas_price = 2 * nonce
     # create transaction object with dummy values multiplied by nonce to be able generate txs with different values
     return Transaction(
         nonce,
-        2 * nonce,
+        gas_price,
         3 * nonce,
         helpers.generate_bytes(eth_common_constants.ADDRESS_LEN),
         4 * nonce,

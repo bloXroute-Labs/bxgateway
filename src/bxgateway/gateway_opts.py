@@ -73,6 +73,7 @@ class GatewayOpts(CommonOpts):
     enable_eth_extensions: bool     # TODO remove
     request_recovery: bool
     enable_block_compression: bool
+    filter_txs_factor: float
 
     # IPC
     ipc: bool
@@ -143,7 +144,9 @@ class GatewayOpts(CommonOpts):
         return opts
 
     def __post_init__(self):
-        pass
+        if self.filter_txs_factor < 0:
+            logger.fatal("--filter_txs_factor cannot be below 0.")
+            sys.exit(1)
 
     def validate_eth_opts(self) -> None:
         if self.blockchain_ip is None:

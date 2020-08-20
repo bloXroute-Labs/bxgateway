@@ -303,6 +303,14 @@ def get_argument_parser() -> argparse.ArgumentParser:
         type=convert.str_to_bool,
         nargs='?',
     )
+    arg_parser.add_argument(
+        "--filter-txs-factor",
+        help="Ethereum only. Sets the factor of the average gas price to filter transactions below. "
+             "(i.e. 0 => send all transactions (average * 0), 1 => send all transactions with average or "
+             "higher gas price, etc.)",
+        type=float,
+        default=0
+    )
 
     return arg_parser
 

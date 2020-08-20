@@ -585,6 +585,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def is_local_blockchain_address(self, ip, port) -> bool:
         return ip == self.opts.blockchain_ip and port == self.opts.blockchain_port
 
+    def send_transaction_to_node(self, msg: AbstractMessage) -> bool:
+        self.send_msg_to_node(msg)
+        return True
+
     def send_msg_to_node(self, msg: AbstractMessage) -> None:
         """
         Sends a message to the blockchain node this is connected to.

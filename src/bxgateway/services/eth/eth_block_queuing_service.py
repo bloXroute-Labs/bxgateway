@@ -354,6 +354,8 @@ class EthBlockQueuingService(
         self.best_sent_block = SentEthBlockInfo(block_number, block_hash, time.time())
         self._schedule_confirmation_check(block_hash)
 
+        self.node.on_transactions_in_block(block_msg.to_new_block_msg().txns())
+
     def partial_chainstate(self, required_length: int) -> Deque[EthBlockInfo]:
         """
         Builds a current chainstate based on the current head. Attempts to maintain

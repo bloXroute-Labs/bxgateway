@@ -51,6 +51,7 @@ class GatewayTransactionStatInterval(StatsIntervalData):
         self.duplicate_compact_transactions_received_from_relays = 0
         self.redundant_transaction_content_messages = 0
         self.short_id_assignments_processed = 0
+        self.dropped_transactions_from_relay = 0
         self.transaction_tracker = {}
         self.transaction_intervals = deque()
 
@@ -129,6 +130,11 @@ class _GatewayTransactionStatsService(
         else:
             self.interval_data.duplicate_full_transactions_received_from_relays += 1
 
+    def log_dropped_transaction_from_relay(self) -> None:
+        interval_data = self.interval_data
+        assert interval_data is not None
+        interval_data.dropped_transactions_from_relay += 1
+
     def log_redundant_transaction_content(self) -> None:
         assert self.interval_data is not None
         self.interval_data.redundant_transaction_content_messages += 1
@@ -195,6 +201,7 @@ class _GatewayTransactionStatsService(
             "duplicate_full_transactions_received_from_relays": interval_data.duplicate_full_transactions_received_from_relays,
             "duplicate_compact_transactions_received_from_relays": interval_data.duplicate_compact_transactions_received_from_relays,
             "redundant_transaction_content_messages": interval_data.redundant_transaction_content_messages,
+            "dropped_transactions_from_relay": interval_data.dropped_transactions_from_relay,
             "short_ids_assignments_processed": interval_data.short_id_assignments_processed,
             "start_time": interval_data.start_time,
             "end_time": interval_data.end_time,
