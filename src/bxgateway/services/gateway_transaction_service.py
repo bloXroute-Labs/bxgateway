@@ -2,7 +2,10 @@ from typing import Union, cast, List, NamedTuple, Set, Optional, TYPE_CHECKING
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
+from bxcommon.models.blockchain_protocol import BlockchainProtocol
+from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.services.transaction_service import TransactionService, TransactionCacheKeyType
+from bxcommon.utils.blockchain_utils import transaction_validation
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
@@ -18,6 +21,7 @@ class ProcessTransactionMessageFromNodeResult(NamedTuple):
     transaction_hash: Sha256Hash
     transaction_contents: Union[bytearray, memoryview]
     bdn_transaction_message: TxMessage
+    tx_validation_status: TxValidationStatus
 
 
 class OntTxMessage(object):
@@ -35,7 +39,10 @@ class GatewayTransactionService(TransactionService):
 
     def process_transactions_message_from_node(
         self,
-        msg: Union[TxBtcMessage, TransactionsEthProtocolMessage, OntTxMessage]
+        msg: Union[TxBtcMessage, TransactionsEthProtocolMessage, OntTxMessage],
+        protocol: BlockchainProtocol,
+        min_tx_network_fee: int,
+        enable_transaction_validation: bool
     ) -> List[ProcessTransactionMessageFromNodeResult]:
 
         message_converter = cast(AbstractMessageConverter, self.node.message_converter)
@@ -44,20 +51,23 @@ class GatewayTransactionService(TransactionService):
         result = []
 
         for bx_tx_message, tx_hash, tx_bytes in bx_tx_messages:
-
             tx_cache_key = self._tx_hash_to_cache_key(tx_hash)
-
             tx_seen_flag = self.has_transaction_contents_by_cache_key(tx_cache_key)
 
             if not tx_seen_flag:
                 self.set_transaction_contents(tx_hash, tx_bytes)
 
-            result.append(ProcessTransactionMessageFromNodeResult(
-                tx_seen_flag,
-                tx_hash,
-                tx_bytes,
-                bx_tx_message
-            ))
+            tx_validation_status = TxValidationStatus.VALID_TX
+            if enable_transaction_validation:
+                tx_validation_status = transaction_validation.validate_transaction(
+                    tx_bytes, protocol, min_tx_network_fee
+                )
+
+            result.append(
+                ProcessTransactionMessageFromNodeResult(
+                    tx_seen_flag, tx_hash, tx_bytes, bx_tx_message, tx_validation_status
+                )
+            )
 
         return result
 

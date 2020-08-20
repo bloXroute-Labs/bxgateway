@@ -137,7 +137,7 @@ def get_gateway_opts(
             "process_node_txs_in_extension": True,
             "enable_eth_extensions": True,   # TODO remove,
             "request_recovery": True,
-            "enable_block_compression": enable_block_compression,
+            "enable_block_compression": enable_block_compression
         }
     )
 

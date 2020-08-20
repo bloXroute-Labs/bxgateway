@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import Union, Tuple, List
 
+from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_transaction_service_test_case import AbstractTransactionServiceTestCase
 from bxcommon.utils import convert
@@ -29,9 +30,16 @@ class TestAbstractGatewayTransactionService(AbstractTransactionServiceTestCase, 
         self.node = self._get_gateway_node()
         self.transaction_service = self._get_transaction_service()
 
-    def _test_process_transactions_message_from_node(self):
+    def _test_process_transactions_message_from_node(self, blockchain_protocol_name: str):
+        min_tx_network_fee = 0
+        if self.node.network_num in self.node.opts.blockchain_networks:
+            min_tx_network_fee = self.node.opts.blockchain_networks[self.node.network_num].min_tx_network_fee
+
         tx_message, test_txs_info = self._get_node_tx_message()
-        result = self.transaction_service.process_transactions_message_from_node(tx_message)
+        self.opts.transaction_validation = False
+        result = self.transaction_service.process_transactions_message_from_node(
+            tx_message, BlockchainProtocol(blockchain_protocol_name.lower()), min_tx_network_fee, True
+        )
 
         self.assertIsNotNone(result)
         self.assertEqual(len(test_txs_info), len(result))

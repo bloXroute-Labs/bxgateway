@@ -1,6 +1,6 @@
 import time
 from abc import ABCMeta
-from typing import TYPE_CHECKING, Set, Union
+from typing import TYPE_CHECKING, Set
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
@@ -16,7 +16,6 @@ from bxcommon.messages.bloxroute.hello_message import HelloMessage
 from bxcommon.messages.bloxroute.notification_message import NotificationMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.messages.validation.message_size_validation_settings import MessageSizeValidationSettings
-from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.entity_type_model import EntityType
 from bxcommon.models.notification_code import NotificationCode
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol

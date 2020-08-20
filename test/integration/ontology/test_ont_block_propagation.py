@@ -17,17 +17,20 @@ class OntBlockPropagationTest(AbstractGatewayIntegrationTest):
         return OntGatewayNode
 
     def gateway_opts_1(self) -> Namespace:
-        return gateway_helpers.get_gateway_opts(9000, sync_tx_service=False, include_default_ont_args=True)
+        return gateway_helpers.get_gateway_opts(
+            9000, sync_tx_service=False, include_default_ont_args=True, blockchain_network_num=33
+        )
 
     def gateway_opts_2(self) -> Namespace:
-        return gateway_helpers.get_gateway_opts(9001, sync_tx_service=False, include_default_ont_args=True)
+        return gateway_helpers.get_gateway_opts(
+            9001, sync_tx_service=False, include_default_ont_args=True, blockchain_network_num=33
+        )
 
     def test_transaction_propagation(self):
         initial_message = TxOntMessage(
             12345, 123, helpers.generate_bytearray(250)
         )
         transaction_hash = initial_message.tx_hash()
-
         self.gateway_1_receive_message_from_blockchain(initial_message)
 
         time.time = MagicMock(return_value=time.time() + 1)

@@ -5,6 +5,8 @@ from typing import List
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.models.blockchain_protocol import BlockchainProtocol
+from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.utils import performance_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
@@ -16,7 +18,7 @@ from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
-from bxutils import logging
+from bxutils import logging, log_messages
 from bxutils.logging.log_record_type import LogRecordType
 
 logger = logging.get_logger(__name__)
@@ -42,10 +44,20 @@ class AbstractBlockchainConnectionProtocol:
         start_time = time.time()
         txn_count = 0
         broadcast_txs_count = 0
+        network_num = self.connection.node.network_num
+        assert network_num in self.connection.node.opts.blockchain_networks
+        blockchain_network = self.connection.node.opts.blockchain_networks[network_num]
+        blockchain_protocol_name = blockchain_network.protocol
+
+        min_tx_network_fee = blockchain_network.min_tx_network_fee
 
         tx_service = self.connection.node.get_tx_service()
-
-        process_tx_msg_result = tx_service.process_transactions_message_from_node(msg)
+        process_tx_msg_result = tx_service.process_transactions_message_from_node(
+            msg,
+            BlockchainProtocol(blockchain_protocol_name.lower()),
+            min_tx_network_fee,
+            self.connection.node.opts.transaction_validation
+        )
 
         if not self.connection.node.opts.has_fully_updated_tx_service:
             logger.debug(
@@ -59,11 +71,64 @@ class AbstractBlockchainConnectionProtocol:
         for tx_result in process_tx_msg_result:
             txn_count += 1
 
+            if TxValidationStatus.INVALID_FORMAT in tx_result.tx_validation_status:
+                gateway_transaction_stats_service.log_tx_validation_failed_structure(network_num)
+                logger.warning(
+                    log_messages.NODE_RECEIVED_TX_WITH_INVALID_FORMAT,
+                    self.connection.node.NODE_TYPE,
+                    tx_result.transaction_hash,
+                    stats_format.connection(self.connection)
+                )
+
+                tx_stats.add_tx_by_hash_event(
+                    tx_result.transaction_hash,
+                    TransactionStatEventType.TX_VALIDATION_FAILED_STRUCTURE,
+                    self.connection.network_num,
+                    peer=stats_format.connection(self.connection)
+                )
+                continue
+
+            if TxValidationStatus.INVALID_SIGNATURE in tx_result.tx_validation_status:
+                gateway_transaction_stats_service.log_tx_validation_failed_signature(network_num)
+                logger.warning(
+                    log_messages.NODE_RECEIVED_TX_WITH_INVALID_SIG,
+                    self.connection.node.NODE_TYPE,
+                    tx_result.transaction_hash,
+                    stats_format.connection(self.connection)
+                )
+
+                tx_stats.add_tx_by_hash_event(
+                    tx_result.transaction_hash,
+                    TransactionStatEventType.TX_VALIDATION_FAILED_SIGNATURE,
+                    self.connection.network_num,
+                    peer=stats_format.connection(self.connection)
+                )
+                continue
+
+            if TxValidationStatus.LOW_FEE in tx_result.tx_validation_status:
+                gateway_transaction_stats_service.log_tx_validation_failed_gas_price()
+                logger.trace(
+                    "{} received transaction {} with gas price lower then the setting {}",
+                    self.connection.node.NODE_TYPE,
+                    tx_result.transaction_hash,
+                    min_tx_network_fee
+                )
+
+                tx_stats.add_tx_by_hash_event(
+                    tx_result.transaction_hash,
+                    TransactionStatEventType.TX_VALIDATION_FAILED_SIGNATURE,
+                    self.connection.network_num,
+                    peer=stats_format.connection(self.connection)
+                )
+                continue
+
             if tx_result.seen:
-                tx_stats.add_tx_by_hash_event(tx_result.transaction_hash,
-                                              TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
-                                              self.connection.network_num,
-                                              peer=stats_format.connection(self.connection))
+                tx_stats.add_tx_by_hash_event(
+                    tx_result.transaction_hash,
+                    TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
+                    self.connection.network_num,
+                    peer=stats_format.connection(self.connection)
+                )
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
                 continue
 
