@@ -37,6 +37,10 @@ class GatewayTransactionStatInterval(StatsIntervalData):
     total_node_transactions_process_time_broadcast_ms: float = 0
     total_node_transactions_process_time_after_broadcast_ms: float = 0
 
+    tx_validation_failed_gas_price: int = 0
+    tx_validation_failed_structure: int = 0
+    tx_validation_failed_signature: int = 0
+
     def __init__(self,) -> None:
         super(GatewayTransactionStatInterval, self).__init__()
         self.new_transactions_received_from_blockchain = 0
@@ -61,6 +65,10 @@ class GatewayTransactionStatInterval(StatsIntervalData):
         self.total_node_transactions_process_time_before_broadcast_ms = 0
         self.total_node_transactions_process_time_broadcast_ms = 0
         self.total_node_transactions_process_time_after_broadcast_ms = 0
+
+        self.tx_validation_failed_gas_price = 0
+        self.tx_validation_failed_structure = 0
+        self.tx_validation_failed_signature = 0
 
 
 class _GatewayTransactionStatsService(
@@ -111,10 +119,10 @@ class _GatewayTransactionStatsService(
         else:
             self.interval_data.new_full_transactions_received_from_relays += 1
 
-    def log_short_id_assignment_processed(self):
+    def log_short_id_assignment_processed(self) -> None:
         self.interval_data.short_id_assignments_processed += 1
 
-    def log_duplicate_transaction_from_relay(self, is_compact=False):
+    def log_duplicate_transaction_from_relay(self, is_compact=False) -> None:
         assert self.interval_data is not None
         if is_compact:
             self.interval_data.duplicate_compact_transactions_received_from_relays += 1
@@ -129,7 +137,8 @@ class _GatewayTransactionStatsService(
                                       processing_time_ms: float,
                                       processing_time_before_ext_ms: float,
                                       processing_time_ext_ms: float,
-                                      processing_time_after_ext_ms: float):
+                                      processing_time_after_ext_ms: float
+                                      ) -> None:
         interval_data = self.interval_data
         interval_data.total_bdn_transactions_processed += 1
         interval_data.total_bdn_transactions_process_time_ms += processing_time_ms
@@ -142,13 +151,23 @@ class _GatewayTransactionStatsService(
                                        duration_before_broadcast_ms: float,
                                        duration_broadcast_ms: float,
                                        duration_set_content_ms: float,
-                                       count: int):
+                                       count: int
+                                       ) -> None:
         interval_data = self.interval_data
         interval_data.total_node_transactions_processed += count
         interval_data.total_node_transactions_process_time_ms += total_duration_ms
         interval_data.total_node_transactions_process_time_before_broadcast_ms += duration_before_broadcast_ms
         interval_data.total_node_transactions_process_time_broadcast_ms += duration_broadcast_ms
         interval_data.total_node_transactions_process_time_after_broadcast_ms += duration_set_content_ms
+
+    def log_tx_validation_failed_signature(self,) -> None:
+        self.interval_data.tx_validation_failed_signature += 1
+
+    def log_tx_validation_failed_structure(self,) -> None:
+        self.interval_data.tx_validation_failed_structure += 1
+
+    def log_tx_validation_failed_gas_price(self,) -> None:
+        self.interval_data.tx_validation_failed_gas_price += 1
 
     def get_info(self) -> Dict[str, Any]:
         node = self.node
@@ -220,6 +239,9 @@ class _GatewayTransactionStatsService(
                 utils.safe_divide(
                     interval_data.total_node_transactions_process_time_after_broadcast_ms,
                     interval_data.total_node_transactions_processed),
+            "rejected_signature": interval_data.tx_validation_failed_signature,
+            "rejected_structure": interval_data.tx_validation_failed_structure,
+            "rejected_gas_price": interval_data.tx_validation_failed_gas_price,
             **node._tx_service.get_aggregate_stats(),
         }
 
