@@ -31,7 +31,7 @@ class IpcServerTest(AbstractGatewayRpcIntegrationTest):
     @async_test
     async def setUp(self) -> None:
         await super().setUp()
-        self.feed_manager = FeedManager()
+        self.feed_manager = FeedManager(self.gateway_node)
         self.server = IpcServer(
             "bxgateway.ipc", self.feed_manager, self.gateway_node
         )

@@ -428,3 +428,9 @@ COULD_NOT_SERIALIZE_FEED_ENTRY = LogMessage(
     PROCESSING_FAILED_CATEGORY,
     "Could not serialize feed entry. Skipping."
 )
+MISSING_TRANSACTION_STREAMER_PEER_INFO = LogMessage(
+    "G-000080",
+    CONNECTION_PROBLEM_CATEGORY,
+    "Missing transaction streamer peer info upon feed subscription. Connect attempt aborted. Please retry subscription if"
+    "you wish to subscribe to the pendingTxs feed and local Ethereum validation is not enabled via --eth-ws-uri."
+)

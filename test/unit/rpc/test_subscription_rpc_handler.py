@@ -25,7 +25,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         self.gateway = MockGatewayNode(
             gateway_helpers.get_gateway_opts(8000)
         )
-        self.feed_manager = FeedManager()
+        self.feed_manager = FeedManager(self.gateway)
         self.rpc = SubscriptionRpcHandler(self.gateway, self.feed_manager)
 
     @async_test

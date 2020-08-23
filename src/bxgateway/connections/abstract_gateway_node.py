@@ -88,6 +88,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     remote_blockchain_ip: Optional[str] = None
     remote_blockchain_port: Optional[int] = None
     remote_node_conn: Optional[AbstractGatewayBlockchainConnection] = None
+    transaction_streamer_peer: Optional[OutboundPeerModel] = None
 
     _blockchain_liveliness_alarm: Optional[AlarmId] = None
     _relay_liveliness_alarm: Optional[AlarmId] = None
@@ -111,6 +112,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[float, str]]
 
     feed_manager: FeedManager
+    has_feed_subscribers: bool
 
     tracked_block_cleanup_interval_s: float
     account_model: Optional[BdnAccountModelBase]
@@ -140,6 +142,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.account_model = None
 
         self.quota_level = 0
+        self.transaction_streamer_peer = None
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
         self.peer_transaction_relays = set(opts.peer_transaction_relays)
@@ -230,7 +233,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             logger.error(log_messages.INVALID_ACCOUNT_ID)
             self.default_tx_quota_type = QuotaType.FREE_DAILY_QUOTA
 
-        self.feed_manager = FeedManager()
+        self.has_feed_subscribers = False
+        self.feed_manager = FeedManager(self)
         self._rpc_server = self.build_rpc_server()
         self._ws_server = self.build_ws_server()
         self._ipc_server = IpcServer(opts.ipc_file, self.feed_manager, self)
@@ -834,8 +838,47 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         return result
 
+    def reevaluate_transaction_streamer_connection(self) -> None:
+        if self.NODE_TYPE is not NodeType.EXTERNAL_GATEWAY:
+            return
+        
+        if self.transaction_streamer_peer is None:
+            logger.error(log_messages.MISSING_TRANSACTION_STREAMER_PEER_INFO)
+            return
+        transaction_streamer_peer = self.transaction_streamer_peer
+        assert transaction_streamer_peer is not None
+
+        now_has_feed_subscribers = self.feed_manager.any_subscribers()
+        has_streamer_conn = self.connection_pool.has_connection(
+            transaction_streamer_peer.ip,
+            transaction_streamer_peer.port,
+            transaction_streamer_peer.node_id
+        )
+        if not self.has_feed_subscribers and now_has_feed_subscribers and not has_streamer_conn:
+            self.peer_gateways.add(transaction_streamer_peer)
+            self.enqueue_connection(
+                transaction_streamer_peer.ip, transaction_streamer_peer.port, convert.peer_node_to_connection_type(
+                    self.NODE_TYPE, transaction_streamer_peer.node_type
+                )
+            )
+        elif self.has_feed_subscribers and not now_has_feed_subscribers and has_streamer_conn:
+            rem_conn = self.connection_pool.get_by_ipport(
+                transaction_streamer_peer.ip, transaction_streamer_peer.port, transaction_streamer_peer.node_id
+            )
+            if rem_conn:
+                rem_conn.mark_for_close(False)
+        self.has_feed_subscribers = now_has_feed_subscribers
+
     def get_network_min_transaction_fee(self) -> int:
         return self.get_blockchain_network().min_tx_network_fee
+      
+    def _set_transaction_streamer_peer(self) -> None:
+        if self.transaction_streamer_peer is not None or self.NODE_TYPE is not NodeType.EXTERNAL_GATEWAY:
+            return
+        for peer in self.peer_gateways:
+            if peer.is_transaction_streamer():
+                self.transaction_streamer_peer = peer
+                return
 
     def _send_request_for_gateway_peers(self) -> int:
         """
@@ -862,12 +905,17 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         elif peer_gateways:
             logger.debug("Processing updated peer gateways: {}", peer_gateways)
             self._add_gateway_peers(peer_gateways)
+            self._set_transaction_streamer_peer()
             self.on_updated_peers(self._get_all_peers())
             self.send_request_for_gateway_peers_num_of_calls = 0
         return constants.CANCEL_ALARMS
 
     def _get_all_peers(self) -> Set[OutboundPeerModel]:
-        return self.peer_gateways.union(self.peer_relays).union(self.peer_transaction_relays)
+        peers = self.peer_gateways.union(self.peer_relays).union(self.peer_transaction_relays)
+        transaction_streamer_peer = self.transaction_streamer_peer
+        if transaction_streamer_peer is not None and not self.has_feed_subscribers:
+            peers.discard(transaction_streamer_peer)
+        return peers
 
     def _add_gateway_peers(self, gateways_peers: List[OutboundPeerModel]) -> None:
         for gateway_peer in gateways_peers:
