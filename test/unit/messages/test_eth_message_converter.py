@@ -6,29 +6,28 @@ from argparse import Namespace
 
 import rlp
 
-from bxcommon.constants import DEFAULT_TX_MEM_POOL_BUCKET_SIZE
-from bxcommon.services.extension_transaction_service import ExtensionTransactionService
-from bxcommon.test_utils import helpers
-from bxgateway.messages.eth.eth_abstract_message_converter import EthAbstractMessageConverter
-
-from bxgateway.testing import gateway_helpers
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+import bxgateway.messages.eth.eth_message_converter_factory as converter_factory
 from bxcommon import constants
+from bxcommon.constants import DEFAULT_TX_MEM_POOL_BUCKET_SIZE
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.messages.eth.serializers.transaction import Transaction
+from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.services.transaction_service import TransactionService
+from bxcommon.test_utils import helpers
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
-import bxgateway.messages.eth.eth_message_converter_factory as converter_factory
+from bxgateway.messages.eth.eth_abstract_message_converter import EthAbstractMessageConverter
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.compact_block import CompactBlock
 from bxgateway.messages.eth.serializers.short_transaction import ShortTransaction
-from bxcommon.messages.eth.serializers.transaction import Transaction
+from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
 
 
@@ -49,6 +48,7 @@ class multi_setup(object):
             instance.eth_message_converter = extension_converter
             instance.tx_service = extension_tx_service
             func(instance)
+
         return run_multi_setup
 
 
@@ -215,6 +215,81 @@ class EthMessageConverterTests(AbstractTestCase):
             else:
                 self.assertEqual(1, short_tx.full_transaction)
                 self.assertEqual(short_tx.transaction_bytes, txs_bytes[i - 1])
+
+        self.assertEqual(compact_block.chain_difficulty, block_msg.chain_difficulty)
+
+    @multi_setup()
+    def test_block_to_bx_block__short_ids_min_time(self):
+        txs = []
+        txs_bytes = []
+        txs_hashes = []
+        short_ids = []
+        used_short_ids = []
+
+        tx_count = 150
+
+        for i in range(1, tx_count):
+            tx = mock_eth_messages.get_dummy_transaction(1)
+            txs.append(tx)
+
+            tx_bytes = rlp.encode(tx, Transaction)
+            txs_bytes.append(tx_bytes)
+
+            tx_hash = tx.hash()
+            txs_hashes.append(tx_hash)
+
+            self.tx_service.assign_short_id(tx_hash, i)
+            short_ids.append(i)
+            used_short_ids.append(i)
+
+        block = Block(
+            mock_eth_messages.get_dummy_block_header(1),
+            txs,
+            [
+                mock_eth_messages.get_dummy_block_header(2),
+                mock_eth_messages.get_dummy_block_header(3),
+            ]
+        )
+
+        dummy_chain_difficulty = 10
+        block_msg = NewBlockEthProtocolMessage(None, block, dummy_chain_difficulty)
+        self.assertTrue(block_msg.rawbytes())
+        internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
+        bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(
+            internal_new_block_msg, self.tx_service, True, 2
+        )
+
+        self.assertEqual(len(txs), block_info.txn_count)
+
+        self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info.prev_block_hash)
+        self.assertEqual([], list(block_info.short_ids))
+
+        self.assertTrue(bx_block_msg)
+        self.assertIsInstance(bx_block_msg, memoryview)
+
+        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(bx_block_msg)
+        parsed_short_ids, short_ids_len = compact_block_short_ids_serializer.deserialize_short_ids_from_buffer(
+            bx_block_msg, block_offsets.short_id_offset
+        )
+        compact_block = rlp.decode(
+            bx_block_msg[block_offsets.block_begin_offset: block_offsets.short_id_offset].tobytes(),
+            CompactBlock
+        )
+        self.assertTrue(compact_block)
+        self.assertIsInstance(compact_block, CompactBlock)
+        self.assertEqual([], parsed_short_ids)
+
+        self._assert_values_equal(compact_block.header, block.header)
+        self._assert_values_equal(compact_block.uncles, block.uncles)
+
+        self.assertEqual(len(compact_block.transactions), len(block.transactions))
+
+        for tx, short_tx, i in zip(block.transactions, compact_block.transactions, range(1, tx_count)):
+            self.assertIsInstance(tx, Transaction)
+            self.assertIsInstance(short_tx, ShortTransaction)
+
+            self.assertEqual(1, short_tx.full_transaction)
+            self.assertEqual(short_tx.transaction_bytes, txs_bytes[i - 1])
 
         self.assertEqual(compact_block.chain_difficulty, block_msg.chain_difficulty)
 
@@ -517,8 +592,8 @@ class EthMessageConverterTests(AbstractTestCase):
     def _assert_values_equal(self, actual_value, expected_value, ):
 
         if isinstance(expected_value, collections.Iterable) and \
-                not isinstance(expected_value, bytearray) and \
-                not isinstance(expected_value, str):
+            not isinstance(expected_value, bytearray) and \
+            not isinstance(expected_value, str):
 
             for actual_item_value, expected_item_value in zip(actual_value, expected_value):
                 self._assert_values_equal(actual_item_value, expected_item_value)
@@ -537,7 +612,7 @@ class EthMessageConverterTests(AbstractTestCase):
     def init(self, use_extensions: bool):
         opts = Namespace()
         opts.use_extensions = use_extensions
-        opts.enable_eth_extensions = use_extensions     # TODO remove
+        opts.enable_eth_extensions = use_extensions  # TODO remove
         opts.import_extensions = use_extensions
         opts.tx_mem_pool_bucket_size = DEFAULT_TX_MEM_POOL_BUCKET_SIZE
         eth_message_converter = converter_factory.create_eth_message_converter(opts=opts)
