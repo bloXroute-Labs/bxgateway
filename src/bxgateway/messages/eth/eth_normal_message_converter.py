@@ -21,9 +21,6 @@ logger = logging.get_logger(__name__)
 
 class EthNormalMessageConverter(EthAbstractMessageConverter):
 
-    def __init__(self):
-        super().__init__()
-
     def block_to_bx_block(
         self,
         block_msg: InternalEthBlockInfo,

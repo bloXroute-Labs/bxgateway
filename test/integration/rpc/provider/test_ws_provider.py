@@ -29,9 +29,7 @@ from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigB
 def generate_new_eth_transaction() -> TxMessage:
     transaction = mock_eth_messages.get_dummy_transaction(1)
     transactions_eth_message = TransactionsEthProtocolMessage(None, [transaction])
-    tx_message = EthNormalMessageConverter().tx_to_bx_txs(
-        transactions_eth_message, 5
-    )[0][0]
+    tx_message = EthNormalMessageConverter().tx_to_bx_txs(transactions_eth_message, 5)[0][0]
     return tx_message
 
 

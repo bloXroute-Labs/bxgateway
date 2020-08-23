@@ -89,6 +89,25 @@ class EthMessageConverterTests(AbstractTestCase):
 
         self.validate_tx_to_bx_txs_conversion(tx_msg_from_bytes, txs)
 
+    def test_tx_to_bx_tx__filter_low_fee(self):
+        txs = [
+            mock_eth_messages.get_dummy_transaction(1, 20),
+            mock_eth_messages.get_dummy_transaction(2, 25),
+            mock_eth_messages.get_dummy_transaction(3, 10),
+        ]
+
+        tx_msg = TransactionsEthProtocolMessage(None, txs)
+
+        results = self.eth_message_converter.tx_to_bx_txs(
+            tx_msg, self.test_network_num, min_tx_network_fee=15
+        )
+
+        self.assertEqual(2, len(results))
+
+        for i, result in enumerate(results):
+            bx_tx_message, tx_hash, tx_contents = result
+            self.assertEqual(txs[i].hash(), tx_hash)
+
     def test_tx_to_bx_tx__from_bytes_single_tx_success(self):
         txs = [
             mock_eth_messages.get_dummy_transaction(1),

@@ -5,14 +5,13 @@ from bxutils import logging
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.utils.blockchain_utils.bdn_tx_to_bx_tx import bdn_tx_to_bx_tx
-from bxcommon.utils.blockchain_utils.eth.eth_common_utils import raw_tx_to_bx_tx
 from bxgateway.utils.eth.eth_utils import parse_transaction_bytes
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.block_info import BlockInfo
-from bxcommon.utils.blockchain_utils.eth import rlp_utils
+from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
 
 logger = logging.get_logger(__name__)
 
@@ -46,7 +45,11 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         self._last_recovery_idx: int = 0
 
     def tx_to_bx_txs(
-        self, tx_msg, network_num, quota_type: Optional[QuotaType] = None
+        self,
+        tx_msg,
+        network_num,
+        quota_type: Optional[QuotaType] = None,
+        min_tx_network_fee: int = 0
     ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         """
         Converts Ethereum transactions message to array of internal transaction messages
@@ -56,12 +59,14 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         :param tx_msg: Ethereum transaction message
         :param network_num: blockchain network number
         :param quota_type: the quota type to assign to the BDN transaction.
+        :param min_tx_network_fee: minimum transaction fee. excludes transactions with gas price below this value
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 
         if not isinstance(tx_msg, TransactionsEthProtocolMessage):
-            raise TypeError("TransactionsEthProtocolMessage is expected for arg tx_msg but was {0}"
-                            .format(type(tx_msg)))
+            raise TypeError(
+                f"TransactionsEthProtocolMessage is expected for arg tx_msg but was {type(tx_msg)}"
+            )
         bx_tx_msgs = []
 
         msg_bytes = memoryview(tx_msg.rawbytes())
@@ -72,8 +77,13 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         tx_start_index = 0
 
         while True:
-            bx_tx, tx_item_length, tx_item_start = raw_tx_to_bx_tx(txs_bytes, tx_start_index, network_num, quota_type)
-            bx_tx_msgs.append((bx_tx, bx_tx.message_hash(), bx_tx.tx_val()))
+            gas_price = eth_common_utils.raw_tx_gas_price(txs_bytes, tx_start_index)
+            bx_tx, tx_item_length, tx_item_start = eth_common_utils.raw_tx_to_bx_tx(
+                txs_bytes, tx_start_index, network_num, quota_type
+            )
+
+            if gas_price >= min_tx_network_fee:
+                bx_tx_msgs.append((bx_tx, bx_tx.message_hash(), bx_tx.tx_val()))
 
             tx_start_index = tx_item_start + tx_item_length
 

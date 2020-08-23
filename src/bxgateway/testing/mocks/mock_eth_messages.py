@@ -21,9 +21,7 @@ from bxgateway.messages.eth.serializers.transient_block_body import \
 def generate_eth_tx_message() -> TxMessage:
     transaction = get_dummy_transaction(1)
     transactions_eth_message = TransactionsEthProtocolMessage(None, [transaction])
-    tx_message = EthNormalMessageConverter().tx_to_bx_txs(
-        transactions_eth_message, 5
-    )[0][0]
+    tx_message = EthNormalMessageConverter().tx_to_bx_txs(transactions_eth_message, 5)[0][0]
     return tx_message
 
 

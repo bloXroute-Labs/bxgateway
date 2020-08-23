@@ -92,7 +92,8 @@ class OntRelayConnectionTest(AbstractTestCase):
 
         bx_transactions = []
         for i, transaction in enumerate(transactions):
-            transaction = self.gateway_node.message_converter.tx_to_bx_txs(transaction, self.TEST_NETWORK_NUM)[0][0]
+            transaction = self.gateway_node.message_converter.tx_to_bx_txs(transaction,
+                                                                           self.TEST_NETWORK_NUM)[0][0]
             if assign_short_ids:
                 transaction._short_id = i + 1  # 0 is null SID
             bx_transactions.append(transaction)

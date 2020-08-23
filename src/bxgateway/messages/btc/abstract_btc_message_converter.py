@@ -131,16 +131,19 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
 
         return btc_tx_msg
 
-    # pyre-fixme[14]: `tx_to_bx_txs` overrides method defined in
-    #  `AbstractMessageConverter` inconsistently.
-    def tx_to_bx_txs(self, btc_tx_msg, network_num, quota_type: Optional[QuotaType] = None) -> \
-            List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
-        if not isinstance(btc_tx_msg, TxBtcMessage):
+    def tx_to_bx_txs(
+        self,
+        tx_msg,
+        network_num: int,
+        quota_type: Optional[QuotaType] = None,
+        min_tx_network_fee: int = 0
+    ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
+        if not isinstance(tx_msg, TxBtcMessage):
             raise TypeError("tx_msg is expected to be of type TxBTCMessage")
 
-        tx_msg = TxMessage(btc_tx_msg.tx_hash(), network_num, tx_val=btc_tx_msg.tx(), quota_type=quota_type)
+        bx_tx_msg = TxMessage(tx_msg.tx_hash(), network_num, tx_val=tx_msg.tx(), quota_type=quota_type)
 
-        return [(tx_msg, btc_tx_msg.tx_hash(), btc_tx_msg.tx())]
+        return [(bx_tx_msg, tx_msg.tx_hash(), tx_msg.tx())]
 
     def bdn_tx_to_bx_tx(
             self,

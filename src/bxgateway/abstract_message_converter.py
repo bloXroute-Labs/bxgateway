@@ -53,14 +53,21 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def tx_to_bx_txs(self, tx_msg, network_num: int, quota_type: Optional[QuotaType] = None) -> \
-            List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
+    def tx_to_bx_txs(
+        self,
+        tx_msg,
+        network_num: int,
+        quota_type: Optional[QuotaType] = None,
+        min_tx_network_fee: int = 0
+    ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         """
         Converts blockchain transactions message to internal transaction message
 
         :param tx_msg: blockchain transactions message
         :param network_num: blockchain network number
         :param quota_type: the quota type to assign to the BDN transaction.
+        :param min_tx_network_fee: minimum transaction fee. If support by the network, transactions
+                                   with fees lower than this will be excluded from the result
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 
