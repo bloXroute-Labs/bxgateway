@@ -186,7 +186,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         # offset SDN calls so all the peers aren't queued up at the same time
         self.send_request_for_gateway_peers_num_of_calls = 0
         self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS + 2, self._send_request_for_gateway_peers)
-        self.network = self._get_blockchain_network()
+        self.network = self.get_blockchain_network()
 
         if opts.use_extensions:
             from bxgateway.services.extension_gateway_transaction_service import ExtensionGatewayTransactionService
@@ -834,6 +834,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         return result
 
+    def get_network_min_transaction_fee(self) -> int:
+        return self.get_blockchain_network().min_tx_network_fee
+
     def _send_request_for_gateway_peers(self) -> int:
         """
         Requests gateway peers from SDN. Merges list with provided command line gateways.
@@ -945,7 +948,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     return connection
         return None
 
-    def _get_blockchain_network(self) -> BlockchainNetworkModel:
+    def get_blockchain_network(self) -> BlockchainNetworkModel:
         if self.network_num in self.opts.blockchain_networks:
             return self.opts.blockchain_networks[self.network_num]
         raise EnvironmentError(

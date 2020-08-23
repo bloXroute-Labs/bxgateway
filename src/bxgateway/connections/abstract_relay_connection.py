@@ -366,6 +366,18 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                     self.node.opts.should_update_source_version, self.node.account_id,
                     self.node.quota_level
                 )
+        elif (
+            msg.notification_code() == NotificationCode.ASSIGNING_SHORT_IDS
+            or msg.notification_code() == NotificationCode.NOT_ASSIGNING_SHORT_IDS
+        ):
+            is_assigning = msg.notification_code() == NotificationCode.ASSIGNING_SHORT_IDS
+            peer_model = self.peer_model
+            if peer_model is not None:
+                peer_model.assigning_short_ids = is_assigning
+            if self.node.opts.split_relays:
+                for peer_model in self.node.peer_transaction_relays:
+                    if peer_model.ip == self.peer_ip and peer_model.node_id == self.peer_id:
+                        peer_model.assigning_short_ids = is_assigning
 
         if msg.level() == LogLevel.WARNING or msg.level() == LogLevel.ERROR:
             self.log(msg.level(), log_messages.NOTIFICATION_FROM_RELAY, msg.formatted_message())

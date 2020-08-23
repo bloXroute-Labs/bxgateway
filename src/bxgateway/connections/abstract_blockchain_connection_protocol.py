@@ -45,17 +45,14 @@ class AbstractBlockchainConnectionProtocol:
         txn_count = 0
         broadcast_txs_count = 0
         network_num = self.connection.node.network_num
-        assert network_num in self.connection.node.opts.blockchain_networks
-        blockchain_network = self.connection.node.opts.blockchain_networks[network_num]
+        blockchain_network = self.connection.node.get_blockchain_network()
         blockchain_protocol_name = blockchain_network.protocol
-
-        min_tx_network_fee = blockchain_network.min_tx_network_fee
 
         tx_service = self.connection.node.get_tx_service()
         process_tx_msg_result = tx_service.process_transactions_message_from_node(
             msg,
             BlockchainProtocol(blockchain_protocol_name.lower()),
-            min_tx_network_fee,
+            self.connection.node.get_network_min_transaction_fee(),
             self.connection.node.opts.transaction_validation
         )
 
