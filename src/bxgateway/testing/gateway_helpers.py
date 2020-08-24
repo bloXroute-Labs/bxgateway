@@ -55,6 +55,7 @@ def get_gateway_opts(
     request_remote_transaction_streaming: bool = False,
     enable_block_compression: bool = True,
     filter_txs_factor: float = 0,
+    blockchain_protocol: str = "Bitcoin",
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:
@@ -91,7 +92,7 @@ def get_gateway_opts(
             "bloxroute_version": bloxroute_version,
             "blockchain_ip": blockchain_address[0],
             "blockchain_port": blockchain_address[1],
-            "blockchain_protocol": "Bitcoin",
+            "blockchain_protocol": blockchain_protocol,
             "blockchain_network": "Mainnet",
             "blockchain_version": 12345,
             "test_mode": test_mode,

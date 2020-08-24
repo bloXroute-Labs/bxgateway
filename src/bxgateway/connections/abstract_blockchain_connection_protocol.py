@@ -69,7 +69,7 @@ class AbstractBlockchainConnectionProtocol:
             txn_count += 1
 
             if TxValidationStatus.INVALID_FORMAT in tx_result.tx_validation_status:
-                gateway_transaction_stats_service.log_tx_validation_failed_structure(network_num)
+                gateway_transaction_stats_service.log_tx_validation_failed_structure()
                 logger.warning(
                     log_messages.NODE_RECEIVED_TX_WITH_INVALID_FORMAT,
                     self.connection.node.NODE_TYPE,
@@ -86,7 +86,7 @@ class AbstractBlockchainConnectionProtocol:
                 continue
 
             if TxValidationStatus.INVALID_SIGNATURE in tx_result.tx_validation_status:
-                gateway_transaction_stats_service.log_tx_validation_failed_signature(network_num)
+                gateway_transaction_stats_service.log_tx_validation_failed_signature()
                 logger.warning(
                     log_messages.NODE_RECEIVED_TX_WITH_INVALID_SIG,
                     self.connection.node.NODE_TYPE,
@@ -105,15 +105,14 @@ class AbstractBlockchainConnectionProtocol:
             if TxValidationStatus.LOW_FEE in tx_result.tx_validation_status:
                 gateway_transaction_stats_service.log_tx_validation_failed_gas_price()
                 logger.trace(
-                    "{} received transaction {} with gas price lower then the setting {}",
-                    self.connection.node.NODE_TYPE,
+                    "transaction {} has gas price lower then the setting {}",
                     tx_result.transaction_hash,
-                    min_tx_network_fee
+                    self.connection.node.get_network_min_transaction_fee()
                 )
 
                 tx_stats.add_tx_by_hash_event(
                     tx_result.transaction_hash,
-                    TransactionStatEventType.TX_VALIDATION_FAILED_SIGNATURE,
+                    TransactionStatEventType.TX_VALIDATION_FAILED_GAS_PRICE,
                     self.connection.network_num,
                     peer=stats_format.connection(self.connection)
                 )
