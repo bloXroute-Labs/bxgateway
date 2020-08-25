@@ -3,20 +3,21 @@ import asyncio
 import sys
 import time
 from datetime import datetime
-from typing import Optional, Dict, TextIO, Set
+from typing import Optional, Dict, TextIO, Set, cast
 
 from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
 from bloxroute_cli.provider.ws_provider import WsProvider
+from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 
 
 class HashEntry:
     block_hash = None
-    gateway_time_received: Optional[float] = None
-    eth_node_time_received: Optional[float] = None
+    gateway_time_received: float = 0
+    eth_node_time_received: float = 0
 
     def __init__(
-        self, block_hash: str, gateway_time_received: Optional[float] = None, node_time_received: Optional[float] = None
+        self, block_hash: str, gateway_time_received: float = 0, node_time_received: float = 0
     ) -> None:
         self.block_hash = block_hash
         self.gateway_time_received = gateway_time_received
@@ -29,12 +30,12 @@ class HashEntry:
         )
 
 
-ws_provider: Optional[WsProvider] = None
-eth_ws_provider: Optional[EthWsSubscriber] = None
+ws_provider: WsProvider
+eth_ws_provider: EthWsSubscriber
 time_to_begin_comparison = 0.0
 time_to_end_comparison = 0.0
-all_hashes_file: Optional[TextIO] = None
-missing_hashes_file: Optional[TextIO] = None
+all_hashes_file: TextIO
+missing_hashes_file: TextIO
 trail_new_hashes: Set[str] = set()
 lead_new_hashes: Set[str] = set()
 seen_hashes: Dict[str, HashEntry] = {}
@@ -55,12 +56,16 @@ async def main() -> None:
 
     global all_hashes_file
     if "ALL" in args.dump:
-        all_hashes_file = open("all_block_hashes.csv", "w")
+        all_hashes_file = cast(TextIO, open("all_block_hashes.csv", "w"))
         all_hashes_file.write("block-hash,blxr Time,eth Time\n")
+    else:
+        all_hashes_file = cast(TextIO, None)
 
     global missing_hashes_file
     if "MISSING" in args.dump:
-        missing_hashes_file = open("missing_block_hashes.txt", "w")
+        missing_hashes_file = cast(TextIO, open("missing_block_hashes.txt", "w"))
+    else:
+        missing_hashes_file = cast(TextIO, None)
 
     time_to_begin_comparison = time.time() + args.lead_time
     time_to_end_comparison = time_to_begin_comparison + args.interval
@@ -107,6 +112,7 @@ async def process_new_blocks_bdn(feed_name: str, exclude_block_contents: bool):
     options = None
     if exclude_block_contents:
         options = {"include": ["hash", "header"]}
+
     subscription_id = await ws_provider.subscribe(feed_name, options)
 
     while True:
@@ -134,7 +140,7 @@ async def process_new_blocks_cloud_api(ssl_dir: str, feed_name: str, exclude_blo
     async with CloudWssProvider(ws_uri=ws_uri, ssl_dir=ssl_dir) as ws:
         print(f"websockets endpoint: {ws_uri} established")
         global ws_provider
-        ws_provider = ws
+        ws_provider = cast(CloudWssProvider, ws)
 
         await process_new_blocks_bdn(feed_name, exclude_block_contents)
 
@@ -144,7 +150,7 @@ async def process_new_blocks_gateway(gateway_url: str, feed_name: str, exclude_b
     async with WsProvider(gateway_url) as ws:
         print(f"websockets endpoint: {gateway_url} established")
         global ws_provider
-        ws_provider = ws
+        ws_provider = cast(WsProvider, ws)
 
         await process_new_blocks_bdn(feed_name, exclude_block_contents)
 
@@ -162,11 +168,13 @@ def handle_eth_block_hash(block_hash, time_received: float):
 
 async def process_new_blocks_eth(eth_url: str, exclude_block_contents: bool) -> None:
     print(f"Initiating connection to: {eth_url}")
+    # TODO: Check the call to EthWsSubscriber. 2nd argument should be FeedManager and not bool
+    # pyre-fixme[6]: Expected `FeedManager` for 1st param but got `bool`.
     async with EthWsSubscriber(eth_url, False, None) as eth_ws:
         print(f"websockets endpoint: {eth_url} established")
 
         global eth_ws_provider
-        eth_ws_provider = eth_ws
+        eth_ws_provider = cast(EthWsSubscriber, eth_ws)
         subscription_id = await eth_ws.subscribe("newHeads")
 
         while True:
