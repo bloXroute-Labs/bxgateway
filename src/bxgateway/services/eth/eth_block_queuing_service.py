@@ -499,7 +499,7 @@ class EthBlockQueuingService(
 
         Returns (success, [found_hashes])
         """
-        if block_hash not in self._blocks:
+        if block_hash not in self._blocks or self._blocks[block_hash] is None:
             return False, []
 
         if block_hash in self._blocks_waiting_for_recovery and self._blocks_waiting_for_recovery[block_hash]:
@@ -839,6 +839,8 @@ class EthBlockQueuingService(
             block_hash
         )
         self.remove_from_queue(block_hash)
+        if block_hash in self._blocks and self._blocks[block_hash] is None:
+            self.remove(block_hash)
 
     def _check_for_sent_or_queued_forked_block(self, block_hash: Sha256Hash, block_number: int) -> bool:
         """
