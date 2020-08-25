@@ -17,12 +17,15 @@ from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
+from bxgateway.feed.feed_source import FeedSource
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.services.block_recovery_service import BlockRecoveryInfo, RecoveredTxsSource
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
-from bxutils import logging
 from bxgateway import log_messages
+
+from bxutils import logging
+
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -533,6 +536,9 @@ class BlockProcessingService:
                                      block_hash)
             else:
                 self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
+            self._node.publish_block(
+                None, block_hash, block_message, FeedSource.BDN_SOCKET
+            )
 
     def start_transaction_recovery(
         self,

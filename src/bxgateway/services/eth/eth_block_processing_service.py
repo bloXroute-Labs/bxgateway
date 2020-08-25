@@ -1,5 +1,3 @@
-
-from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import (
     GetBlockBodiesEthProtocolMessage,
 )

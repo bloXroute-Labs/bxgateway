@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Iterable
+from typing import TYPE_CHECKING
 
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
@@ -9,8 +9,8 @@ from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InventoryOntType
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 
-
-from bxcommon import constants
+if TYPE_CHECKING:
+    from bxgateway.connections.ont.ont_gateway_node import OntGatewayNode
 
 from bxutils import logging
 
@@ -22,8 +22,7 @@ class AbstractOntBlockCleanupService(AbstractBlockCleanupService):
     Service for managing block cleanup.
     """
 
-    # pyre-fixme[11]: Annotation `OntGatewayNode` is not defined as a type.
-    def __init__(self, node: "OntGatewayNode", network_num: int):
+    def __init__(self, node: "OntGatewayNode", network_num: int) -> None:
         """
         Constructor
         :param node: reference to node object
@@ -57,6 +56,7 @@ class AbstractOntBlockCleanupService(AbstractBlockCleanupService):
         block_request_message = GetDataOntMessage(
             magic=self.node.opts.blockchain_net_magic,
             inv_type=InventoryOntType.MSG_BLOCK.value,
+            # pyre-fixme[6]: Expected `[OntObjectHash]` for 3rd parameter but got `Sha256Hash`
             block=block_hash
         )
         self.node.send_msg_to_node(block_request_message)

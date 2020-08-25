@@ -24,17 +24,17 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
     # pyre-fixme[8]: Attribute has type `Block`; used as `None`.
     block: Block = None
 
-    def __init__(self, msg_bytes, *args, **kwargs):
+    def __init__(self, msg_bytes, *args, **kwargs) -> None:
         super(NewBlockEthProtocolMessage, self).__init__(msg_bytes, *args, **kwargs)
 
-        self._block_header = None
-        self._block_body = None
+        self._block_header: Optional[BlockHeader] = None
+        self._block_body: Optional[Block] = None
         self._block_hash: Optional[Sha256Hash] = None
-        self._timestamp = None
-        self._chain_difficulty = None
+        self._timestamp: Optional[int] = None
+        self._chain_difficulty: Optional[int] = None
         self._number: Optional[int] = None
 
-    def extra_stats_data(self):
+    def extra_stats_data(self) -> str:
         return "Full block"
 
     @classmethod
@@ -78,29 +78,31 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
 
         return cls(new_block_bytes)
 
-    def log_level(self):
+    def log_level(self) -> LogLevel:
         return LogLevel.DEBUG
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"NewBlockEthProtocolMessage<block_hash: {self.block_hash()}, " \
                f"number: {self.number()}>"
 
     def get_block(self) -> Block:
         return self.get_field_value("block")
 
-    def chain_difficulty(self):
-        if self._chain_difficulty is None:
+    def get_chain_difficulty(self) -> int:
+        chain_difficulty = self._chain_difficulty
+        if chain_difficulty is None:
             _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
             block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
             _, block_itm_len, block_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
 
-            self._chain_difficulty, _ = rlp_utils.decode_int(block_msg_bytes, block_itm_start + block_itm_len)
+            chain_difficulty, _ = rlp_utils.decode_int(block_msg_bytes, block_itm_start + block_itm_len)
+            self._chain_difficulty = chain_difficulty
+        return chain_difficulty
 
-        return self._chain_difficulty
-
-    def block_header(self):
-        if self._block_header is None:
+    def block_header(self) -> memoryview:
+        block_header = self._block_header
+        if block_header is None:
             _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
             block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
@@ -108,9 +110,9 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             block_itm_bytes = block_msg_bytes[block_msg_itm_start:block_msg_itm_start + block_itm_len]
 
             _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
-            self._block_header = block_itm_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
-
-        return self._block_header
+            block_header = block_itm_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
+            self._block_header = block_header
+        return block_header
 
     def block_hash(self) -> Sha256Hash:
         if self._block_hash is None:
@@ -143,7 +145,8 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
         """
         :return: seconds since epoch
         """
-        if self._timestamp is None:
+        timestamp = self._timestamp
+        if timestamp is None:
             _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
             block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
@@ -165,15 +168,14 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
 
             timestamp, _timestamp_length = rlp_utils.decode_int(block_hdr_bytes, offset)
             self._timestamp = timestamp
-        assert self._timestamp is not None
-        # pyre-fixme[7]: Expected `int` but got `None`.
-        return self._timestamp
+        return timestamp
 
     def number(self) -> int:
         """
         :return: block height
         """
-        if self._number is None:
+        number = self._number
+        if number is None:
             _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
             block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
@@ -186,11 +188,9 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             offset = BlockHeader.FIXED_LENGTH_FIELD_OFFSET
             _difficulty, difficulty_length = rlp_utils.decode_int(block_hdr_bytes, offset)
             offset += difficulty_length
-            self._number, _ = rlp_utils.decode_int(block_hdr_bytes, offset)
-
-        assert self._number is not None
-        # pyre-fixme[7]: Expected `int` but got `Optional[int]`.
-        return self._number
+            number, _ = rlp_utils.decode_int(block_hdr_bytes, offset)
+            self._number = number
+        return number
 
     def txns(self) -> List[Transaction]:
         txns = self.get_block().transactions

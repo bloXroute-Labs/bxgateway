@@ -29,6 +29,8 @@ class GatewayOpts(CommonOpts):
     blockchain_networks: Dict[int, BlockchainNetworkModel]
     blockchain_block_recovery_timeout_s: int
     blockchain_block_hold_timeout_s: int
+    blockchain_block_interval: int
+    blockchain_ignore_block_interval_count: int
     blockchain_ip: str
     peer_gateways: Set[OutboundPeerModel]
     peer_transaction_relays: Set[OutboundPeerModel]
@@ -196,7 +198,7 @@ class GatewayOpts(CommonOpts):
             logger.fatal(log_messages.MISSING_BLOCKCHAIN_PROTOCOL)
             sys.exit(1)
 
-        if blockchain_protocol == BlockchainProtocol.ETHEREUM.value:
+        if blockchain_protocol == BlockchainProtocol.ETHEREUM:
             self.validate_eth_opts()
 
         self.blockchain_ip = validate_blockchain_ip(

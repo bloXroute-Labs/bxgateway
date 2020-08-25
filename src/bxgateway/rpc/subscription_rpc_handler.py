@@ -9,6 +9,8 @@ from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.rpc.requests.transaction_status_rpc_request import TransactionStatusRpcRequest
 from bxcommon.rpc.rpc_request_type import RpcRequestType
+from bxcommon.models.blockchain_protocol import BlockchainProtocol
+
 from bxgateway import gateway_constants, log_messages
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.subscriber import Subscriber
@@ -23,6 +25,7 @@ from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcReques
 from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
+from bxgateway.rpc.requests.gateway_blxr_call_rpc_request import GatewayBlxrCallRpcRequest
 from bxutils import logging
 from bxutils.encoding.json_encoder import Case
 
@@ -50,6 +53,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
         super().__init__(node, case)
         self.request_handlers = {
             RpcRequestType.BLXR_TX: GatewayBlxrTransactionRpcRequest,
+            RpcRequestType.BLXR_ETH_CALL: GatewayBlxrCallRpcRequest,
             RpcRequestType.GATEWAY_STATUS: GatewayStatusRpcRequest,
             RpcRequestType.STOP: GatewayStopRpcRequest,
             RpcRequestType.MEMORY: GatewayMemoryRpcRequest,
@@ -61,6 +65,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest,
             RpcRequestType.TX_STATUS: TransactionStatusRpcRequest,
         }
+
         self.feed_manager = feed_manager
         self.subscriptions = {}
         self.subscribed_messages = asyncio.Queue(

@@ -1,17 +1,12 @@
-from enum import Enum, auto
 from typing import NamedTuple, Dict, Any
 
 from bxcommon.rpc.rpc_errors import RpcInvalidParams
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.rpc import rpc_constants
 from bxgateway.feed.feed import Feed
 from bxgateway.feed.subscriber import Subscriber
-
-
-class FeedSource(Enum):
-    BLOCKCHAIN_SOCKET = auto()
-    BLOCKCHAIN_RPC = auto()
-    BDN_SOCKET = auto()
+from bxgateway.feed.feed_source import FeedSource
 
 
 class RawTransactionFeedEntry:
@@ -41,7 +36,7 @@ class RawTransaction(NamedTuple):
 
 
 class NewTransactionFeed(Feed[RawTransactionFeedEntry, RawTransaction]):
-    NAME = "newTxs"
+    NAME = rpc_constants.NEW_TRANSACTION_FEED_NAME
     FIELDS = ["tx_hash", "tx_contents"]
 
     def __init__(self) -> None:

@@ -9,7 +9,6 @@ from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.new_transaction_feed import NewTransactionFeed, FeedSource
-from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
 from bxgateway.testing import gateway_helpers

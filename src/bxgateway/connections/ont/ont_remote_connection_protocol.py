@@ -41,7 +41,7 @@ class OntRemoteConnectionProtocol(OntBaseConnectionProtocol):
         if self.connection.is_active():
             self.connection.node.on_remote_blockchain_connection_ready(self.connection)
 
-    def msg_block(self, msg: BlockOntMessage):
+    def msg_block(self, msg: BlockOntMessage) -> None:
         block_stats.add_block_event_by_block_hash(
             msg.block_hash(),
             BlockStatEventType.REMOTE_BLOCK_RECEIVED_BY_GATEWAY,

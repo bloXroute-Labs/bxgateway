@@ -202,6 +202,9 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
         block_body_bytes = new_block_details.block_body_bytes
         block_number = new_block_details.block_number
 
+        if isinstance(block_body_bytes, (bytes, bytearray)):
+            block_body_bytes = memoryview(block_body_bytes)
+
         # block body content includes transactions and uncles
         _, block_content_len, block_content_start = rlp_utils.consume_length_prefix(block_body_bytes, 0)
         block_body_conent = block_body_bytes[block_content_start:]

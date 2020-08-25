@@ -91,6 +91,8 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
             self.connection, True, dummy_private_key, dummy_public_key
         )
         self.sut._waiting_checkpoint_headers_request = False
+        self.node.opts.ws = True
+        self.node.publish_block = MagicMock()
 
     def test_request_block_bodies(self):
         self.cleanup_service.clean_block_transactions_by_block_components = (
@@ -434,6 +436,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.sut.msg_proxy_request.reset_mock()
 
         self.sut.msg_block(block_messages[17].to_new_block_msg())
+        self.node.publish_block.assert_called()
         self.sut.msg_get_block_headers(message)
 
         self.sut.msg_proxy_request.assert_not_called()

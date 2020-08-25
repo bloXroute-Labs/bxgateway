@@ -2,6 +2,7 @@ import asyncio
 # TODO: remove try-catch when removing py3.7 support
 import functools
 
+from bxgateway.feed.new_block_feed import NewBlockFeed
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 
 try:
@@ -12,7 +13,7 @@ except ImportError:
 import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Future
-from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, cast
+from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable
 from prometheus_client import Gauge
 
 from bxcommon import constants
@@ -42,15 +43,16 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxcommon.rpc import rpc_constants
 from bxgateway import gateway_constants
 from bxgateway import log_messages
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
-from bxcommon.rpc import rpc_constants
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.new_transaction_feed import NewTransactionFeed
+from bxgateway.feed.feed_source import FeedSource
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
@@ -347,6 +349,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def init_live_feeds(self) -> None:
         self.feed_manager.register_feed(NewTransactionFeed())
+        self.feed_manager.register_feed(NewBlockFeed())
 
     def send_bdn_performance_stats(self) -> int:
         relay_connection = next(iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])), None)
@@ -732,10 +735,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         # Reset number of retries in case if SDN instructs to connect to the same node again
         self.num_retries_by_ip[(ip, port)] = 0
 
-    def on_updated_remote_blockchain_peer(self, outbound_peer) -> None:
+    def on_updated_remote_blockchain_peer(self, outbound_peer) -> int:
         self.remote_blockchain_ip = outbound_peer.ip
         self.remote_blockchain_port = outbound_peer.port
         self.enqueue_connection(outbound_peer.ip, outbound_peer.port, ConnectionType.REMOTE_BLOCKCHAIN_NODE)
+        return constants.CANCEL_ALARMS
 
     def on_block_seen_by_blockchain_node(
         self,
@@ -756,9 +760,21 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             block_message,
             block_number
         )
+        self.publish_block(
+            block_number, block_hash, block_message, FeedSource.BLOCKCHAIN_SOCKET
+        )
 
         self.log_blocks_network_content(self.network_num, block_message)
         return recovery_canceled
+
+    def publish_block(
+        self,
+        block_number: Optional[int],
+        block_hash: Sha256Hash,
+        block_message: Optional[AbstractBlockMessage],
+        source: FeedSource
+    ):
+        pass
 
     def log_blocks_network_content(self, network_num: int, block_msg) -> None:
         pass

@@ -42,7 +42,11 @@ class IpcServerTest(AbstractGatewayRpcIntegrationTest):
 
     def get_gateway_opts(self) -> GatewayOpts:
         super().get_gateway_opts()
-        return gateway_helpers.get_gateway_opts(8000, )
+        return gateway_helpers.get_gateway_opts(
+            8000,
+            blockchain_protocol="Ethereum",
+            account_model=self._account_model
+        )
 
     async def request(self, req: BxJsonRpcRequest) -> JsonRpcResponse:
         async with websockets.unix_connect(self.ipc_path) as ws:

@@ -1,6 +1,6 @@
 import time
 from abc import ABCMeta, abstractmethod
-from typing import List
+from typing import List, Optional
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
@@ -192,10 +192,14 @@ class AbstractBlockchainConnectionProtocol:
             duration_set_content_ms=duration_set_content_ms
         )
 
-    def msg_block(self, msg: AbstractBlockMessage):
+    @abstractmethod
+    def msg_block(self, msg: AbstractBlockMessage) -> None:
         """
         Handle a block message. Sends to node for encryption, then broadcasts.
         """
+        pass
+
+    def process_msg_block(self, msg: AbstractBlockMessage, block_number: Optional[int] = None) -> None:
         block_hash = msg.block_hash()
         node = self.connection.node
         # if gateway is still syncing, skip this process
@@ -214,7 +218,7 @@ class AbstractBlockchainConnectionProtocol:
             )
         )
         if block_hash in self.connection.node.blocks_seen.contents:
-            node.on_block_seen_by_blockchain_node(block_hash)
+            node.on_block_seen_by_blockchain_node(block_hash, block_number=block_number)
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
@@ -234,6 +238,7 @@ class AbstractBlockchainConnectionProtocol:
             return
 
         node.track_block_from_node_handling_started(block_hash)
+        node.on_block_seen_by_blockchain_node(block_hash, msg, block_number=block_number)
         node.block_processing_service.queue_block_for_processing(msg, self.connection)
         gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
         node.block_queuing_service.store_block_data(block_hash, msg)
@@ -252,7 +257,10 @@ class AbstractBlockchainConnectionProtocol:
         self.connection.node.send_msg_to_node(msg)
 
     def is_valid_block_timestamp(self, msg: AbstractBlockMessage) -> bool:
-        max_time_offset = self.connection.node.opts.blockchain_block_interval * self.connection.node.opts.blockchain_ignore_block_interval_count
+        max_time_offset = (
+            self.connection.node.opts.blockchain_block_interval *
+            self.connection.node.opts.blockchain_ignore_block_interval_count
+        )
         if time.time() - msg.timestamp() >= max_time_offset:
             self.connection.log_trace("Received block {} more than {} seconds after it was created ({}). Ignoring.",
                                       msg.block_hash(), max_time_offset, msg.timestamp())

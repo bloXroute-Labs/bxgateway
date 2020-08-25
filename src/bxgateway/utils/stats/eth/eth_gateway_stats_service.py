@@ -3,7 +3,8 @@ from typing import Type, Dict, Any, TYPE_CHECKING
 
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
-from bxgateway import gateway_constants
+from bxgateway import eth_constants
+
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
 
@@ -28,8 +29,8 @@ class EthGatewayStatInterval(StatsIntervalData):
 class _EthGatewayStatsService(StatisticsService[EthGatewayStatInterval, "AbstractGatewayNode"]):
     def __init__(
         self,
-        interval: int = gateway_constants.ETH_GATEWAY_STATS_INTERVAL,
-        look_back: int = gateway_constants.ETH_GATEWAY_STATS_LOOKBACK,
+        interval: int = eth_constants.ETH_GATEWAY_STATS_INTERVAL,
+        look_back: int = eth_constants.ETH_GATEWAY_STATS_LOOKBACK,
     ) -> None:
         super(_EthGatewayStatsService, self).__init__(
             "EthGatewayStatsService",

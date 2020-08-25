@@ -19,15 +19,17 @@ from bxcommon.rpc.rpc_errors import RpcErrorCode
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.services.threaded_request_service import ThreadedRequestService
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils.helpers import async_test
+from bxcommon.test_utils.helpers import async_test, AsyncMock
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
 from bxgateway.rpc.requests import gateway_memory_rpc_request
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
+from bxgateway.testing.mocks.mock_eth_ws_subscriber import MockEthWsSubscriber
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import \
     gateway_bdn_performance_stats_service
+
 
 RAW_TRANSACTION_HEX = (
     "fffefdfc747800000000000000000000ab000000ffd59870844e5411f9e4043e654146b054bdcabe726a4bc4bd716049bfa"
@@ -35,6 +37,9 @@ RAW_TRANSACTION_HEX = (
     "d6e6ac90a9c23d42e461fee2ac5188016147191f13b0008025a0784537f9801331b707ceedd5388d318d86b0bb43c6f5b32"
     "b30c9df960f596b05a042fe22aa47f2ae80cbb2c9272df2f8975c96a8a99020d8ac19d4d4b0e0b5821901"
 )
+
+TRANSACTION_JSON = {'value': "", 'gas': "", 'gasPrice': "", 'from': '0xc305c901078781C232A2a521C2aF7980f8385ee9', 'to': '0xc305c901078781C232A2a521C2aF7980f8385ee9', 'data': '0x477a5c98'}
+
 # TODO: this is different from relays? Not sure which is correct.
 TRANSACTION_HASH = "74daac93cf5ff756e6fd5d10926a466533b4c901f64883e7f8b6b4a37cca808d"
 ACCOUNT_ID = "bx_premium"
@@ -105,6 +110,60 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             Sha256Hash(convert.hex_to_bytes(TRANSACTION_HASH)),
             self.gateway_node.broadcast_messages[0][0].tx_hash()
         )
+
+    @async_test
+    async def test_blxr_tx_from_json(self):
+        tx_json = {
+            'from': '0xc165599b5e418bb9d8a19090696ea2403b2927ed',
+            'gas': "0x5208",
+            'gasPrice': "0xc1b759d70",
+            'hash': '0xd569674ad9fcaaedcb6867b7896067b445d4a838316be4292c474df17bf4bd50',
+            'input': '0x',
+            'nonce': "0x14",
+            'to': '0xdb5f0c1f4198bc6ffa98b35f7188f82740b8caf7',
+            'value': "0x3e871b540c000",
+            'v': '0x26',
+            'r': '0x484bc950fb2d595500baa604774cb8d156a677198e087801936f38ca0b27049',
+            's': '0x7ca82ef7b6938c2e96966dd940b186c9cdc0c7f42b2843adbc0751bb6e67a2d4'
+        }
+
+        result = await self.request(BxJsonRpcRequest(
+            "1",
+            RpcRequestType.BLXR_TX,
+            {
+                rpc_constants.TRANSACTION_JSON_PARAMS_KEY: tx_json,
+                "quota_type": "paid_daily_quota"
+            }
+        ))
+        self.assertEqual("1", result.id)
+        self.assertIsNone(result.error)
+        self.assertEqual("ad6f9332384194f80d8e49af8f093ad019b3f6b7173eb2956a46c9a0d8c4d03c", result.result["tx_hash"])
+        self.assertEqual(ACCOUNT_ID, result.result["account_id"])
+        self.assertEqual("paid_daily_quota", result.result["quota_type"])
+
+        self.assertEqual(1, len(self.gateway_node.broadcast_messages))
+        self.assertEqual(
+            Sha256Hash(convert.hex_to_bytes("ad6f9332384194f80d8e49af8f093ad019b3f6b7173eb2956a46c9a0d8c4d03c")),
+            self.gateway_node.broadcast_messages[0][0].tx_hash()
+        )
+
+    @async_test
+    async def test_blxr_eth_call(self):
+        self.gateway_node.eth_ws_subscriber = MockEthWsSubscriber(None, None, None, None)
+        self.gateway_node.eth_ws_subscriber.call_rpc = AsyncMock(
+            return_value=JsonRpcResponse(request_id=1)
+        )
+        result = await self.request(BxJsonRpcRequest(
+            "1",
+            RpcRequestType.BLXR_ETH_CALL,
+            {
+                rpc_constants.TRANSACTION_JSON_PARAMS_KEY: TRANSACTION_JSON,
+                rpc_constants.TAG_PARAMS_KEY: "latest"
+            }
+        ))
+        self.gateway_node.eth_ws_subscriber.call_rpc.mock.assert_called_with(
+            "eth_call", [TRANSACTION_JSON, "latest"])
+        self.assertIsNone(result.error)
 
     @async_test
     async def test_gateway_status(self):

@@ -1,6 +1,6 @@
 import asyncio
 from collections import deque
-from typing import Optional, List, cast
+from typing import Optional, List, cast, Iterator
 
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -17,6 +17,8 @@ from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway.feed.feed_source import FeedSource
+from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -25,8 +27,11 @@ from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDisco
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
+from bxgateway.feed.eth.eth_new_block_feed import EthNewBlockFeed
 from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
+from bxgateway.feed.eth.eth_raw_block import EthRawBlock
 from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
@@ -36,12 +41,12 @@ from bxgateway.services.abstract_block_cleanup_service import AbstractBlockClean
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlockCleanupService
-from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.running_average import RunningAverage
 from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
+from bxgateway.utils.stats.eth_on_block_feed_stats_service import eth_on_block_feed_stats_service
 from bxgateway import log_messages, gateway_constants
 from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
@@ -72,7 +77,7 @@ class EthGatewayNode(AbstractGatewayNode):
         16: "Verify that '--blockchain-network' and other blockchain network parameters are correct."
     }
 
-    def __init__(self, opts, node_ssl_service: NodeSSLService):
+    def __init__(self, opts, node_ssl_service: NodeSSLService) -> None:
         super(EthGatewayNode, self).__init__(opts, node_ssl_service, eth_common_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S)
 
         self._node_public_key = None
@@ -103,9 +108,10 @@ class EthGatewayNode(AbstractGatewayNode):
         self._skip_remote_block_requests_stats_count = 0
 
         self.init_eth_gateway_stat_logging()
+        self.init_eth_on_block_feed_stat_logging()
 
         self.message_converter = converter_factory.create_eth_message_converter(self.opts)
-        self.eth_ws_subscriber = EthWsSubscriber(opts.eth_ws_uri, self.feed_manager, self._tx_service)
+        self.eth_ws_subscriber = EthWsSubscriber(opts.eth_ws_uri, self.feed_manager, self._tx_service, self)
         if self.opts.ws and not self.opts.eth_ws_uri:
             logger.warning(log_messages.ETH_WS_SUBSCRIBER_NOT_STARTED)
 
@@ -145,13 +151,13 @@ class EthGatewayNode(AbstractGatewayNode):
         else:
             return EthNormalBlockCleanupService(self, self.network_num)
 
-    def on_updated_remote_blockchain_peer(self, peer):
-        if "node_public_key" not in peer.attributes:
+    def on_updated_remote_blockchain_peer(self, outbound_peer) -> int:
+        if "node_public_key" not in outbound_peer.attributes:
             logger.warning(log_messages.BLOCKCHAIN_PEER_LACKS_PUBLIC_KEY)
             return constants.SDN_CONTACT_RETRY_SECONDS
         else:
-            super(EthGatewayNode, self).on_updated_remote_blockchain_peer(peer)
-            self._remote_public_key = convert.hex_to_bytes(peer.attributes["node_public_key"])
+            super(EthGatewayNode, self).on_updated_remote_blockchain_peer(outbound_peer)
+            self._remote_public_key = convert.hex_to_bytes(outbound_peer.attributes["node_public_key"])
             return constants.CANCEL_ALARMS
 
     def get_outbound_peer_info(self) -> List[ConnectionPeerInfo]:
@@ -181,13 +187,13 @@ class EthGatewayNode(AbstractGatewayNode):
 
         return peers
 
-    def get_private_key(self):
+    def get_private_key(self) -> bytes:
         return convert.hex_to_bytes(self.opts.private_key)
 
-    def get_public_key(self):
+    def get_public_key(self) -> bytes:
         return crypto_utils.private_to_public_key(self.get_private_key())
 
-    def set_node_public_key(self, discovery_connection, node_public_key):
+    def set_node_public_key(self, discovery_connection, node_public_key) -> None:
         if not isinstance(discovery_connection, EthNodeDiscoveryConnection):
             raise TypeError("Argument discovery_connection is expected to be of type EthNodeDiscoveryConnection, was {}"
                             .format(type(discovery_connection)))
@@ -203,7 +209,7 @@ class EthGatewayNode(AbstractGatewayNode):
         # establish TCP connection
         self.enqueue_connection(self.opts.blockchain_ip, self.opts.blockchain_port, ConnectionType.BLOCKCHAIN_NODE)
 
-    def set_remote_public_key(self, discovery_connection, remote_public_key):
+    def set_remote_public_key(self, discovery_connection, remote_public_key) -> None:
         if not isinstance(discovery_connection, EthNodeDiscoveryConnection):
             raise TypeError("Argument discovery_connection is expected to be of type EthNodeDiscoveryConnection, was {}"
                             .format(type(discovery_connection)))
@@ -216,15 +222,19 @@ class EthGatewayNode(AbstractGatewayNode):
         # close UDP connection
         discovery_connection.mark_for_close(False)
 
+        remote_blockchain_ip = self.remote_blockchain_ip
+        remote_blockchain_port = self.remote_blockchain_port
+
+        assert remote_blockchain_ip is not None and remote_blockchain_port is not None
         # establish TCP connection
         self.enqueue_connection(
-            self.remote_blockchain_ip, self.remote_blockchain_port, ConnectionType.REMOTE_BLOCKCHAIN_NODE
+            remote_blockchain_ip, remote_blockchain_port, ConnectionType.REMOTE_BLOCKCHAIN_NODE
         )
 
-    def get_node_public_key(self):
+    def get_node_public_key(self) -> bytes:
         return self._node_public_key
 
-    def get_remote_public_key(self):
+    def get_remote_public_key(self) -> bytes:
         return self._remote_public_key
 
     def set_known_total_difficulty(self, block_hash: Sha256Hash, total_difficulty: int) -> None:
@@ -287,7 +297,7 @@ class EthGatewayNode(AbstractGatewayNode):
         else:
             logger.warning(log_messages.UNEXPECTED_BLOCKS)
 
-    def log_closed_connection(self, connection: AbstractConnection):
+    def log_closed_connection(self, connection: AbstractConnection) -> None:
         if isinstance(connection, EthNodeConnection):
             # pyre-fixme[22]: The cast is redundant.
             eth_node_connection = cast(EthNodeConnection, connection)
@@ -325,55 +335,19 @@ class EthGatewayNode(AbstractGatewayNode):
         else:
             super(EthGatewayNode, self).log_closed_connection(connection)
 
-    def init_eth_gateway_stat_logging(self):
+    def init_eth_gateway_stat_logging(self) -> None:
         eth_gateway_stats_service.set_node(self)
         self.alarm_queue.register_alarm(eth_gateway_stats_service.interval, eth_gateway_stats_service.flush_info)
+
+    def init_eth_on_block_feed_stat_logging(self) -> None:
+        eth_on_block_feed_stats_service.set_node(self)
+        self.alarm_queue.register_alarm(eth_on_block_feed_stats_service.interval, eth_on_block_feed_stats_service.flush_info)
 
     def init_live_feeds(self) -> None:
         self.feed_manager.register_feed(EthNewTransactionFeed())
         self.feed_manager.register_feed(EthPendingTransactionFeed(self.alarm_queue))
-
-    def get_enode(self):
-        return \
-            f"enode://{convert.bytes_to_hex(self.get_public_key())}@{self.opts.external_ip}:{self.opts.non_ssl_port}"
-
-    async def init(self) -> None:
-        await super().init()
-        try:
-            await asyncio.wait_for(
-                self.eth_ws_subscriber.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
-            )
-        except Exception as e:
-            logger.error(log_messages.ETH_WS_INITIALIZATION_FAIL, e)
-            self.should_force_exit = True
-
-    async def close(self):
-        try:
-            await asyncio.wait_for(
-                self.eth_ws_subscriber.stop(),
-                rpc_constants.RPC_SERVER_STOP_TIMEOUT_S
-            )
-        except Exception as e:
-            logger.error(log_messages.ETH_WS_CLOSE_FAIL, e, exc_info=True)
-        await super().close()
-
-    def _is_in_local_discovery(self):
-        return not self.opts.no_discovery and self._node_public_key is None
-
-    def _is_in_remote_discovery(self):
-        return not self.opts.no_discovery and self._remote_public_key is None
-
-    def _get_disconnect_reason_description(self, reason: int):
-        if reason not in self.DISCONNECT_REASON_TO_DESCRIPTION:
-            return f"Disconnect reason ({reason}) is unknown."
-
-        return self.DISCONNECT_REASON_TO_DESCRIPTION[reason]
-
-    def _get_disconnect_reason_instruction(self, reason: int):
-        if reason not in self.DISCONNECT_REASON_TO_INSTRUCTION:
-            return ""
-
-        return self.DISCONNECT_REASON_TO_INSTRUCTION[reason]
+        self.feed_manager.register_feed(EthOnBlockFeed(self))
+        self.feed_manager.register_feed(EthNewBlockFeed(self))
 
     def on_new_subscriber_request(self) -> None:
         if self.opts.eth_ws_uri and not self.eth_ws_subscriber.running:
@@ -401,3 +375,99 @@ class EthGatewayNode(AbstractGatewayNode):
                 self.average_gas_price.average
             )
             return False
+
+    def get_enode(self) -> str:
+        return \
+            f"enode://{convert.bytes_to_hex(self.get_public_key())}@{self.opts.external_ip}:{self.opts.non_ssl_port}"
+
+    # pyre-fixme[14]: Inconsistent override:
+    # Parameter of type InternalEthBlockInfo is not a supertype of AbstractBlockMessage
+    def publish_block(
+        self,
+        block_number: Optional[int],
+        block_hash: Sha256Hash,
+        block_message: Optional[InternalEthBlockInfo],
+        source: FeedSource
+    ) -> None:
+        if block_number is None and block_message is not None:
+            block_number = block_message.block_number()
+        logger.debug(
+            "Handle block notification for feed. Number: {}, Hash: {} Msg: {} From: {}",
+            block_number, block_hash, block_message, source
+        )
+        if block_number and self.opts.ws:
+            raw_block = EthRawBlock(
+                block_number,
+                block_hash,
+                source,
+                self._get_block_message_lazy(block_message, block_hash)
+            )
+            self._publish_block_to_on_block_feed(raw_block)
+            self._publish_block_to_new_block_feed(raw_block)
+
+    async def init(self) -> None:
+        await super().init()
+        try:
+            await asyncio.wait_for(
+                self.eth_ws_subscriber.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
+            )
+        except Exception as e:
+            logger.error(log_messages.ETH_WS_INITIALIZATION_FAIL, e)
+            self.should_force_exit = True
+
+    async def close(self) -> None:
+        try:
+            await asyncio.wait_for(
+                self.eth_ws_subscriber.stop(),
+                rpc_constants.RPC_SERVER_STOP_TIMEOUT_S
+            )
+        except Exception as e:
+            logger.error(log_messages.ETH_WS_CLOSE_FAIL, e, exc_info=True)
+        await super().close()
+
+    def _is_in_local_discovery(self) -> bool:
+        return not self.opts.no_discovery and self._node_public_key is None
+
+    def _is_in_remote_discovery(self) -> bool:
+        return not self.opts.no_discovery and self._remote_public_key is None
+
+    def _get_disconnect_reason_description(self, reason: int) -> str:
+        if reason not in self.DISCONNECT_REASON_TO_DESCRIPTION:
+            return f"Disconnect reason ({reason}) is unknown."
+
+        return self.DISCONNECT_REASON_TO_DESCRIPTION[reason]
+
+    def _get_disconnect_reason_instruction(self, reason: int) -> str:
+        if reason not in self.DISCONNECT_REASON_TO_INSTRUCTION:
+            return ""
+
+        return self.DISCONNECT_REASON_TO_INSTRUCTION[reason]
+
+    def _get_block_message_lazy(
+        self, block_message: Optional[InternalEthBlockInfo], block_hash
+    ) -> Iterator[InternalEthBlockInfo]:
+        if block_message:
+            yield block_message
+        else:
+            block_parts = self.block_queuing_service.get_block_parts(block_hash)
+            if block_parts:
+                block_message = InternalEthBlockInfo.from_new_block_parts(block_parts)
+                assert block_message is not None
+                yield block_message
+
+    def _publish_block_to_new_block_feed(
+        self,
+        raw_block: EthRawBlock,
+    ) -> None:
+        self.feed_manager.publish_to_feed(EthNewBlockFeed.NAME, raw_block)
+
+    def _publish_block_to_on_block_feed(
+        self,
+        raw_block: EthRawBlock,
+    ) -> None:
+        if raw_block.source in {FeedSource.BLOCKCHAIN_RPC}:
+            self.feed_manager.publish_to_feed(
+                EthOnBlockFeed.NAME, EventNotification(raw_block.block_number)
+            )
+
+

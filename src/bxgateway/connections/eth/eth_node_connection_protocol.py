@@ -120,14 +120,14 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
     # pyre-fixme[14]: `msg_block` overrides method defined in
     #  `AbstractBlockchainConnectionProtocol` inconsistently.
-    def msg_block(self, msg: NewBlockEthProtocolMessage):
+    def msg_block(self, msg: NewBlockEthProtocolMessage) -> None:
         if not self.node.should_process_block_hash(msg.block_hash()):
             return
 
-        self.node.set_known_total_difficulty(msg.block_hash(), msg.chain_difficulty())
+        self.node.set_known_total_difficulty(msg.block_hash(), msg.get_chain_difficulty())
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(msg)
-        super().msg_block(internal_new_block_msg)
+        self.process_msg_block(internal_new_block_msg, msg.number())
 
         self.node.on_transactions_in_block(msg.txns())
 

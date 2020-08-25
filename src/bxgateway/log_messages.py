@@ -368,7 +368,7 @@ BAD_FEED_SUBSCRIBER = LogMessage(
     "G-000068",
     GENERAL_CATEGORY,
     "Subscriber {} was not receiving messages and emptying its queue from "
-    "feed {}. Disconnecting.",
+    "{}. Disconnecting.",
 )
 BAD_RPC_SUBSCRIBER = LogMessage(
     "G-000069",
@@ -434,3 +434,9 @@ MISSING_TRANSACTION_STREAMER_PEER_INFO = LogMessage(
     "Missing transaction streamer peer info upon feed subscription. Connect attempt aborted. Please retry subscription if"
     "you wish to subscribe to the pendingTxs feed and local Ethereum validation is not enabled via --eth-ws-uri."
 )
+COULD_NOT_DESERIALIZE_BLOCK = LogMessage(
+    "G-000081",
+    PROCESSING_FAILED_CATEGORY,
+    "Could not deserialize block to Ethereum payload: {}, body: {}. Error: {}",
+)
+

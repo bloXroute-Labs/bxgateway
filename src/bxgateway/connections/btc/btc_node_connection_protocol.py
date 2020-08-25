@@ -1,6 +1,5 @@
 import time
-import typing
-from typing import List, TYPE_CHECKING, Union
+from typing import List, TYPE_CHECKING
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
@@ -32,7 +31,6 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
     def __init__(self, connection: "BtcNodeConnection"):
         super(BtcNodeConnectionProtocol, self).__init__(connection)
 
-        # pyre-fixme[16]: Optional type has no attribute `update`.
         connection.message_handlers.update({
             BtcMessageType.VERSION: self.msg_version,
             BtcMessageType.INVENTORY: self.msg_inv,

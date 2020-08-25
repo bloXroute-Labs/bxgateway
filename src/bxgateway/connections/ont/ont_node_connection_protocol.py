@@ -29,10 +29,9 @@ if TYPE_CHECKING:
 
 
 class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
-    def __init__(self, connection: "OntNodeConnection"):
+    def __init__(self, connection: "OntNodeConnection") -> None:
         super(OntNodeConnectionProtocol, self).__init__(connection)
 
-        # pyre-fixme[16]: Optional type has no attribute `update`.
         connection.message_handlers.update({
             OntMessageType.VERSION: self.msg_version,
             OntMessageType.INVENTORY: self.msg_inv,

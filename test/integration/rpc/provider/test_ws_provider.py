@@ -6,12 +6,18 @@ from bxcommon import constants
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType
+from bxcommon.rpc import rpc_constants
 from bxcommon.services.threaded_request_service import ThreadedRequestService
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test, AsyncMock
+from bxcommon.rpc.rpc_errors import RpcError
+from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
+from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
+
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
 from bxgateway.feed.new_transaction_feed import RawTransaction, RawTransactionFeedEntry, FeedSource
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
@@ -21,9 +27,7 @@ from bxgateway.rpc.ws.ws_server import WsServer
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxcommon.rpc.rpc_errors import RpcError
-from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
-from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
+from bxgateway.testing.mocks.mock_eth_ws_subscriber import MockEthWsSubscriber
 
 
 def generate_new_eth_transaction() -> TxMessage:
@@ -250,6 +254,48 @@ class WsProviderTest(AbstractTestCase):
 
             subscription_2 = subscribe_task_2.result()
             self.assertEqual("subid2", subscription_2.result)
+
+    @async_test
+    async def test_subscribe_onblock_feed(self):
+        block_height = 100
+        name = "abc123"
+
+        self.gateway_node.feed_manager.register_feed(
+            EthOnBlockFeed(self.gateway_node)
+        )
+        self.gateway_node.eth_ws_subscriber = MockEthWsSubscriber("", None, None, self.gateway_node)
+        self.gateway_node.eth_ws_subscriber.call_rpc = AsyncMock(
+            return_value=JsonRpcResponse(request_id=1)
+        )
+
+        async with WsProvider(self.ws_uri) as ws:
+            subscription_id = await ws.subscribe(
+                rpc_constants.ETH_ON_BLOCK_FEED_NAME, {
+                    "call_params": [
+                        {"data": "0x", "name": name}
+                    ]
+                }
+             )
+
+            self.gateway_node.feed_manager.publish_to_feed(
+                rpc_constants.ETH_ON_BLOCK_FEED_NAME,
+                EventNotification(block_height=block_height)
+            )
+
+            subscription_message = await ws.get_next_subscription_notification_by_id(
+                subscription_id
+            )
+            self.assertEqual(
+                subscription_id, subscription_message.subscription_id
+            )
+            print(subscription_message)
+            self.assertEqual(
+                block_height, subscription_message.notification["block_height"]
+            )
+
+            self.assertEqual(
+                name, subscription_message.notification["name"]
+            )
 
     @async_test
     async def tearDown(self) -> None:

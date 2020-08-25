@@ -12,6 +12,9 @@ from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxcommon.models.blockchain_protocol import BlockchainProtocol
+from bxcommon.messages.eth.serializers.transaction import Transaction
+
 from bxutils import logging, log_messages as common_log_messages
 
 if TYPE_CHECKING:
@@ -34,6 +37,22 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
         lowercase_true = str(True).lower()
         self.synchronous = \
             params.get(self.SYNCHRONOUS, lowercase_true).lower() == lowercase_true
+
+    def validate_params(self) -> None:
+        params = self.params
+        if params is None or not isinstance(params, dict):
+            raise RpcInvalidParams(
+                self.request_id,
+                "Params request field is either missing or not a dictionary type."
+            )
+        if (
+            rpc_constants.TRANSACTION_JSON_PARAMS_KEY in params
+            and self.get_network_protocol() == BlockchainProtocol.ETHEREUM
+        ):
+            tx_json = params[rpc_constants.TRANSACTION_JSON_PARAMS_KEY]
+            tx_bytes = Transaction.from_json_with_validation(tx_json).contents().tobytes()
+            params[rpc_constants.TRANSACTION_PARAMS_KEY] = tx_bytes.hex()
+        super(GatewayBlxrTransactionRpcRequest, self).validate_params()
 
     async def process_request(self) -> JsonRpcResponse:
         params = self.params
@@ -140,3 +159,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
 
     def get_account_id(self) -> str:
         return self.node.account_id
+
+    def get_network_protocol(self) -> BlockchainProtocol:
+        blockchain_protocol = self.node.opts.blockchain_protocol
+        return blockchain_protocol

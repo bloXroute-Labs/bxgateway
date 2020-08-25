@@ -13,7 +13,6 @@ from bxcommon.utils import crypto, convert
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
-from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
@@ -63,7 +62,7 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
         self.tx_blockchain_connection_protocol = EthNodeConnectionProtocol(
             self.blockchain_connection, True, dummy_private_key, dummy_public_key)
-        self.block_blockchain_connection_protocol = EthBaseConnectionProtocol(
+        self.block_blockchain_connection_protocol = EthNodeConnectionProtocol(
             self.blockchain_connection, True, dummy_private_key, dummy_public_key)
         self.tx_blockchain_connection_protocol.publish_transaction = MagicMock()
         self.block_blockchain_connection_protocol.publish_transaction = MagicMock()
@@ -224,7 +223,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         block_msg = NewBlockEthProtocolMessage(
             None,
             _block_with_timestamp(
-                time.time() + 1 - self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
+                time.time() + 1 - (
+                    self.node.opts.blockchain_ignore_block_interval_count * self.node.opts.blockchain_block_interval
+                )
             ),
             10
         )

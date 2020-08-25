@@ -43,12 +43,17 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
 
     def get_gateway_opts(self) -> GatewayOpts:
         super().get_gateway_opts()
-        return gateway_helpers.get_gateway_opts(8000, )
+        return gateway_helpers.get_gateway_opts(
+            8000,
+            blockchain_protocol="Ethereum",
+            account_model=self._account_model,
+        )
 
     async def request(self, req: BxJsonRpcRequest) -> JsonRpcResponse:
         async with websockets.connect(self.ws_uri) as ws:
             await ws.send(req.to_jsons())
-            return JsonRpcResponse.from_jsons(await ws.recv())
+            response = await ws.recv()
+            return JsonRpcResponse.from_jsons(response)
 
     @async_test
     async def test_startup(self):
@@ -107,10 +112,6 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
     @async_test
     async def tearDown(self) -> None:
         await self.server.stop()
-
-    @async_test
-    async def test_blxr_tx(self):
-        pass
 
     def _assert_notification(
         self, expected_result: Any, subscriber_id: str, message: str
