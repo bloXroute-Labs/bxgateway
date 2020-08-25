@@ -2,6 +2,8 @@ import asyncio
 import json
 from typing import Any
 # TODO: remove try-catch when removing py3.7 support
+from bxutils.encoding.json_encoder import Case
+
 try:
     from asyncio.exceptions import TimeoutError
 except ImportError:
@@ -33,7 +35,7 @@ class IpcServerTest(AbstractGatewayRpcIntegrationTest):
         await super().setUp()
         self.feed_manager = FeedManager(self.gateway_node)
         self.server = IpcServer(
-            "bxgateway.ipc", self.feed_manager, self.gateway_node
+            "bxgateway.ipc", self.feed_manager, self.gateway_node, Case.SNAKE
         )
         self.ipc_path = self.server.ipc_path
         await self.server.start()

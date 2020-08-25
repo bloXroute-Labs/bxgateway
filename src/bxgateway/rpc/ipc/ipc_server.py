@@ -1,3 +1,4 @@
+import asyncio
 import os
 from typing import Optional, List, TYPE_CHECKING
 from bxgateway.feed.feed_manager import FeedManager
@@ -10,6 +11,8 @@ import websockets
 from websockets import WebSocketServerProtocol
 from websockets.server import WebSocketServer
 
+from bxutils.encoding.json_encoder import Case
+
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
@@ -17,10 +20,17 @@ logger = logging.get_logger(__name__)
 
 
 class IpcServer:
-    def __init__(self, ipc_file: str, feed_manager: FeedManager, node: "AbstractGatewayNode"):
+    def __init__(
+        self,
+        ipc_file: str,
+        feed_manager: FeedManager,
+        node: "AbstractGatewayNode",
+        case: Case = Case.CAMEL
+    ):
         self.ipc_path = config.get_data_file(ipc_file)
         self.node = node
         self.feed_manager = feed_manager
+        self.case = case
         self._server: Optional[WebSocketServer] = None
         self._connections: List[WsConnection] = []
         self._started: bool = False
@@ -38,8 +48,9 @@ class IpcServer:
         server = self._server
         self._started = False
         if server is not None:
-            for connection in self._connections:
-                connection.close()
+            await asyncio.gather(
+                *(connection.close() for connection in self._connections)
+            )
 
             server.close()
             await server.wait_closed()
@@ -51,7 +62,7 @@ class IpcServer:
         connection = WsConnection(
             websocket,
             path,
-            SubscriptionRpcHandler(self.node, self.feed_manager)
+            SubscriptionRpcHandler(self.node, self.feed_manager, self.case)
         )
         self._connections.append(connection)
         await connection.handle()

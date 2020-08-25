@@ -28,9 +28,6 @@ from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigB
 
 def tx_to_eth_rpc_json(transaction: Transaction) -> Dict[str, Any]:
     payload = transaction.to_json()
-    for field in {"nonce", "gas", "gas_price", "value"}:
-        payload[field] = hex(payload[field])
-
     payload["gasPrice"] = payload["gas_price"]
     del payload["gas_price"]
     return payload

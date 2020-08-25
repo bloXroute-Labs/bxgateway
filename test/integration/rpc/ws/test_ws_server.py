@@ -2,6 +2,8 @@ import asyncio
 import json
 from typing import Any
 # TODO: remove try-catch when removing py3.7 support
+from bxutils.encoding.json_encoder import Case
+
 try:
     from asyncio.exceptions import TimeoutError
 except ImportError:
@@ -34,7 +36,7 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
         await super().setUp()
         self.feed_manager = FeedManager(self.gateway_node)
         self.server = WsServer(
-            constants.LOCALHOST, 8005, self.feed_manager, self.gateway_node
+            constants.LOCALHOST, 8005, self.feed_manager, self.gateway_node, Case.SNAKE
         )
         self.ws_uri = f"ws://{constants.LOCALHOST}:8005"
         await self.server.start()

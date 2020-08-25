@@ -24,6 +24,7 @@ from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
 from bxutils import logging
+from bxutils.encoding.json_encoder import Case
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -45,8 +46,8 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
     subscriptions: Dict[str, Subscription]
     subscribed_messages: 'asyncio.Queue[BxJsonRpcRequest]'
 
-    def __init__(self, node: "AbstractGatewayNode", feed_manager: FeedManager) -> None:
-        super().__init__(node)
+    def __init__(self, node: "AbstractGatewayNode", feed_manager: FeedManager, case: Case) -> None:
+        super().__init__(node, case)
         self.request_handlers = {
             RpcRequestType.BLXR_TX: GatewayBlxrTransactionRpcRequest,
             RpcRequestType.GATEWAY_STATUS: GatewayStatusRpcRequest,
@@ -80,7 +81,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             return request_handler_type(request, self.node)
 
     def serialize_response(self, response: JsonRpcResponse) -> str:
-        return response.to_jsons()
+        return response.to_jsons(self.case)
 
     async def get_next_subscribed_message(self) -> BxJsonRpcRequest:
         return await self.subscribed_messages.get()

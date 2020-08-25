@@ -12,6 +12,7 @@ from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
+from bxutils.encoding.json_encoder import Case
 
 
 class TestFeed(Feed[str, str]):
@@ -26,7 +27,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
             gateway_helpers.get_gateway_opts(8000)
         )
         self.feed_manager = FeedManager(self.gateway)
-        self.rpc = SubscriptionRpcHandler(self.gateway, self.feed_manager)
+        self.rpc = SubscriptionRpcHandler(self.gateway, self.feed_manager, Case.SNAKE)
 
     @async_test
     async def test_help(self):
