@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Type, Dict, Any, Optional, TYPE_CHECKING
 
 from prometheus_client import Counter
@@ -12,18 +13,12 @@ if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
+@dataclass
 class GatewayBdnPerformanceStatInterval(StatsIntervalData):
-    new_blocks_received_from_blockchain_node: int
-    new_blocks_received_from_bdn: int
-    new_tx_received_from_blockchain_node: int
-    new_tx_received_from_bdn: int
-
-    def __init__(self,) -> None:
-        super(GatewayBdnPerformanceStatInterval, self).__init__()
-        self.new_blocks_received_from_blockchain_node = 0
-        self.new_blocks_received_from_bdn = 0
-        self.new_tx_received_from_blockchain_node = 0
-        self.new_tx_received_from_bdn = 0
+    new_blocks_received_from_blockchain_node: int = 0
+    new_blocks_received_from_bdn: int = 0
+    new_tx_received_from_blockchain_node: int = 0
+    new_tx_received_from_bdn: int = 0
 
 
 blocks_from_bdn = Counter("blocks_from_bdn", "Number of blocks received first from the BDN")

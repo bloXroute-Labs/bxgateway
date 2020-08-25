@@ -1,4 +1,7 @@
+import dataclasses
 import time
+
+from dataclasses import dataclass
 from collections import deque
 from typing import Type, Dict, Deque, Any, TYPE_CHECKING
 
@@ -13,17 +16,18 @@ if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
+@dataclass
 class GatewayTransactionStatInterval(StatsIntervalData):
-    new_transactions_received_from_blockchain: int
-    duplicate_transactions_received_from_blockchain: int
-    new_full_transactions_received_from_relays: int
-    new_compact_transactions_received_from_relays: int
-    duplicate_full_transactions_received_from_relays: int
-    duplicate_compact_transactions_received_from_relays: int
-    redundant_transaction_content_messages: int
-    short_id_assignments_processed: int
-    transaction_tracker: Dict[Sha256Hash, float]
-    transaction_intervals: Deque[float]
+    new_transactions_received_from_blockchain: int = 0
+    duplicate_transactions_received_from_blockchain: int = 0
+    new_full_transactions_received_from_relays: int = 0
+    new_compact_transactions_received_from_relays: int = 0
+    duplicate_full_transactions_received_from_relays: int = 0
+    duplicate_compact_transactions_received_from_relays: int = 0
+    redundant_transaction_content_messages: int = 0
+    short_id_assignments_processed: int = 0
+    transaction_tracker: Dict[Sha256Hash, float] = dataclasses.field(default_factory=dict)
+    transaction_intervals: Deque[float] = dataclasses.field(default_factory=deque)
 
     total_bdn_transactions_processed: int = 0
     total_bdn_transactions_process_time_ms: float = 0
@@ -41,35 +45,7 @@ class GatewayTransactionStatInterval(StatsIntervalData):
     tx_validation_failed_structure: int = 0
     tx_validation_failed_signature: int = 0
 
-    def __init__(self,) -> None:
-        super(GatewayTransactionStatInterval, self).__init__()
-        self.new_transactions_received_from_blockchain = 0
-        self.duplicate_transactions_received_from_blockchain = 0
-        self.new_full_transactions_received_from_relays = 0
-        self.new_compact_transactions_received_from_relays = 0
-        self.duplicate_full_transactions_received_from_relays = 0
-        self.duplicate_compact_transactions_received_from_relays = 0
-        self.redundant_transaction_content_messages = 0
-        self.short_id_assignments_processed = 0
-        self.dropped_transactions_from_relay = 0
-        self.transaction_tracker = {}
-        self.transaction_intervals = deque()
-
-        self.total_bdn_transactions_processed = 0
-        self.total_bdn_transactions_process_time_ms = 0
-        self.total_bdn_transactions_process_time_before_ext_ms = 0
-        self.total_bdn_transactions_process_time_ext_ms = 0
-        self.total_bdn_transactions_process_time_after_ext_ms = 0
-
-        self.total_node_transactions_processed = 0
-        self.total_node_transactions_process_time_ms = 0
-        self.total_node_transactions_process_time_before_broadcast_ms = 0
-        self.total_node_transactions_process_time_broadcast_ms = 0
-        self.total_node_transactions_process_time_after_broadcast_ms = 0
-
-        self.tx_validation_failed_gas_price = 0
-        self.tx_validation_failed_structure = 0
-        self.tx_validation_failed_signature = 0
+    dropped_transactions_from_relay: int = 0
 
 
 class _GatewayTransactionStatsService(
@@ -94,19 +70,16 @@ class _GatewayTransactionStatsService(
         return GatewayTransactionStatInterval
 
     def log_transaction_from_blockchain(self, transaction_hash: Sha256Hash) -> None:
-        assert self.interval_data is not None
         self.interval_data.new_transactions_received_from_blockchain += 1
         if transaction_hash not in self.interval_data.transaction_tracker:
             self.interval_data.transaction_tracker[transaction_hash] = time.time()
 
     def log_duplicate_transaction_from_blockchain(self) -> None:
-        assert self.interval_data is not None
         self.interval_data.duplicate_transactions_received_from_blockchain += 1
 
     def log_transaction_from_relay(
         self, transaction_hash: Sha256Hash, has_short_id: bool, is_compact: bool = False
     ) -> None:
-        assert self.interval_data is not None
         if has_short_id and transaction_hash in self.interval_data.transaction_tracker:
             start_time = self.interval_data.transaction_tracker[transaction_hash]
             if start_time != self.TRANSACTION_SHORT_ID_ASSIGNED_DONE:
@@ -124,7 +97,6 @@ class _GatewayTransactionStatsService(
         self.interval_data.short_id_assignments_processed += 1
 
     def log_duplicate_transaction_from_relay(self, is_compact=False) -> None:
-        assert self.interval_data is not None
         if is_compact:
             self.interval_data.duplicate_compact_transactions_received_from_relays += 1
         else:
@@ -132,11 +104,9 @@ class _GatewayTransactionStatsService(
 
     def log_dropped_transaction_from_relay(self) -> None:
         interval_data = self.interval_data
-        assert interval_data is not None
         interval_data.dropped_transactions_from_relay += 1
 
     def log_redundant_transaction_content(self) -> None:
-        assert self.interval_data is not None
         self.interval_data.redundant_transaction_content_messages += 1
 
     def log_processed_bdn_transaction(self,

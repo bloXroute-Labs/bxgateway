@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Type, Dict, Any, TYPE_CHECKING
 
 from bxcommon.utils.stats import stats_format
@@ -11,28 +12,17 @@ if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 
+@dataclass
 class EthGatewayStatInterval(StatsIntervalData):
-    total_encryption_time: float
-    total_encrypted_msgs_count: int
-    max_encryption_time: float
-    total_decryption_time: float
-    total_decrypted_msgs_count: int
-    max_decryption_time: float
-    total_serialization_time: float
-    total_serialized_msgs_count: int
-    max_serialization_time: float
-
-    def __init__(self,) -> None:
-        super(EthGatewayStatInterval, self).__init__()
-        self.total_encryption_time = 0
-        self.total_encrypted_msgs_count = 0
-        self.max_encryption_time = 0
-        self.total_decryption_time = 0
-        self.total_decrypted_msgs_count = 0
-        self.max_decryption_time = 0
-        self.total_serialization_time = 0
-        self.total_serialized_msgs_count = 0
-        self.max_serialization_time = 0
+    total_encryption_time: float = 0
+    total_encrypted_msgs_count: int = 0
+    max_encryption_time: float = 0
+    total_decryption_time: float = 0
+    total_decrypted_msgs_count: int = 0
+    max_decryption_time: float = 0
+    total_serialization_time: float = 0
+    total_serialized_msgs_count: int = 0
+    max_serialization_time: float = 0
 
 
 class _EthGatewayStatsService(StatisticsService[EthGatewayStatInterval, "AbstractGatewayNode"]):

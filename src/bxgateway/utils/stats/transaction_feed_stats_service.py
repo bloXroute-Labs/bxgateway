@@ -1,4 +1,7 @@
 import time
+import dataclasses
+
+from dataclasses import dataclass
 from typing import Dict, Any, TYPE_CHECKING, List, Type
 
 from bxcommon.utils.object_hash import Sha256Hash
@@ -15,27 +18,19 @@ if TYPE_CHECKING:
     from bxcommon.connections.abstract_node import AbstractNode
 
 
+@dataclass
 class TransactionFeedStatInterval(StatsIntervalData):
-    new_transaction_received_times: Dict[Sha256Hash, float]
+    new_transaction_received_times: Dict[Sha256Hash, float] = dataclasses.field(default_factory=dict)
     # lower time of the two below
-    pending_transaction_received_times: Dict[Sha256Hash, float]
-    pending_transaction_from_internal_received_times: Dict[Sha256Hash, float]
-    pending_transaction_from_local_blockchain_received_times: Dict[Sha256Hash, float]
+    pending_transaction_received_times: Dict[Sha256Hash, float] = dataclasses.field(default_factory=dict)
+    pending_transaction_from_internal_received_times: Dict[Sha256Hash, float] = dataclasses.field(default_factory=dict)
+    pending_transaction_from_local_blockchain_received_times: Dict[Sha256Hash, float] = \
+        dataclasses.field(default_factory=dict)
 
-    new_transactions_faster_than_pending_times: List[float]
-    pending_from_internal_faster_than_local_times: List[float]
+    new_transactions_faster_than_pending_times: List[float] = dataclasses.field(default_factory=list)
+    pending_from_internal_faster_than_local_times: List[float] = dataclasses.field(default_factory=list)
 
-    pending_transactions_missing_contents: int
-
-    def __init__(self,) -> None:
-        super().__init__()
-        self.new_transaction_received_times = {}
-        self.pending_transaction_received_times = {}
-        self.pending_transaction_from_internal_received_times = {}
-        self.pending_transaction_from_local_blockchain_received_times = {}
-        self.new_transactions_faster_than_pending_times = []
-        self.pending_from_internal_faster_than_local_times = []
-        self.pending_transactions_missing_contents = 0
+    pending_transactions_missing_contents: int = 0
 
 
 class TransactionFeedStatsService(
