@@ -1,10 +1,9 @@
 import time
-from argparse import Namespace
+from asyncio import Future
 from typing import Optional
 
 from mock import MagicMock, call
 
-from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.testing import gateway_helpers
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
@@ -105,13 +104,19 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node = GatewayNode(opts)
         node.peer_gateways.add(OutboundPeerModel(LOCALHOST, 8004, node_type=NodeType.EXTERNAL_GATEWAY))
 
-        sdn_http_service.fetch_gateway_peers = MagicMock(return_value=[
+        time.time = MagicMock(return_value=time.time() + 10)
+        node.alarm_queue.fire_alarms()
+
+        gateway_peers = [
             OutboundPeerModel(LOCALHOST, 8000, node_type=NodeType.EXTERNAL_GATEWAY),
             OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY),
             OutboundPeerModel(LOCALHOST, 8003, node_type=NodeType.EXTERNAL_GATEWAY)
-        ])
+        ]
 
-        node._send_request_for_gateway_peers()
+        future_obj = Future()
+        future_obj.set_result(gateway_peers)
+        node._process_gateway_peers_from_sdn(future_obj)
+
         self.assertEqual(4, len(node.outbound_peers))
         self.assertEqual(4, len(node.peer_gateways))
         self.assertNotIn(OutboundPeerModel(LOCALHOST, 8000, node_type=NodeType.EXTERNAL_GATEWAY), node.peer_gateways)
@@ -169,7 +174,16 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         sdn_http_service.fetch_gateway_peers.assert_not_called()
         node.alarm_queue.fire_alarms()
 
-        sdn_http_service.fetch_gateway_peers.assert_has_calls([call(node.opts.node_id, False)])
+        gateway_peers = [
+            OutboundPeerModel(LOCALHOST, 8000, node_type=NodeType.EXTERNAL_GATEWAY),
+            OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY),
+            OutboundPeerModel(LOCALHOST, 8003, "12345", node_type=NodeType.EXTERNAL_GATEWAY)
+        ]
+
+        future_obj = Future()
+        future_obj.set_result(gateway_peers)
+        node._process_gateway_peers_from_sdn(future_obj)
+
         self.assertEqual(2, len([node for node in node.outbound_peers if node.node_type in NodeType.GATEWAY_TYPE]))
         self.assertIn(OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.EXTERNAL_GATEWAY), node.outbound_peers)
         self.assertIn(

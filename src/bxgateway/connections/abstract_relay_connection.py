@@ -1,5 +1,6 @@
 import time
 from abc import ABCMeta
+from asyncio import Future
 from typing import TYPE_CHECKING, Set
 
 from bxcommon import constants
@@ -390,15 +391,30 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         assert blockchain_protocol is not None
         assert blockchain_network is not None
 
-        updated_blockchain_network = sdn_http_service.fetch_blockchain_network(blockchain_protocol, blockchain_network)
-        assert updated_blockchain_network is not None
-
-        self.node.network = updated_blockchain_network
-        self.node.opts.blockchain_networks[self.node.network_num] = updated_blockchain_network
-        self.node.update_node_settings_from_blockchain_network(updated_blockchain_network)
+        self.node.requester.send_threaded_request(
+            sdn_http_service.fetch_blockchain_network,
+            blockchain_protocol,
+            blockchain_network,
+            # pyre-fixme[6]: Expected `Optional[Callable[[Future[Any]], Any]]` for 4th parameter `done_callback`
+            #  to call `send_threaded_request` but got `BoundMethod[Callable(_process_blockchain_network_from_sdn)
+            #  [[Named(self, AbstractRelayConnection), Named(get_blockchain_network_future, Future[Any])], Any],
+            #  AbstractRelayConnection]`.
+            done_callback=self._process_blockchain_network_from_sdn
+        )
 
     def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:
         self.node.feed_manager.publish_to_feed(
             NewTransactionFeed.NAME,
             RawTransactionFeedEntry(tx_hash, tx_contents)
         )
+
+    def _process_blockchain_network_from_sdn(self, get_blockchain_network_future: Future):
+        try:
+            updated_blockchain_network = get_blockchain_network_future.result()
+            assert updated_blockchain_network is not None
+
+            self.node.network = updated_blockchain_network
+            self.node.opts.blockchain_networks[self.node.network_num] = updated_blockchain_network
+            self.node.update_node_settings_from_blockchain_network(updated_blockchain_network)
+        except Exception as e:
+            self.log_info("Got {} when trying to read blockchain network from sdn", e)

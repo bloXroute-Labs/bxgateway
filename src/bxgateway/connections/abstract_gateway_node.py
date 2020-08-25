@@ -493,39 +493,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         await super(AbstractGatewayNode, self).close()
 
-    def send_request_for_relay_peers(self) -> int:
-        """
-        Requests potential relay peers from SDN. Merges list with provided command line relays.
-
-        This function retrieves from the SDN potential_relay_peers_by_network
-        Then it try to ping for each relay (timeout of 2 seconds). The ping is done in parallel
-        Once there are ping result, it calculate the best relay and decides if need to switch relays
-
-        The above can take time, so the functions is split into several internal functions and use the thread pool
-        not to block the main thread.
-        """
-
-        self.requester.send_threaded_request(
-            sdn_http_service.fetch_potential_relay_peers_by_network,
-            self.opts.node_id,
-            self.network_num,
-            done_callback=self._process_potential_relays_from_sdn
-        )
-
-        return constants.CANCEL_ALARMS
-
     def send_request_for_remote_blockchain_peer(self):
         """
         Requests a bloxroute owned blockchain node from the SDN.
         """
-        remote_blockchain_peer = sdn_http_service.fetch_remote_blockchain_peer(self.opts.node_id)
-        if remote_blockchain_peer is None:
-            logger.debug("Did not receive expected remote blockchain peer from BDN. Retrying.")
-            self.alarm_queue.register_alarm(gateway_constants.REMOTE_BLOCKCHAIN_SDN_CONTACT_RETRY_SECONDS,
-                                            self.send_request_for_remote_blockchain_peer)
-        else:
-            logger.debug("Processing remote blockchain peer: {}", remote_blockchain_peer)
-            return self.on_updated_remote_blockchain_peer(remote_blockchain_peer)
+        self.requester.send_threaded_request(
+            sdn_http_service.fetch_remote_blockchain_peer,
+            self.opts.node_id,
+            done_callback=self._process_remote_blockchain_peer_from_sdn
+        )
 
     def get_outbound_peer_info(self) -> List[ConnectionPeerInfo]:
         peers = [ConnectionPeerInfo(
@@ -897,34 +873,47 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 self.transaction_streamer_peer = peer
                 return
 
+    def _process_gateway_peers_from_sdn(self, get_gateway_peers_future: Future) -> None:
+        try:
+            gateway_peers = get_gateway_peers_future.result()
+            if (
+                not gateway_peers
+                and not self.peer_gateways
+                and self.send_request_for_gateway_peers_num_of_calls
+                < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS
+            ):
+                # Try again later
+                logger.warning(log_messages.NO_GATEWAY_PEERS)
+                self.send_request_for_gateway_peers_num_of_calls += 1
+                if (
+                    self.send_request_for_gateway_peers_num_of_calls ==
+                    gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS
+                ):
+                    logger.warning(log_messages.ABANDON_GATEWAY_PEER_REQUEST)
+
+                self.alarm_queue.register_alarm(
+                    constants.SDN_CONTACT_RETRY_SECONDS, self._send_request_for_gateway_peers
+                )
+            elif gateway_peers:
+                logger.debug("Processing updated peer gateways: {}", gateway_peers)
+                self._add_gateway_peers(gateway_peers)
+                self._set_transaction_streamer_peer()
+                self.on_updated_peers(self._get_all_peers())
+                self.send_request_for_gateway_peers_num_of_calls = 0
+        except Exception as e:
+            logger.info("Got {} when trying to read gateway peers from sdn", e)
+
     def _send_request_for_gateway_peers(self) -> int:
         """
         Requests gateway peers from SDN. Merges list with provided command line gateways.
         """
-        peer_gateways = sdn_http_service.fetch_gateway_peers(
-            self.opts.node_id, self.opts.request_remote_transaction_streaming
+        self.requester.send_threaded_request(
+            sdn_http_service.fetch_gateway_peers,
+            self.opts.node_id,
+            self.opts.request_remote_transaction_streaming,
+            done_callback=self._process_gateway_peers_from_sdn
         )
-        if (
-            not peer_gateways
-            and not self.peer_gateways
-            and self.send_request_for_gateway_peers_num_of_calls
-            < gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS
-        ):
-            # Try again later
-            logger.warning(log_messages.NO_GATEWAY_PEERS)
-            self.send_request_for_gateway_peers_num_of_calls += 1
-            if (
-                self.send_request_for_gateway_peers_num_of_calls ==
-                gateway_constants.SEND_REQUEST_GATEWAY_PEERS_MAX_NUM_OF_CALLS
-            ):
-                logger.warning(log_messages.ABANDON_GATEWAY_PEER_REQUEST)
-            return constants.SDN_CONTACT_RETRY_SECONDS
-        elif peer_gateways:
-            logger.debug("Processing updated peer gateways: {}", peer_gateways)
-            self._add_gateway_peers(peer_gateways)
-            self._set_transaction_streamer_peer()
-            self.on_updated_peers(self._get_all_peers())
-            self.send_request_for_gateway_peers_num_of_calls = 0
+
         return constants.CANCEL_ALARMS
 
     def _get_all_peers(self) -> Set[OutboundPeerModel]:
@@ -953,8 +942,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.peer_gateways.remove(gateway_to_remove)
             self.outbound_peers = self._get_all_peers()
             if len(self.peer_gateways) < self.opts.min_peer_gateways:
-                self.alarm_queue.register_alarm(constants.SDN_CONTACT_RETRY_SECONDS,
-                                                self._send_request_for_gateway_peers)
+                self.alarm_queue.register_alarm(
+                    constants.SDN_CONTACT_RETRY_SECONDS, self._send_request_for_gateway_peers
+                )
 
     def _remove_relay_peer(self, ip: str, port: int) -> None:
         """
@@ -1085,9 +1075,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.alarm_queue.unregister_alarm(self._transaction_sync_timeout_alarm_id)
             self.on_fully_updated_tx_service()
 
-    def _process_potential_relays_from_sdn(self, get_potential_relays_future: Future):
+    def sync_and_send_request_for_relay_peers(self, network_num: int) -> int:
+        return super().sync_and_send_request_for_relay_peers(self.network_num)
+
+    # pyre-fixme[14]: `process_potential_relays_from_sdn` overrides method defined in `AbstractNode` inconsistently.
+    def process_potential_relays_from_sdn(self, get_potential_relays_future: Future):
         """
-        part of send_request_for_relay_peers logic
+        part of sync_and_send_request_for_relay_peers logic
         This function is called once there is a result from SDN regarding potential_relays.
         The process of potential_relays should be run in the main thread, hence the register_alarm
         :param get_potential_relays_future: the list of potentital relays from the BDN API
@@ -1100,7 +1094,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             if potential_relay_peers:
                 node_cache.update(self.opts, potential_relay_peers)
             else:
-                # if called too many times to send_request_for_relay_peers,
+                # if called too many times to sync_and_send_request_for_relay_peers,
                 # reset relay peers to empty list in cache file
                 if (
                     self.send_request_for_relay_peers_num_of_calls
@@ -1122,7 +1116,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.requester.send_threaded_request(
                 self._find_best_relay_peers,
                 potential_relay_peers,
-                done_callback=self._register_potential_relay_peers_from_future
+                done_callback=self.register_potential_relay_peers_from_future
             )
         except Exception as e:
             logger.info("Got {} when trying to read potential_relays from sdn", e)
@@ -1155,7 +1149,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         return best_relay_peers
 
-    def _register_potential_relay_peers_from_future(self, ping_potential_relays_future: Future) -> None:
+    def register_potential_relay_peers_from_future(self, ping_potential_relays_future: Future) -> None:
         best_relay_peers = ping_potential_relays_future.result()
         self._register_potential_relay_peers(best_relay_peers)
 
@@ -1214,6 +1208,21 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             logger.warning(log_messages.TRACKED_BLOCK_CLEANUP_ERROR, "block queuing service is not available")
         return self.tracked_block_cleanup_interval_s
 
+    def _process_remote_blockchain_peer_from_sdn(self, get_remote_blockchain_peer_future: Future):
+        try:
+            remote_blockchain_peer = get_remote_blockchain_peer_future.result()
+            if remote_blockchain_peer is None:
+                logger.debug("Did not receive expected remote blockchain peer from BDN. Retrying.")
+                self.alarm_queue.register_alarm(
+                    gateway_constants.REMOTE_BLOCKCHAIN_SDN_CONTACT_RETRY_SECONDS,
+                    self.send_request_for_remote_blockchain_peer
+                )
+            else:
+                logger.debug("Processing remote blockchain peer: {}", remote_blockchain_peer)
+                self.on_updated_remote_blockchain_peer(remote_blockchain_peer)
+        except Exception as e:
+            logger.info("Got {} when trying to read remote blockchain peer from sdn", e)
+
     def on_new_subscriber_request(self) -> None:
         pass
 
@@ -1230,7 +1239,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.alarm_queue.unregister_alarm(check_relay_alarm_id)
 
         self.check_relay_alarm_id = self.alarm_queue.register_alarm(
-            delay, self.send_request_for_relay_peers
+            delay, self.sync_and_send_request_for_relay_peers, self.network_num
         )
 
     def update_node_settings_from_blockchain_network(self, blockchain_network: BlockchainNetworkModel) -> None:

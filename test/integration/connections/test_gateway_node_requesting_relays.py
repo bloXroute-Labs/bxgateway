@@ -178,7 +178,7 @@ class GatewayNodeRequestingRelaysTest(AbstractTestCase):
             if (
                 scheduled_alarm_id.is_active
                 and scheduled_alarm_id.alarm.fn
-                == self.gateway_node.send_request_for_relay_peers
+                == self.gateway_node.sync_and_send_request_for_relay_peers
             ):
                 if found:
                     self.fail("Multiple scheduled alarms for getting relay peers.")

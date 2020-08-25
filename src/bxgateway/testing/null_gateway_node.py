@@ -53,7 +53,7 @@ class NullGatewayNode(AbstractGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         return NullConnection
 
-    def send_request_for_relay_peers(self):
+    def sync_and_send_request_for_relay_peers(self, network_num: int):
         return 0
 
     def build_block_queuing_service(self) -> PushBlockQueuingService:
