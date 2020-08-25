@@ -4,7 +4,8 @@ from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.tx_validation_status import TxValidationStatus
-from bxcommon.services.transaction_service import TransactionService, TransactionCacheKeyType
+from bxcommon.services.transaction_service import TransactionService, TransactionCacheKeyType, wrap_sha256, \
+    TransactionFromBdnGatewayProcessingResult
 from bxcommon.utils.blockchain_utils import transaction_validation
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.abstract_message_converter import AbstractMessageConverter
@@ -123,7 +124,6 @@ class GatewayTransactionService(TransactionService):
         :param transaction_contents: transaction contents bytes
         :param transaction_contents_length: if the transaction contents bytes not available, just send the length
         """
-
         super(GatewayTransactionService, self).set_transaction_contents_base(
             transaction_hash,
             transaction_cache_key,
@@ -133,7 +133,7 @@ class GatewayTransactionService(TransactionService):
             transaction_contents,
             transaction_contents_length
         )
-
         if transaction_contents is not None:
+            self.node.log_txs_network_content(self.network_num, wrap_sha256(transaction_hash), transaction_contents)
             self.node.block_recovery_service.check_missing_tx_hash(transaction_hash,
                                                                    RecoveredTxsSource.TXS_RECEIVED_FROM_NODE)

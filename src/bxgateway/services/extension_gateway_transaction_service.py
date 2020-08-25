@@ -1,5 +1,5 @@
 import struct
-from typing import List, Set
+from typing import List, Set, Union
 
 import task_pool_executor as tpe
 
@@ -9,6 +9,7 @@ from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
+from bxcommon.services.transaction_service import TransactionFromBdnGatewayProcessingResult
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
@@ -76,7 +77,7 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
 
             if not seen:
                 transaction_cache_key = self._tx_hash_to_cache_key(tx_hash)
-                self.set_transaction_contents_base(tx_hash, transaction_cache_key, False, 0, False, None, tx_len)
+                self.set_transaction_contents_base(tx_hash, transaction_cache_key, False, 0, False, tx_contents, tx_len)
 
         assert txs_count == len(result)
 

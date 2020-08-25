@@ -13,7 +13,7 @@ except ImportError:
 import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Future
-from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable
+from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union
 from prometheus_client import Gauge
 
 from bxcommon import constants
@@ -753,6 +753,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         pass
 
     def log_blocks_network_content(self, network_num: int, block_msg) -> None:
+        pass
+
+    def log_txs_network_content(
+        self, network_num: int, transaction_hash: Sha256Hash, transaction_contents: Union[bytearray, memoryview]
+    ) -> None:
         pass
 
     def post_block_cleanup_tasks(
