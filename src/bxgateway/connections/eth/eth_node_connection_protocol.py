@@ -129,7 +129,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(msg)
         self.process_msg_block(internal_new_block_msg, msg.number())
 
-        self.node.on_transactions_in_block(msg.txns())
+        if self.node.opts.filter_txs_factor > 0:
+            self.node.on_transactions_in_block(msg.txns())
 
     def msg_new_block_hashes(self, msg: NewBlockHashesEthProtocolMessage):
         if not self.node.should_process_block_hash(msg.block_hash()):

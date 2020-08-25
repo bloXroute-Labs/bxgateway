@@ -359,22 +359,20 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def send_transaction_to_node(self, msg: AbstractMessage) -> bool:
         msg = cast(TransactionsEthProtocolMessage, msg)
-        assert len(msg.get_transactions()) == 1
-        transaction = msg.get_transactions()[0]
+        if self.opts.filter_txs_factor > 0:
+            assert len(msg.get_transactions()) == 1
+            transaction = msg.get_transactions()[0]
 
-        if (
-            float(transaction.gas_price)
-            >= self.average_gas_price.average * self.opts.filter_txs_factor
-        ):
-            return super().send_transaction_to_node(msg)
-        else:
-            logger.trace(
-                "Skipping sending transaction {} with gas price: {}. Average was {}",
-                transaction.hash(),
-                float(transaction.gas_price),
-                self.average_gas_price.average
-            )
-            return False
+            if (float(transaction.gas_price) < self.average_gas_price.average * self.opts.filter_txs_factor):
+                logger.trace(
+                    "Skipping sending transaction {} with gas price: {}. Average was {}",
+                    transaction.hash(),
+                    float(transaction.gas_price),
+                    self.average_gas_price.average
+                )
+                return False
+
+        return super().send_transaction_to_node(msg)
 
     def get_enode(self) -> str:
         return \

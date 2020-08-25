@@ -170,7 +170,7 @@ async def process_new_blocks_eth(eth_url: str, exclude_block_contents: bool) -> 
     print(f"Initiating connection to: {eth_url}")
     # TODO: Check the call to EthWsSubscriber. 2nd argument should be FeedManager and not bool
     # pyre-fixme[6]: Expected `FeedManager` for 1st param but got `bool`.
-    async with EthWsSubscriber(eth_url, False, None) as eth_ws:
+    async with EthWsSubscriber(eth_url, False, None, None) as eth_ws:
         print(f"websockets endpoint: {eth_url} established")
 
         global eth_ws_provider
