@@ -861,6 +861,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     self.NODE_TYPE, transaction_streamer_peer.node_type
                 )
             )
+            self.outbound_peers.add(transaction_streamer_peer)
         elif self.has_feed_subscribers and not now_has_feed_subscribers and has_streamer_conn:
             rem_conn = self.connection_pool.get_by_ipport(
                 transaction_streamer_peer.ip, transaction_streamer_peer.port, transaction_streamer_peer.node_id
