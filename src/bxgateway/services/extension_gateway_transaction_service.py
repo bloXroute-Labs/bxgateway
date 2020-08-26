@@ -20,6 +20,55 @@ from bxgateway.services.gateway_transaction_service import GatewayTransactionSer
 
 class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTransactionService):
 
+    def process_gateway_transaction_from_bdn(
+        self,
+        transaction_hash: Sha256Hash,
+        short_id: int,
+        transaction_contents: Union[bytearray, memoryview],
+        is_compact: bool
+    ) -> TransactionFromBdnGatewayProcessingResult:
+
+        transaction_cache_key = self._tx_hash_to_cache_key(transaction_hash)
+
+        ext_result = self.proxy.process_gateway_transaction_from_bdn(
+            transaction_cache_key,
+            tpe.InputBytes(transaction_contents),
+            short_id,
+            is_compact
+        )
+
+        result = TransactionFromBdnGatewayProcessingResult(
+            ext_result.get_ignore_seen(),
+            ext_result.get_existing_short_id(),
+            ext_result.get_assigned_short_id(),
+            ext_result.get_existing_contents(),
+            ext_result.get_set_contents()
+        )
+
+        if result.set_content:
+            has_short_id, previous_size = ext_result.get_set_contents_result()
+            self.set_transaction_contents_base(
+                transaction_hash,
+                transaction_cache_key,
+                has_short_id,
+                previous_size,
+                False,
+                transaction_contents,
+                len(transaction_contents)
+            )
+
+        if result.assigned_short_id:
+            has_contents = result.existing_contents or result.set_content
+            self.assign_short_id_base(
+                transaction_hash,
+                transaction_cache_key,
+                short_id,
+                has_contents,
+                False
+            )
+
+        return result
+
     def process_transactions_message_from_node(
         self,
         msg,

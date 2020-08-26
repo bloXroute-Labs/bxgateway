@@ -38,6 +38,46 @@ class GatewayTransactionService(TransactionService):
 
     node: "AbstractGatewayNode"
 
+    def process_gateway_transaction_from_bdn(
+        self,
+        transaction_hash: Sha256Hash,
+        short_id: int,
+        transaction_contents: Union[bytearray, memoryview],
+        is_compact: bool
+    ) -> TransactionFromBdnGatewayProcessingResult:
+
+        # don't check removed_contents for messages from BDN
+        if (
+            not short_id
+            and self.has_transaction_short_id(transaction_hash)
+            and self.has_transaction_contents(transaction_hash)
+        ):
+            return TransactionFromBdnGatewayProcessingResult(ignore_seen=True)
+
+        existing_short_ids = self.get_short_ids(transaction_hash)
+        if (self.has_transaction_contents(transaction_hash) or is_compact) \
+            and short_id and short_id in existing_short_ids:
+            return TransactionFromBdnGatewayProcessingResult(existing_short_id=True)
+
+        assigned_short_id = False
+        set_content = False
+
+        if short_id and short_id not in existing_short_ids:
+            self.assign_short_id(transaction_hash, short_id)
+            assigned_short_id = True
+
+        existing_contents = self.has_transaction_contents(transaction_hash)
+
+        if not is_compact and not existing_contents:
+            self.set_transaction_contents(transaction_hash, transaction_contents)
+            set_content = True
+
+        return TransactionFromBdnGatewayProcessingResult(
+            assigned_short_id=assigned_short_id,
+            existing_contents=existing_contents,
+            set_content=set_content
+        )
+
     def process_transactions_message_from_node(
         self,
         msg: Union[TxBtcMessage, TransactionsEthProtocolMessage, OntTxMessage],
@@ -135,5 +175,7 @@ class GatewayTransactionService(TransactionService):
         )
         if transaction_contents is not None:
             self.node.log_txs_network_content(self.network_num, wrap_sha256(transaction_hash), transaction_contents)
-            self.node.block_recovery_service.check_missing_tx_hash(transaction_hash,
-                                                                   RecoveredTxsSource.TXS_RECEIVED_FROM_NODE)
+            if call_set_contents:
+                self.node.block_recovery_service.check_missing_tx_hash(
+                    transaction_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_NODE
+                )
