@@ -15,12 +15,12 @@ from bxgateway import log_messages
 class MainTest(AbstractTestCase):
 
     def test_parse_peer_string(self):
-        peers = main.parse_peer_string("127.0.0.1:8000,192.168.1.1:80001")
+        peers = main.parse_peer_string("127.0.0.1:8000:GATEWAY,192.168.1.1:80001:GATEWAY")
         self.assertEqual(2, len(peers))
         self.assertEqual(OutboundPeerModel("127.0.0.1", 8000), peers[0])
         self.assertEqual(OutboundPeerModel("192.168.1.1", 80001), peers[1])
 
-        peers2 = main.parse_peer_string("127.0.0.1:8000, 192.168.1.1:80001")
+        peers2 = main.parse_peer_string("127.0.0.1:8000:GATEWAY, 192.168.1.1:80001:GATEWAY")
         self.assertEqual(peers, peers2)
 
     def test_get_opts_outbound_peers_provided(self):
@@ -28,8 +28,8 @@ class MainTest(AbstractTestCase):
                 "--blockchain-port", "9333",
                 "--blockchain-protocol", "Bitcoin",
                 "--blockchain-network", "Mainnet",
-                "--peer-relays", "127.0.0.1:8000,127.0.0.1:8001",
-                "--peer-gateways", "127.0.1.1:8000,127.0.1.0:8001",
+                "--peer-relays", "127.0.0.1:8000:RELAY,127.0.0.1:8001:RELAY",
+                "--peer-gateways", "127.0.1.1:8000:GATEWAY,127.0.1.0:8001:GATEWAY",
                 "--source-version", "1.2.3",
                 "--external-port", "7000"]
         args = main.get_opts(argv)

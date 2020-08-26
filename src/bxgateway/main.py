@@ -48,15 +48,13 @@ def generate_default_nonce():
 
 def parse_peer_string(peer_string):
     """
-    Parses string of format ip:port,ip:port,ip:port,... to list of OutboundPeerModels.
+    Parses string of format ip:port:node_type,ip:port,ip:port:node_type,... to list of OutboundPeerModels.
     """
     peers = []
     for ip_port_string in peer_string.split(","):
         if ip_port_string:
-            ip_port_list = ip_port_string.strip().split(":")
-            ip = ip_port_list[0]
-            port = int(ip_port_list[1])
-            peers.append(OutboundPeerModel(ip, port))
+            ip, port_str, node_type_str = ip_port_string.strip().split(":")
+            peers.append(OutboundPeerModel(ip, int(port_str), node_type=NodeType[node_type_str.upper()]))
     return peers
 
 
@@ -93,7 +91,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
                             default=None)
     arg_parser.add_argument("--peer-gateways",
                             help="Optional gateway peer ip/ports that will always be connected to. "
-                                 "Should be in the format ip1:port1,ip2:port2,...",
+                                 "Should be in the format ip1:port1:GATEWAY,ip2:port2:GATEWAY",
                             type=parse_peer_string,
                             default="")
     arg_parser.add_argument("--min-peer-gateways",
@@ -114,7 +112,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
                             default=False)
     arg_parser.add_argument("--peer-relays",
                             help="(TEST ONLY) Optional relays peer ip/ports that will always be connected to. "
-                                 "Should be in the format ip1:port1,ip2:port2,...",
+                                 "Should be in the format ip1:port1:RELAY,ip2:port2:RELAY,...",
                             type=parse_peer_string,
                             default="")
     arg_parser.add_argument("--test-mode",
