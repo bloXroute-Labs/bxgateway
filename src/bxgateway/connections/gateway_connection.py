@@ -105,7 +105,11 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         if not self.from_me:
             self.log_trace("Connection established with peer: {}.", peer_id)
-            sdn_http_service.submit_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)
+            self.node.requester.send_threaded_request(
+                sdn_http_service.submit_gateway_inbound_connection,
+                self.node.opts.node_id,
+                self.peer_id
+            )
 
         if self.node.connection_exists(ip, port):
             connection = self.node.connection_pool.get_by_ipport(ip, port)
@@ -226,4 +230,8 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         if not self.from_me:
             if self.peer_id:
-                sdn_http_service.delete_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)
+                self.node.requester.send_threaded_request(
+                    sdn_http_service.delete_gateway_inbound_connection,
+                    self.node.opts.node_id,
+                    self.peer_id
+                )
