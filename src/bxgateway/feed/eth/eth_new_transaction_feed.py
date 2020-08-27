@@ -39,7 +39,8 @@ class EthNewTransactionFeed(Feed[EthTransactionFeedEntry, EthRawTransaction]):
             for subscriber in self.subscribers.values():
                 if subscriber.options.get("include_from_blockchain", True):
                     return True
-        return False
+            return False
+        return True
 
     def should_publish_message_to_subscriber(
         self,
