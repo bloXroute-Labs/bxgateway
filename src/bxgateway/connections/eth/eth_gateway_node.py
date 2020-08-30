@@ -1,6 +1,6 @@
 import asyncio
 from collections import deque
-from typing import Optional, List, cast, Iterator
+from typing import Optional, List, cast, Iterator, Union
 
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -44,7 +44,7 @@ from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlo
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
 from bxgateway.utils.running_average import RunningAverage
-from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants, eth_common_utils
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
 from bxgateway.utils.stats.eth_on_block_feed_stats_service import eth_on_block_feed_stats_service
 from bxgateway import log_messages, gateway_constants
@@ -468,4 +468,8 @@ class EthGatewayNode(AbstractGatewayNode):
                 EthOnBlockFeed.NAME, EventNotification(raw_block.block_number)
             )
 
-
+    def is_gas_price_above_min_network_fee(self, transaction_contents: Union[memoryview, bytearray]) -> bool:
+        gas_price = eth_common_utils.raw_tx_gas_price(memoryview(transaction_contents), 0)
+        if gas_price >= self.get_blockchain_network().min_tx_network_fee:
+            return True
+        return False

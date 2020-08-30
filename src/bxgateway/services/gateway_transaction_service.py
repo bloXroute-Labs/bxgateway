@@ -84,10 +84,11 @@ class GatewayTransactionService(TransactionService):
         min_tx_network_fee: int,
         enable_transaction_validation: bool
     ) -> List[ProcessTransactionMessageFromNodeResult]:
-
         message_converter = cast(AbstractMessageConverter, self.node.message_converter)
+
+        # avoid filtering low fee transactions in tx_to_bx_txs to match extensions behavior
         bx_tx_messages = message_converter.tx_to_bx_txs(
-            msg, self.network_num, self.node.default_tx_quota_type, self.node.network.min_tx_network_fee
+            msg, self.network_num, self.node.default_tx_quota_type, min_tx_network_fee=0
         )
 
         result = []

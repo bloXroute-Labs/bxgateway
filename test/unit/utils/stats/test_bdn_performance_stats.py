@@ -38,6 +38,7 @@ def _block_with_timestamp(timestamp):
 class GatewayTransactionStatsServiceTest(AbstractTestCase):
     def setUp(self):
         self.node = MockGatewayNode(
+
             gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True, use_extensions=True),
             block_queueing_cls=MagicMock())
         self.node.message_converter = converter_factory.create_eth_message_converter(self.node.opts)
@@ -96,6 +97,24 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.relay_connection.msg_tx(full_message)
 
         self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_bdn)
+
+    def test_bdn_stats_tx_new_from_node_low_fee(self):
+        self.node.opts.blockchain_networks[self.node.network_num].min_tx_network_fee = 500
+        blockchain_network = self.tx_blockchain_connection_protocol.connection.node.get_blockchain_network()
+        blockchain_network.protocol = "ethereum"
+
+        txs = [
+            mock_eth_messages.get_dummy_transaction(1, gas_price=5),
+        ]
+
+        tx_msg = TransactionsEthProtocolMessage(None, txs)
+        self.assertEqual(1, len(tx_msg.get_transactions()))
+        self.tx_blockchain_connection_protocol.msg_tx(tx_msg)
+        self.assertEqual(0, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node)
+        self.assertEqual(
+            1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node_low_fee
+        )
+
 
     def test_bdn_stats_tx_new_from_node(self):
         txs = [

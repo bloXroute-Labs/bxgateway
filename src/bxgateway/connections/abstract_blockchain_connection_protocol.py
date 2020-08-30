@@ -1,12 +1,13 @@
 import time
 from abc import ABCMeta, abstractmethod
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.utils import performance_utils
+from bxcommon.utils.blockchain_utils.eth import eth_common_utils, transaction_validation_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -62,7 +63,6 @@ class AbstractBlockchainConnectionProtocol:
 
         for tx_result in process_tx_msg_result:
             txn_count += 1
-
             if TxValidationStatus.INVALID_FORMAT in tx_result.tx_validation_status:
                 gateway_transaction_stats_service.log_tx_validation_failed_structure()
                 logger.warning(
@@ -99,6 +99,9 @@ class AbstractBlockchainConnectionProtocol:
 
             if TxValidationStatus.LOW_FEE in tx_result.tx_validation_status:
                 gateway_transaction_stats_service.log_tx_validation_failed_gas_price()
+                # log low fee transaction here for bdn_performance
+                gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(True)
+
                 logger.trace(
                     "transaction {} has gas price lower then the setting {}",
                     tx_result.transaction_hash,
@@ -132,7 +135,11 @@ class AbstractBlockchainConnectionProtocol:
                 peer=stats_format.connection(self.connection)
             )
             gateway_transaction_stats_service.log_transaction_from_blockchain(tx_result.transaction_hash)
-            gateway_bdn_performance_stats_service.log_tx_from_blockchain_node()
+
+            # log transactions that passed validation, according to fee
+            gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(
+                not self.node.is_gas_price_above_min_network_fee(tx_result.transaction_contents)
+            )
 
             # All connections outside of this one is a bloXroute server
             broadcast_peers = self.connection.node.broadcast(

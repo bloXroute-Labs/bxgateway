@@ -201,7 +201,9 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         if processing_result.set_content:
             self.log_trace("Adding hash value to tx service and forwarding it to node")
-            gateway_bdn_performance_stats_service.log_tx_from_bdn()
+            gateway_bdn_performance_stats_service.log_tx_from_bdn(
+                not self.node.is_gas_price_above_min_network_fee(tx_contents)
+            )
             attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
             self.publish_new_transaction(

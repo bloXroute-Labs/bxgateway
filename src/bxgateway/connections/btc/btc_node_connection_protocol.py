@@ -268,4 +268,3 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             hashes=hashes,
             hash_stop=NULL_BTC_BLOCK_HASH
         )
-
