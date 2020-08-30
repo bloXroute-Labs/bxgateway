@@ -17,7 +17,7 @@ class EthNewTransactionFeedTest(AbstractTestCase):
     @async_test
     async def test_publish_from_blockchain(self):
         normal_subscriber = self.sut.subscribe({})
-        no_from_bc_subscriber = self.sut.subscribe({"include_from_blockchain": False})
+        yes_from_bc_subscriber = self.sut.subscribe({"include_from_blockchain": True})
 
         self.sut.publish(
             mock_eth_messages.generate_eth_raw_transaction(
@@ -25,11 +25,11 @@ class EthNewTransactionFeedTest(AbstractTestCase):
             )
         )
 
-        result = await asyncio.wait_for(normal_subscriber.receive(), 0.01)
+        result = await asyncio.wait_for(yes_from_bc_subscriber.receive(), 0.01)
         self.assertIsNotNone(result)
 
         with self.assertRaises(asyncio.TimeoutError):
-            await asyncio.wait_for(no_from_bc_subscriber.receive(), 0.01)
+            await asyncio.wait_for(normal_subscriber.receive(), 0.01)
 
     @async_test
     async def test_publish_from_blockchain_skips_publish_no_subscribers(self):
