@@ -5,7 +5,6 @@ from typing import List, Optional
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
-from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.utils import performance_utils
 from bxcommon.utils.object_hash import Sha256Hash
@@ -44,14 +43,10 @@ class AbstractBlockchainConnectionProtocol:
         start_time = time.time()
         txn_count = 0
         broadcast_txs_count = 0
-        network_num = self.connection.node.network_num
-        blockchain_network = self.connection.node.get_blockchain_network()
-        blockchain_protocol_name = blockchain_network.protocol
 
         tx_service = self.connection.node.get_tx_service()
         process_tx_msg_result = tx_service.process_transactions_message_from_node(
             msg,
-            BlockchainProtocol(blockchain_protocol_name.lower()),
             self.connection.node.get_network_min_transaction_fee(),
             self.connection.node.opts.transaction_validation
         )
