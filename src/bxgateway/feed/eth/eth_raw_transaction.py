@@ -1,6 +1,7 @@
 from typing import NamedTuple, Union, Dict, Any
 
 from bxcommon.utils.object_hash import Sha256Hash
+from bxgateway.feed.new_transaction_feed import FeedSource
 
 
 class EthRawTransaction(NamedTuple):
@@ -15,3 +16,4 @@ class EthRawTransaction(NamedTuple):
     """
     tx_hash: Sha256Hash
     tx_contents: Union[memoryview, Dict[str, Any]]
+    source: FeedSource

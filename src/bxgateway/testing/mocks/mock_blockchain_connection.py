@@ -22,18 +22,19 @@ class MockMessageConverter(AbstractMessageConverter):
 
     PREV_BLOCK = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
 
-    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None):
+    def tx_to_bx_txs(self, tx_msg, network_num, quota_type: Optional[QuotaType] = None,
+                     min_tx_network_fee=0):
         return [(tx_msg, tx_msg.tx_hash(), tx_msg.tx_val(), quota_type)]
 
     def bx_tx_to_tx(self, bx_tx_msg):
         return bx_tx_msg
 
     def block_to_bx_block(
-        self, block_msg, tx_service, enable_block_compression: bool
+        self, block_msg, tx_service, enable_block_compression: bool, min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         return block_msg.rawbytes(), \
                BlockInfo(convert.bytes_to_hex(self.PREV_BLOCK.binary), [], datetime.datetime.utcnow(),
-                         datetime.datetime.utcnow(), 0, 0, None, None, 0, 0, 0)
+                         datetime.datetime.utcnow(), 0, 0, None, None, 0, 0, 0, [])
 
     def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
         block_message = MockBlockMessage(buf=bx_block_msg)

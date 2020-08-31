@@ -50,7 +50,8 @@ def get_block_info(
         prev_block_hash,
         ont_block_len,
         compressed_size,
-        compression_rate
+        compression_rate,
+        []
     )
 
 
@@ -61,7 +62,7 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
 
     @abstractmethod
     def block_to_bx_block(
-        self, block_msg, tx_service, enable_block_compression: bool
+        self, block_msg, tx_service, enable_block_compression: bool, min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         """
         Pack a blockchain block's transactions into a bloXroute block.
@@ -88,13 +89,15 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
 
         return ont_tx_msg
 
-    # pyre-fixme[14]: `tx_to_bx_txs` overrides method defined in
-    #  `AbstractMessageConverter` inconsistently.
-    def tx_to_bx_txs(self, ont_tx_msg: TxOntMessage, network_num: int, quota_type: Optional[QuotaType] = None) -> \
-            List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
-        tx_msg = TxMessage(ont_tx_msg.tx_hash(), network_num, tx_val=ont_tx_msg.tx(), quota_type=quota_type)
-
-        return [(tx_msg, ont_tx_msg.tx_hash(), ont_tx_msg.tx())]
+    def tx_to_bx_txs(
+        self,
+        tx_msg,
+        network_num: int,
+        quota_type: Optional[QuotaType] = None,
+        min_tx_network_fee: int = 0
+    ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
+        bx_tx_msg = TxMessage(tx_msg.tx_hash(), network_num, tx_val=tx_msg.tx(), quota_type=quota_type)
+        return [(bx_tx_msg, tx_msg.tx_hash(), tx_msg.tx())]
 
     def bdn_tx_to_bx_tx(
             self,

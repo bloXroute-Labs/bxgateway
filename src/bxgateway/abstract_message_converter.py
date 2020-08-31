@@ -53,14 +53,21 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def tx_to_bx_txs(self, tx_msg, network_num: int, quota_type: Optional[QuotaType] = None) -> \
-            List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
+    def tx_to_bx_txs(
+        self,
+        tx_msg,
+        network_num: int,
+        quota_type: Optional[QuotaType] = None,
+        min_tx_network_fee: int = 0
+    ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         """
         Converts blockchain transactions message to internal transaction message
 
         :param tx_msg: blockchain transactions message
         :param network_num: blockchain network number
         :param quota_type: the quota type to assign to the BDN transaction.
+        :param min_tx_network_fee: minimum transaction fee. If support by the network, transactions
+                                   with fees lower than this will be excluded from the result
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 
@@ -79,7 +86,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
 
     @abstractmethod
     def block_to_bx_block(
-        self, block_msg, tx_service, enable_block_compression: bool
+        self, block_msg, tx_service, enable_block_compression: bool, min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         """
         Convert blockchain block message to internal broadcast message with transactions replaced with short ids
@@ -87,6 +94,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         :param block_msg: blockchain new block message
         :param tx_service: Transactions service
         :param enable_block_compression
+        :param min_tx_age_seconds
         :return: Internal broadcast message bytes (bytearray), tuple (txs count, previous block hash, short ids)
         """
         pass

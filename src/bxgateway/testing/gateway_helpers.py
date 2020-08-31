@@ -54,6 +54,8 @@ def get_gateway_opts(
     ws_port=28333,
     request_remote_transaction_streaming: bool = False,
     enable_block_compression: bool = True,
+    filter_txs_factor: float = 0,
+    blockchain_protocol: str = "Bitcoin",
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:
@@ -90,7 +92,7 @@ def get_gateway_opts(
             "bloxroute_version": bloxroute_version,
             "blockchain_ip": blockchain_address[0],
             "blockchain_port": blockchain_address[1],
-            "blockchain_protocol": "Bitcoin",
+            "blockchain_protocol": blockchain_protocol,
             "blockchain_network": "Mainnet",
             "blockchain_version": 12345,
             "test_mode": test_mode,
@@ -138,6 +140,7 @@ def get_gateway_opts(
             "enable_eth_extensions": True,   # TODO remove,
             "request_recovery": True,
             "enable_block_compression": enable_block_compression,
+            "filter_txs_factor": filter_txs_factor
         }
     )
 

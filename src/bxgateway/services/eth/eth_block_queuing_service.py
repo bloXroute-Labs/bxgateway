@@ -14,6 +14,7 @@ from bxcommon.utils.stats import hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
+from bxgateway.feed.feed_source import FeedSource
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import (
@@ -274,6 +275,10 @@ class EthBlockQueuingService(
         best_height, _ = self.best_accepted_block
         if block_number >= best_height:
             self.best_accepted_block = EthBlockInfo(block_number, block_hash)
+            if block_message or block_hash in self._block_parts:
+                self.node.publish_block(
+                    block_number, block_hash, block_message, FeedSource.BLOCKCHAIN_SOCKET
+                )
 
         if block_hash in self.block_checking_alarms:
             self.node.alarm_queue.unregister_alarm(
@@ -323,7 +328,7 @@ class EthBlockQueuingService(
                 block_hash, new_block_msg
             )
             self.node.set_known_total_difficulty(
-                new_block_msg.block_hash(), new_block_msg.chain_difficulty()
+                new_block_msg.block_hash(), new_block_msg.get_chain_difficulty()
             )
         else:
             calculated_total_difficulty = self.node.try_calculate_total_difficulty(
@@ -353,6 +358,9 @@ class EthBlockQueuingService(
         self.sent_block_at_height[block_number] = block_hash
         self.best_sent_block = SentEthBlockInfo(block_number, block_hash, time.time())
         self._schedule_confirmation_check(block_hash)
+
+        if self.node.opts.filter_txs_factor > 0:
+            self.node.on_transactions_in_block(block_msg.to_new_block_msg().txns())
 
     def partial_chainstate(self, required_length: int) -> Deque[EthBlockInfo]:
         """
@@ -497,7 +505,7 @@ class EthBlockQueuingService(
 
         Returns (success, [found_hashes])
         """
-        if block_hash not in self._blocks:
+        if block_hash not in self._blocks or self._blocks[block_hash] is None:
             return False, []
 
         if block_hash in self._blocks_waiting_for_recovery and self._blocks_waiting_for_recovery[block_hash]:
@@ -837,6 +845,8 @@ class EthBlockQueuingService(
             block_hash
         )
         self.remove_from_queue(block_hash)
+        if block_hash in self._blocks and self._blocks[block_hash] is None:
+            self.remove(block_hash)
 
     def _check_for_sent_or_queued_forked_block(self, block_hash: Sha256Hash, block_number: int) -> bool:
         """
@@ -968,6 +978,8 @@ class EthBlockQueuingService(
             )
             self.send_block_to_node(block_hash, block_msg)
             self.remove_from_queue(block_hash)
+            self.node.publish_block(
+                block_number, block_hash, block_msg, FeedSource.BDN_SOCKET
+            )
             return True
         return False
-

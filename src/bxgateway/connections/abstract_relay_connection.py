@@ -1,6 +1,7 @@
 import time
 from abc import ABCMeta
-from typing import TYPE_CHECKING, Set, Union
+from asyncio import Future
+from typing import TYPE_CHECKING, Set
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
@@ -74,8 +75,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             BloxrouteMessageType.COMPRESSED_BLOCK_TXS: self.msg_compressed_block_txs,
             BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding,
             BloxrouteMessageType.DISCONNECT_RELAY_PEER: self.msg_disconnect_relay_peer,
-            BloxrouteMessageType.TX_SERVICE_SYNC_TXS: self.msg_tx_service_sync_txs,
-            BloxrouteMessageType.TX_SERVICE_SYNC_COMPLETE: self.msg_tx_service_sync_complete,
+            BloxrouteMessageType.TX_SERVICE_SYNC_TXS: self.tx_sync_service.msg_tx_service_sync_txs,
+            BloxrouteMessageType.TX_SERVICE_SYNC_COMPLETE: self.tx_sync_service.msg_tx_service_sync_complete,
             BloxrouteMessageType.BLOCK_CONFIRMATION: self.msg_cleanup,
             BloxrouteMessageType.TRANSACTION_CLEANUP: self.msg_cleanup,
             BloxrouteMessageType.NOTIFICATION: self.msg_notify,
@@ -88,7 +89,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_hello(self, msg):
         super(AbstractRelayConnection, self).msg_hello(msg)
-        self.node.on_relay_connection_ready()
+        self.node.on_relay_connection_ready(self.CONNECTION_TYPE)
 
     def msg_broadcast(self, msg):
         """
@@ -203,20 +204,23 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             gateway_bdn_performance_stats_service.log_tx_from_bdn()
             attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
+            self.publish_new_transaction(
+                tx_hash, tx_contents
+            )
+
             if self.node.node_conn is not None:
                 blockchain_tx_message = self.node.message_converter.bx_tx_to_tx(msg)
-                self.publish_new_transaction(
-                    tx_hash, tx_contents
-                )
                 transaction_feed_stats_service.log_new_transaction(tx_hash)
-                self.node.send_msg_to_node(blockchain_tx_message)
-
-                tx_stats.add_tx_by_hash_event(
-                    tx_hash,
-                    TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
-                    network_num,
-                    short_id
-                )
+                sent = self.node.send_transaction_to_node(blockchain_tx_message)
+                if sent:
+                    tx_stats.add_tx_by_hash_event(
+                        tx_hash,
+                        TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
+                        network_num,
+                        short_id
+                    )
+                else:
+                    gateway_transaction_stats_service.log_dropped_transaction_from_relay()
 
         if attempt_recovery:
             self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
@@ -363,6 +367,18 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                     self.node.opts.should_update_source_version, self.node.account_id,
                     self.node.quota_level
                 )
+        elif (
+            msg.notification_code() == NotificationCode.ASSIGNING_SHORT_IDS
+            or msg.notification_code() == NotificationCode.NOT_ASSIGNING_SHORT_IDS
+        ):
+            is_assigning = msg.notification_code() == NotificationCode.ASSIGNING_SHORT_IDS
+            peer_model = self.peer_model
+            if peer_model is not None:
+                peer_model.assigning_short_ids = is_assigning
+            if self.node.opts.split_relays:
+                for peer_model in self.node.peer_transaction_relays:
+                    if peer_model.ip == self.peer_ip and peer_model.node_id == self.peer_id:
+                        peer_model.assigning_short_ids = is_assigning
 
         if msg.level() == LogLevel.WARNING or msg.level() == LogLevel.ERROR:
             self.log(msg.level(), log_messages.NOTIFICATION_FROM_RELAY, msg.formatted_message())
@@ -371,22 +387,34 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_refresh_blockchain_network(self, _msg: RefreshBlockchainNetworkMessage) -> None:
         blockchain_protocol = self.node.opts.blockchain_protocol
-        assert blockchain_protocol is not None
         blockchain_network = self.node.opts.blockchain_network
+        assert blockchain_protocol is not None
         assert blockchain_network is not None
 
-        updated_blockchain_network = sdn_http_service.fetch_blockchain_network(blockchain_protocol, blockchain_network)
-        assert updated_blockchain_network is not None
-        self.node.opts.enable_block_compression = updated_blockchain_network.enable_block_compression
-
-        for blockchain_network_config in self.node.opts.blockchain_networks:
-            if blockchain_network_config.protocol.lower() == blockchain_protocol.lower() \
-                and blockchain_network_config.network.lower() == blockchain_network.lower():
-                blockchain_network_config.enable_block_compression = self.node.opts.enable_block_compression
-                break
+        self.node.requester.send_threaded_request(
+            sdn_http_service.fetch_blockchain_network,
+            blockchain_protocol,
+            blockchain_network,
+            # pyre-fixme[6]: Expected `Optional[Callable[[Future[Any]], Any]]` for 4th parameter `done_callback`
+            #  to call `send_threaded_request` but got `BoundMethod[Callable(_process_blockchain_network_from_sdn)
+            #  [[Named(self, AbstractRelayConnection), Named(get_blockchain_network_future, Future[Any])], Any],
+            #  AbstractRelayConnection]`.
+            done_callback=self._process_blockchain_network_from_sdn
+        )
 
     def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:
         self.node.feed_manager.publish_to_feed(
             NewTransactionFeed.NAME,
             RawTransactionFeedEntry(tx_hash, tx_contents)
         )
+
+    def _process_blockchain_network_from_sdn(self, get_blockchain_network_future: Future):
+        try:
+            updated_blockchain_network = get_blockchain_network_future.result()
+            assert updated_blockchain_network is not None
+
+            self.node.network = updated_blockchain_network
+            self.node.opts.blockchain_networks[self.node.network_num] = updated_blockchain_network
+            self.node.update_node_settings_from_blockchain_network(updated_blockchain_network)
+        except Exception as e:
+            self.log_info("Got {} when trying to read blockchain network from sdn", e)

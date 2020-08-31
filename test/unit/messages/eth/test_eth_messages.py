@@ -466,7 +466,7 @@ class EthMessagesTests(AbstractTestCase):
         self.assertEqual(len(new_block_msg.rawbytes()), len(new_block_msg_from_block_parts.rawbytes()))
         self.assertEqual(new_block_msg.rawbytes(),
                          new_block_msg_from_block_parts.rawbytes())
-        self.assertEqual(new_block_msg_from_block_parts.chain_difficulty(), dummy_chain_difficulty)
+        self.assertEqual(new_block_msg_from_block_parts.get_chain_difficulty(), dummy_chain_difficulty)
 
     def _test_msg_serialization(self, msg_cls, needs_private_key, *args, **kwargs):
         if needs_private_key:

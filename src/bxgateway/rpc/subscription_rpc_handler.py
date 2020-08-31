@@ -7,7 +7,10 @@ from bxcommon.rpc.abstract_rpc_handler import AbstractRpcHandler
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
+from bxcommon.rpc.requests.transaction_status_rpc_request import TransactionStatusRpcRequest
 from bxcommon.rpc.rpc_request_type import RpcRequestType
+from bxcommon.models.blockchain_protocol import BlockchainProtocol
+
 from bxgateway import gateway_constants, log_messages
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.subscriber import Subscriber
@@ -22,7 +25,9 @@ from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcReques
 from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
+from bxgateway.rpc.requests.gateway_blxr_call_rpc_request import GatewayBlxrCallRpcRequest
 from bxutils import logging
+from bxutils.encoding.json_encoder import Case
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -44,10 +49,11 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
     subscriptions: Dict[str, Subscription]
     subscribed_messages: 'asyncio.Queue[BxJsonRpcRequest]'
 
-    def __init__(self, node: "AbstractGatewayNode", feed_manager: FeedManager) -> None:
-        super().__init__(node)
+    def __init__(self, node: "AbstractGatewayNode", feed_manager: FeedManager, case: Case) -> None:
+        super().__init__(node, case)
         self.request_handlers = {
             RpcRequestType.BLXR_TX: GatewayBlxrTransactionRpcRequest,
+            RpcRequestType.BLXR_ETH_CALL: GatewayBlxrCallRpcRequest,
             RpcRequestType.GATEWAY_STATUS: GatewayStatusRpcRequest,
             RpcRequestType.STOP: GatewayStopRpcRequest,
             RpcRequestType.MEMORY: GatewayMemoryRpcRequest,
@@ -56,8 +62,10 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             RpcRequestType.SUBSCRIBE: SubscribeRpcRequest,
             RpcRequestType.UNSUBSCRIBE: UnsubscribeRpcRequest,
             RpcRequestType.QUOTA_USAGE: QuotaUsageRpcRequest,
-            RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest
+            RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest,
+            RpcRequestType.TX_STATUS: TransactionStatusRpcRequest,
         }
+
         self.feed_manager = feed_manager
         self.subscriptions = {}
         self.subscribed_messages = asyncio.Queue(
@@ -78,7 +86,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             return request_handler_type(request, self.node)
 
     def serialize_response(self, response: JsonRpcResponse) -> str:
-        return response.to_jsons()
+        return response.to_jsons(self.case)
 
     async def get_next_subscribed_message(self) -> BxJsonRpcRequest:
         return await self.subscribed_messages.get()

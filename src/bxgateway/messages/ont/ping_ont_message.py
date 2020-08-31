@@ -4,6 +4,7 @@ from typing import Optional
 from bxgateway import ont_constants
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.ont_message_type import OntMessageType
+from bxutils.logging import LogLevel
 
 
 class PingOntMessage(OntMessage):
@@ -35,3 +36,6 @@ class PingOntMessage(OntMessage):
                 self._height, = struct.unpack_from("<Q", self.buf, ont_constants.ONT_HDR_COMMON_OFF)
 
         return self._height
+
+    def log_level(self) -> LogLevel:
+        return LogLevel.DEBUG

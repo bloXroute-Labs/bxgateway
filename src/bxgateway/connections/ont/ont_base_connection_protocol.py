@@ -1,6 +1,6 @@
 import typing
 from abc import abstractmethod
-from typing import List, Union
+from typing import List
 
 from bxcommon import constants
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -24,7 +24,7 @@ logger = logging.get_logger(__name__)
 
 
 class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
-    def __init__(self, connection: AbstractGatewayBlockchainConnection):
+    def __init__(self, connection: AbstractGatewayBlockchainConnection) -> None:
         super(OntBaseConnectionProtocol, self).__init__(
             connection,
             block_cleanup_poll_interval_s=ont_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S
@@ -54,7 +54,7 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
     # pyre-fixme[14]: `msg_block` overrides method defined in
     #  `AbstractBlockchainConnectionProtocol` inconsistently.
-    def msg_block(self, msg: BlockOntMessage):
+    def msg_block(self, msg: BlockOntMessage) -> None:
         block_hash = msg.block_hash()
 
         if not self.node.should_process_block_hash(block_hash):
@@ -67,7 +67,7 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                 block_msg=msg
             )
         else:
-            super().msg_block(msg)
+            self.process_msg_block(msg)
 
         # After receiving block message sending INV message for the same block to Ontology node
         # This is needed to update Synced Headers value of the gateway peer on the Ontology node
@@ -77,14 +77,14 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         self.node.send_msg_to_node(inv_msg)
         self.node.update_current_block_height(msg.height(), block_hash)
 
-    def msg_ping(self, msg: PingOntMessage):
+    def msg_ping(self, msg: PingOntMessage) -> None:
         reply = PongOntMessage(self.magic, msg.height())
         self.connection.enqueue_msg(reply)
 
-    def msg_pong(self, msg: PongOntMessage):
+    def msg_pong(self, msg: PongOntMessage) -> None:
         pass
 
-    def msg_getaddr(self, _msg: GetAddrOntMessage):
+    def msg_getaddr(self, _msg: GetAddrOntMessage) -> None:
         reply = AddrOntMessage(self.magic)
         self.connection.enqueue_msg(reply)
 

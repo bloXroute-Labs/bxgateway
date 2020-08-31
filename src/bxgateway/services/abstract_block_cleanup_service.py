@@ -1,14 +1,18 @@
 from abc import ABCMeta, abstractmethod
-from typing import Set, List, Optional
+from typing import Set, List, Optional, TYPE_CHECKING
 
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import Sha256Hash
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
+from bxcommon import constants
+
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
-from bxcommon import constants
+
+if TYPE_CHECKING:
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 logger = logging.get_logger(LogRecordType.BlockCleanup, __name__)
 
@@ -18,7 +22,6 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
     Service for managing block cleanup.
     """
 
-    # pyre-fixme[11]: Annotation `AbstractGatewayNode` is not defined as a type.
     def __init__(self, node: "AbstractGatewayNode", network_num: int):
         """
         Constructor
@@ -26,7 +29,6 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
         :param network_num: network number
         """
 
-        # pyre-fixme[11]: Annotation `AbstractGatewayNode` is not defined as a type.
         self.node: "AbstractGatewayNode" = node
         self.network_num: int = network_num
 
@@ -140,7 +142,6 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
     def process_cleanup_message(
             self,
             msg: AbstractCleanupMessage,
-            # pyre-fixme[11]: Annotation `AbstractGatewayNode` is not defined as a type.
             node: "AbstractGatewayNode",
     ):
         block_cleanup = msg.MESSAGE_TYPE == BloxrouteMessageType.BLOCK_CONFIRMATION

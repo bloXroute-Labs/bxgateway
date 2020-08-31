@@ -2,6 +2,8 @@ import asyncio
 import json
 from typing import Any
 # TODO: remove try-catch when removing py3.7 support
+from bxutils.encoding.json_encoder import Case
+
 try:
     from asyncio.exceptions import TimeoutError
 except ImportError:
@@ -32,21 +34,26 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
     @async_test
     async def setUp(self) -> None:
         await super().setUp()
-        self.feed_manager = FeedManager()
+        self.feed_manager = FeedManager(self.gateway_node)
         self.server = WsServer(
-            constants.LOCALHOST, 8005, self.feed_manager, self.gateway_node
+            constants.LOCALHOST, 8005, self.feed_manager, self.gateway_node, Case.SNAKE
         )
         self.ws_uri = f"ws://{constants.LOCALHOST}:8005"
         await self.server.start()
 
     def get_gateway_opts(self) -> GatewayOpts:
         super().get_gateway_opts()
-        return gateway_helpers.get_gateway_opts(8000, )
+        return gateway_helpers.get_gateway_opts(
+            8000,
+            blockchain_protocol="Ethereum",
+            account_model=self._account_model,
+        )
 
     async def request(self, req: BxJsonRpcRequest) -> JsonRpcResponse:
         async with websockets.connect(self.ws_uri) as ws:
             await ws.send(req.to_jsons())
-            return JsonRpcResponse.from_jsons(await ws.recv())
+            response = await ws.recv()
+            return JsonRpcResponse.from_jsons(response)
 
     @async_test
     async def test_startup(self):
@@ -105,10 +112,6 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
     @async_test
     async def tearDown(self) -> None:
         await self.server.stop()
-
-    @async_test
-    async def test_blxr_tx(self):
-        pass
 
     def _assert_notification(
         self, expected_result: Any, subscriber_id: str, message: str

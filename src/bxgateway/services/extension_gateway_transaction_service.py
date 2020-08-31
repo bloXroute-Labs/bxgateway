@@ -1,5 +1,5 @@
 import struct
-from typing import List, cast, Set
+from typing import List, Set, Union
 
 import task_pool_executor as tpe
 
@@ -7,37 +7,90 @@ from bxcommon import constants
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
+from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
+from bxcommon.services.transaction_service import TransactionFromBdnGatewayProcessingResult
 from bxcommon.utils import crypto
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.ont.ont_gateway_node import OntGatewayNode
-from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.services.gateway_transaction_service import GatewayTransactionService, \
     ProcessTransactionMessageFromNodeResult, MissingTransactions
 
 
 class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTransactionService):
 
+    def process_gateway_transaction_from_bdn(
+        self,
+        transaction_hash: Sha256Hash,
+        short_id: int,
+        transaction_contents: Union[bytearray, memoryview],
+        is_compact: bool
+    ) -> TransactionFromBdnGatewayProcessingResult:
+
+        transaction_cache_key = self._tx_hash_to_cache_key(transaction_hash)
+
+        ext_result = self.proxy.process_gateway_transaction_from_bdn(
+            transaction_cache_key,
+            tpe.InputBytes(transaction_contents),
+            short_id,
+            is_compact
+        )
+
+        result = TransactionFromBdnGatewayProcessingResult(
+            ext_result.get_ignore_seen(),
+            ext_result.get_existing_short_id(),
+            ext_result.get_assigned_short_id(),
+            ext_result.get_existing_contents(),
+            ext_result.get_set_contents()
+        )
+
+        if result.set_content:
+            has_short_id, previous_size = ext_result.get_set_contents_result()
+            self.set_transaction_contents_base(
+                transaction_hash,
+                transaction_cache_key,
+                has_short_id,
+                previous_size,
+                False,
+                transaction_contents,
+                len(transaction_contents)
+            )
+
+        if result.assigned_short_id:
+            has_contents = result.existing_contents or result.set_content
+            self.assign_short_id_base(
+                transaction_hash,
+                transaction_cache_key,
+                short_id,
+                has_contents,
+                False
+            )
+
+        return result
+
     def process_transactions_message_from_node(
         self,
-        msg
+        msg,
+        protocol: BlockchainProtocol,
+        min_tx_network_fee: int,
+        enable_transaction_validation: bool
     ) -> List[ProcessTransactionMessageFromNodeResult]:
         opts = self.node.opts
         msg_bytes = msg.rawbytes()
 
-        if isinstance(self.node, OntGatewayNode) and opts.process_node_txs_in_extension:
+        if (isinstance(self.node, OntGatewayNode) or isinstance(self.node, EthGatewayNode)) and \
+                opts.process_node_txs_in_extension:
             ext_processing_results = memoryview(self.proxy.process_gateway_transaction_from_node(
-                BlockchainProtocol.ONTOLOGY.value,
-                tpe.InputBytes(msg_bytes)
-            ))
-        elif isinstance(self.node, EthGatewayNode) and opts.process_node_txs_in_extension:
-            ext_processing_results = memoryview(self.proxy.process_gateway_transaction_from_node(
-                BlockchainProtocol.ETHEREUM.value,
-                tpe.InputBytes(msg_bytes)
+                tpe.InputBytes(msg_bytes),
+                protocol.value,
+                min_tx_network_fee,
+                enable_transaction_validation
             ))
         else:
-            return GatewayTransactionService.process_transactions_message_from_node(self, msg)
+            return GatewayTransactionService.process_transactions_message_from_node(
+                self, msg, protocol, min_tx_network_fee, enable_transaction_validation
+            )
 
         result = []
 
@@ -56,27 +109,24 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
             offset += constants.UL_INT_SIZE_IN_BYTES
             tx_len, = struct.unpack_from("<I", ext_processing_results, offset)
             offset += constants.UL_INT_SIZE_IN_BYTES
+            tx_validation_status, = struct.unpack_from("<I", ext_processing_results, offset)
+            offset += constants.UL_INT_SIZE_IN_BYTES
 
             tx_contents = msg_bytes[tx_offset:tx_offset + tx_len]
 
-            result.append(ProcessTransactionMessageFromNodeResult(
-                seen,
-                tx_hash,
-                tx_contents,
-                TxMessage(message_hash=tx_hash, network_num=self.network_num, tx_val=tx_contents)
-            ))
+            result.append(
+                ProcessTransactionMessageFromNodeResult(
+                    seen,
+                    tx_hash,
+                    tx_contents,
+                    TxMessage(message_hash=tx_hash, network_num=self.network_num, tx_val=tx_contents),
+                    TxValidationStatus(tx_validation_status)
+                )
+            )
 
             if not seen:
                 transaction_cache_key = self._tx_hash_to_cache_key(tx_hash)
-                self.set_transaction_contents_base(
-                    tx_hash,
-                    transaction_cache_key,
-                    False,
-                    0,
-                    False,
-                    None,
-                    tx_len
-                )
+                self.set_transaction_contents_base(tx_hash, transaction_cache_key, False, 0, False, tx_contents, tx_len)
 
         assert txs_count == len(result)
 

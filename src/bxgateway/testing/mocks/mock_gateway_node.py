@@ -1,9 +1,10 @@
 # pyre-ignore-all-errors
-from typing import Optional
+from typing import Optional, List, Union
 
 from mock import MagicMock
 
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxcommon.models.node_type import NodeType
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.services.transaction_service import TransactionService
@@ -102,5 +103,14 @@ class MockGatewayNode(AbstractGatewayNode):
     def set_known_total_difficulty(self, block_hash: Sha256Hash, total_difficulty: int) -> None:
         pass
 
+    def log_txs_network_content(
+        self, network_num: int, transaction_hash: Sha256Hash, transaction_contents: Union[bytearray, memoryview]
+    ) -> None:
+        pass
+
     def _get_cleanup_service(self) -> AbstractBtcBlockCleanupService:
         return _MockCleanupService(self)
+
+    # Ethereum only method
+    def on_transactions_in_block(self, transactions: List[Transaction]) -> None:
+        pass

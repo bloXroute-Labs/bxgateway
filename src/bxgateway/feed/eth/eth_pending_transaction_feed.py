@@ -1,6 +1,7 @@
 from typing import Dict, Any
 
 from bxcommon.rpc.rpc_errors import RpcInvalidParams
+from bxcommon.rpc import rpc_constants
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
@@ -13,7 +14,7 @@ EXPIRATION_TIME_S = 5 * 60
 
 
 class EthPendingTransactionFeed(Feed[EthTransactionFeedEntry, EthRawTransaction]):
-    NAME = "pendingTxs"
+    NAME = rpc_constants.ETH_PENDING_TRANSACTION_FEED_NAME
     FIELDS = ["tx_hash", "tx_contents"]
 
     published_transactions: ExpiringSet[Sha256Hash]

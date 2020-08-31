@@ -3,6 +3,8 @@ from typing import Union, List
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
+
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
@@ -32,7 +34,7 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
         self.connection.on_connection_established()
         self.node.on_remote_blockchain_connection_ready(self.connection)
 
-        self.connection.send_ping()
+        self.connection.schedule_pings()
 
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage) -> None:
         self.node.log_received_remote_blocks(len(msg.get_block_bodies_bytes()))
@@ -54,6 +56,9 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
         )
         empty_block_bodies_msg = BlockBodiesEthProtocolMessage(None, [])
         self.connection.enqueue_msg(empty_block_bodies_msg)
+
+    def msg_block(self, msg: AbstractBlockMessage) -> None:
+        raise NotImplemented
 
     def _build_get_blocks_message_for_block_confirmation(
         self, hashes: List[Sha256Hash]

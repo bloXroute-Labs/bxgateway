@@ -4,6 +4,7 @@ from typing import Optional
 from bxgateway import ont_constants
 from bxgateway.messages.ont.ont_message import OntMessage
 from bxgateway.messages.ont.ont_message_type import OntMessageType
+from bxutils.logging import LogLevel
 
 
 class PongOntMessage(OntMessage):
@@ -38,3 +39,6 @@ class PongOntMessage(OntMessage):
         height = self._height
         assert isinstance(height, int)
         return height
+
+    def log_level(self) -> LogLevel:
+        return LogLevel.DEBUG

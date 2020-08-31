@@ -130,7 +130,11 @@ def build_ont_block(block_pieces: Deque[Union[bytearray, memoryview]]) -> OntCon
 class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
 
     def block_to_bx_block(
-        self, block_msg: OntConsensusMessage, tx_service: TransactionService, enable_block_compression: bool
+        self,
+        block_msg: OntConsensusMessage,
+        tx_service: TransactionService,
+        enable_block_compression: bool,
+        min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         """
         Pack an Ontology consensus message's transactions into a bloXroute block.
@@ -141,6 +145,7 @@ class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
         size = 0
         buf = deque()
         short_ids = []
+        ignored_sids = []
         original_size = len(consensus_msg.rawbytes())
 
         consensus_payload_header = consensus_msg.consensus_payload_header()
@@ -168,11 +173,21 @@ class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
         buf.append(block_start_len)
         size += len(txn_header)
         buf.append(txn_header)
+        max_timestamp_for_compression = time.time() - min_tx_age_seconds
 
         for tx in consensus_msg.txns():
             tx_hash, _ = ont_messages_util.get_txid(tx)
             short_id = tx_service.get_short_id(tx_hash)
-            if short_id == constants.NULL_TX_SID or not enable_block_compression:
+            short_id_assign_time = 0
+
+            if short_id != constants.NULL_TX_SID:
+                short_id_assign_time = tx_service.get_short_id_assign_time(short_id)
+
+            if short_id == constants.NULL_TX_SID or \
+                    not enable_block_compression or \
+                    short_id_assign_time > max_timestamp_for_compression:
+                if short_id != constants.NULL_TX_SIDS:
+                    ignored_sids.append(short_id)
                 buf.append(tx)
                 size += len(tx)
             else:
@@ -223,8 +238,10 @@ class OntNormalConsensusMessageConverter(AbstractOntMessageConverter):
             prev_block_hash,
             original_size,
             size,
-            100 - float(size) / original_size * 100
+            100 - float(size) / original_size * 100,
+            ignored_sids
         )
+
         return memoryview(block), block_info
 
     def bx_block_to_block(self, bx_block_msg: memoryview, tx_service: TransactionService) -> BlockDecompressionResult:

@@ -1,9 +1,9 @@
-from typing import TYPE_CHECKING, Callable, List
+from typing import TYPE_CHECKING, Callable
 
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
-from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcInternalError, RpcAccountIdError
+from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.subscriber import Subscriber
 
@@ -15,11 +15,13 @@ if TYPE_CHECKING:
 
 class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {
-        "params": "[feed_name, {\"include\": [field_1, field_2], \"duplicates\": false}].\n"
-                  "Available feeds: newTxs, pendingTxs\n"
-                  "Available fields: tx_hash, tx_contents (default: all)\n"
+        "params": "[feed_name, {\"include\": [field_1, field_2], \"duplicates\": false, \"include_from_blockchain\": true}].\n"
+                  "Available feeds: newTxs, pendingTxs, newBlocks, ethOnBlock\n"
+                  "Available fields for transaction feeds: tx_hash, tx_contents (default: all)\n"
+                  "Available fields for block feed: hash, block (default: all)\n"
                   "duplicates: False (filter out duplicates from feed, typically low fee "
-                  "transactions, default), True (include all duplicates)",
+                  "transactions, default), True (include all duplicates)\n"
+                  "include_from_blockchain: include transactions received from the connected blockchain node (default: True)\n",
         "description": "Subscribe to a named feed for notifications"
     }
 

@@ -1,6 +1,6 @@
 import asyncio
 from asyncio import Future
-from typing import Optional, cast, List, Tuple, Dict, Any
+from typing import Optional, cast, List, Tuple, Dict, Any, TYPE_CHECKING
 
 from bxcommon.rpc.rpc_errors import RpcError
 from bxcommon.services.transaction_service import TransactionService
@@ -10,9 +10,13 @@ from bxgateway import log_messages
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.rpc.provider.abstract_ws_provider import AbstractWsProvider, WsException
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 from bxutils import logging
+
+if TYPE_CHECKING:
+    from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 
 logger = logging.get_logger(__name__)
 
@@ -38,15 +42,17 @@ class EthWsSubscriber(AbstractWsProvider):
         self,
         ws_uri: Optional[str],
         feed_manager: FeedManager,
-        transaction_service: TransactionService
+        transaction_service: TransactionService,
+        node: "EthGatewayNode"
     ) -> None:
         self.feed_manager = feed_manager
         self.transaction_service = transaction_service
+        self.node = node
 
         # ok, lifecycle patterns are a bit different
         # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[str]`.
         super().__init__(ws_uri, True)
-        self.receiving_task: Optional[Future] = None
+        self.receiving_tasks: List[Future] = []
 
     async def revive(self) -> None:
         """
@@ -60,9 +66,9 @@ class EthWsSubscriber(AbstractWsProvider):
     async def reconnect(self) -> None:
         logger.warning(log_messages.ETH_WS_SUBSCRIBER_CONNECTION_BROKEN)
 
-        receiving_task = self.receiving_task
-        assert receiving_task is not None
-        receiving_task.cancel()
+        for receiving_task in self.receiving_tasks:
+            receiving_task.cancel()
+        self.receiving_tasks = []
 
         try:
             await super().reconnect()
@@ -70,9 +76,7 @@ class EthWsSubscriber(AbstractWsProvider):
             self.running = False
 
         if self.running:
-            subscription_id = await self.subscribe("newPendingTransactions")
-            self.receiving_task = asyncio.create_task(self.handle_notifications(subscription_id))
-
+            await self.subscribe_to_feeds()
             logger.info("Reconnected to Ethereum websocket feed")
         else:
             logger.warning(log_messages.ETH_RPC_COULD_NOT_RECONNECT)
@@ -105,11 +109,16 @@ class EthWsSubscriber(AbstractWsProvider):
             await self.initialize()
 
             logger.info("Subscribed to Ethereum websocket feed.")
+            await self.subscribe_to_feeds()
 
-            subscription_id = await self.subscribe("newPendingTransactions")
-            self.receiving_task = asyncio.create_task(self.handle_notifications(subscription_id))
+    async def subscribe_to_feeds(self):
+        subscription_id = await self.subscribe("newPendingTransactions")
+        self.receiving_tasks.append(asyncio.create_task(self.handle_tx_notifications(subscription_id)))
 
-    async def handle_notifications(self, subscription_id: str) -> None:
+        subscription_id = await self.subscribe("newHeads")
+        self.receiving_tasks.append(asyncio.create_task(self.handle_block_notifications(subscription_id)))
+
+    async def handle_tx_notifications(self, subscription_id: str) -> None:
         while self.running:
             next_notification = await self.get_next_subscription_notification_by_id(
                 subscription_id
@@ -122,6 +131,22 @@ class EthWsSubscriber(AbstractWsProvider):
                         transaction_hash[2:]
                     )
                 )
+            )
+
+    async def handle_block_notifications(self, subscription_id: str) -> None:
+        while self.running:
+            next_notification = await self.get_next_subscription_notification_by_id(
+                subscription_id
+            )
+            logger.debug(
+                "NewBlockHeader Notification {} from node", next_notification
+            )
+            block_header = next_notification.notification
+            block_hash = Sha256Hash(convert.hex_to_bytes(block_header["hash"][2:]))
+            block_number = int(block_header["number"], 16)
+
+            self.node.publish_block(
+                block_number, block_hash, None, FeedSource.BLOCKCHAIN_RPC
             )
 
     def process_received_transaction(self, tx_hash: Sha256Hash) -> None:
@@ -140,7 +165,8 @@ class EthWsSubscriber(AbstractWsProvider):
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
 
         self.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+            EthPendingTransactionFeed.NAME,
+            EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_RPC)
         )
 
     async def fetch_missing_transaction(self, tx_hash: Sha256Hash) -> None:
@@ -169,12 +195,11 @@ class EthWsSubscriber(AbstractWsProvider):
             transaction_feed_stats_service.log_pending_transaction_missing_contents()
         else:
             self.feed_manager.publish_to_feed(
-                EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, parsed_tx)
+                EthPendingTransactionFeed.NAME,
+                EthRawTransaction(tx_hash, parsed_tx, FeedSource.BLOCKCHAIN_RPC)
             )
 
     async def stop(self) -> None:
         await self.close()
-
-        receiving_task = self.receiving_task
-        if receiving_task is not None:
+        for receiving_task in self.receiving_tasks:
             receiving_task.cancel()

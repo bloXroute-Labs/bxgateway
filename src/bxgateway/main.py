@@ -27,7 +27,7 @@ from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constan
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway import argument_parsers
 from bxgateway.utils.gateway_start_args import GatewayStartArgs
-from bxgateway import node_init_tasks
+from bxgateway import gateway_init_tasks
 
 MAX_NUM_CONN = 8192
 PID_FILE_NAME = "bxgateway.pid"
@@ -48,15 +48,13 @@ def generate_default_nonce():
 
 def parse_peer_string(peer_string):
     """
-    Parses string of format ip:port,ip:port,ip:port,... to list of OutboundPeerModels.
+    Parses string of format ip:port:node_type,ip:port,ip:port:node_type,... to list of OutboundPeerModels.
     """
     peers = []
     for ip_port_string in peer_string.split(","):
         if ip_port_string:
-            ip_port_list = ip_port_string.strip().split(":")
-            ip = ip_port_list[0]
-            port = int(ip_port_list[1])
-            peers.append(OutboundPeerModel(ip, port))
+            ip, port_str, node_type_str = ip_port_string.strip().split(":")
+            peers.append(OutboundPeerModel(ip, int(port_str), node_type=NodeType[node_type_str.upper()]))
     return peers
 
 
@@ -93,7 +91,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
                             default=None)
     arg_parser.add_argument("--peer-gateways",
                             help="Optional gateway peer ip/ports that will always be connected to. "
-                                 "Should be in the format ip1:port1,ip2:port2,...",
+                                 "Should be in the format ip1:port1:GATEWAY,ip2:port2:GATEWAY",
                             type=parse_peer_string,
                             default="")
     arg_parser.add_argument("--min-peer-gateways",
@@ -114,7 +112,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
                             default=False)
     arg_parser.add_argument("--peer-relays",
                             help="(TEST ONLY) Optional relays peer ip/ports that will always be connected to. "
-                                 "Should be in the format ip1:port1,ip2:port2,...",
+                                 "Should be in the format ip1:port1:RELAY,ip2:port2:RELAY,...",
                             type=parse_peer_string,
                             default="")
     arg_parser.add_argument("--test-mode",
@@ -303,6 +301,14 @@ def get_argument_parser() -> argparse.ArgumentParser:
         type=convert.str_to_bool,
         nargs='?',
     )
+    arg_parser.add_argument(
+        "--filter-txs-factor",
+        help="Ethereum only. Sets the factor of the average gas price to filter transactions below. "
+             "(i.e. 0 => send all transactions (average * 0), 1 => send all transactions with average or "
+             "higher gas price, etc.)",
+        type=float,
+        default=0
+    )
 
     return arg_parser
 
@@ -324,14 +330,14 @@ def main() -> None:
     logging_messages_utils.logger_names = set(logger_names)
     opts = get_opts()
     get_node_class = functools.partial(get_gateway_node_type, opts.blockchain_protocol)
+
     node_runner.run_node(
         config.get_data_file(PID_FILE_NAME),
         opts,
         get_node_class,
         NodeType.EXTERNAL_GATEWAY,
         logger_names=logger_names,
-        # pyre-fixme[6] Expected `Optional[List[AbstractInitTask]]` but got `List[ValidateNetworkOpts]`
-        node_init_tasks=node_init_tasks.gateway_node_init_tasks
+        node_init_tasks=gateway_init_tasks.init_tasks
     )
 
 

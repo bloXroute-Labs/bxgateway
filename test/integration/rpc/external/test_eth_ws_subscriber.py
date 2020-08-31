@@ -1,11 +1,11 @@
 import asyncio
+import rlp
+import websockets
+
 from typing import Dict, Any
 from datetime import date
 from unittest.mock import patch
-
-
-import rlp
-import websockets
+from mock import MagicMock
 
 from bxcommon import constants
 from bxcommon.rpc.json_rpc_request import JsonRpcRequest
@@ -14,23 +14,26 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
 from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.eth import crypto_utils
+from bxcommon.messages.eth.serializers.transaction import Transaction
+from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
+from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
+
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.subscriber import Subscriber
 from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
-from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
-from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
+
+
+TX_SUB_ID = "newPendingTransactions"
+_recover_public_key = crypto_utils.recover_public_key
 
 
 def tx_to_eth_rpc_json(transaction: Transaction) -> Dict[str, Any]:
     payload = transaction.to_json()
-    for field in {"nonce", "gas", "gas_price", "value"}:
-        payload[field] = hex(payload[field])
-
     payload["gasPrice"] = payload["gas_price"]
     del payload["gas_price"]
     return payload
@@ -39,6 +42,8 @@ def tx_to_eth_rpc_json(transaction: Transaction) -> Dict[str, Any]:
 class EthWsSubscriberTest(AbstractTestCase):
     @async_test
     async def setUp(self) -> None:
+        crypto_utils.recover_public_key = MagicMock(
+            return_value=bytes(32))
         account_model = BdnAccountModelBase(
             "account_id", "account_name", "fake_certificate",
             new_transaction_streaming=BdnServiceModelConfigBase(
@@ -49,7 +54,6 @@ class EthWsSubscriberTest(AbstractTestCase):
         self.eth_ws_port = helpers.get_free_port()
         self.eth_ws_uri = f"ws://127.0.0.1:{self.eth_ws_port}"
         self.eth_ws_server_message_queue = asyncio.Queue()
-        self.eth_subscription_id = "sub_id"
         await self.start_server()
 
         gateway_opts = gateway_helpers.get_gateway_opts(
@@ -61,7 +65,7 @@ class EthWsSubscriberTest(AbstractTestCase):
         )
 
         self.eth_ws_subscriber = EthWsSubscriber(
-            self.eth_ws_uri, self.gateway_node.feed_manager, self.gateway_node.get_tx_service()
+            self.eth_ws_uri, self.gateway_node.feed_manager, self.gateway_node.get_tx_service(), self.gateway_node
         )
         self.subscriber: Subscriber[
             RawTransactionFeedEntry
@@ -71,7 +75,7 @@ class EthWsSubscriberTest(AbstractTestCase):
         await self.eth_ws_subscriber.start()
         await asyncio.sleep(0.01)
 
-        self.assertIsNotNone(self.eth_ws_subscriber.receiving_task)
+        self.assertEqual(len(self.eth_ws_subscriber.receiving_tasks), 2)
         self.assertEqual(0, self.subscriber.messages.qsize())
 
         self.sample_transactions = {
@@ -90,7 +94,7 @@ class EthWsSubscriberTest(AbstractTestCase):
                     rpc_request = JsonRpcRequest.from_jsons(message)
                     if rpc_request.method_name == "eth_subscribe":
                         await ws.send(
-                            JsonRpcResponse(rpc_request.id, self.eth_subscription_id).to_jsons()
+                            JsonRpcResponse(rpc_request.id, str(rpc_request.params[0])).to_jsons()
                         )
                     elif rpc_request.method_name == "eth_getTransactionByHash":
                         nonce = int(rpc_request.id)
@@ -100,19 +104,19 @@ class EthWsSubscriberTest(AbstractTestCase):
                                 tx_to_eth_rpc_json(self.sample_transactions[nonce])
                             ).to_jsons()
                         )
-            except Exception as e:
+            except Exception:
                 # server closed, exit
                 pass
 
         async def producer(ws, _path):
             try:
                 while True:
-                    message = await self.eth_ws_server_message_queue.get()
+                    subscription, message = await self.eth_ws_server_message_queue.get()
                     await ws.send(
                         JsonRpcRequest(
                             None,
                             "eth_subscription",
-                            {"subscription": self.eth_subscription_id, "result": message},
+                            {"subscription": subscription, "result": message},
                         ).to_jsons()
                     )
             except Exception:
@@ -143,8 +147,8 @@ class EthWsSubscriberTest(AbstractTestCase):
             rlp.encode(tx_contents_2)
         )
 
-        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
-        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash_2.binary)}")
+        await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash.binary)}"))
+        await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash_2.binary)}"))
         await asyncio.sleep(0.01)
 
         self.assertEqual(2, self.subscriber.messages.qsize())
@@ -159,8 +163,9 @@ class EthWsSubscriberTest(AbstractTestCase):
 
     @async_test
     async def test_subscription_with_no_content_filled(self):
+        self.maxDiff = None
         tx_hash = helpers.generate_hash()
-        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash)}")
+        await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash)}"))
 
         await asyncio.sleep(0.01)
 
@@ -168,7 +173,7 @@ class EthWsSubscriberTest(AbstractTestCase):
         tx_message = await self.subscriber.receive()
         self.assertEqual(f"0x{convert.bytes_to_hex(tx_hash)}", tx_message.tx_hash)
 
-        expected_contents = self.sample_transactions[2].to_json()
+        expected_contents = self.sample_transactions[3].to_json()
         self.assertEqual(expected_contents, tx_message.tx_contents)
 
     @patch("bxgateway.gateway_constants.WS_RECONNECT_TIMEOUTS", [0.01])
@@ -184,7 +189,7 @@ class EthWsSubscriberTest(AbstractTestCase):
 
         self.eth_test_ws_server.close()
         await self.eth_test_ws_server.wait_closed()
-        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
+        await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash.binary)}"))
 
         await asyncio.sleep(0.05)
 
@@ -204,7 +209,7 @@ class EthWsSubscriberTest(AbstractTestCase):
 
         self.eth_test_ws_server.close()
         await self.eth_test_ws_server.wait_closed()
-        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
+        await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash.binary)}"))
 
         await asyncio.sleep(0.02)
 
@@ -218,7 +223,7 @@ class EthWsSubscriberTest(AbstractTestCase):
         self.assertTrue(self.eth_ws_subscriber.connected_event.is_set())
         self.assertEqual(0, self.subscriber.messages.qsize())
 
-        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
+        await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash.binary)}"))
         await asyncio.sleep(0.01)
         self.assertEqual(1, self.subscriber.messages.qsize())
 
@@ -235,7 +240,7 @@ class EthWsSubscriberTest(AbstractTestCase):
 
         self.eth_test_ws_server.close()
         await self.eth_test_ws_server.wait_closed()
-        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
+        await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash.binary)}"))
 
         await asyncio.sleep(0.05)
 
@@ -246,7 +251,7 @@ class EthWsSubscriberTest(AbstractTestCase):
         await asyncio.sleep(0)
 
         await self.eth_ws_subscriber.revive()
-        await self.eth_ws_server_message_queue.put(f"0x{convert.bytes_to_hex(tx_hash.binary)}")
+        await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash.binary)}"))
         await asyncio.sleep(0.01)
         self.assertEqual(1, self.subscriber.messages.qsize())
 
@@ -255,3 +260,4 @@ class EthWsSubscriberTest(AbstractTestCase):
         await self.eth_ws_subscriber.stop()
         self.eth_test_ws_server.close()
         await self.eth_test_ws_server.wait_closed()
+        crypto_utils.recover_public_key = _recover_public_key

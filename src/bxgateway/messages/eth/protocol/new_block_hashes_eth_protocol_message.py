@@ -17,7 +17,7 @@ class NewBlockHashesEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage)
 
     fields = [("block_hash_number_pairs", rlp.sedes.CountableList(BlockHash))]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"NewBlockHashesEthProtocolMessage<block_hashes: [{self.get_block_hash_number_pairs()}]"
 
     def block_hash(self) -> Sha256Hash:
@@ -34,7 +34,7 @@ class NewBlockHashesEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage)
     def timestamp(self) -> int:
         raise NotImplementedError()
 
-    def extra_stats_data(self):
+    def extra_stats_data(self) -> str:
         return "Block hash"
 
     def get_block_hash_number_pairs(self) -> List[Tuple[Sha256Hash, int]]:
@@ -78,7 +78,7 @@ class NewBlockHashesEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage)
 
         return cls(msg_bytes)
 
-    def log_level(self):
+    def log_level(self) -> LogLevel:
         return LogLevel.DEBUG
 
     def prev_block_hash(self) -> Sha256Hash:

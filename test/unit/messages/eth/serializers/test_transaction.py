@@ -42,8 +42,8 @@ class TransactionTest(AbstractTestCase):
         self.assertEqual(
             "0x622961e7f76b5e573df44afdeb712749bbee398d", parsed_transaction_json["from"]
         )
-        self.assertEqual(165969, parsed_transaction_json["gas"])
-        self.assertEqual(53000000000, parsed_transaction_json["gas_price"])
+        self.assertEqual(hex(165969), parsed_transaction_json["gas"])
+        self.assertEqual(hex(53000000000), parsed_transaction_json["gas_price"])
         self.assertEqual(
             f"0x{mock_eth_messages.EIP_155_TRANSACTION_HASH}",
             parsed_transaction_json["hash"],
@@ -58,11 +58,11 @@ class TransactionTest(AbstractTestCase):
             "00000000000000000000006b175474e89094c44da98b954eedeac495271d0f",
             parsed_transaction_json["input"],
         )
-        self.assertEqual(294, parsed_transaction_json["nonce"])
+        self.assertEqual(hex(294), parsed_transaction_json["nonce"])
         self.assertEqual(
             "0x7a250d5630b4cf539739df2c5dacb4c659f2488d", parsed_transaction_json["to"]
         )
-        self.assertEqual(20000000000000000000, parsed_transaction_json["value"])
+        self.assertEqual(hex(20000000000000000000), parsed_transaction_json["value"])
         self.assertEqual("0x25", parsed_transaction_json["v"])
         self.assertEqual(
             "0xcf5e7717042a53b761dad24b9e6873f2da6bb381ab0bec1a1ba7e15bc924b0b2",
@@ -83,8 +83,8 @@ class TransactionTest(AbstractTestCase):
         self.assertEqual(
             "0x96e82255174536dc53e83f23b339f25255174e2b", parsed_transaction_json["from"]
         )
-        self.assertEqual(60000, parsed_transaction_json["gas"])
-        self.assertEqual(31000000000, parsed_transaction_json["gas_price"])
+        self.assertEqual(hex(60000), parsed_transaction_json["gas"])
+        self.assertEqual(hex(31000000000), parsed_transaction_json["gas_price"])
         self.assertEqual(
             f"0x{mock_eth_messages.NOT_EIP_155_TRANSACTION_HASH}",
             parsed_transaction_json["hash"],
@@ -95,11 +95,11 @@ class TransactionTest(AbstractTestCase):
             "133c00",
             parsed_transaction_json["input"],
         )
-        self.assertEqual(100492, parsed_transaction_json["nonce"])
+        self.assertEqual(hex(100492), parsed_transaction_json["nonce"])
         self.assertEqual(
             "0xa1b19bcd50a24be0cb399c1ec0f7ca546b94a2b0", parsed_transaction_json["to"]
         )
-        self.assertEqual(0, parsed_transaction_json["value"])
+        self.assertEqual(hex(0), parsed_transaction_json["value"])
         self.assertEqual("0x1b", parsed_transaction_json["v"])
         self.assertEqual(
             "0x190466ba930f7cd8f4f0e0fc564bfb75cb2b55d0807fe0a743e586c22757518e",
@@ -129,7 +129,7 @@ class TransactionTest(AbstractTestCase):
         self.assertEqual(int(SAMPLE_TRANSACTION["s"], 16), result.s)
 
         result_json = result.to_json()
-        for key, val in SAMPLE_TRANSACTION.items():
+        for key, val in SAMPLE_TRANSACTION_FROM_WS.items():
             # camelcase problems
             if key == "gasPrice":
                 key = "gas_price"

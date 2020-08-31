@@ -56,7 +56,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
 
         self.connection_status = EthConnectionProtocolStatus()
 
-        self._last_ping_pong_time = None
+        self._last_ping_pong_time: Optional[float] = None
         self._handshake_complete = False
 
         connection.hello_messages = [EthProtocolMessageType.AUTH,
@@ -81,7 +81,6 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
             EthProtocolMessageType.PONG: self.msg_pong,
             EthProtocolMessageType.GET_BLOCK_HEADERS: self.msg_get_block_headers
         }
-        connection.ping_message = PingEthProtocolMessage(None)
         connection.pong_message = PongEthProtocolMessage(None)
 
         self._waiting_checkpoint_headers_request = True
@@ -247,11 +246,13 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
             self.connection.log_trace("Handshake completed within defined timeout.")
         return 0
 
-    def _ping_timeout(self):
+    def _ping_timeout(self) -> float:
         if not self.connection.is_alive():
             return 0
 
-        time_since_last_ping_pong = time.time() - self._last_ping_pong_time
+        last_ping_pong_time = self._last_ping_pong_time
+        assert last_ping_pong_time is not None
+        time_since_last_ping_pong = time.time() - last_ping_pong_time
         self.connection.log_trace("Ping timeout: {} seconds since last ping / pong received from node.",
                                   time_since_last_ping_pong)
 
@@ -260,10 +261,5 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
                                       "Disconnecting", time_since_last_ping_pong, eth_common_constants.PING_PONG_TIMEOUT_SEC)
             self._enqueue_disconnect_message(eth_common_constants.DISCONNECT_REASON_TIMEOUT)
             self.node.alarm_queue.register_alarm(eth_common_constants.DISCONNECT_DELAY_SEC, self.connection.mark_for_close)
-            return 0
 
-        if time_since_last_ping_pong > eth_common_constants.PING_PONG_INTERVAL_SEC:
-            self.connection.send_ping()
-        else:
-            self.connection.log_trace("Last ping / pong was received {0} seconds ago. No actions needed.",
-                                      time_since_last_ping_pong)
+        return 0

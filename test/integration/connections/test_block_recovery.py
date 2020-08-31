@@ -74,12 +74,22 @@ class BlockRecoveryTest(AbstractBtcGatewayIntegrationTest):
                                      self.bits, self.nonce, self.btc_transactions_for_block)
 
     def gateway_1_opts(self):
-        return gateway_helpers.get_gateway_opts(9000, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
-                                                                  include_default_btc_args=True, encrypt_blocks=False)
+        return gateway_helpers.get_gateway_opts(
+            9000,
+            peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
+            include_default_btc_args=True,
+            encrypt_blocks=False,
+            sync_tx_service=False
+        )
 
     def gateway_2_opts(self):
-        return gateway_helpers.get_gateway_opts(9001, peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
-                                                                  include_default_btc_args=True, encrypt_blocks=False)
+        return gateway_helpers.get_gateway_opts(
+            9001,
+            peer_gateways=[OutboundPeerModel(LOCALHOST, 7002)],
+            include_default_btc_args=True,
+            encrypt_blocks=False,
+            sync_tx_service=False
+        )
 
     def _send_compressed_block_to_node_1(self):
         for tx_message_with_short_id in self.transactions_with_short_ids:

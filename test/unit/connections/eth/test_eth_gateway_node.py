@@ -135,10 +135,18 @@ class EthGatewayNodeTest(AbstractTestCase):
             pub_key = convert.bytes_to_hex(self._get_dummy_public_key())
         else:
             pub_key = None
-        opts = gateway_helpers.get_gateway_opts(self.server_port, sid_expire_time=0, external_ip=self.server_ip,
-                                                                  test_mode=[], peer_gateways=[], peer_relays=self.servers,
-                                                                  blockchain_address=(self.blockchain_ip, self.blockchain_port),
-                                                                  include_default_eth_args=True, pub_key=pub_key, no_discovery=not initialize_handshake)
+        opts = gateway_helpers.get_gateway_opts(
+            self.server_port,
+            sid_expire_time=0,
+            external_ip=self.server_ip,
+            test_mode=[],
+            peer_gateways=[],
+            peer_relays=self.servers,
+            blockchain_address=(self.blockchain_ip, self.blockchain_port),
+            include_default_eth_args=True,
+            pub_key=pub_key,
+            no_discovery=not initialize_handshake
+        )
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())

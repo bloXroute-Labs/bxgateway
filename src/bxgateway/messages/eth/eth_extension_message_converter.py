@@ -33,13 +33,17 @@ class EthExtensionMessageConverter(EthAbstractMessageConverter):
         self.decompression_tasks = TaskQueueProxy(self._create_decompression_task)
 
     def block_to_bx_block(
-        self, block_msg: InternalEthBlockInfo, tx_service: ExtensionTransactionService, enable_block_compression: bool
+        self,
+        block_msg: InternalEthBlockInfo,
+        tx_service: ExtensionTransactionService,
+        enable_block_compression: bool,
+        min_tx_age_seconds: float
     ) -> Tuple[memoryview, BlockInfo]:
         compress_start_datetime = datetime.datetime.utcnow()
         compress_start_timestamp = time.time()
         self._default_block_size = max(self._default_block_size, len(block_msg.rawbytes()))
         tsk = self.compression_tasks.borrow_task()
-        tsk.init(tpe.InputBytes(block_msg.rawbytes()), tx_service.proxy, enable_block_compression)
+        tsk.init(tpe.InputBytes(block_msg.rawbytes()), tx_service.proxy, enable_block_compression, min_tx_age_seconds)
         try:
             task_pool_proxy.run_task(tsk)
         except tpe.AggregatedException as e:
@@ -63,7 +67,8 @@ class EthExtensionMessageConverter(EthAbstractMessageConverter):
             tsk.prev_block_hash().hex_string(),
             original_size,
             compressed_size,
-            100 - float(compressed_size) / original_size * 100
+            100 - float(compressed_size) / original_size * 100,
+            tsk.ignored_short_ids()
         )
         self.compression_tasks.return_task(tsk)
         return block, block_info
@@ -97,12 +102,20 @@ class EthExtensionMessageConverter(EthAbstractMessageConverter):
             bx_block_hash = convert.bytes_to_hex(crypto.double_sha256(bx_block_msg))
             compressed_size = len(bx_block_msg)
 
-            block_info = BlockInfo(block_hash, tsk.short_ids(),
-                                   decompress_start_datetime, datetime.datetime.utcnow(),
-                                   (time.time() - decompress_start_timestamp) * 1000, total_tx_count, bx_block_hash,
-                                   convert.bytes_to_hex(block_msg.prev_block_hash().binary),
-                                   len(block_msg.rawbytes()), compressed_size,
-                                   100 - float(compressed_size) / content_size * 100)
+            block_info = BlockInfo(
+                block_hash,
+                tsk.short_ids(),
+                decompress_start_datetime,
+                datetime.datetime.utcnow(),
+                (time.time() - decompress_start_timestamp) * 1000,
+                total_tx_count,
+                bx_block_hash,
+                convert.bytes_to_hex(block_msg.prev_block_hash().binary),
+                len(block_msg.rawbytes()),
+                compressed_size,
+                100 - float(compressed_size) / content_size * 100,
+                []
+            )
         else:
             block_msg = None
 
@@ -115,8 +128,18 @@ class EthExtensionMessageConverter(EthAbstractMessageConverter):
                 total_tx_count
             )
             block_info = BlockInfo(
-                block_hash, tsk.short_ids(), decompress_start_datetime, datetime.datetime.utcnow(),
-                (time.time() - decompress_start_timestamp) * 1000, None, None, None, None, None, None
+                block_hash,
+                tsk.short_ids(),
+                decompress_start_datetime,
+                datetime.datetime.utcnow(),
+                (time.time() - decompress_start_timestamp) * 1000,
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                []
             )
 
         self.decompression_tasks.return_task(tsk)

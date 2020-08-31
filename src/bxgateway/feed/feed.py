@@ -21,6 +21,9 @@ class Feed(Generic[T, S], metaclass=ABCMeta):
         self.name = name
         self.subscribers = {}
 
+    def __repr__(self) -> str:
+        return f"Feed<{self.name}>"
+
     def subscribe(
         self, options: Dict[str, Any]
     ) -> Subscriber[T]:
@@ -52,7 +55,7 @@ class Feed(Generic[T, S], metaclass=ABCMeta):
                 subscriber.queue(serialized_message)
             except QueueFull:
                 logger.error(
-                    log_messages.BAD_FEED_SUBSCRIBER, subscriber.subscription_id, self.name
+                    log_messages.BAD_FEED_SUBSCRIBER, subscriber.subscription_id, self
                 )
                 bad_subscribers.append(subscriber)
 

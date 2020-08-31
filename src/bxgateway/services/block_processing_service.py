@@ -17,12 +17,15 @@ from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
+from bxgateway.feed.feed_source import FeedSource
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.services.block_recovery_service import BlockRecoveryInfo, RecoveredTxsSource
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
-from bxutils import logging
 from bxgateway import log_messages
+
+from bxutils import logging
+
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -303,7 +306,10 @@ class BlockProcessingService:
         assert message_converter is not None
         try:
             bx_block, block_info = message_converter.block_to_bx_block(
-                block_message, self._node.get_tx_service(), self._node.opts.enable_block_compression
+                block_message,
+                self._node.get_tx_service(),
+                self._node.opts.enable_block_compression,
+                self._node.network.min_tx_age_seconds
             )
         except MessageConversionError as e:
             block_stats.add_block_event_by_block_hash(
@@ -314,6 +320,13 @@ class BlockProcessingService:
             )
             connection.log_error(log_messages.BLOCK_COMPRESSION_FAIL, e.msg_hash, e)
             return
+
+        if block_info.ignored_short_ids:
+            assert block_info.ignored_short_ids is not None
+            logger.debug(
+                "Ignoring {} new SIDs for {}: {}",
+                len(block_info.ignored_short_ids), block_info.block_hash, block_info.ignored_short_ids
+            )
 
         compression_rate = block_info.compression_rate
         assert compression_rate is not None
@@ -523,6 +536,9 @@ class BlockProcessingService:
                                      block_hash)
             else:
                 self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
+            self._node.publish_block(
+                None, block_hash, block_message, FeedSource.BDN_SOCKET
+            )
 
     def start_transaction_recovery(
         self,

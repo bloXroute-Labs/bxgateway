@@ -2,12 +2,12 @@ import time
 
 from mock import MagicMock
 
-from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
 
-from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
+from bxgateway.testing import gateway_helpers
+from bxgateway.connections.eth.eth_node_connection_protocol import EthNodeConnectionProtocol
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
@@ -24,8 +24,11 @@ def _block_with_timestamp(timestamp):
 class EthConnectionProtocolTest(AbstractTestCase):
 
     def setUp(self):
-        opts = gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True,
-                                                                  track_detailed_sent_messages=True)
+        opts = gateway_helpers.get_gateway_opts(
+            8000,
+            include_default_eth_args=True,
+            track_detailed_sent_messages=True
+        )
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
 
@@ -40,7 +43,7 @@ class EthConnectionProtocolTest(AbstractTestCase):
 
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
         dummy_public_key = crypto_utils.private_to_public_key(dummy_private_key)
-        self.sut = EthBaseConnectionProtocol(self.connection, True, dummy_private_key, dummy_public_key)
+        self.sut = EthNodeConnectionProtocol(self.connection, True, dummy_private_key, dummy_public_key)
 
     def test_msg_block_success(self):
         message = NewBlockEthProtocolMessage(

@@ -81,7 +81,7 @@ class OntRelayConnectionTest(AbstractTestCase):
             ont_block = self.ont_block()
         return bytes(
             self.gateway_node.message_converter.block_to_bx_block(
-                ont_block, self.gateway_node.get_tx_service(), True
+                ont_block, self.gateway_node.get_tx_service(), True, self.gateway_node.network.min_tx_age_seconds
             )[0]
         )
 
@@ -92,7 +92,8 @@ class OntRelayConnectionTest(AbstractTestCase):
 
         bx_transactions = []
         for i, transaction in enumerate(transactions):
-            transaction = self.gateway_node.message_converter.tx_to_bx_txs(transaction, self.TEST_NETWORK_NUM)[0][0]
+            transaction = self.gateway_node.message_converter.tx_to_bx_txs(transaction,
+                                                                           self.TEST_NETWORK_NUM)[0][0]
             if assign_short_ids:
                 transaction._short_id = i + 1  # 0 is null SID
             bx_transactions.append(transaction)
@@ -136,7 +137,9 @@ class OntRelayConnectionTest(AbstractTestCase):
             unknown_sid_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx_val())
 
         unknown_short_id_block = bytes(
-            self.gateway_node.message_converter.block_to_bx_block(ont_block, unknown_sid_transaction_service, True)[0]
+            self.gateway_node.message_converter.block_to_bx_block(
+                ont_block, unknown_sid_transaction_service, True, self.gateway_node.network.min_tx_age_seconds
+            )[0]
         )
         unknown_key, unknown_cipher = symmetric_encrypt(unknown_short_id_block)
         unknown_block_hash = crypto.double_sha256(unknown_cipher)
@@ -150,7 +153,10 @@ class OntRelayConnectionTest(AbstractTestCase):
             local_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx_val())
 
         known_short_id_block = bytes(
-            self.gateway_node.message_converter.block_to_bx_block(ont_block, local_transaction_service, True)[0])
+            self.gateway_node.message_converter.block_to_bx_block(
+                ont_block, local_transaction_service, True, self.gateway_node.network.min_tx_age_seconds
+            )[0]
+        )
         known_key, known_cipher = symmetric_encrypt(known_short_id_block)
         known_block_hash = crypto.double_sha256(known_cipher)
         known_message = BroadcastMessage(Sha256Hash(known_block_hash), self.TEST_NETWORK_NUM, "",
@@ -269,7 +275,9 @@ class OntRelayConnectionTest(AbstractTestCase):
             short_id_mapping[tx_hash] = TransactionInfo(tx_hash, transaction.rawbytes(), i + 1)
 
         bx_block = bytes(
-            self.gateway_node.message_converter.block_to_bx_block(block, remote_transaction_service, True)[0]
+            self.gateway_node.message_converter.block_to_bx_block(
+                block, remote_transaction_service, True, self.gateway_node.network.min_tx_age_seconds
+            )[0]
         )
 
         self.gateway_node.block_recovery_service.add_block = \
@@ -323,7 +331,9 @@ class OntRelayConnectionTest(AbstractTestCase):
             short_id_mapping[tx_hash] = TransactionInfo(tx_hash, transaction.rawbytes(), i + 1)
 
         bx_block = bytes(
-            self.gateway_node.message_converter.block_to_bx_block(block, remote_transaction_service, True)[0]
+            self.gateway_node.message_converter.block_to_bx_block(
+                block, remote_transaction_service, True, self.gateway_node.network.min_tx_age_seconds
+            )[0]
         )
 
         self.gateway_node.block_recovery_service.add_block = \

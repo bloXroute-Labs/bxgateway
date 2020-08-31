@@ -135,7 +135,9 @@ def compute_short_id(key: bytes, tx_hash_binary: Union[bytearray, memoryview]) -
 
 class BtcNormalMessageConverter(AbstractBtcMessageConverter):
 
-    def block_to_bx_block(self, block_msg, tx_service, enable_block_compression: bool) -> Tuple[memoryview, BlockInfo]:
+    def block_to_bx_block(
+        self, block_msg, tx_service, enable_block_compression: bool, min_tx_age_seconds: float
+    ) -> Tuple[memoryview, BlockInfo]:
         """
         Compresses a Bitcoin block's transactions and packs it into a bloXroute block.
         """
@@ -145,15 +147,27 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         buf = deque()
         short_ids = []
         original_size = len(block_msg.rawbytes())
+        ignored_sids = []
 
         header = block_msg.header()
         size += len(header)
         buf.append(header)
 
+        max_timestamp_for_compression = time.time() - min_tx_age_seconds
+
         for tx in block_msg.txns():
             tx_hash = btc_common_utils.get_txid(tx)
             short_id = tx_service.get_short_id(tx_hash)
-            if short_id == constants.NULL_TX_SID or not enable_block_compression:
+
+            short_id_assign_time = 0
+            if short_id != constants.NULL_TX_SID:
+                short_id_assign_time = tx_service.get_short_id_assign_time(short_id)
+
+            if short_id == constants.NULL_TX_SID or \
+                    not enable_block_compression or \
+                    short_id_assign_time > max_timestamp_for_compression:
+                if short_id != constants.NULL_TX_SIDS:
+                    ignored_sids.append(short_id)
                 buf.append(tx)
                 size += len(tx)
             else:
@@ -177,8 +191,10 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             prev_block_hash,
             original_size,
             size,
-            100 - float(size) / original_size * 100
+            100 - float(size) / original_size * 100,
+            ignored_sids
         )
+
         return memoryview(block), block_info
 
     def bx_block_to_block(self, bx_block_msg, tx_service) -> BlockDecompressionResult:
@@ -322,7 +338,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             None,
             len(compact_block.rawbytes()),
             None,
-            None
+            None,
+            []
         )
 
         if len(missing_transactions_indices) > 0:
@@ -357,7 +374,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             None,
             failed_block_info.original_size,  # pyre-ignore
             None,
-            None
+            None,
+            []
         )
         failed_compression_result.block_info = block_info
         return self._recovered_compact_block_to_bx_block(
@@ -423,7 +441,7 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         checksum = crypto.bitcoin_hash(block_msg_bytes[btc_constants.BTC_HDR_COMMON_OFF:size])
         block_msg_bytes[btc_constants.BTC_HEADER_MINUS_CHECKSUM:btc_constants.BTC_HDR_COMMON_OFF] = checksum[0:4]
         bx_block, compression_block_info = self.block_to_bx_block(
-            BlockBtcMessage(buf=block_msg_bytes), recovery_item.tx_service, True
+            BlockBtcMessage(buf=block_msg_bytes), recovery_item.tx_service, True, 0
         ) # TODO need to think about a better algorithm
         compress_start_datetime = compression_block_info.start_datetime
         compress_end_datetime = datetime.utcnow()
@@ -438,7 +456,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
             compression_block_info.prev_block_hash,
             compression_block_info.original_size,
             compression_block_info.compressed_size,
-            compression_block_info.compression_rate
+            compression_block_info.compression_rate,
+            compression_block_info.ignored_short_ids
         )
         return CompactBlockCompressionResult(True, block_info, bx_block, None, [], [])
 

@@ -40,13 +40,17 @@ class OntExtensionConsensusMessageConverter(AbstractOntMessageConverter):
         self.compression_tasks = TaskQueueProxy(self._create_compression_task)
         self.decompression_tasks = TaskQueueProxy(self._create_decompression_task)
 
-    def block_to_bx_block(self, block_msg, tx_service, enable_block_compression: bool) -> Tuple[memoryview, BlockInfo]:
+    def block_to_bx_block(
+        self, block_msg, tx_service, enable_block_compression: bool, min_tx_age_seconds: float
+    ) -> Tuple[memoryview, BlockInfo]:
         compress_start_datetime = datetime.utcnow()
         compress_start_timestamp = time.time()
         extension_tx_service = typing.cast(ExtensionTransactionService, tx_service)
         self._default_block_size = max(self._default_block_size, len(block_msg.buf))
         tsk = self.compression_tasks.borrow_task()
-        tsk.init(tpe.InputBytes(block_msg.buf), extension_tx_service.proxy, enable_block_compression)
+        tsk.init(
+            tpe.InputBytes(block_msg.buf), extension_tx_service.proxy, enable_block_compression, min_tx_age_seconds
+        )
         try:
             task_pool_proxy.run_task(tsk)
         except tpe.AggregatedException as e:
@@ -69,8 +73,10 @@ class OntExtensionConsensusMessageConverter(AbstractOntMessageConverter):
             tsk.prev_block_hash().hex_string(),
             original_size,
             compressed_size,
-            100 - float(compressed_size) / original_size * 100
+            100 - float(compressed_size) / original_size * 100,
+            tsk.ignored_short_ids()
         )
+
         self.compression_tasks.return_task(tsk)
         return block, block_info
 

@@ -9,6 +9,7 @@ from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
 from bxgateway.rpc.ws.ws_connection import WsConnection
 from bxutils import logging
+from bxutils.encoding.json_encoder import Case
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -18,12 +19,18 @@ logger = logging.get_logger(__name__)
 
 class WsServer:
     def __init__(
-        self, host: str, port: int, feed_manager: FeedManager, node: "AbstractGatewayNode"
+        self,
+        host: str,
+        port: int,
+        feed_manager: FeedManager,
+        node: "AbstractGatewayNode",
+        case: Case = Case.CAMEL,
     ) -> None:
         self.host = host
         self.port = port
         self.feed_manager = feed_manager
         self.node = node
+        self.case = case
         self._started: bool = False
 
         self._server: Optional[WebSocketServer] = None
@@ -53,7 +60,7 @@ class WsServer:
         connection = WsConnection(
             websocket,
             path,
-            SubscriptionRpcHandler(self.node, self.feed_manager)
+            SubscriptionRpcHandler(self.node, self.feed_manager, self.case)
         )
         self._connections.append(connection)
         await connection.handle()

@@ -1,6 +1,6 @@
 import typing
 from abc import abstractmethod
-from typing import List, Union
+from typing import List
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.object_hash import Sha256Hash
@@ -10,7 +10,6 @@ from bxgateway.messages.btc.addr_btc_message import AddrBtcMessage
 from bxgateway.messages.btc.btc_message_factory import btc_message_factory
 from bxgateway.messages.btc.btc_message_type import BtcMessageType
 from bxgateway.messages.btc.inventory_btc_message import InvBtcMessage, InventoryType
-from bxgateway.messages.btc.ping_btc_message import PingBtcMessage
 from bxgateway.messages.btc.pong_btc_message import PongBtcMessage
 from bxgateway.messages.btc.version_btc_message import VersionBtcMessage
 from bxutils import logging
@@ -33,7 +32,6 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
             BtcMessageType.PONG: self.msg_pong,
             BtcMessageType.GET_ADDRESS: self.msg_getaddr
         }
-        connection.ping_message = PingBtcMessage(self.magic)
 
         # Establish connection with blockchain node
         version_msg = VersionBtcMessage(self.magic, self.version, connection.peer_ip, connection.peer_port,
@@ -43,7 +41,7 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                                         self.node.opts.blockchain_services)
         connection.enqueue_msg(version_msg)
 
-    def msg_block(self, msg):
+    def msg_block(self, msg) -> None:
         """
         Handle block message
         """
@@ -57,7 +55,7 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
                 block_msg=msg
             )
         else:
-            super().msg_block(msg)
+            self.process_msg_block(msg)
 
         # After receiving block message sending INV message for the same block to Bitcoin node
         # This is needed to update Synced Headers value of the gateway peer on the Bitcoin node

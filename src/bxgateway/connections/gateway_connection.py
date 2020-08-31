@@ -16,6 +16,7 @@ from bxgateway import gateway_constants
 from bxgateway import log_messages
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
@@ -104,7 +105,11 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         if not self.from_me:
             self.log_trace("Connection established with peer: {}.", peer_id)
-            sdn_http_service.submit_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)
+            self.node.requester.send_threaded_request(
+                sdn_http_service.submit_gateway_inbound_connection,
+                self.node.opts.node_id,
+                self.peer_id
+            )
 
         if self.node.connection_exists(ip, port):
             connection = self.node.connection_pool.get_by_ipport(ip, port)
@@ -202,7 +207,8 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 return
 
         self.node.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+            EthPendingTransactionFeed.NAME,
+            EthRawTransaction(tx_hash, tx_contents, FeedSource.BDN_SOCKET)
         )
 
         transaction_feed_stats_service.log_pending_transaction_from_internal(tx_hash)
@@ -224,4 +230,8 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         if not self.from_me:
             if self.peer_id:
-                sdn_http_service.delete_gateway_inbound_connection(self.node.opts.node_id, self.peer_id)
+                self.node.requester.send_threaded_request(
+                    sdn_http_service.delete_gateway_inbound_connection,
+                    self.node.opts.node_id,
+                    self.peer_id
+                )

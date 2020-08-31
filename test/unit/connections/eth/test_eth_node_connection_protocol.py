@@ -2,9 +2,15 @@ import struct
 
 from mock import MagicMock, call
 
+from bxcommon.models.blockchain_protocol import BlockchainProtocol
+from bxcommon.models.tx_validation_status import TxValidationStatus
+from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils import transaction_validation
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
@@ -49,7 +55,12 @@ NETWORK_NUM = 1
 class EthNodeConnectionProtocolTest(AbstractTestCase):
     def setUp(self) -> None:
 
-        opts = gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True)
+        opts = gateway_helpers.get_gateway_opts(
+            8000,
+            include_default_eth_args=True,
+            blockchain_protocol=BlockchainProtocol.ETHEREUM.name,
+            blockchain_network_num=5
+        )
 
         self.node = MockGatewayNode(opts)
 
@@ -80,6 +91,8 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
             self.connection, True, dummy_private_key, dummy_public_key
         )
         self.sut._waiting_checkpoint_headers_request = False
+        self.node.opts.ws = True
+        self.node.publish_block = MagicMock()
 
     def test_request_block_bodies(self):
         self.cleanup_service.clean_block_transactions_by_block_components = (
@@ -423,6 +436,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.sut.msg_proxy_request.reset_mock()
 
         self.sut.msg_block(block_messages[17].to_new_block_msg())
+        self.node.publish_block.assert_called()
         self.sut.msg_get_block_headers(message)
 
         self.sut.msg_proxy_request.assert_not_called()
@@ -454,14 +468,71 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
             [
                 call(
                     EthNewTransactionFeed.NAME,
-                    EthRawTransaction(transaction_hash, transaction_contents)
+                    EthRawTransaction(transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET)
                 ),
                 call(
                     EthPendingTransactionFeed.NAME,
-                    EthRawTransaction(transaction_hash, transaction_contents)
+                    EthRawTransaction(transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET)
                 ),
             ]
         )
 
         # broadcast transactions
         self.assertEqual(1, len(self.node.broadcast_messages))
+
+    def test_handle_tx_with_an_invalid_signature(self):
+        tx_bytes = \
+            b"\xf8k" \
+            b"!" \
+            b"\x85\x0b\xdf\xd6>\x00" \
+            b"\x82R\x08\x94" \
+            b"\xf8\x04O\xf8$\xc2\xdc\xe1t\xb4\xee\x9f\x95\x8c*s\x84\x83\x18\x9e" \
+            b"\x87\t<\xaf\xacj\x80\x00\x80" \
+            b"!" \
+            b"\xa0-\xbf,\xa9+\xae\xabJ\x03\xcd\xfa\xe3<\xbf$\x00e\xe2N|\xc9\xf7\xe2\xa9\x9c>\xdfn\x0cO\xc0\x16" \
+            b"\xa0)\x11K=;\x96X}a\xd5\x00\x06eSz\xd1,\xe4>\xa1\x8c\xf8\x7f>\x0e:\xd1\xcd\x00?'?"
+
+        result = transaction_validation.validate_transaction(
+            tx_bytes,
+            BlockchainProtocol(self.node.network.protocol.lower()),
+            self.node.get_network_min_transaction_fee()
+        )
+
+        self.assertEqual(TxValidationStatus.INVALID_SIGNATURE, result)
+
+    def test_handle_tx_with_an_invalid_format(self):
+        tx_bytes = \
+            b"\xf8k" \
+            b"!" \
+            b"\x85\x0b\xdf\xd6>\x00\x82R\x08\x94\xf8\x04O\xf8$\xc2\xdc\xe1t\xb4\xee\x9f\x95\x8c*s\x84\x83" \
+            b"\x18\x9e\x87\t<\xaf\xacj\x80\x00\x80&\xa0-\xbf,\xa9+\xae\xabJ\x03\xcd\xfa\xe3<\xbf$\x00e\xe2N|\xc9" \
+            b"\xf7\xe2\xa9\x9c>\xdfn\x0cO\xc0\x16"
+
+        result = transaction_validation.validate_transaction(
+            tx_bytes,
+            BlockchainProtocol(self.node.network.protocol.lower()),
+            self.node.get_network_min_transaction_fee()
+        )
+
+        self.assertEqual(TxValidationStatus.INVALID_FORMAT, result)
+
+    def test_handle_tx_with_low_fee(self):
+        self.node.feed_manager.publish_to_feed = MagicMock()
+        self.node.opts.ws = False
+
+        tx_bytes = \
+            b"\xf8k" \
+            b"!" \
+            b"\x85\x0b\xdf\xd6>\x00\x82R\x08\x94\xf8\x04O\xf8$\xc2\xdc\xe1t\xb4\xee\x9f\x95\x8c*s\x84\x83" \
+            b"\x18\x9e\x87\t<\xaf\xacj\x80\x00\x80" \
+            b"&" \
+            b"\xa0" \
+            b"-\xbf,\xa9+\xae\xabJ\x03\xcd\xfa\xe3<\xbf$\x00e\xe2N|\xc9\xf7\xe2\xa9\x9c>\xdfn\x0cO\xc0\x16" \
+            b"\xa0)\x11K=;\x96X}a\xd5\x00\x06eSz\xd1,\xe4>\xa1\x8c\xf8\x7f>\x0e:\xd1\xcd\x00?'\x15"
+
+        result = transaction_validation.validate_transaction(
+            tx_bytes,
+            BlockchainProtocol(self.node.network.protocol.lower()),
+            510000000000
+        )
+        self.assertEqual(TxValidationStatus.LOW_FEE, result)

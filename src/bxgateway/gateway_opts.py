@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from bxcommon.common_opts import CommonOpts
 from bxcommon.utils import ip_resolver
-from typing import List, Optional, Set
+from typing import Optional, Set, Dict
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
@@ -26,9 +26,11 @@ class GatewayOpts(CommonOpts):
     blockchain_port: int
     blockchain_protocol: Optional[str]
     blockchain_network: Optional[str]
-    blockchain_networks: List[BlockchainNetworkModel]
+    blockchain_networks: Dict[int, BlockchainNetworkModel]
     blockchain_block_recovery_timeout_s: int
     blockchain_block_hold_timeout_s: int
+    blockchain_block_interval: int
+    blockchain_ignore_block_interval_count: int
     blockchain_ip: str
     peer_gateways: Set[OutboundPeerModel]
     peer_transaction_relays: Set[OutboundPeerModel]
@@ -73,6 +75,7 @@ class GatewayOpts(CommonOpts):
     enable_eth_extensions: bool     # TODO remove
     request_recovery: bool
     enable_block_compression: bool
+    filter_txs_factor: float
 
     # IPC
     ipc: bool
@@ -143,7 +146,9 @@ class GatewayOpts(CommonOpts):
         return opts
 
     def __post_init__(self):
-        pass
+        if self.filter_txs_factor < 0:
+            logger.fatal("--filter_txs_factor cannot be below 0.")
+            sys.exit(1)
 
     def validate_eth_opts(self) -> None:
         if self.blockchain_ip is None:
@@ -193,7 +198,7 @@ class GatewayOpts(CommonOpts):
             logger.fatal(log_messages.MISSING_BLOCKCHAIN_PROTOCOL)
             sys.exit(1)
 
-        if blockchain_protocol == BlockchainProtocol.ETHEREUM.value:
+        if blockchain_protocol == BlockchainProtocol.ETHEREUM:
             self.validate_eth_opts()
 
         self.blockchain_ip = validate_blockchain_ip(

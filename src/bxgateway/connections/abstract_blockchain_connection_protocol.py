@@ -1,10 +1,12 @@
 import time
 from abc import ABCMeta, abstractmethod
-from typing import List, Union
+from typing import List, Optional
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.models.blockchain_protocol import BlockchainProtocol
+from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.utils import performance_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
@@ -14,11 +16,9 @@ from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEven
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
-from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
-from bxutils import logging
+from bxutils import logging, log_messages
 from bxutils.logging.log_record_type import LogRecordType
 
 logger = logging.get_logger(__name__)
@@ -44,10 +44,17 @@ class AbstractBlockchainConnectionProtocol:
         start_time = time.time()
         txn_count = 0
         broadcast_txs_count = 0
+        network_num = self.connection.node.network_num
+        blockchain_network = self.connection.node.get_blockchain_network()
+        blockchain_protocol_name = blockchain_network.protocol
 
         tx_service = self.connection.node.get_tx_service()
-
-        process_tx_msg_result = tx_service.process_transactions_message_from_node(msg)
+        process_tx_msg_result = tx_service.process_transactions_message_from_node(
+            msg,
+            BlockchainProtocol(blockchain_protocol_name.lower()),
+            self.connection.node.get_network_min_transaction_fee(),
+            self.connection.node.opts.transaction_validation
+        )
 
         if not self.connection.node.opts.has_fully_updated_tx_service:
             logger.debug(
@@ -61,11 +68,63 @@ class AbstractBlockchainConnectionProtocol:
         for tx_result in process_tx_msg_result:
             txn_count += 1
 
+            if TxValidationStatus.INVALID_FORMAT in tx_result.tx_validation_status:
+                gateway_transaction_stats_service.log_tx_validation_failed_structure()
+                logger.warning(
+                    log_messages.NODE_RECEIVED_TX_WITH_INVALID_FORMAT,
+                    self.connection.node.NODE_TYPE,
+                    tx_result.transaction_hash,
+                    stats_format.connection(self.connection)
+                )
+
+                tx_stats.add_tx_by_hash_event(
+                    tx_result.transaction_hash,
+                    TransactionStatEventType.TX_VALIDATION_FAILED_STRUCTURE,
+                    self.connection.network_num,
+                    peer=stats_format.connection(self.connection)
+                )
+                continue
+
+            if TxValidationStatus.INVALID_SIGNATURE in tx_result.tx_validation_status:
+                gateway_transaction_stats_service.log_tx_validation_failed_signature()
+                logger.warning(
+                    log_messages.NODE_RECEIVED_TX_WITH_INVALID_SIG,
+                    self.connection.node.NODE_TYPE,
+                    tx_result.transaction_hash,
+                    stats_format.connection(self.connection)
+                )
+
+                tx_stats.add_tx_by_hash_event(
+                    tx_result.transaction_hash,
+                    TransactionStatEventType.TX_VALIDATION_FAILED_SIGNATURE,
+                    self.connection.network_num,
+                    peer=stats_format.connection(self.connection)
+                )
+                continue
+
+            if TxValidationStatus.LOW_FEE in tx_result.tx_validation_status:
+                gateway_transaction_stats_service.log_tx_validation_failed_gas_price()
+                logger.trace(
+                    "transaction {} has gas price lower then the setting {}",
+                    tx_result.transaction_hash,
+                    self.connection.node.get_network_min_transaction_fee()
+                )
+
+                tx_stats.add_tx_by_hash_event(
+                    tx_result.transaction_hash,
+                    TransactionStatEventType.TX_VALIDATION_FAILED_GAS_PRICE,
+                    self.connection.network_num,
+                    peer=stats_format.connection(self.connection)
+                )
+                continue
+
             if tx_result.seen:
-                tx_stats.add_tx_by_hash_event(tx_result.transaction_hash,
-                                              TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
-                                              self.connection.network_num,
-                                              peer=stats_format.connection(self.connection))
+                tx_stats.add_tx_by_hash_event(
+                    tx_result.transaction_hash,
+                    TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
+                    self.connection.network_num,
+                    peer=stats_format.connection(self.connection)
+                )
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
                 continue
 
@@ -133,10 +192,14 @@ class AbstractBlockchainConnectionProtocol:
             duration_set_content_ms=duration_set_content_ms
         )
 
-    def msg_block(self, msg: AbstractBlockMessage):
+    @abstractmethod
+    def msg_block(self, msg: AbstractBlockMessage) -> None:
         """
         Handle a block message. Sends to node for encryption, then broadcasts.
         """
+        pass
+
+    def process_msg_block(self, msg: AbstractBlockMessage, block_number: Optional[int] = None) -> None:
         block_hash = msg.block_hash()
         node = self.connection.node
         # if gateway is still syncing, skip this process
@@ -155,7 +218,7 @@ class AbstractBlockchainConnectionProtocol:
             )
         )
         if block_hash in self.connection.node.blocks_seen.contents:
-            node.on_block_seen_by_blockchain_node(block_hash)
+            node.on_block_seen_by_blockchain_node(block_hash, block_number=block_number)
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
@@ -175,6 +238,7 @@ class AbstractBlockchainConnectionProtocol:
             return
 
         node.track_block_from_node_handling_started(block_hash)
+        node.on_block_seen_by_blockchain_node(block_hash, msg, block_number=block_number)
         node.block_processing_service.queue_block_for_processing(msg, self.connection)
         gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
         node.block_queuing_service.store_block_data(block_hash, msg)
@@ -193,7 +257,10 @@ class AbstractBlockchainConnectionProtocol:
         self.connection.node.send_msg_to_node(msg)
 
     def is_valid_block_timestamp(self, msg: AbstractBlockMessage) -> bool:
-        max_time_offset = self.connection.node.opts.blockchain_block_interval * self.connection.node.opts.blockchain_ignore_block_interval_count
+        max_time_offset = (
+            self.connection.node.opts.blockchain_block_interval *
+            self.connection.node.opts.blockchain_ignore_block_interval_count
+        )
         if time.time() - msg.timestamp() >= max_time_offset:
             self.connection.log_trace("Received block {} more than {} seconds after it was created ({}). Ignoring.",
                                       msg.block_hash(), max_time_offset, msg.timestamp())

@@ -1,8 +1,12 @@
 from typing import Optional
 
+from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
+from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.feed.new_transaction_feed import FeedSource
+from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import \
     NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
@@ -14,11 +18,29 @@ from bxgateway.messages.eth.serializers.transient_block_body import \
     TransientBlockBody
 
 
-def get_dummy_transaction(nonce: int, v: int = 27) -> Transaction:
+def generate_eth_tx_message() -> TxMessage:
+    transaction = get_dummy_transaction(1)
+    transactions_eth_message = TransactionsEthProtocolMessage(None, [transaction])
+    tx_message = EthNormalMessageConverter().tx_to_bx_txs(transactions_eth_message, 5)[0][0]
+    return tx_message
+
+
+def generate_eth_raw_transaction(source: FeedSource = FeedSource.BDN_SOCKET) -> EthRawTransaction:
+    tx_message = generate_eth_tx_message()
+    return EthRawTransaction(
+        tx_message.tx_hash(), tx_message.tx_val(), source
+    )
+
+
+def get_dummy_transaction(
+    nonce: int, gas_price: Optional[int] = None, v: int = 27
+) -> Transaction:
+    if gas_price is None:
+        gas_price = 2 * nonce
     # create transaction object with dummy values multiplied by nonce to be able generate txs with different values
     return Transaction(
         nonce,
-        2 * nonce,
+        gas_price,
         3 * nonce,
         helpers.generate_bytes(eth_common_constants.ADDRESS_LEN),
         4 * nonce,

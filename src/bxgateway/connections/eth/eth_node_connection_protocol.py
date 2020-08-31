@@ -15,6 +15,7 @@ from bxgateway.eth_exceptions import CipherNotInitializedError
 from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
@@ -88,10 +89,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         super(EthNodeConnectionProtocol, self).msg_status(msg)
         self.connection.on_connection_established()
 
-        self.node.alarm_queue.register_alarm(
-            self.connection.ping_interval_s,
-            self.connection.send_ping
-        )
+        self.connection.schedule_pings()
 
         self.node.on_blockchain_connection_ready(self.connection)
         self.node.alarm_queue.register_alarm(
@@ -122,14 +120,17 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
     # pyre-fixme[14]: `msg_block` overrides method defined in
     #  `AbstractBlockchainConnectionProtocol` inconsistently.
-    def msg_block(self, msg: NewBlockEthProtocolMessage):
+    def msg_block(self, msg: NewBlockEthProtocolMessage) -> None:
         if not self.node.should_process_block_hash(msg.block_hash()):
             return
 
-        self.node.set_known_total_difficulty(msg.block_hash(), msg.chain_difficulty())
+        self.node.set_known_total_difficulty(msg.block_hash(), msg.get_chain_difficulty())
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(msg)
-        super().msg_block(internal_new_block_msg)
+        self.process_msg_block(internal_new_block_msg, msg.number())
+
+        if self.node.opts.filter_txs_factor > 0:
+            self.node.on_transactions_in_block(msg.txns())
 
     def msg_new_block_hashes(self, msg: NewBlockHashesEthProtocolMessage):
         if not self.node.should_process_block_hash(msg.block_hash()):
@@ -360,10 +361,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self, tx_hash: Sha256Hash, tx_contents: memoryview
     ) -> None:
         self.node.feed_manager.publish_to_feed(
-            EthNewTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+            EthNewTransactionFeed.NAME,
+            EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )
         self.node.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME, EthRawTransaction(tx_hash, tx_contents)
+            EthPendingTransactionFeed.NAME,
+            EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )
 
     def _check_bytes_skipped(self) -> None:

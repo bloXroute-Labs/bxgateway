@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Any
 
 import rlp
 
@@ -20,3 +20,24 @@ class Block(rlp.Serializable):
     header: BlockHeader
     transactions: List[Transaction]
     uncles: List[BlockHeader]
+
+    def to_json(self) -> Dict[str, Any]:
+        """
+        Serializes data for publishing to the block feed.
+        """
+        block_json = {
+            "header": self.header.to_json(),
+            "transactions": [],
+            "uncles": []
+        }
+        transactions = []
+        for transaction in self.transactions:
+            transactions.append(transaction.to_json())
+        block_json["transactions"] = transactions
+
+        uncles = []
+        for uncle in self.uncles:
+            uncles.append(uncle.to_json())
+        block_json["uncles"] = uncles
+
+        return block_json

@@ -1,4 +1,7 @@
 import time
+import dataclasses
+
+from dataclasses import dataclass
 from typing import Dict, Any, TYPE_CHECKING, List, Type
 
 from bxcommon.utils.object_hash import Sha256Hash
@@ -15,27 +18,19 @@ if TYPE_CHECKING:
     from bxcommon.connections.abstract_node import AbstractNode
 
 
+@dataclass
 class TransactionFeedStatInterval(StatsIntervalData):
-    new_transaction_received_times: Dict[Sha256Hash, float]
+    new_transaction_received_times: Dict[Sha256Hash, float] = dataclasses.field(default_factory=dict)
     # lower time of the two below
-    pending_transaction_received_times: Dict[Sha256Hash, float]
-    pending_transaction_from_internal_received_times: Dict[Sha256Hash, float]
-    pending_transaction_from_local_blockchain_received_times: Dict[Sha256Hash, float]
+    pending_transaction_received_times: Dict[Sha256Hash, float] = dataclasses.field(default_factory=dict)
+    pending_transaction_from_internal_received_times: Dict[Sha256Hash, float] = dataclasses.field(default_factory=dict)
+    pending_transaction_from_local_blockchain_received_times: Dict[Sha256Hash, float] = \
+        dataclasses.field(default_factory=dict)
 
-    new_transactions_faster_than_pending_times: List[float]
-    pending_from_internal_faster_than_local_times: List[float]
+    new_transactions_faster_than_pending_times: List[float] = dataclasses.field(default_factory=list)
+    pending_from_internal_faster_than_local_times: List[float] = dataclasses.field(default_factory=list)
 
-    pending_transactions_missing_contents: int
-
-    def __init__(self, node: "AbstractNode", node_id: str):
-        super().__init__(node, node_id)
-        self.new_transaction_received_times = {}
-        self.pending_transaction_received_times = {}
-        self.pending_transaction_from_internal_received_times = {}
-        self.pending_transaction_from_local_blockchain_received_times = {}
-        self.new_transactions_faster_than_pending_times = []
-        self.pending_from_internal_faster_than_local_times = []
-        self.pending_transactions_missing_contents = 0
+    pending_transactions_missing_contents: int = 0
 
 
 class TransactionFeedStatsService(
@@ -46,7 +41,7 @@ class TransactionFeedStatsService(
         self,
         interval: int = gateway_constants.GATEWAY_TRANSACTION_FEED_STATS_INTERVAL_S,
         look_back: int = gateway_constants.GATEWAY_TRANSACTION_FEED_STATS_LOOKBACK
-    ):
+    ) -> None:
         super().__init__(
             "TransactionFeedStats",
             interval,
@@ -60,7 +55,6 @@ class TransactionFeedStatsService(
 
     def get_info(self) -> Dict[str, Any]:
         interval_data = self.interval_data
-        assert interval_data is not None
 
         if len(interval_data.new_transactions_faster_than_pending_times) > 0:
             avg_new_transactions_faster_by_s = (
@@ -118,7 +112,6 @@ class TransactionFeedStatsService(
 
     def log_new_transaction(self, tx_hash: Sha256Hash) -> None:
         interval_data = self.interval_data
-        assert interval_data is not None
         current_time = time.time()
 
         interval_data.new_transaction_received_times[tx_hash] = current_time
@@ -130,7 +123,6 @@ class TransactionFeedStatsService(
 
     def log_pending_transaction_from_internal(self, tx_hash: Sha256Hash) -> None:
         interval_data = self.interval_data
-        assert interval_data is not None
 
         if tx_hash in interval_data.pending_transaction_from_internal_received_times:
             return
@@ -156,7 +148,6 @@ class TransactionFeedStatsService(
 
     def log_pending_transaction_from_local(self, tx_hash: Sha256Hash) -> None:
         interval_data = self.interval_data
-        assert interval_data is not None
 
         if tx_hash in interval_data.pending_transaction_from_local_blockchain_received_times:
             return
@@ -175,9 +166,7 @@ class TransactionFeedStatsService(
                 interval_data.new_transactions_faster_than_pending_times.append(current_time - timestamp)
 
     def log_pending_transaction_missing_contents(self) -> None:
-        interval_data = self.interval_data
-        assert interval_data is not None
-        interval_data.pending_transactions_missing_contents += 1
+        self.interval_data.pending_transactions_missing_contents += 1
 
 
 transaction_feed_stats_service = TransactionFeedStatsService()

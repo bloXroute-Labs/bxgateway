@@ -1,7 +1,9 @@
 import time
+import uuid
 
 from mock import patch, MagicMock
 
+from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxgateway.testing import gateway_helpers
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
@@ -30,17 +32,21 @@ from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 class AbstractRelayConnectionTest(AbstractTestCase):
 
     def setUp(self):
-        self.node = MockGatewayNode(gateway_helpers.get_gateway_opts(8000,
-                                                                                       include_default_btc_args=True,
-                                                                                       include_default_eth_args=True))
-
+        self.node = MockGatewayNode(
+            gateway_helpers.get_gateway_opts(
+                8000,
+                include_default_btc_args=True,
+                include_default_eth_args=True,
+                split_relays=True,
+            )
+        )
         self.connection = AbstractRelayConnection(
-            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
+            MockSocketConnection(node=self.node, ip_address=constants.LOCALHOST, port=12345), self.node
         )
         self.connection.state = ConnectionState.INITIALIZED
 
         self.blockchain_connecton = AbstractGatewayBlockchainConnection(
-            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=333), self.node)
+            MockSocketConnection(node=self.node, ip_address=constants.LOCALHOST, port=333), self.node)
         self.blockchain_connecton.state = ConnectionState.ESTABLISHED
 
         self.node.node_conn = self.blockchain_connecton
@@ -146,3 +152,21 @@ class AbstractRelayConnectionTest(AbstractTestCase):
         log.assert_not_called()
         self.connection.msg_notify(notification_msg)
         log.assert_called_once()
+
+    def test_msg_notification_assigning_short_ids(self):
+        # set test connection to be transaction relay connection
+        relay_id = str(uuid.uuid4())
+        peer_model = OutboundPeerModel(constants.LOCALHOST, 12345, relay_id)
+        self.node.peer_transaction_relays = {peer_model}
+        self.connection.peer_id = relay_id
+        self.connection.peer_model = peer_model
+
+        self.assertEqual(1, len(self.node.peer_transaction_relays))
+        self.connection.msg_notify(NotificationMessage(NotificationCode.ASSIGNING_SHORT_IDS))
+
+        relay_peer = next(iter(self.node.peer_transaction_relays))
+        self.assertTrue(relay_peer.assigning_short_ids)
+
+        self.connection.msg_notify(NotificationMessage(NotificationCode.NOT_ASSIGNING_SHORT_IDS))
+        relay_peer = next(iter(self.node.peer_transaction_relays))
+        self.assertFalse(relay_peer.assigning_short_ids)

@@ -1,17 +1,22 @@
-from typing import Dict, Optional, List, Any
+from typing import Dict, Optional, List, Any, TYPE_CHECKING
 
 from bxgateway.feed.feed import Feed
 from bxgateway.feed.subscriber import Subscriber
 from bxutils import logging
+
+if TYPE_CHECKING:
+    from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
 logger = logging.get_logger(__name__)
 
 
 class FeedManager:
     feeds: Dict[str, Feed]
+    _node: "AbstractGatewayNode"
 
-    def __init__(self) -> None:
+    def __init__(self, node: "AbstractGatewayNode") -> None:
         self.feeds = {}
+        self._node = node
 
     def __contains__(self, item):
         return item in self.feeds
@@ -34,6 +39,7 @@ class FeedManager:
                 subscriber.subscription_id,
                 name
             )
+            self._node.reevaluate_transaction_streamer_connection()
             return subscriber
         else:
             return None
@@ -48,6 +54,7 @@ class FeedManager:
                 subscriber.subscription_id,
                 name
             )
+        self._node.reevaluate_transaction_streamer_connection()
         return subscriber
 
     def publish_to_feed(self, name: str, message: Any) -> None:
