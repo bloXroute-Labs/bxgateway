@@ -1,6 +1,7 @@
 ARG PYTHON_VERSION=3.8.3-alpine3.11
+ARG BASE=033969152235.dkr.ecr.us-east-1.amazonaws.com/bxbase:latest
 
-FROM python:${PYTHON_VERSION} as builder
+FROM ${BASE} as builder
 # Assumes this repo and bxcommon repo are at equal roots
 
 RUN apk update \
