@@ -25,6 +25,7 @@ class RecoveredTxsSource(Enum):
     TXS_RECEIVED_FROM_NODE = "TransactionsReceivedFromNode"
     TXS_RECOVERED = "TxsRecovered"
     COMPRESSED_BLOCK_TXS_RECEIVED = "CompressedBlockTxsReceived"
+    BLOCK_RECEIVED_FROM_NODE = "BlockReceivedFromNode"
 
     def __str__(self):
         return self.name

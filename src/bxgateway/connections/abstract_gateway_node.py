@@ -59,7 +59,7 @@ from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
 from bxgateway.services.block_processing_service import BlockProcessingService
-from bxgateway.services.block_recovery_service import BlockRecoveryService
+from bxgateway.services.block_recovery_service import BlockRecoveryService, RecoveredTxsSource
 from bxgateway.services.gateway_broadcast_service import GatewayBroadcastService
 from bxgateway.services.gateway_transaction_service import GatewayTransactionService
 from bxgateway.services.neutrality_service import NeutralityService
@@ -739,7 +739,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.BLOCK_RECOVERY_CANCELED,
-                network_num=self.network_num
+                network_num=self.network_num,
+                more_info=RecoveredTxsSource.BLOCK_RECEIVED_FROM_NODE
+            )
+            logger.debug(
+                "Recovery status for block {}: "
+                "Block recovery was cancelled by gateway. Reason - {}.",
+                block_hash, RecoveredTxsSource.BLOCK_RECEIVED_FROM_NODE
             )
         self.block_queuing_service.mark_block_seen_by_blockchain_node(
             block_hash,
