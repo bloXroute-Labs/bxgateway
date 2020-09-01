@@ -1143,10 +1143,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         best_relay_country = best_relay_peers[0].get_country()
 
-        self.peer_relays_min_count = max(
-            gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country],
-            gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[best_relay_country]
-        )
+        if self.opts.min_peer_relays_count is not None and self.opts.min_peer_relays_count > 0:
+            self.peer_relays_min_count = self.opts.min_peer_relays_count
+        else:
+            self.peer_relays_min_count = max(
+                gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country],
+                gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[best_relay_country]
+            )
 
         best_relay_peers = best_relay_peers[:self.peer_relays_min_count]
 

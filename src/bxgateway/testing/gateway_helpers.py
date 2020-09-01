@@ -140,7 +140,8 @@ def get_gateway_opts(
             "enable_eth_extensions": True,   # TODO remove,
             "request_recovery": True,
             "enable_block_compression": enable_block_compression,
-            "filter_txs_factor": filter_txs_factor
+            "filter_txs_factor": filter_txs_factor,
+            "min_peer_relays_count": None
         }
     )
 

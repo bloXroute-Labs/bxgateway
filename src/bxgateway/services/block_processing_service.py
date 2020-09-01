@@ -5,7 +5,7 @@ from typing import Iterable, Optional, TYPE_CHECKING
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
-from bxcommon.utils import convert, crypto
+from bxcommon.utils import convert, crypto, block_content_debug_utils
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
@@ -400,7 +400,7 @@ class BlockProcessingService:
                 (
                     block_message, block_info, unknown_sids, unknown_hashes
                 ) = message_converter.bx_block_to_block(bx_block, transaction_service)
-                transaction_service.log_compressed_block_debug_info(bx_block)
+                block_content_debug_utils.log_compressed_block_debug_info(transaction_service, bx_block)
             except MessageConversionError as e:
                 block_stats.add_block_event_by_block_hash(
                     e.msg_hash,

@@ -76,6 +76,7 @@ class GatewayOpts(CommonOpts):
     request_recovery: bool
     enable_block_compression: bool
     filter_txs_factor: float
+    min_peer_relays_count: bool
 
     # IPC
     ipc: bool
