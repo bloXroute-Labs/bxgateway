@@ -2,6 +2,7 @@ import asyncio
 # TODO: remove try-catch when removing py3.7 support
 import functools
 
+from bxcommon.connections.connection_state import ConnectionState
 from bxgateway.feed.new_block_feed import NewBlockFeed
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 
@@ -504,9 +505,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         )
 
     def get_outbound_peer_info(self) -> List[ConnectionPeerInfo]:
-        peers = [ConnectionPeerInfo(
-            IpEndpoint(peer.ip, peer.port),
-            convert.peer_node_to_connection_type(self.NODE_TYPE, peer.node_type))
+        peers = [
+            ConnectionPeerInfo(
+                IpEndpoint(peer.ip, peer.port),
+                convert.peer_node_to_connection_type(self.NODE_TYPE, peer.node_type)
+            )
             for peer in self.outbound_peers
         ]
         peers.append(ConnectionPeerInfo(
@@ -676,7 +679,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         self.cancel_relay_liveliness_check()
 
-    def on_failed_connection_retry(self, ip: str, port: int, connection_type: ConnectionType) -> None:
+    def on_failed_connection_retry(
+        self, ip: str, port: int, connection_type: ConnectionType, connection_state: ConnectionState
+    ) -> None:
         self.alarm_queue.register_approx_alarm(2 * constants.MIN_SLEEP_TIMEOUT, constants.MIN_SLEEP_TIMEOUT,
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
@@ -684,28 +689,33 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                                self.opts.should_update_source_version, self.account_id,
                                                self.quota_level)
         if connection_type in ConnectionType.GATEWAY:
-            self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
-                                                 self.opts.node_id,
-                                                 ip,
-                                                 port)
+            if ConnectionState.ESTABLISHED in connection_state:
+                self.requester.send_threaded_request(
+                    sdn_http_service.submit_peer_connection_error_event,
+                    self.opts.node_id,
+                    ip,
+                    port
+                )
             self._remove_gateway_peer(ip, port)
         elif connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
             self.send_request_for_remote_blockchain_peer()
         elif ConnectionType.RELAY_BLOCK in connection_type:
-            self.requester.send_threaded_request(
-                sdn_http_service.submit_peer_connection_error_event,
-                self.opts.node_id,
-                ip,
-                port
-            )
+            if ConnectionState.ESTABLISHED in connection_state:
+                self.requester.send_threaded_request(
+                    sdn_http_service.submit_peer_connection_error_event,
+                    self.opts.node_id,
+                    ip,
+                    port
+                )
             self._remove_relay_peer(ip, port)
         elif self.opts.split_relays and ConnectionType.RELAY_TRANSACTION in connection_type:
-            self.requester.send_threaded_request(
-                sdn_http_service.submit_peer_connection_error_event,
-                self.opts.node_id,
-                ip,
-                port
-            )
+            if ConnectionState.ESTABLISHED in connection_state:
+                self.requester.send_threaded_request(
+                    sdn_http_service.submit_peer_connection_error_event,
+                    self.opts.node_id,
+                    ip,
+                    port
+                )
             self._remove_relay_transaction_peer(ip, port)
 
         # Reset number of retries in case if SDN instructs to connect to the same node again

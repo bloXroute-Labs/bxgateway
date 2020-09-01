@@ -2,6 +2,7 @@ import time
 from unittest.mock import MagicMock, call
 
 from bxcommon import constants
+from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -75,7 +76,8 @@ class GatewayNodeRequestingRelaysTest(AbstractTestCase):
         self.gateway_node.on_failed_connection_retry(
             self.outbound_peer_models[0].ip,
             self.outbound_peer_models[0].port,
-            ConnectionType.RELAY_BLOCK
+            ConnectionType.RELAY_BLOCK,
+            ConnectionState.ESTABLISHED
         )
 
         # alarm should be scheduled to get new peers
