@@ -81,17 +81,18 @@ class GatewayTransactionService(TransactionService):
     def process_transactions_message_from_node(
         self,
         msg: Union[TxBtcMessage, TransactionsEthProtocolMessage, OntTxMessage],
-        protocol: BlockchainProtocol,
         min_tx_network_fee: int,
         enable_transaction_validation: bool
     ) -> List[ProcessTransactionMessageFromNodeResult]:
-
         message_converter = cast(AbstractMessageConverter, self.node.message_converter)
+
+        # avoid filtering low fee transactions in tx_to_bx_txs to match extensions behavior
         bx_tx_messages = message_converter.tx_to_bx_txs(
-            msg, self.network_num, self.node.default_tx_quota_type, self.node.network.min_tx_network_fee
+            msg, self.network_num, self.node.default_tx_quota_type, min_tx_network_fee=0
         )
 
         result = []
+        blockchain_protocol = BlockchainProtocol(self.network.protocol.lower())
 
         for bx_tx_message, tx_hash, tx_bytes in bx_tx_messages:
             tx_cache_key = self._tx_hash_to_cache_key(tx_hash)
@@ -103,7 +104,7 @@ class GatewayTransactionService(TransactionService):
             tx_validation_status = TxValidationStatus.VALID_TX
             if enable_transaction_validation:
                 tx_validation_status = transaction_validation.validate_transaction(
-                    tx_bytes, protocol, min_tx_network_fee
+                    tx_bytes, blockchain_protocol, min_tx_network_fee
                 )
 
             result.append(

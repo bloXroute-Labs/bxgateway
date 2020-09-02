@@ -19,6 +19,8 @@ class GatewayBdnPerformanceStatInterval(StatsIntervalData):
     new_blocks_received_from_bdn: int = 0
     new_tx_received_from_blockchain_node: int = 0
     new_tx_received_from_bdn: int = 0
+    new_tx_received_from_blockchain_node_low_fee: int = 0
+    new_tx_received_from_bdn_low_fee: int = 0
 
 
 blocks_from_bdn = Counter("blocks_from_bdn", "Number of blocks received first from the BDN")
@@ -59,13 +61,19 @@ class _GatewayBdnPerformanceStatsService(
         self.interval_data.new_blocks_received_from_bdn += 1
         blocks_from_bdn.inc()
 
-    def log_tx_from_blockchain_node(self) -> None:
-        self.interval_data.new_tx_received_from_blockchain_node += 1
+    def log_tx_from_blockchain_node(self, low_fee: bool = False) -> None:
         transactions_from_blockchain.inc()
+        if low_fee:
+            self.interval_data.new_tx_received_from_blockchain_node_low_fee += 1
+        else:
+            self.interval_data.new_tx_received_from_blockchain_node += 1
 
-    def log_tx_from_bdn(self) -> None:
-        self.interval_data.new_tx_received_from_bdn += 1
+    def log_tx_from_bdn(self, low_fee: bool = False) -> None:
         transactions_from_bdn.inc()
+        if low_fee:
+            self.interval_data.new_tx_received_from_bdn_low_fee += 1
+        else:
+            self.interval_data.new_tx_received_from_bdn += 1
 
     def get_most_recent_stats(self) -> Optional[GatewayBdnPerformanceStatInterval]:
         if self.history:

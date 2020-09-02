@@ -6,7 +6,6 @@ import task_pool_executor as tpe
 from bxcommon import constants
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
-from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.services.extension_transaction_service import ExtensionTransactionService
 from bxcommon.services.transaction_service import TransactionFromBdnGatewayProcessingResult
@@ -72,7 +71,6 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
     def process_transactions_message_from_node(
         self,
         msg,
-        protocol: BlockchainProtocol,
         min_tx_network_fee: int,
         enable_transaction_validation: bool
     ) -> List[ProcessTransactionMessageFromNodeResult]:
@@ -83,13 +81,12 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
                 opts.process_node_txs_in_extension:
             ext_processing_results = memoryview(self.proxy.process_gateway_transaction_from_node(
                 tpe.InputBytes(msg_bytes),
-                protocol.value,
                 min_tx_network_fee,
                 enable_transaction_validation
             ))
         else:
             return GatewayTransactionService.process_transactions_message_from_node(
-                self, msg, protocol, min_tx_network_fee, enable_transaction_validation
+                self, msg, min_tx_network_fee, enable_transaction_validation
             )
 
         result = []

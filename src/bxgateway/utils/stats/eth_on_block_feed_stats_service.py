@@ -50,11 +50,13 @@ class EthOnBlockFeedStatsService(
         node = self.node
         assert node is not None
         feeds = node.feed_manager.feeds
-        assert self.feed_name in feeds
-        feed = feeds[self.feed_name]
+        subscriber_count = 0
+        if feeds and self.feed_name in feeds:
+            feed = feeds[self.feed_name]
+            subscriber_count = len(feed.subscribers)
 
         return {
-            "subscriber_count": len(feed.subscribers),
+            "subscriber_count": subscriber_count,
             "total_calls": sum(interval_data.subscriber_task_count),
             "max_calls_per_subscriber": max(interval_data.subscriber_task_count, default=None),
             "max_duration": max(interval_data.subscriber_task_duration, default=None),

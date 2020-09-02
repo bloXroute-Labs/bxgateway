@@ -1,6 +1,6 @@
 import time
 from collections import deque
-from typing import List, Deque
+from typing import List, Deque, Union
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
