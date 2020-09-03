@@ -1,8 +1,10 @@
 import datetime
 import time
+import typing
 from typing import Iterable, Optional, TYPE_CHECKING
 
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.utils import convert, crypto, block_content_debug_utils
@@ -504,6 +506,10 @@ class BlockProcessingService:
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self._node.blocks_seen.add(block_hash)
             transaction_service.track_seen_short_ids(block_hash, all_sids)
+
+            self._node.publish_block(
+                None, block_hash, typing.cast(AbstractBlockMessage, block_message), FeedSource.BDN_SOCKET
+            )
         else:
             if block_hash in self._node.block_queuing_service and not recovered:
                 connection.log_trace("Handling already queued block again. Ignoring.")
@@ -536,9 +542,6 @@ class BlockProcessingService:
                                      block_hash)
             else:
                 self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
-            self._node.publish_block(
-                None, block_hash, block_message, FeedSource.BDN_SOCKET
-            )
 
     def start_transaction_recovery(
         self,
