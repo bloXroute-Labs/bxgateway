@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     # pylint: disable=ungrouped-imports,cyclic-import
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 
-DEFAULT_TX_SERVICE_FILE_NAME = "transaction_service.csv"
+DEFAULT_TX_SERVICE_FILE_NAME = "tx_service_dump.csv"
 
 
 class GatewayTransactionServiceRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
@@ -50,17 +50,28 @@ class GatewayTransactionServiceRpcRequest(AbstractRpcRequest["AbstractGatewayNod
                 has_short_id = transaction_cache_key in tx_service._tx_cache_key_to_short_ids
                 tx_contents = tx_service._tx_cache_key_to_contents[transaction_cache_key]
                 contents_length = len(tx_contents)
-                short_ids = tx_service._tx_cache_key_to_short_ids[transaction_cache_key]
 
-                for short_id in short_ids:
+                if has_short_id:
+                    short_ids = tx_service._tx_cache_key_to_short_ids[transaction_cache_key]
+                    for short_id in short_ids:
+                        f.write(
+                            f"{tx_hash},"
+                            f"{has_contents},"
+                            f"{has_short_id},"
+                            f"{contents_length},"
+                            f"{short_id},"
+                            f"{datetime.fromtimestamp(tx_service.get_short_id_assign_time(short_id))}\n"
+                        )
+                else:
                     f.write(
                         f"{tx_hash},"
                         f"{has_contents},"
                         f"{has_short_id},"
                         f"{contents_length},"
-                        f"{short_id},"
-                        f"{datetime.fromtimestamp(tx_service.get_short_id_assign_time(short_id))}\n"
+                        f"{None},"
+                        f"{None}\n"
                     )
+
             f.close()
 
         return self.ok({
