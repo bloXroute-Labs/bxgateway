@@ -1269,7 +1269,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def update_node_settings_from_blockchain_network(self, blockchain_network: BlockchainNetworkModel) -> None:
         self.opts.enable_block_compression = blockchain_network.enable_block_compression
 
-    def get_external_feed_subscribers_count(self) -> int:
+    def get_gateway_transaction_streamers_count(self) -> int:
         return 0
 
     def is_gas_price_above_min_network_fee(self, transaction_contents: Union[bytearray, memoryview]) -> bool:
