@@ -47,6 +47,8 @@ class GatewayTransactionStatInterval(StatsIntervalData):
 
     dropped_transactions_from_relay: int = 0
 
+    transactions_bytes_skipped: int = 0
+
 
 class _GatewayTransactionStatsService(
     StatisticsService[GatewayTransactionStatInterval, "AbstractGatewayNode"]
@@ -145,6 +147,9 @@ class _GatewayTransactionStatsService(
     def log_tx_validation_failed_gas_price(self,) -> None:
         self.interval_data.tx_validation_failed_gas_price += 1
 
+    def log_skipped_transaction_bytes(self, skipped_bytes: int) -> None:
+        self.interval_data.transactions_bytes_skipped += skipped_bytes
+
     def get_info(self) -> Dict[str, Any]:
         node = self.node
         assert node is not None
@@ -219,6 +224,7 @@ class _GatewayTransactionStatsService(
             "rejected_signature": interval_data.tx_validation_failed_signature,
             "rejected_structure": interval_data.tx_validation_failed_structure,
             "rejected_gas_price": interval_data.tx_validation_failed_gas_price,
+            "transaction_bytes_skipped": interval_data.transactions_bytes_skipped,
             **node._tx_service.get_aggregate_stats(),
         }
 
