@@ -17,6 +17,7 @@ from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
+from bxgateway import log_messages
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.feed.feed_source import FeedSource
@@ -24,10 +25,7 @@ from bxgateway.messages.gateway.block_received_message import BlockReceivedMessa
 from bxgateway.services.block_recovery_service import BlockRecoveryInfo, RecoveredTxsSource
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
-from bxgateway import log_messages
-
 from bxutils import logging
-
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -530,7 +528,8 @@ class BlockProcessingService:
                 blockchain_protocol=self._node.opts.blockchain_protocol,
                 matching_block_hash=block_info.compressed_block_hash,
                 matching_block_type=StatBlockType.COMPRESSED.value,
-                more_info="{} sids, {} hashes".format(len(unknown_sids), len(unknown_hashes))
+                more_info="{} sids, {} hashes, [{},...]".format(len(unknown_sids), len(unknown_hashes),
+                                                                unknown_sids[:5])
             )
 
             connection.log_info("Block {} requires short id recovery. Querying BDN...", block_hash)
