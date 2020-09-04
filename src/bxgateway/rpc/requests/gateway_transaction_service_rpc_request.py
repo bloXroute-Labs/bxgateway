@@ -6,6 +6,10 @@ from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.utils import config
+from bxgateway import log_messages
+from bxutils import logging
+
+logger = logging.get_logger(__name__)
 
 
 if TYPE_CHECKING:
@@ -48,19 +52,28 @@ class GatewayTransactionServiceRpcRequest(AbstractRpcRequest["AbstractGatewayNod
                 transaction_cache_key = tx_service._tx_hash_to_cache_key(tx_hash)
                 has_contents = transaction_cache_key in tx_service._tx_cache_key_to_contents
                 has_short_id = transaction_cache_key in tx_service._tx_cache_key_to_short_ids
-                tx_contents = tx_service._tx_cache_key_to_contents[transaction_cache_key]
-                contents_length = len(tx_contents)
+
+                contents_length = 0
+                if has_contents:
+                    tx_contents = tx_service._tx_cache_key_to_contents[transaction_cache_key]
+                    contents_length = len(tx_contents)
 
                 if has_short_id:
                     short_ids = tx_service._tx_cache_key_to_short_ids[transaction_cache_key]
                     for short_id in short_ids:
+                        time_inserted = tx_service.get_short_id_assign_time(short_id)
+                        if time_inserted == 0.0:
+                            time_inserted = None
+                        else:
+                            time_inserted = datetime.fromtimestamp(time_inserted)
+
                         f.write(
                             f"{tx_hash},"
                             f"{has_contents},"
                             f"{has_short_id},"
                             f"{contents_length},"
                             f"{short_id},"
-                            f"{datetime.fromtimestamp(tx_service.get_short_id_assign_time(short_id))}\n"
+                            f"{time_inserted}\n"
                         )
                 else:
                     f.write(
@@ -71,7 +84,6 @@ class GatewayTransactionServiceRpcRequest(AbstractRpcRequest["AbstractGatewayNod
                         f"{None},"
                         f"{None}\n"
                     )
-
             f.close()
 
         return self.ok({

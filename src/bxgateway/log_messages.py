@@ -439,4 +439,3 @@ COULD_NOT_DESERIALIZE_BLOCK = LogMessage(
     PROCESSING_FAILED_CATEGORY,
     "Could not deserialize block to Ethereum payload: {}, body: {}. Error: {}",
 )
-
