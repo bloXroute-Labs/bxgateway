@@ -1051,6 +1051,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 ):
                     relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
                     relay_block_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    self._clear_transaction_service()
                     retry = False
             else:
                 relay_connection: Optional[AbstractRelayConnection] = next(
@@ -1058,6 +1059,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 )
                 if relay_connection and relay_connection.is_active():
                     relay_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    self._clear_transaction_service()
                     retry = False
 
             if retry:
@@ -1274,3 +1276,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def is_gas_price_above_min_network_fee(self, transaction_contents: Union[bytearray, memoryview]) -> bool:
         return True
+
+    def _clear_transaction_service(self) -> None:
+        logger.debug("Clearing all data in transaction service.")
+        self._tx_service.clear()
