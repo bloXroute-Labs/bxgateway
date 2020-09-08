@@ -110,6 +110,14 @@ class AbstractBlockQueuingService(
     ):
         pass
 
+    def block_body_exists(self, block_hash: Sha256Hash) -> bool:
+        """
+        Returns if the block body exists in _blocks
+        :param block_hash: block hash
+        :return: if block body exists in _block
+        """
+        return block_hash in self._blocks
+
     def mark_block_seen_by_blockchain_node(
         self,
         block_hash: Sha256Hash,

@@ -460,6 +460,8 @@ class BlockProcessingService:
                 "Discarding duplicate block {} from the BDN.",
                 block_hash
             )
+            if not self._node.block_queuing_service.block_body_exists(block_hash):
+                self._node.block_queuing_service.store_block_data(block_hash, block_message)
             return
 
         if not recovered:
