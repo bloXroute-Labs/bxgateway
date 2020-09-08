@@ -276,7 +276,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.opts.use_extensions,
             str(self.opts.source_version),
             self.opts.external_ip,
-            self.opts.continent, self.opts.country,
+            self.opts.continent,
+            self.opts.country,
             self.opts.should_update_source_version,
             self.account_id,
             self.quota_level
