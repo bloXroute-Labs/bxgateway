@@ -3,6 +3,7 @@ import asyncio
 import functools
 
 from bxcommon.connections.connection_state import ConnectionState
+from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxgateway.feed.new_block_feed import NewBlockFeed
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 
@@ -14,7 +15,7 @@ except ImportError:
 import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Future
-from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union
+from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union, cast
 from prometheus_client import Gauge
 
 from bxcommon import constants
@@ -1049,8 +1050,18 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     relay_tx_connection and relay_block_connection and
                     relay_tx_connection.is_active() and relay_block_connection.is_active()
                 ):
-                    relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    if self.transaction_sync_timeout_alarm_id:
+                        alarm_id = self.transaction_sync_timeout_alarm_id
+                        assert alarm_id is not None
+                        self.alarm_queue.unregister_alarm(alarm_id)
+                        self.transaction_sync_timeout_alarm_id = None
+                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
+                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
+                    )
+
+                    # the sync with relay_tx must be the last one. since each call erase the previous call alarm
                     relay_block_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
                     self._clear_transaction_service()
                     retry = False
             else:
@@ -1058,6 +1069,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])), None
                 )
                 if relay_connection and relay_connection.is_active():
+                    if self.transaction_sync_timeout_alarm_id:
+                        alarm_id = self.transaction_sync_timeout_alarm_id
+                        assert alarm_id is not None
+                        self.alarm_queue.unregister_alarm(alarm_id)
+                        self.transaction_sync_timeout_alarm_id = None
+
+                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
+                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
+                    )
                     relay_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
                     self._clear_transaction_service()
                     retry = False
@@ -1078,13 +1098,18 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         return base_timeout
 
     def _transaction_sync_timeout(self) -> int:
-        if not self.opts.has_fully_updated_tx_service:
-            logger.warning(log_messages.TX_SYNC_TIMEOUT)
-            self.alarm_queue.unregister_alarm(self._check_sync_relay_connections_alarm_id)
-            self.on_fully_updated_tx_service()
+        logger.warning(log_messages.TX_SYNC_TIMEOUT)
+        if self.check_sync_relay_connections_alarm_id:
+            alarm_id = self.check_sync_relay_connections_alarm_id
+            assert alarm_id is not None
+            self.alarm_queue.unregister_alarm(alarm_id)
+            self.check_sync_relay_connections_alarm_id = None
+        self.transaction_sync_timeout_alarm_id = None
+        del self.last_sync_message_received_by_network[self.network_num]
+        self.on_fully_updated_tx_service()
         return constants.CANCEL_ALARMS
 
-    def _check_sync_relay_connections(self) -> None:
+    def check_sync_relay_connections(self, conn: AbstractConnection) -> int:
         if (
             self.network_num in self.last_sync_message_received_by_network
             and time.time() - self.last_sync_message_received_by_network[self.network_num]
@@ -1094,9 +1119,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 log_messages.RELAY_CONNECTION_TIMEOUT, constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
             )
 
-            self.on_network_synced(self.network_num)
-            self.alarm_queue.unregister_alarm(self._transaction_sync_timeout_alarm_id)
-            self.on_fully_updated_tx_service()
+            # restart the sync process
+            conn: InternalNodeConnection = cast(InternalNodeConnection, conn)
+            conn.tx_sync_service.send_tx_service_sync_req(self.network_num)
+
+        return constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
 
     def sync_and_send_request_for_relay_peers(self, network_num: int) -> int:
         return super().sync_and_send_request_for_relay_peers(self.network_num)
@@ -1280,3 +1307,4 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def _clear_transaction_service(self) -> None:
         logger.debug("Clearing all data in transaction service.")
         self._tx_service.clear()
+
