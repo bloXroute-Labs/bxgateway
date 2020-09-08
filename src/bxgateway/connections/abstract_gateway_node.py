@@ -1106,7 +1106,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.alarm_queue.unregister_alarm(alarm_id)
             self.check_sync_relay_connections_alarm_id = None
         self.transaction_sync_timeout_alarm_id = None
-        del self.last_sync_message_received_by_network[self.network_num]
+        self.on_network_synced(self.network_num)
         self.on_fully_updated_tx_service()
         return constants.CANCEL_ALARMS
 
