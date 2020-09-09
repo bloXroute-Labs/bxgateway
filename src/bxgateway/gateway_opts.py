@@ -76,7 +76,7 @@ class GatewayOpts(CommonOpts):
     request_recovery: bool
     enable_block_compression: bool
     filter_txs_factor: float
-    min_peer_relays_count: bool
+    min_peer_relays_count: int
 
     # IPC
     ipc: bool
@@ -144,6 +144,7 @@ class GatewayOpts(CommonOpts):
                 "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip)
             )
 
+        opts.min_peer_relays_count = 1
         return opts
 
     def __post_init__(self):

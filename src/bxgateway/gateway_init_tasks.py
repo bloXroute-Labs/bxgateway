@@ -1,6 +1,7 @@
 from bxcommon.services import sdn_http_service
 from bxcommon.common_opts import CommonOpts
 from bxcommon import common_init_tasks
+from bxgateway.gateway_opts import GatewayOpts
 
 from bxutils.services.node_ssl_service import NodeSSLService
 
@@ -18,9 +19,15 @@ def validate_network_opts(opts: CommonOpts, _node_ssl_service: NodeSSLService) -
     opts.validate_network_opts()
 
 
+def set_gateway_info(opts: GatewayOpts, _node_ssl_service: NodeSSLService) -> None:
+    node_config = sdn_http_service.fetch_gateway_settings(opts.node_id)
+    opts.min_peer_relays_count = node_config.min_peer_relays_count
+
+
 init_tasks = [
     set_account_info,
     validate_network_opts,
     common_init_tasks.set_network_info,
     common_init_tasks.set_node_model,
+    set_gateway_info,
 ]

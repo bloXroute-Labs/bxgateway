@@ -309,11 +309,6 @@ def get_argument_parser() -> argparse.ArgumentParser:
         type=float,
         default=0
     )
-    arg_parser.add_argument(
-        "--min-peer-relays-count",
-        help="Minimum number of relays that gateway should connect to.",
-        type=int
-    )
 
     return arg_parser
 

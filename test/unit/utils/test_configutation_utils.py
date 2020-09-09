@@ -1,9 +1,10 @@
+import unittest
+
 from bxgateway.utils import configuration_utils
+from bxgateway.models.config.gateway_node_config_model import GatewayNodeConfigModel
+from bxgateway import gateway_constants
 from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.test_utils import helpers
-from bxgateway import gateway_constants
-from bxcommon.models.config.gateway_node_config_model import GatewayNodeConfigModel
-import unittest
 
 
 class ConfigToolsTests(unittest.TestCase):
