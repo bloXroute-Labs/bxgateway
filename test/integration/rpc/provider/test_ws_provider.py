@@ -89,7 +89,7 @@ class WsProviderTest(AbstractTestCase):
                 subscription_id, subscription_message.subscription_id
             )
             self.assertEqual(
-                expected_tx_hash, subscription_message.notification["tx_hash"]
+                expected_tx_hash, subscription_message.notification["txHash"]
             )
 
             # will publish twice
@@ -128,7 +128,7 @@ class WsProviderTest(AbstractTestCase):
                 subscription_id, subscription_message.subscription_id
             )
             self.assertEqual(
-                expected_tx_hash, subscription_message.notification["tx_hash"]
+                expected_tx_hash, subscription_message.notification["txHash"]
             )
 
             # will publish twice
@@ -142,7 +142,7 @@ class WsProviderTest(AbstractTestCase):
                 subscription_id, subscription_message.subscription_id
             )
             self.assertEqual(
-                expected_tx_hash, subscription_message.notification["tx_hash"]
+                expected_tx_hash, subscription_message.notification["txHash"]
             )
 
     @async_test
@@ -195,10 +195,10 @@ class WsProviderTest(AbstractTestCase):
                 subscription_id, subscription_message.subscription_id
             )
             self.assertEqual(
-                serialized_published_message.tx_hash, subscription_message.notification["tx_hash"]
+                serialized_published_message.tx_hash, subscription_message.notification["txHash"]
             )
             self.assertEqual(
-                serialized_published_message.tx_contents, subscription_message.notification["tx_contents"]
+                serialized_published_message.tx_contents, subscription_message.notification["txContents"]
             )
 
             task = asyncio.create_task(
@@ -290,7 +290,7 @@ class WsProviderTest(AbstractTestCase):
             )
             print(subscription_message)
             self.assertEqual(
-                block_height, subscription_message.notification["block_height"]
+                block_height, subscription_message.notification["blockHeight"]
             )
 
             self.assertEqual(
