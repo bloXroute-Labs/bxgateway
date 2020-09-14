@@ -328,16 +328,16 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def init_bdn_performance_stats_logging(self) -> None:
         gateway_bdn_performance_stats_service.set_node(self)
-        self.alarm_queue.register_alarm(gateway_bdn_performance_stats_service.interval,
-                                        self.send_bdn_performance_stats)
+        self.alarm_queue.register_alarm(
+            gateway_bdn_performance_stats_service.interval, self.send_bdn_performance_stats
+        )
 
     def init_transaction_feed_stat_logging(self) -> None:
         transaction_feed_stats_service.set_node(self)
-        if self.opts.ws:
-            self.alarm_queue.register_alarm(
-                transaction_feed_stats_service.interval,
-                transaction_feed_stats_service.flush_info
-            )
+        self.alarm_queue.register_alarm(
+            transaction_feed_stats_service.interval,
+            transaction_feed_stats_service.flush_info
+        )
 
     def init_authorized_live_feeds(self) -> None:
         account_model = self.account_model
