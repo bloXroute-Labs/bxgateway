@@ -8,7 +8,6 @@ from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
 from bxgateway.utils.logging.status import status_log
 from bxutils.encoding.json_encoder import EnhancedJSONEncoder
-from bxcommon.rpc.rpc_errors import RpcInvalidParams
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode

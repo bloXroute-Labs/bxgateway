@@ -108,7 +108,7 @@ class TransactionFeedStatsService(
             "pending_transactions_missing_contents": interval_data.pending_transactions_missing_contents,
             "pending_transaction_feed_subscribers": pending_transaction_feed_subscribers,
             "new_transaction_feed_subscribers": new_transaction_feed_subscribers,
-            "external_feed_subscribers": node.get_external_feed_subscribers_count()
+            "gateway_transaction_streamers": node.get_gateway_transaction_streamers_count()
         }
 
     def log_new_transaction(self, tx_hash: Sha256Hash) -> None:

@@ -154,7 +154,7 @@ class EthNewBlockFeedTest(AbstractTestCase):
         self.sut.serialize.assert_not_called()
 
     def _verify_block(self, block_hash_str, received_block):
-        self.assertEqual(block_hash_str, received_block.hash)
+        self.assertEqual(block_hash_str, received_block["hash"])
         block_items = [
             "parent_hash", "sha3_uncles", "miner", "state_root", "transactions_root",
             "receipts_root", "number", "logs_bloom", "difficulty", "gas_used",
@@ -165,12 +165,12 @@ class EthNewBlockFeedTest(AbstractTestCase):
         ]
 
         for item in block_items:
-            self.assertIn(item, received_block.header)
-        for uncle in received_block.uncles:
+            self.assertIn(item, received_block["header"])
+        for uncle in received_block["uncles"]:
             for item in block_items:
                 self.assertIn(item, uncle)
 
-        for tx in received_block.transactions:
+        for tx in received_block["transactions"]:
             for item in tx_items:
                 self.assertIn(item, tx)
 

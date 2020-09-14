@@ -7,17 +7,16 @@ from typing import Optional, Dict, TextIO, Set, cast
 
 from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
 from bloxroute_cli.provider.ws_provider import WsProvider
-from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
 
 
 class HashEntry:
     block_hash = None
-    gateway_time_received: float = 0
-    eth_node_time_received: float = 0
+    gateway_time_received: Optional[float] = None
+    eth_node_time_received: Optional[float] = None
 
     def __init__(
-        self, block_hash: str, gateway_time_received: float = 0, node_time_received: float = 0
+        self, block_hash: str, gateway_time_received: Optional[float] = None, node_time_received: Optional[float] = None
     ) -> None:
         self.block_hash = block_hash
         self.gateway_time_received = gateway_time_received
@@ -224,41 +223,52 @@ def stats(ignore_delta: int) -> str:
 
     for block_hash, hash_entry in seen_hashes.items():
         if hash_entry.gateway_time_received is None:
+            eth_node_time_received = hash_entry.eth_node_time_received
+            assert isinstance(eth_node_time_received, float)
+
             if missing_hashes_file:
                 missing_hashes_file.write(f"{block_hash}\n")
             if all_hashes_file:
-                all_hashes_file.write(f"{block_hash}, 0, {datetime.fromtimestamp(hash_entry.eth_node_time_received).strftime('%H:%M:%S.%f')}\n")
+                all_hashes_file.write(f"{block_hash}, 0, {datetime.fromtimestamp(eth_node_time_received)}\n")
             new_blocks_from_eth_node_feed_first += 1
             total_blocks_from_eth_node += 1
             continue
         if hash_entry.eth_node_time_received is None:
+            gateway_time_received = hash_entry.gateway_time_received
+            assert isinstance(gateway_time_received, float)
+
             if all_hashes_file:
-                all_hashes_file.write(f"{block_hash}, {datetime.fromtimestamp(hash_entry.gateway_time_received).strftime('%H:%M:%S.%f')}, 0\n")
+                all_hashes_file.write(f"{block_hash}, {datetime.fromtimestamp(gateway_time_received)}, 0\n")
             new_blocks_from_gateway_feed_first += 1
             total_blocks_from_gateway += 1
             continue
+
+        eth_node_time_received = hash_entry.eth_node_time_received
+        gateway_time_received = hash_entry.gateway_time_received
+        assert isinstance(eth_node_time_received, float)
+        assert isinstance(gateway_time_received, float)
 
         total_blocks_from_gateway += 1
         total_blocks_from_eth_node += 1
 
         if all_hashes_file:
             all_hashes_file.write(
-                f"{block_hash}, "
-                f"{datetime.fromtimestamp(hash_entry.gateway_time_received).strftime('%H:%M:%S.%f')}, "
-                f"{datetime.fromtimestamp(hash_entry.eth_node_time_received).strftime('%H:%M:%S.%f')}\n"
+                f"{block_hash},"
+                f"{datetime.fromtimestamp(gateway_time_received)},"
+                f"{datetime.fromtimestamp(eth_node_time_received)}\n"
             )
 
-        if abs(hash_entry.gateway_time_received - hash_entry.eth_node_time_received) > ignore_delta:
+        if abs(gateway_time_received - eth_node_time_received) > ignore_delta:
             continue
 
-        if hash_entry.gateway_time_received < hash_entry.eth_node_time_received:
+        if gateway_time_received < eth_node_time_received:
             new_blocks_from_gateway_feed_first += 1
             blocks_seen_by_both_feeds_gateway_first += 1
-            block_received_by_gateway_first_total_delta += hash_entry.eth_node_time_received - hash_entry.gateway_time_received
-        elif hash_entry.eth_node_time_received < hash_entry.gateway_time_received:
+            block_received_by_gateway_first_total_delta += eth_node_time_received - gateway_time_received
+        elif eth_node_time_received < gateway_time_received:
             new_blocks_from_eth_node_feed_first += 1
             blocks_seen_by_both_feeds_eth_node_first += 1
-            block_received_by_eth_node_first_total_delta += hash_entry.gateway_time_received - hash_entry.eth_node_time_received
+            block_received_by_eth_node_first_total_delta += gateway_time_received - eth_node_time_received
 
     new_block_seen_by_both_feeds = blocks_seen_by_both_feeds_gateway_first + blocks_seen_by_both_feeds_eth_node_first
     block_received_by_gw_first_avg_delta = 0 if blocks_seen_by_both_feeds_gateway_first == 0 \

@@ -82,9 +82,9 @@ class EthOnBlockFeedTest(AbstractTestCase):
         )
         self.assertEqual(subscriber.messages.qsize(), 2)
         published_message = subscriber.messages.get_nowait()
-        self.assertEqual(published_message.response, {})
-        self.assertEqual(published_message.block_height, block_number)
-        self.assertEqual(published_message.name, "1")
+        self.assertEqual(published_message["response"], {})
+        self.assertEqual(published_message["block_height"], block_number)
+        self.assertEqual(published_message["name"], "1")
 
     @async_test
     async def test_publish_multiple_subscribers(self):
@@ -100,9 +100,9 @@ class EthOnBlockFeedTest(AbstractTestCase):
         for subscriber in subscribers:
             self.assertEqual(subscriber.messages.qsize(), 2)
             msg = subscriber.messages.get_nowait()
-            self.assertIn(msg.name, subscriber.options["calls"].keys())
+            self.assertIn(msg["name"], subscriber.options["calls"].keys())
             msg = subscriber.messages.get_nowait()
-            self.assertEqual(msg.name, str(EventType.TASK_COMPLETED_EVENT))
+            self.assertEqual(msg["name"], str(EventType.TASK_COMPLETED_EVENT))
 
     @async_test
     async def test_publish_multipile_calls_for_subscriber(self):
@@ -188,8 +188,8 @@ class EthOnBlockFeedTest(AbstractTestCase):
             str(EventType.TASK_DISABLED_EVENT),
         }
         for msg in _iter_queue(subscriber.messages):
-            self.assertIn(msg.name, expected_response_names)
-            expected_response_names.discard(msg.name)
+            self.assertIn(msg["name"], expected_response_names)
+            expected_response_names.discard(msg["name"])
         self.assertFalse(expected_response_names)
 
         # expect only TaskCompleted response when the subscribed calls are disabled
@@ -241,9 +241,9 @@ class EthOnBlockFeedTest(AbstractTestCase):
         )
         self.assertEqual(subscriber.messages.qsize(), 2)
         published_message = subscriber.messages.get_nowait()
-        self.assertEqual(published_message.response, {})
-        self.assertEqual(published_message.block_height, block_number)
-        self.assertEqual(published_message.name, "1")
+        self.assertEqual(published_message["response"], {})
+        self.assertEqual(published_message["block_height"], block_number)
+        self.assertEqual(published_message["name"], "1")
 
     async def _publish_to_feed(self, block_height=1):
         self.sut.publish(EventNotification(block_height=block_height))

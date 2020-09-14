@@ -2,6 +2,8 @@ import asyncio
 # TODO: remove try-catch when removing py3.7 support
 import functools
 
+from bxcommon.connections.connection_state import ConnectionState
+from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxgateway.feed.new_block_feed import NewBlockFeed
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 
@@ -13,7 +15,7 @@ except ImportError:
 import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Future
-from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union
+from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union, cast
 from prometheus_client import Gauge
 
 from bxcommon import constants
@@ -58,7 +60,7 @@ from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
 from bxgateway.services.block_processing_service import BlockProcessingService
-from bxgateway.services.block_recovery_service import BlockRecoveryService
+from bxgateway.services.block_recovery_service import BlockRecoveryService, RecoveredTxsSource
 from bxgateway.services.gateway_broadcast_service import GatewayBroadcastService
 from bxgateway.services.gateway_transaction_service import GatewayTransactionService
 from bxgateway.services.neutrality_service import NeutralityService
@@ -274,7 +276,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.opts.use_extensions,
             str(self.opts.source_version),
             self.opts.external_ip,
-            self.opts.continent, self.opts.country,
+            self.opts.continent,
+            self.opts.country,
             self.opts.should_update_source_version,
             self.account_id,
             self.quota_level
@@ -504,9 +507,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         )
 
     def get_outbound_peer_info(self) -> List[ConnectionPeerInfo]:
-        peers = [ConnectionPeerInfo(
-            IpEndpoint(peer.ip, peer.port),
-            convert.peer_node_to_connection_type(self.NODE_TYPE, peer.node_type))
+        peers = [
+            ConnectionPeerInfo(
+                IpEndpoint(peer.ip, peer.port),
+                convert.peer_node_to_connection_type(self.NODE_TYPE, peer.node_type)
+            )
             for peer in self.outbound_peers
         ]
         peers.append(ConnectionPeerInfo(
@@ -676,7 +681,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         self.cancel_relay_liveliness_check()
 
-    def on_failed_connection_retry(self, ip: str, port: int, connection_type: ConnectionType) -> None:
+    def on_failed_connection_retry(
+        self, ip: str, port: int, connection_type: ConnectionType, connection_state: ConnectionState
+    ) -> None:
         self.alarm_queue.register_approx_alarm(2 * constants.MIN_SLEEP_TIMEOUT, constants.MIN_SLEEP_TIMEOUT,
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
@@ -684,28 +691,33 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                                self.opts.should_update_source_version, self.account_id,
                                                self.quota_level)
         if connection_type in ConnectionType.GATEWAY:
-            self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_error_event,
-                                                 self.opts.node_id,
-                                                 ip,
-                                                 port)
+            if ConnectionState.ESTABLISHED in connection_state:
+                self.requester.send_threaded_request(
+                    sdn_http_service.submit_peer_connection_error_event,
+                    self.opts.node_id,
+                    ip,
+                    port
+                )
             self._remove_gateway_peer(ip, port)
         elif connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
             self.send_request_for_remote_blockchain_peer()
         elif ConnectionType.RELAY_BLOCK in connection_type:
-            self.requester.send_threaded_request(
-                sdn_http_service.submit_peer_connection_error_event,
-                self.opts.node_id,
-                ip,
-                port
-            )
+            if ConnectionState.ESTABLISHED in connection_state:
+                self.requester.send_threaded_request(
+                    sdn_http_service.submit_peer_connection_error_event,
+                    self.opts.node_id,
+                    ip,
+                    port
+                )
             self._remove_relay_peer(ip, port)
         elif self.opts.split_relays and ConnectionType.RELAY_TRANSACTION in connection_type:
-            self.requester.send_threaded_request(
-                sdn_http_service.submit_peer_connection_error_event,
-                self.opts.node_id,
-                ip,
-                port
-            )
+            if ConnectionState.ESTABLISHED in connection_state:
+                self.requester.send_threaded_request(
+                    sdn_http_service.submit_peer_connection_error_event,
+                    self.opts.node_id,
+                    ip,
+                    port
+                )
             self._remove_relay_transaction_peer(ip, port)
 
         # Reset number of retries in case if SDN instructs to connect to the same node again
@@ -729,7 +741,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.BLOCK_RECOVERY_CANCELED,
-                network_num=self.network_num
+                network_num=self.network_num,
+                more_info=RecoveredTxsSource.BLOCK_RECEIVED_FROM_NODE
+            )
+            logger.debug(
+                "Recovery status for block {}: "
+                "Block recovery was cancelled by gateway. Reason - {}.",
+                block_hash, RecoveredTxsSource.BLOCK_RECEIVED_FROM_NODE
             )
         self.block_queuing_service.mark_block_seen_by_blockchain_node(
             block_hash,
@@ -1033,15 +1051,36 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     relay_tx_connection and relay_block_connection and
                     relay_tx_connection.is_active() and relay_block_connection.is_active()
                 ):
-                    relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    if self.transaction_sync_timeout_alarm_id:
+                        alarm_id = self.transaction_sync_timeout_alarm_id
+                        assert alarm_id is not None
+                        self.alarm_queue.unregister_alarm(alarm_id)
+                        self.transaction_sync_timeout_alarm_id = None
+                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
+                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
+                    )
+
+                    # the sync with relay_tx must be the last one. since each call erase the previous call alarm
                     relay_block_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    self._clear_transaction_service()
                     retry = False
             else:
                 relay_connection: Optional[AbstractRelayConnection] = next(
                     iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])), None
                 )
                 if relay_connection and relay_connection.is_active():
+                    if self.transaction_sync_timeout_alarm_id:
+                        alarm_id = self.transaction_sync_timeout_alarm_id
+                        assert alarm_id is not None
+                        self.alarm_queue.unregister_alarm(alarm_id)
+                        self.transaction_sync_timeout_alarm_id = None
+
+                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
+                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
+                    )
                     relay_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    self._clear_transaction_service()
                     retry = False
 
             if retry:
@@ -1060,13 +1099,18 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         return base_timeout
 
     def _transaction_sync_timeout(self) -> int:
-        if not self.opts.has_fully_updated_tx_service:
-            logger.warning(log_messages.TX_SYNC_TIMEOUT)
-            self.alarm_queue.unregister_alarm(self._check_sync_relay_connections_alarm_id)
-            self.on_fully_updated_tx_service()
+        logger.warning(log_messages.TX_SYNC_TIMEOUT)
+        if self.check_sync_relay_connections_alarm_id:
+            alarm_id = self.check_sync_relay_connections_alarm_id
+            assert alarm_id is not None
+            self.alarm_queue.unregister_alarm(alarm_id)
+            self.check_sync_relay_connections_alarm_id = None
+        self.transaction_sync_timeout_alarm_id = None
+        self.on_network_synced(self.network_num)
+        self.on_fully_updated_tx_service()
         return constants.CANCEL_ALARMS
 
-    def _check_sync_relay_connections(self) -> None:
+    def check_sync_relay_connections(self, conn: AbstractConnection) -> int:
         if (
             self.network_num in self.last_sync_message_received_by_network
             and time.time() - self.last_sync_message_received_by_network[self.network_num]
@@ -1076,9 +1120,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 log_messages.RELAY_CONNECTION_TIMEOUT, constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
             )
 
-            self.on_network_synced(self.network_num)
-            self.alarm_queue.unregister_alarm(self._transaction_sync_timeout_alarm_id)
-            self.on_fully_updated_tx_service()
+            # restart the sync process
+            conn: InternalNodeConnection = cast(InternalNodeConnection, conn)
+            conn.tx_sync_service.send_tx_service_sync_req(self.network_num)
+
+        return constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
 
     def sync_and_send_request_for_relay_peers(self, network_num: int) -> int:
         return super().sync_and_send_request_for_relay_peers(self.network_num)
@@ -1143,10 +1189,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         best_relay_country = best_relay_peers[0].get_country()
 
-        self.peer_relays_min_count = max(
-            gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country],
-            gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[best_relay_country]
-        )
+        if self.opts.min_peer_relays_count is not None and self.opts.min_peer_relays_count > 0:
+            self.peer_relays_min_count = self.opts.min_peer_relays_count
+        else:
+            self.peer_relays_min_count = max(
+                gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[self.opts.country],
+                gateway_constants.MIN_PEER_RELAYS_BY_COUNTRY[best_relay_country]
+            )
 
         best_relay_peers = best_relay_peers[:self.peer_relays_min_count]
 
@@ -1250,8 +1299,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def update_node_settings_from_blockchain_network(self, blockchain_network: BlockchainNetworkModel) -> None:
         self.opts.enable_block_compression = blockchain_network.enable_block_compression
 
-    def get_external_feed_subscribers_count(self) -> int:
+    def get_gateway_transaction_streamers_count(self) -> int:
         return 0
 
     def is_gas_price_above_min_network_fee(self, transaction_contents: Union[bytearray, memoryview]) -> bool:
         return True
+
+    def _clear_transaction_service(self) -> None:
+        logger.debug("Clearing all data in transaction service.")
+        self._tx_service.clear()
+

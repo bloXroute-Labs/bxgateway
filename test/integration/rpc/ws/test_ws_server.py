@@ -1,5 +1,6 @@
 import asyncio
 import json
+from dataclasses import dataclass
 from typing import Any
 # TODO: remove try-catch when removing py3.7 support
 from bxutils.encoding.json_encoder import Case
@@ -108,6 +109,46 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
             publish()
             with self.assertRaises(TimeoutError):
                 await asyncio.wait_for(ws.recv(), 0.1)
+
+    @async_test
+    async def test_camel_case(self):
+        await self.server.stop()
+
+        self.server = WsServer(
+            constants.LOCALHOST, 8005, self.feed_manager, self.gateway_node, Case.CAMEL
+        )
+        await self.server.start()
+
+        feed = TestFeed("foo")
+        self.feed_manager.register_feed(feed)
+
+        @dataclass
+        class DataEntry:
+            field_one: str
+
+        def publish():
+            feed.publish(DataEntry("123"))
+            feed.publish(DataEntry("234"))
+
+        async with websockets.connect(self.ws_uri) as ws:
+            asyncio.get_event_loop().call_later(
+                0.1, publish
+            )
+            await ws.send(
+                BxJsonRpcRequest(
+                    "2", RpcRequestType.SUBSCRIBE, ["foo", {}]
+                ).to_jsons()
+            )
+
+            response = await ws.recv()
+            parsed_response = JsonRpcResponse.from_jsons(response)
+
+            self.assertEqual("2", parsed_response.id)
+            self.assertIsNotNone("1", parsed_response.result)
+            subscriber_id = parsed_response.result
+
+            self._assert_notification({"fieldOne": "123"}, subscriber_id, await ws.recv())
+            self._assert_notification({"fieldOne": "234"}, subscriber_id, await ws.recv())
 
     @async_test
     async def tearDown(self) -> None:

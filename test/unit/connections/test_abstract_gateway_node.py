@@ -1,6 +1,7 @@
 import time
 from asyncio import Future
 from typing import Optional
+from unittest import skip
 
 from mock import MagicMock, call
 
@@ -447,6 +448,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         for conn in node.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION]):
             self.assertEqual(9002, conn.peer_port)
 
+    @skip("Test is irrelevant because China gateway is connecting to 1 relay")
     def test_register_potential_relay_peers(self):
         node = initialize_split_relay_node()
         node.opts.country = constants.NODE_COUNTRY_CHINA

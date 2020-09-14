@@ -1,11 +1,13 @@
 import datetime
 import time
+import typing
 from typing import Iterable, Optional, TYPE_CHECKING
 
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
-from bxcommon.utils import convert, crypto
+from bxcommon.utils import convert, crypto, block_content_debug_utils
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
@@ -15,6 +17,7 @@ from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
+from bxgateway import log_messages
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.feed.feed_source import FeedSource
@@ -22,10 +25,7 @@ from bxgateway.messages.gateway.block_received_message import BlockReceivedMessa
 from bxgateway.services.block_recovery_service import BlockRecoveryInfo, RecoveredTxsSource
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
-from bxgateway import log_messages
-
 from bxutils import logging
-
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -400,7 +400,7 @@ class BlockProcessingService:
                 (
                     block_message, block_info, unknown_sids, unknown_hashes
                 ) = message_converter.bx_block_to_block(bx_block, transaction_service)
-                transaction_service.log_compressed_block_debug_info(bx_block)
+                block_content_debug_utils.log_compressed_block_debug_info(transaction_service, bx_block)
             except MessageConversionError as e:
                 block_stats.add_block_event_by_block_hash(
                     e.msg_hash,
@@ -460,6 +460,8 @@ class BlockProcessingService:
                 "Discarding duplicate block {} from the BDN.",
                 block_hash
             )
+            if not self._node.block_queuing_service.block_body_exists(block_hash):
+                self._node.block_queuing_service.store_block_data(block_hash, block_message)
             return
 
         if not recovered:
@@ -504,6 +506,10 @@ class BlockProcessingService:
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
             self._node.blocks_seen.add(block_hash)
             transaction_service.track_seen_short_ids(block_hash, all_sids)
+
+            self._node.publish_block(
+                None, block_hash, typing.cast(AbstractBlockMessage, block_message), FeedSource.BDN_SOCKET
+            )
         else:
             if block_hash in self._node.block_queuing_service and not recovered:
                 connection.log_trace("Handling already queued block again. Ignoring.")
@@ -524,7 +530,8 @@ class BlockProcessingService:
                 blockchain_protocol=self._node.opts.blockchain_protocol,
                 matching_block_hash=block_info.compressed_block_hash,
                 matching_block_type=StatBlockType.COMPRESSED.value,
-                more_info="{} sids, {} hashes".format(len(unknown_sids), len(unknown_hashes))
+                more_info="{} sids, {} hashes, [{},...]".format(len(unknown_sids), len(unknown_hashes),
+                                                                unknown_sids[:5])
             )
 
             connection.log_info("Block {} requires short id recovery. Querying BDN...", block_hash)
@@ -536,9 +543,6 @@ class BlockProcessingService:
                                      block_hash)
             else:
                 self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
-            self._node.publish_block(
-                None, block_hash, block_message, FeedSource.BDN_SOCKET
-            )
 
     def start_transaction_recovery(
         self,

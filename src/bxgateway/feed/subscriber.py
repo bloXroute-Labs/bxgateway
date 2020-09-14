@@ -60,4 +60,7 @@ class Subscriber(Generic[T]):
                 }
             self.messages.put_nowait(filtered_message)
         else:
-            self.messages.put_nowait(message)
+            if hasattr(message, "__dict__"):
+                self.messages.put_nowait(message.__dict__)
+            else:
+                self.messages.put_nowait(message)

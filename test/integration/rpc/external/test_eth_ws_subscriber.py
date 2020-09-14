@@ -154,12 +154,12 @@ class EthWsSubscriberTest(AbstractTestCase):
         self.assertEqual(2, self.subscriber.messages.qsize())
 
         tx_message_1 = await self.subscriber.receive()
-        self.assertEqual(f"0x{convert.bytes_to_hex(tx_hash.binary)}", tx_message_1.tx_hash)
-        self.assertEqual(tx_contents.to_json(), tx_message_1.tx_contents)
+        self.assertEqual(f"0x{convert.bytes_to_hex(tx_hash.binary)}", tx_message_1["tx_hash"])
+        self.assertEqual(tx_contents.to_json(), tx_message_1["tx_contents"])
 
         tx_message_2 = await self.subscriber.receive()
-        self.assertEqual(f"0x{convert.bytes_to_hex(tx_hash_2.binary)}", tx_message_2.tx_hash)
-        self.assertEqual(tx_contents_2.to_json(), tx_message_2.tx_contents)
+        self.assertEqual(f"0x{convert.bytes_to_hex(tx_hash_2.binary)}", tx_message_2["tx_hash"])
+        self.assertEqual(tx_contents_2.to_json(), tx_message_2["tx_contents"])
 
     @async_test
     async def test_subscription_with_no_content_filled(self):
@@ -171,10 +171,10 @@ class EthWsSubscriberTest(AbstractTestCase):
 
         self.assertEqual(1, self.subscriber.messages.qsize())
         tx_message = await self.subscriber.receive()
-        self.assertEqual(f"0x{convert.bytes_to_hex(tx_hash)}", tx_message.tx_hash)
+        self.assertEqual(f"0x{convert.bytes_to_hex(tx_hash)}", tx_message["tx_hash"])
 
         expected_contents = self.sample_transactions[3].to_json()
-        self.assertEqual(expected_contents, tx_message.tx_contents)
+        self.assertEqual(expected_contents, tx_message["tx_contents"])
 
     @patch("bxgateway.gateway_constants.WS_RECONNECT_TIMEOUTS", [0.01])
     @patch("bxgateway.gateway_constants.WS_MIN_RECONNECT_TIMEOUT_S", 0)

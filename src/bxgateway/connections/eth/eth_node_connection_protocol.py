@@ -1,6 +1,6 @@
 import time
 from collections import deque
-from typing import List, Deque, Union
+from typing import List, Deque
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
@@ -10,11 +10,12 @@ from bxcommon.utils.object_hash import Sha256Hash, NULL_SHA256_HASH
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway import log_messages
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.eth_exceptions import CipherNotInitializedError
 from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
-from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
@@ -27,9 +28,9 @@ from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import Ge
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
-from bxgateway import log_messages
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
+from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
@@ -67,7 +68,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self._ready_new_blocks: Deque[Sha256Hash] = deque()
 
         # queue of lists of hashes that are awaiting block bodies response
-        self._block_bodies_requests: Deque[List[Sha256Hash]] = deque(maxlen=eth_common_constants.REQUESTED_NEW_BLOCK_BODIES_MAX_COUNT)
+        self._block_bodies_requests: Deque[List[Sha256Hash]] = deque(
+            maxlen=eth_common_constants.REQUESTED_NEW_BLOCK_BODIES_MAX_COUNT)
 
         if self.block_cleanup_poll_interval_s > 0:
             self.connection.node.alarm_queue.register_alarm(
@@ -83,7 +85,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             f"{str(self)}_eth_requested_blocks"
         )
         self._connection_established_time = 0.0
-        self._total_tx_bytes_skipped = 0
 
     def msg_status(self, msg: StatusEthProtocolMessage):
         super(EthNodeConnectionProtocol, self).msg_status(msg)
@@ -98,25 +99,14 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         )
 
         self._connection_established_time = time.time()
-        self.node.alarm_queue.register_alarm(
-            eth_common_constants.ETH_SKIP_TRANSACTIONS_LEAD_TIME_S,
-            self._check_bytes_skipped
-        )
 
     def msg_tx(self, msg: TransactionsEthProtocolMessage) -> None:
-        if (
-            time.time() - self._connection_established_time
-            < eth_common_constants.ETH_SKIP_TRANSACTIONS_LEAD_TIME_S
-            and len(msg.rawbytes()) >= eth_common_constants.ETH_SKIP_TRANSACTIONS_SIZE
-        ):
-            self.connection.log_debug(
-                "Skipping {} bytes of transactions during blockchain mempool sync.",
-                len(msg.rawbytes())
-            )
-            self._total_tx_bytes_skipped += len(msg.rawbytes())
+        if len(msg.rawbytes()) >= eth_common_constants.ETH_SKIP_TRANSACTIONS_SIZE:
+            bytes_skipped_count = len(msg.rawbytes())
+            self.connection.log_debug("Skipping {} bytes of transactions message.", bytes_skipped_count)
+            gateway_transaction_stats_service.log_skipped_transaction_bytes(bytes_skipped_count)
         else:
             super().msg_tx(msg)
-
 
     # pyre-fixme[14]: `msg_block` overrides method defined in
     #  `AbstractBlockchainConnectionProtocol` inconsistently.
@@ -343,19 +333,19 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         for block_hash in hashes:
             last_attempt = self.requested_blocks_for_confirmation.contents.get(block_hash, 0)
             if time() - last_attempt > \
-                    self.block_cleanup_poll_interval_s * eth_common_constants.BLOCK_CONFIRMATION_REQUEST_INTERVALS:
+                self.block_cleanup_poll_interval_s * eth_common_constants.BLOCK_CONFIRMATION_REQUEST_INTERVALS:
                 break
         else:
             block_hash = hashes[0]
 
         self.requested_blocks_for_confirmation.add(block_hash, time.time())
         return GetBlockHeadersEthProtocolMessage(
-                None,
-                block_hash=bytes(block_hash.binary),
-                amount=100,
-                skip=0,
-                reverse=0
-            )
+            None,
+            block_hash=bytes(block_hash.binary),
+            amount=100,
+            skip=0,
+            reverse=0
+        )
 
     def publish_transaction(
         self, tx_hash: Sha256Hash, tx_contents: memoryview
@@ -368,10 +358,3 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             EthPendingTransactionFeed.NAME,
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )
-
-    def _check_bytes_skipped(self) -> None:
-        self.connection.log_debug(
-            "Skipped total {} during mempool sync. Restoring old behavior.",
-            stats_format.byte_count(self._total_tx_bytes_skipped)
-        )
-

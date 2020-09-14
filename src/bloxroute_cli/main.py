@@ -29,7 +29,9 @@ COMMANDS_HELP = [
     "{:<18} shutdown the Gateway server.".format("stop"),
     "{:<18} get the bloXroute Gateway connected peers info.".format("peers"),
     "{:<18} get BDN performance stats.".format("bdn_performance"),
-    "{:<18} get quota usage status.".format("quota_usage")
+    "{:<18} get quota usage status.".format("quota_usage"),
+    "{:<18} dump transaction service to file.".format("tx_service"),
+    "{:<18} get status of transaction.".format("tx_status")
 ]
 
 
@@ -159,6 +161,9 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
             merged_opts.request_params = {
                 rpc_constants.ACCOUNT_ID_PARAMS_KEY: opts.account_id if opts.cloud_api else opts.rpc_user
             }
+    elif merged_opts.command == RpcRequestType.TX_SERVICE:
+        if merged_opts.request_params is None and unrecognized_params:
+            merged_opts.request_params = {rpc_constants.TX_SERVICE_FILE_NAME_PARAMS_KEY: unrecognized_params[0]}
 
     return merged_opts
 
