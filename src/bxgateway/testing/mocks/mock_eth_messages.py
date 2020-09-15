@@ -50,7 +50,9 @@ def get_dummy_transaction(
         7 * nonce)
 
 
-def get_dummy_block_header(nonce, timestamp=None, block_number=None, prev_block_hash: Optional[Sha256Hash] = None):
+def get_dummy_block_header(
+    nonce, timestamp=None, block_number=None, prev_block_hash: Optional[Sha256Hash] = None
+) -> BlockHeader:
     if timestamp is None:
         timestamp = 5 * nonce
     if block_number is None:

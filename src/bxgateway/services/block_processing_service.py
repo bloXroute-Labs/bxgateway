@@ -465,8 +465,9 @@ class BlockProcessingService:
                 "Discarding duplicate block {} from the BDN.",
                 block_hash
             )
-            if not self._node.block_queuing_service.block_body_exists(block_hash):
-                self._node.block_queuing_service.store_block_data(block_hash, block_message)
+            self._node.on_block_seen_by_blockchain_node(block_hash)
+            if block_message is not None:
+                self._node.on_block_received_from_bdn(block_hash, block_message)
             return
 
         if not recovered:
@@ -508,13 +509,10 @@ class BlockProcessingService:
             if block_hash not in self._node.blocks_seen.contents:
                 gateway_bdn_performance_stats_service.log_block_from_bdn()
 
-            self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
-            self._node.blocks_seen.add(block_hash)
+            self._node.on_block_received_from_bdn(block_hash, block_message)
             transaction_service.track_seen_short_ids(block_hash, all_sids)
 
-            self._node.publish_block(
-                None, block_hash, typing.cast(AbstractBlockMessage, block_message), FeedSource.BDN_SOCKET
-            )
+            self._node.publish_block(None, block_hash, block_message, FeedSource.BDN_SOCKET)
         else:
             if block_hash in self._node.block_queuing_service and not recovered:
                 connection.log_trace("Handling already queued block again. Ignoring.")

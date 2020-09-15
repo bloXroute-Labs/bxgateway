@@ -4,26 +4,22 @@ from mock import MagicMock, call
 
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.tx_validation_status import TxValidationStatus
-from bxcommon.utils import convert
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.utils.blockchain_utils import transaction_validation
-from bxcommon.utils.object_hash import Sha256Hash
+from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
+from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.new_transaction_feed import FeedSource
-from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
+from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import \
+    NewBlockHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
+from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.utils.blockchain_utils.eth import crypto_utils
-from bxgateway.connections.abstract_gateway_blockchain_connection import (
-    AbstractGatewayBlockchainConnection,
-)
-from bxgateway.connections.eth.eth_node_connection_protocol import (
-    EthNodeConnectionProtocol,
-)
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import (
     BlockBodiesEthProtocolMessage,
@@ -37,59 +33,42 @@ from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message impo
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import (
     NewBlockEthProtocolMessage,
 )
-from bxgateway.services.eth.eth_block_processing_service import (
-    EthBlockProcessingService,
-)
-from bxgateway.services.eth.eth_block_queuing_service import (
-    EthBlockQueuingService,
-)
-from bxgateway.services.eth.eth_normal_block_cleanup_service import (
-    EthNormalBlockCleanupService,
-)
 from bxgateway.testing.mocks import mock_eth_messages
-from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 
 NETWORK_NUM = 1
 
 
 class EthNodeConnectionProtocolTest(AbstractTestCase):
     def setUp(self) -> None:
-
+        pub_key = "a04f30a45aae413d0ca0f219b4dcb7049857bc3f91a6351288cce603a2c9646294a02b987bf6586b370b2c22d74662355677007a14238bb037aedf41c2d08866"
+        node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
         opts = gateway_helpers.get_gateway_opts(
             8000,
             include_default_eth_args=True,
             blockchain_protocol=BlockchainProtocol.ETHEREUM.name,
-            blockchain_network_num=5
+            blockchain_network_num=5,
+            pub_key=pub_key
         )
+        self.node = EthGatewayNode(opts, node_ssl_service)
+        self.node.send_to_node_messages = []
+        self.node.opts.has_fully_updated_tx_service = True
+        self.node.init_live_feeds()
 
-        self.node = MockGatewayNode(opts)
-
-        self.connection = MagicMock(spec=AbstractGatewayBlockchainConnection)
-        self.connection.node = self.node
-        self.connection.is_active = MagicMock(return_value=True)
-        self.connection.network_num = 5
-        self.connection.format_connection_desc = "127.0.0.1:12345 - B"
-        self.node.set_known_total_difficulty = MagicMock()
+        self.connection = helpers.create_connection(
+            EthNodeConnection, self.node, opts
+        )
+        self.connection.on_connection_established()
         self.node.node_conn = self.connection
-        self.node.message_converter = EthNormalMessageConverter()
 
-        self.cleanup_service = EthNormalBlockCleanupService(
-            self.node, NETWORK_NUM
-        )
-        self.node.block_cleanup_service = self.cleanup_service
-        self.node.block_processing_service = EthBlockProcessingService(
-            self.node
-        )
+        def mocked_send_to_node(msg, prepend=False):
+            self.node.send_to_node_messages.append(msg)
+
+        self.connection.enqueue_msg = mocked_send_to_node
+
+        self.cleanup_service = self.node.block_cleanup_service
         self.node.block_processing_service.queue_block_for_processing = MagicMock()
-        self.node.block_queuing_service = EthBlockQueuingService(self.node)
 
-        dummy_private_key = crypto_utils.make_private_key(
-            helpers.generate_bytearray(111)
-        )
-        dummy_public_key = crypto_utils.private_to_public_key(dummy_private_key)
-        self.sut = EthNodeConnectionProtocol(
-            self.connection, True, dummy_private_key, dummy_public_key
-        )
+        self.sut = self.connection.connection_protocol
         self.sut._waiting_checkpoint_headers_request = False
         self.node.opts.ws = True
         self.node.publish_block = MagicMock()
@@ -455,6 +434,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
     def test_msg_tx(self):
         self.node.feed_manager.publish_to_feed = MagicMock()
         self.node.opts.ws = True
+        self.node.broadcast = MagicMock()
 
         transaction = mock_eth_messages.get_dummy_transaction(1)
         transaction_hash = transaction.hash()
@@ -478,7 +458,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         )
 
         # broadcast transactions
-        self.assertEqual(1, len(self.node.broadcast_messages))
+        self.node.broadcast.assert_called_once()
 
     def test_handle_tx_with_an_invalid_signature(self):
         tx_bytes = \
@@ -536,3 +516,48 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
             510000000000
         )
         self.assertEqual(TxValidationStatus.LOW_FEE, result)
+
+    def test_complete_header_body_fetch(self):
+        self.node.block_processing_service.queue_block_for_processing = MagicMock()
+        self.sut.is_valid_block_timestamp = MagicMock(return_value=True)
+
+        header = mock_eth_messages.get_dummy_block_header(1)
+        block = mock_eth_messages.get_dummy_block(1, header)
+        block_hash = header.hash_object()
+        new_block_hashes_message = NewBlockHashesEthProtocolMessage.from_block_hash_number_pair(
+            block_hash, 1
+        )
+        header_message = BlockHeadersEthProtocolMessage(None, [header])
+        bodies_message = BlockBodiesEthProtocolMessage(None, [TransientBlockBody(block.transactions, block.uncles)])
+
+        self.sut.msg_new_block_hashes(new_block_hashes_message)
+        self.assertEqual(1, len(self.sut.pending_new_block_parts.contents))
+
+        self.sut.msg_block_headers(header_message)
+        self.sut.msg_block_bodies(bodies_message)
+
+        self.node.block_processing_service.queue_block_for_processing.assert_called_once()
+
+    def test_header_body_fetch_abort_from_bdn(self):
+        self.node.block_processing_service.queue_block_for_processing = MagicMock()
+        self.sut.is_valid_block_timestamp = MagicMock(return_value=True)
+
+        header = mock_eth_messages.get_dummy_block_header(1)
+        block = mock_eth_messages.get_dummy_block(1, header)
+        block_hash = header.hash_object()
+        new_block_hashes_message = NewBlockHashesEthProtocolMessage.from_block_hash_number_pair(
+            block_hash, 1
+        )
+        header_message = BlockHeadersEthProtocolMessage(None, [header])
+        bodies_message = BlockBodiesEthProtocolMessage(None, [TransientBlockBody(block.transactions, block.uncles)])
+        internal_block_info = InternalEthBlockInfo.from_new_block_msg(NewBlockEthProtocolMessage(None, block, 1))
+
+        self.sut.msg_new_block_hashes(new_block_hashes_message)
+        self.assertEqual(1, len(self.sut.pending_new_block_parts.contents))
+
+        self.node.on_block_received_from_bdn(block_hash, internal_block_info)
+
+        self.sut.msg_block_headers(header_message)
+        self.sut.msg_block_bodies(bodies_message)
+
+        self.node.block_processing_service.queue_block_for_processing.assert_not_called()

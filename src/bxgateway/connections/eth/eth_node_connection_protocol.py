@@ -56,7 +56,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self.waiting_checkpoint_headers_request = True
 
         # uses block hash as a key, and NewBlockParts structure as value
-        self._pending_new_blocks_parts: ExpiringDict[
+        self.pending_new_block_parts: ExpiringDict[
             Sha256Hash, NewBlockParts
         ] = ExpiringDict(
             self.node.alarm_queue,
@@ -173,7 +173,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
         for block_hash, block_number in block_hash_number_pairs:
             # pyre-fixme[6]: Expected `memoryview` for 1st param but got `None`.
-            self._pending_new_blocks_parts.add(block_hash, NewBlockParts(None, None, block_number))
+            self.pending_new_block_parts.add(block_hash, NewBlockParts(None, None, block_number))
             self.node.send_msg_to_node(
                 GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, False)
             )
@@ -211,14 +211,14 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
         block_headers = msg.get_block_headers()
 
-        if self._pending_new_blocks_parts.contents and len(block_headers) == 1:
+        if self.pending_new_block_parts.contents and len(block_headers) == 1:
             header_bytes = msg.get_block_headers_bytes()[0]
             block_hash_bytes = eth_common_utils.keccak_hash(header_bytes)
             block_hash = Sha256Hash(block_hash_bytes)
 
-            if block_hash in self._pending_new_blocks_parts.contents:
+            if block_hash in self.pending_new_block_parts.contents:
                 logger.debug("Received block header for new block {}", convert.bytes_to_hex(block_hash.binary))
-                self._pending_new_blocks_parts.contents[block_hash].block_header_bytes = header_bytes
+                self.pending_new_block_parts.contents[block_hash].block_header_bytes = header_bytes
                 self._check_pending_new_block(block_hash)
                 self._process_ready_new_blocks()
                 return
@@ -248,10 +248,10 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                          ", ".join([convert.bytes_to_hex(block_hash.binary) for block_hash in requested_hashes]))
 
             for block_hash, block_body_bytes in zip(requested_hashes, bodies_bytes):
-                if block_hash in self._pending_new_blocks_parts.contents:
+                if block_hash in self.pending_new_block_parts.contents:
                     logger.debug("Received block body for pending new block {}",
                                  convert.bytes_to_hex(block_hash.binary))
-                    self._pending_new_blocks_parts.contents[block_hash].block_body_bytes = block_body_bytes
+                    self.pending_new_block_parts.contents[block_hash].block_body_bytes = block_body_bytes
                     self._check_pending_new_block(block_hash)
                 elif self.node.block_cleanup_service.is_marked_for_cleanup(block_hash):
                     transactions_hashes = \
@@ -277,8 +277,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self._waiting_checkpoint_headers_request = False
 
     def _check_pending_new_block(self, block_hash):
-        if block_hash in self._pending_new_blocks_parts.contents:
-            pending_new_block = self._pending_new_blocks_parts.contents[block_hash]
+        if block_hash in self.pending_new_block_parts.contents:
+            pending_new_block = self.pending_new_block_parts.contents[block_hash]
 
             if pending_new_block.block_header_bytes is not None and pending_new_block.block_body_bytes is not None:
                 self._ready_new_blocks.append(block_hash)
@@ -286,7 +286,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
     def _process_ready_new_blocks(self):
         while self._ready_new_blocks:
             ready_block_hash = self._ready_new_blocks.pop()
-            pending_new_block = self._pending_new_blocks_parts.contents[ready_block_hash]
+            pending_new_block = self.pending_new_block_parts.contents[ready_block_hash]
             last_known_total_difficulty = self.node.try_calculate_total_difficulty(
                 ready_block_hash,
                 pending_new_block
@@ -295,7 +295,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 pending_new_block,
                 last_known_total_difficulty
             )
-            self._pending_new_blocks_parts.remove_item(ready_block_hash)
+            self.pending_new_block_parts.remove_item(ready_block_hash)
 
             if self.is_valid_block_timestamp(new_block_msg):
                 block_stats.add_block_event_by_block_hash(

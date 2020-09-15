@@ -27,10 +27,6 @@ logger = logging.get_logger(__name__)
 
 
 class OntBlockQueuingService(
-    # pyre-fixme[24]: Type parameter `Union[BlockOntMessage, OntConsensusMessage]` violates constraints on
-    #  `Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
-    #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]`
-    #  in generic type `AbstractBlockQueuingService`.
     AbstractBlockQueuingService[Union[BlockOntMessage, OntConsensusMessage], HeadersOntMessage]
 ):
     """
@@ -71,9 +67,6 @@ class OntBlockQueuingService(
     ):
         if self.node.opts.is_consensus and isinstance(block_msg, BlockOntMessage):
             return
-        # pyre-fixme[6]: Expected `Optional[Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
-        #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]]` for 2nd positional only
-        #  parameter to call `AbstractBlockQueuingService.push` but got `Union[BlockOntMessage, OntConsensusMessage]`.
         super().push(block_hash, block_msg, waiting_for_recovery)
         logger.debug("Added block {} to queuing service", block_hash)
         self._clean_block_queue()
@@ -226,10 +219,6 @@ class OntBlockQueuingService(
             if block_height > self._highest_block_number:
                 self._highest_block_number = block_height
             self._block_hashes_by_height[block_height] = block_hash
-        # pyre-fixme[6]: Expected `Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
-        #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]` for 2nd positional only
-        #  parameter to call `AbstractBlockQueuingService.store_block_data`
-        #  but got `Union[BlockOntMessage, OntConsensusMessage]`.
         super().store_block_data(block_hash, block_msg)
 
     def iterate_block_hashes_starting_from_hash(

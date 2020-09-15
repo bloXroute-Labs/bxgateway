@@ -6,6 +6,7 @@ from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
@@ -17,6 +18,7 @@ from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway.connections.eth.eth_node_connection_protocol import EthNodeConnectionProtocol
 from bxgateway.feed.feed_source import FeedSource
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
@@ -377,6 +379,18 @@ class EthGatewayNode(AbstractGatewayNode):
     def get_enode(self) -> str:
         return \
             f"enode://{convert.bytes_to_hex(self.get_public_key())}@{self.opts.external_ip}:{self.opts.non_ssl_port}"
+
+    def on_block_received_from_bdn(
+        self, block_hash: Sha256Hash, block_message: AbstractBlockMessage
+    ) -> None:
+        super().on_block_received_from_bdn(block_hash, block_message)
+
+        node_conn = self.node_conn
+        if node_conn is not None:
+            eth_connection_protocol = cast(
+                EthNodeConnectionProtocol, node_conn.connection_protocol
+            )
+            eth_connection_protocol.pending_new_block_parts.remove_item(block_hash)
 
     # pyre-fixme[14]: Inconsistent override:
     # Parameter of type InternalEthBlockInfo is not a supertype of AbstractBlockMessage

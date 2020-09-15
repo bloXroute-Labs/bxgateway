@@ -761,6 +761,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.log_blocks_network_content(self.network_num, block_message)
         return recovery_canceled
 
+    def on_block_received_from_bdn(
+        self, block_hash: Sha256Hash, block_message: AbstractBlockMessage
+    ) -> None:
+        self.blocks_seen.add(block_hash)
+        if not self.block_queuing_service.block_body_exists(block_hash):
+            self.block_queuing_service.store_block_data(block_hash, block_message)
+        self.block_recovery_service.cancel_recovery_for_block(block_hash)
+
     def publish_block(
         self,
         block_number: Optional[int],
