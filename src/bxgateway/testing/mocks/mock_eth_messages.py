@@ -2,6 +2,7 @@ from typing import Optional
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
+from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
@@ -33,16 +34,20 @@ def generate_eth_raw_transaction(source: FeedSource = FeedSource.BDN_SOCKET) -> 
 
 
 def get_dummy_transaction(
-    nonce: int, gas_price: Optional[int] = None, v: int = 27
+    nonce: int, gas_price: Optional[int] = None, v: int = 27, to_address_str: Optional[str] = None
 ) -> Transaction:
     if gas_price is None:
         gas_price = 2 * nonce
+    if to_address_str is None:
+        to_address = helpers.generate_bytes(eth_common_constants.ADDRESS_LEN)
+    else:
+        to_address = convert.hex_to_bytes(to_address_str)
     # create transaction object with dummy values multiplied by nonce to be able generate txs with different values
     return Transaction(
         nonce,
         gas_price,
         3 * nonce,
-        helpers.generate_bytes(eth_common_constants.ADDRESS_LEN),
+        to_address,
         4 * nonce,
         helpers.generate_bytes(15 * nonce),
         v,

@@ -864,7 +864,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def reevaluate_transaction_streamer_connection(self) -> None:
         if self.NODE_TYPE is not NodeType.EXTERNAL_GATEWAY:
             return
-        
+
         if self.transaction_streamer_peer is None:
             logger.error(log_messages.MISSING_TRANSACTION_STREAMER_PEER_INFO)
             return
