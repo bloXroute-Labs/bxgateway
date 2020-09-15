@@ -139,7 +139,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             tx_hash,
             TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
             network_num,
-            peers=stats_format.connections(broadcast_peers)
+            peers=[broadcast_peers]
         )
         tx_stats.add_tx_by_hash_event(
             tx_hash,

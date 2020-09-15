@@ -30,7 +30,7 @@ class OntNeutralityService(NeutralityService):
                                                   network_num=self._node.network_num,
                                                   broadcast_type=broadcast_type,
                                                   requested_by_peer=False,
-                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns),
+                                                  peers=conns,
                                                   more_info="Peers: {}; Unencrypted; {}; Handled in {}".format(
                                                       stats_format.connections(conns),
                                                       self._format_block_info_stats(block_info),

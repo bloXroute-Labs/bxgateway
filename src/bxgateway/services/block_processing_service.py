@@ -79,7 +79,8 @@ class BlockProcessingService:
         """
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_REQUESTED,
                                                   network_num=connection.network_num,
-                                                  more_info=stats_format.connection(connection))
+                                                  peers=[connection],
+                                                  )
 
         if block_hash in self._node.blocks_seen.contents:
             return
@@ -93,7 +94,8 @@ class BlockProcessingService:
                 block_stats.add_block_event_by_block_hash(block_hash,
                                                           BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
                                                           network_num=self._node.network_num,
-                                                          more_info=stats_format.connections(conns))
+                                                          peers=conns,
+                                                          )
 
     def queue_block_for_processing(self, block_message, connection) -> None:
         """
@@ -113,7 +115,8 @@ class BlockProcessingService:
             hold: BlockHold = self._holds.contents[block_hash]
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_HELD_BLOCK,
                                                       network_num=connection.network_num,
-                                                      more_info=stats_format.connection(hold.holding_connection))
+                                                      peers=[hold.holding_connection],
+                                                      )
             if hold.alarm is None:
                 hold.alarm = self._node.alarm_queue.register_alarm(
                     self._node.opts.blockchain_block_hold_timeout_s, self._holding_timeout, block_hash, hold
@@ -134,7 +137,7 @@ class BlockProcessingService:
                         block_hash,
                         BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
                         network_num=self._node.network_num,
-                        more_info=stats_format.connections(conns)
+                        peers=conns
                     )
             self._process_and_broadcast_block(block_message, connection)
 
@@ -147,7 +150,8 @@ class BlockProcessingService:
         if block_hash in self._holds.contents:
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_LIFTED,
                                                       network_num=connection.network_num,
-                                                      more_info=stats_format.connection(connection))
+                                                      peers=[connection],
+                                                      )
 
             hold = self._holds.contents[block_hash]
             if hold.alarm is not None:
@@ -217,7 +221,7 @@ class BlockProcessingService:
                 block_hash,
                 BlockStatEventType.ENC_BLOCK_SENT_BLOCK_RECEIPT,
                 network_num=connection.network_num,
-                more_info=stats_format.connections(conns)
+                peers=conns,
             )
 
     def process_block_key(self, msg, connection: AbstractRelayConnection) -> None:
@@ -234,8 +238,7 @@ class BlockProcessingService:
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                                   network_num=connection.network_num,
-                                                  connection_type=connection.CONNECTION_TYPE,
-                                                  more_info=stats_format.connection(connection))
+                                                  peers=[connection])
 
         if self._node.in_progress_blocks.has_encryption_key_for_hash(block_hash):
             return
@@ -271,7 +274,8 @@ class BlockProcessingService:
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.ENC_BLOCK_KEY_SENT_BY_GATEWAY_TO_PEERS,
                                                       network_num=self._node.network_num,
-                                                      more_info=stats_format.connections(conns))
+                                                      peers=conns
+                                                      )
 
     def retry_broadcast_recovered_blocks(self, connection) -> None:
         if self._node.block_recovery_service.recovered_blocks and self._node.opts.has_fully_updated_tx_service:
@@ -292,7 +296,8 @@ class BlockProcessingService:
     def _holding_timeout(self, block_hash, hold):
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_TIMED_OUT,
                                                   network_num=hold.connection.network_num,
-                                                  more_info=stats_format.connection(hold.connection))
+                                                  peers=[hold.connection]
+                                                  )
         self._process_and_broadcast_block(hold.block_message, hold.connection)
 
     def _process_and_broadcast_block(self, block_message, connection: AbstractGatewayBlockchainConnection) -> None:
@@ -583,7 +588,7 @@ class BlockProcessingService:
                 all_unknown_sids,
                 TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
                 network_num=self._node.network_num,
-                peer=connection.peer_desc,
+                peers=[connection],
                 block_hash=convert.bytes_to_hex(block_hash.binary)
             )
             block_stats.add_block_event_by_block_hash(

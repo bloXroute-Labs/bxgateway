@@ -175,10 +175,12 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     def msg_block_propagation_request(self, msg):
         bx_block = msg.blob()
         bx_block_hash = crypto.double_sha256(bx_block)
-        block_stats.add_block_event_by_block_hash(bx_block_hash,
-                                                  BlockStatEventType.BX_BLOCK_PROPAGATION_REQUESTED_BY_PEER,
-                                                  network_num=self.network_num,
-                                                  more_info=stats_format.connection(self))
+        block_stats.add_block_event_by_block_hash(
+            bx_block_hash,
+            BlockStatEventType.BX_BLOCK_PROPAGATION_REQUESTED_BY_PEER,
+            network_num=self.network_num,
+            peers=[self],
+        )
         self.node.neutrality_service.propagate_block_to_network(bx_block, self, from_peer=True)
 
     def msg_block_holding(self, msg):

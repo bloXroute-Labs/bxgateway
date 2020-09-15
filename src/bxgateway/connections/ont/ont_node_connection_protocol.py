@@ -178,7 +178,8 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                                                       BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
                                                       network_num=self.node.network_num,
                                                       broadcast_type=BroadcastMessageType.CONSENSUS,
-                                                      more_info=stats_format.connections(conns))
+                                                      peers=conns
+                                                      )
 
         try:
             bx_block, block_info = self.node.consensus_message_converter.block_to_bx_block(

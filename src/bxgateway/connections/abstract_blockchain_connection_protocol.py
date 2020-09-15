@@ -76,7 +76,7 @@ class AbstractBlockchainConnectionProtocol:
                     tx_result.transaction_hash,
                     TransactionStatEventType.TX_VALIDATION_FAILED_STRUCTURE,
                     self.connection.network_num,
-                    peer=stats_format.connection(self.connection)
+                    peers=[self.connection]
                 )
                 continue
 
@@ -93,7 +93,7 @@ class AbstractBlockchainConnectionProtocol:
                     tx_result.transaction_hash,
                     TransactionStatEventType.TX_VALIDATION_FAILED_SIGNATURE,
                     self.connection.network_num,
-                    peer=stats_format.connection(self.connection)
+                    peers=[self.connection]
                 )
                 continue
 
@@ -112,7 +112,7 @@ class AbstractBlockchainConnectionProtocol:
                     tx_result.transaction_hash,
                     TransactionStatEventType.TX_VALIDATION_FAILED_GAS_PRICE,
                     self.connection.network_num,
-                    peer=stats_format.connection(self.connection)
+                    peers=[self.connection]
                 )
                 continue
 
@@ -121,7 +121,7 @@ class AbstractBlockchainConnectionProtocol:
                     tx_result.transaction_hash,
                     TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                     self.connection.network_num,
-                    peer=stats_format.connection(self.connection)
+                    peers=[self.connection]
                 )
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
                 continue
@@ -132,7 +132,7 @@ class AbstractBlockchainConnectionProtocol:
                 tx_result.transaction_hash,
                 TransactionStatEventType.TX_RECEIVED_FROM_BLOCKCHAIN_NODE,
                 self.connection.network_num,
-                peer=stats_format.connection(self.connection)
+                peers=[self.connection]
             )
             gateway_transaction_stats_service.log_transaction_from_blockchain(tx_result.transaction_hash)
 
@@ -157,7 +157,7 @@ class AbstractBlockchainConnectionProtocol:
                     tx_result.transaction_hash,
                     TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
                     self.connection.network_num,
-                    peers=map(lambda conn: (stats_format.connection(conn)), broadcast_peers)
+                    peers=broadcast_peers
                 )
             else:
                 logger.trace(

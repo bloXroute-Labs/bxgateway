@@ -144,7 +144,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
                 network_num,
                 short_id,
-                peer=stats_format.connection(self),
+                peers=[self],
                 is_compact_transaction=False
             )
             self.log_trace("Transaction has already been seen: {}", tx_hash)
@@ -157,7 +157,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
                 network_num,
                 short_id,
-                peer=stats_format.connection(self),
+                peers=[self],
                 is_compact_transaction=is_compact
             )
             return
@@ -167,7 +167,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER,
             network_num,
             short_id,
-            peer=stats_format.connection(self),
+            peers=[self],
             is_compact_transaction=msg.is_compact()
         )
         gateway_transaction_stats_service.log_transaction_from_relay(
@@ -193,7 +193,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 TransactionStatEventType.TX_SHORT_ID_EMPTY_IN_MSG_FROM_RELAY,
                 network_num,
                 short_id,
-                peer=stats_format.connection(self)
+                peers=[self]
             )
 
         if not is_compact and processing_result.existing_contents:
@@ -263,7 +263,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             map(lambda x: x.short_id, transactions),
             TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REPLY_RECEIVED_BY_GATEWAY_FROM_RELAY,
             network_num=self.node.network_num,
-            peer=stats_format.connection(self),
+            peers=[self],
             found_tx_hashes=map(lambda x: convert.bytes_to_hex(x.hash.binary),
                                 transactions
                                 )
@@ -278,7 +278,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 TransactionStatEventType.TX_UNKNOWN_TRANSACTION_RECEIVED_BY_GATEWAY_FROM_RELAY,
                 self.node.network_num,
                 short_id,
-                peer=stats_format.connection(self)
+                peers=[self]
             )
 
         self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
@@ -295,6 +295,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             msg.block_hash(),
             BlockStatEventType.ENC_BLOCK_COMPRESSED_TXS_RECEIVED_BY_GATEWAY,
             network_num=msg.network_num(),
+            peers=[self],
             more_info="{}. processing time: {}".format(
                 stats_format.connection(self),
                 stats_format.timespan(start_time, time.time())

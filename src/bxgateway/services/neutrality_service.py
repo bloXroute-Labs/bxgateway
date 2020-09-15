@@ -62,6 +62,7 @@ class NeutralityService(object):
             block_stats.add_block_event_by_block_hash(cipher_hash,
                                                       BlockStatEventType.ENC_BLOCK_RECEIVED_BLOCK_RECEIPT,
                                                       network_num=self._node.network_num,
+                                                      peers=[connection],
                                                       more_info="{}, {} receipts".format(
                                                           stats_format.connection(connection),
                                                           self._receipt_tracker[cipher_hash]))
@@ -130,6 +131,7 @@ class NeutralityService(object):
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
                                                   requested_by_peer=requested_by_peer,
+                                                  peers=conns,
                                                   more_info="Peers: {}; {}; {}; Requested by peer: {}; Handled in {}"
                                                   .format(
                                                       stats_format.connections(conns), encryption_details,
@@ -150,7 +152,7 @@ class NeutralityService(object):
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
                                                   network_num=self._node.network_num,
                                                   requested_by_peer=False,
-                                                  peers=map(lambda conn: (conn.peer_desc, conn.CONNECTION_TYPE), conns),
+                                                  peers=conns,
                                                   more_info="Peers: {}; Unencrypted; {}; Handled in {}".format(
                                                       stats_format.connections(conns),
                                                       self._format_block_info_stats(block_info),
@@ -210,6 +212,7 @@ class NeutralityService(object):
                                                   BlockStatEventType.ENC_BLOCK_PROPAGATION_NEEDED,
                                                   network_num=self._node.network_num,
                                                   compressed_block_hash=hex_bx_block_hash,
+                                                  peers=conns,
                                                   more_info="Peers: {}, {} receipts".format(
                                                       stats_format.connections(conns),
                                                       self._receipt_tracker[cipher_hash]))
@@ -227,5 +230,5 @@ class NeutralityService(object):
             cipher_hash,
             BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,
             network_num=self._node.network_num,
-            more_info=stats_format.connections(conns)
+            peers=conns,
         )
