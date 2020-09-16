@@ -9,6 +9,7 @@ from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_blxr_transaction_rpc_request import AbstractBlxrTransactionRpcRequest
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
+from bxcommon.utils import convert
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
@@ -26,17 +27,10 @@ logger = logging.get_logger(__name__)
 
 
 class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["AbstractGatewayNode"]):
-    QUOTA_TYPE: str = "quota_type"
+    QUOTA_TYPE = "quota_type"
     SYNCHRONOUS = rpc_constants.SYNCHRONOUS_PARAMS_KEY
 
-    def __init__(self, request: BxJsonRpcRequest, node: "AbstractGatewayNode") -> None:
-        super().__init__(request, node)
-        params = self.params
-        assert isinstance(params, dict)
-
-        lowercase_true = str(True).lower()
-        self.synchronous = \
-            params.get(self.SYNCHRONOUS, lowercase_true).lower() == lowercase_true
+    synchronous: bool = True
 
     def validate_params(self) -> None:
         params = self.params
@@ -52,7 +46,12 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             tx_json = params[rpc_constants.TRANSACTION_JSON_PARAMS_KEY]
             tx_bytes = Transaction.from_json_with_validation(tx_json).contents().tobytes()
             params[rpc_constants.TRANSACTION_PARAMS_KEY] = tx_bytes.hex()
+
         super(GatewayBlxrTransactionRpcRequest, self).validate_params()
+
+        if self.SYNCHRONOUS in params:
+            synchronous = params[rpc_constants.SYNCHRONOUS_PARAMS_KEY]
+            self.synchronous = convert.str_to_bool(str(synchronous).lower(), default=True)
 
     async def process_request(self) -> JsonRpcResponse:
         params = self.params

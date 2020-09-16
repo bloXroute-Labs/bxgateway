@@ -96,7 +96,8 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "quota_type": "paid_daily_quota"
+                "quota_type": "paid_daily_quota",
+                "synchronous": True
             }
         ))
         self.assertEqual("1", result.id)
