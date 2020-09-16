@@ -244,9 +244,8 @@ class EthBlockQueuingService(
         self, block_hashes: List[Sha256Hash]
     ):
         """
-        Unused by Ethereum.
+        Unused by Ethereum. Requires block number to function correctly.
         """
-        pass
 
     def mark_block_seen_by_blockchain_node(
         self,

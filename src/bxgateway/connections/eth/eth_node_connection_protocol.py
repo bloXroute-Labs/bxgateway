@@ -227,7 +227,11 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             block_hashes = [blk.hash_object() for blk in block_headers]
             block_hashes.insert(0, Sha256Hash(block_headers[0].prev_hash))
             self.node.block_cleanup_service.mark_blocks_and_request_cleanup(block_hashes)
-            self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
+
+        for block_header in block_headers:
+            self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
+                block_header.hash_object(), None, block_header.number
+            )
 
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage):
         if not self.node.should_process_block_hash():
