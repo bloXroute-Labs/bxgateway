@@ -1,5 +1,7 @@
 import os
 
+from mock import MagicMock
+
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
@@ -15,6 +17,8 @@ class EthBlockCleanupServiceTests(AbstractBlockCleanupServiceTest):
     def setUp(self) -> None:
         super().setUp()
         self.node.block_queuing_service = EthBlockQueuingService(self.node)
+        node_conn = MagicMock()
+        self.node.connection_pool.add(1, "127.0.0.0", 8002, node_conn)
 
     def _get_sample_block(self, file_path):
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(file_path))))

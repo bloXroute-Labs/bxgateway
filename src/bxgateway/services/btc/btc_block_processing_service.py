@@ -1,6 +1,7 @@
 import typing
 from datetime import datetime
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxutils import logging
 from bxgateway import log_messages
 
@@ -120,8 +121,7 @@ class BtcBlockProcessingService(BlockProcessingService):
                 magic=msg.magic(),
                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
             )
-            self._node.send_msg_to_node(get_data_msg)
-
+            connection.enqueue_msg(get_data_msg)
             return
         block_info = recovery_result.block_info
 
@@ -173,7 +173,7 @@ class BtcBlockProcessingService(BlockProcessingService):
                 magic=msg.magic(),
                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
             )
-            self._node.send_msg_to_node(get_data_msg)
+            connection.enqueue_msg(get_data_msg)
 
     def _on_block_decompressed(self, block_msg):
         msg = typing.cast(BlockBtcMessage, block_msg)

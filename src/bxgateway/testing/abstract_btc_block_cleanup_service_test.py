@@ -2,7 +2,11 @@ import os
 import random
 import typing
 from abc import abstractmethod
+from mock import MagicMock
 
+from bxcommon.constants import LOCALHOST
+from bxcommon.test_utils.mocks.mock_connection import MockConnection
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxutils import logging
 from bxutils.logging.log_level import LogLevel
 
@@ -35,6 +39,11 @@ class AbstractBtcBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
         return parsed_block
 
     def _test_mark_blocks_and_request_cleanup(self):
+        node_conn = MockConnection(
+            MockSocketConnection(0, self.node, ip_address=LOCALHOST, port=9000), self.node
+        )
+        self.node.get_any_active_blockchain_connection = MagicMock(return_value=node_conn)
+
         marked_block = BtcObjectHash(binary=helpers.generate_bytearray(btc_constants.BTC_SHA_HASH_LEN))
         prev_block = BtcObjectHash(binary=helpers.generate_bytearray(btc_constants.BTC_SHA_HASH_LEN))
         tracked_blocks = []
@@ -51,7 +60,7 @@ class AbstractBtcBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
         self.assertTrue(self.cleanup_service.is_marked_for_cleanup(marked_block))
         self.assertFalse(self.cleanup_service.is_marked_for_cleanup(unmarked_block))
         self.assertEqual(marked_block, self.cleanup_service.last_confirmed_block)
-        msg = self.node.send_to_node_messages.pop(-1)
+        msg = node_conn.enqueued_messages[0]
         self.assertEqual(1, msg.count())
         self.assertEqual((InventoryType.MSG_BLOCK, marked_block), next(iter(msg)))
 

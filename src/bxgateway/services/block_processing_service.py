@@ -400,7 +400,7 @@ class BlockProcessingService:
         assert message_converter is not None
 
         # TODO: determine if a real block or test block. Discard if test block.
-        if self._node.node_conn or self._node.remote_node_conn:
+        if self._node.remote_node_conn or self._node.has_active_blockchain_peer():
             try:
                 (
                     block_message, block_info, unknown_sids, unknown_hashes

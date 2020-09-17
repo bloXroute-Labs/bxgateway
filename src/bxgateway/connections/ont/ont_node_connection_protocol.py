@@ -106,7 +106,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                     self.node.opts.blockchain_network
                 )
             )
-        self.node.block_queuing_service.send_block_to_node(item_hash)
+        self.node.block_queuing_service.send_block_to_nodes(item_hash)
 
     def msg_get_headers(self, msg: GetHeadersOntMessage):
         send_successful = self.node.block_queuing_service.try_send_header_to_node(msg.hash_stop())

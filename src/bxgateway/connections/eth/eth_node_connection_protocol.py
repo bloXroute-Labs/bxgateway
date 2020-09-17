@@ -2,6 +2,7 @@ import time
 from collections import deque
 from typing import List, Deque
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.blockchain_utils.eth import eth_common_utils, eth_common_constants
@@ -174,9 +175,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         for block_hash, block_number in block_hash_number_pairs:
             # pyre-fixme[6]: Expected `memoryview` for 1st param but got `None`.
             self.pending_new_block_parts.add(block_hash, NewBlockParts(None, None, block_number))
-            self.node.send_msg_to_node(
-                GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, False)
-            )
+            self.connection.enqueue_msg(GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, False))
 
         self.request_block_body([block_hash for block_hash, _ in block_hash_number_pairs])
 
@@ -185,7 +184,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             None,
             block_hashes=[bytes(blk.binary) for blk in block_hashes]
         )
-        self.node.send_msg_to_node(block_request_message)
+        self.connection.enqueue_msg(block_request_message)
         self._block_bodies_requests.append(block_hashes)
 
     def msg_get_block_headers(self, msg: GetBlockHeadersEthProtocolMessage):

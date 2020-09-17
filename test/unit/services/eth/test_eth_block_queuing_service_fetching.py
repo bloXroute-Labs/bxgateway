@@ -1,5 +1,6 @@
 import time
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxgateway.testing import gateway_helpers
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import \
     BlockBodiesEthProtocolMessage
@@ -202,44 +203,46 @@ class EthBlockQueuingServiceFetchingTest(AbstractTestCase):
         self.node.block_cleanup_service.block_cleanup_request.assert_called_once()
 
     def test_try_send_headers_to_node_success(self):
-        self.node.send_msg_to_node = MagicMock()
+        self.node.broadcast = MagicMock()
         result = self.block_queuing_service.try_send_headers_to_node(self.block_hashes[:4])
 
         self.assertTrue(result)
-        self.node.send_msg_to_node.assert_called_once_with(
+        self.node.broadcast.assert_called_once_with(
             BlockHeadersEthProtocolMessage(
                 None,
                 self.block_headers[:4]
-            )
+            ),
+            connection_types=[ConnectionType.BLOCKCHAIN_NODE]
         )
 
     def test_try_send_headers_to_node_unknown_block(self):
-        self.node.send_msg_to_node = MagicMock()
+        self.node.broadcast = MagicMock()
         result = self.block_queuing_service.try_send_headers_to_node(
             [self.block_hashes[0], helpers.generate_object_hash()]
         )
 
         self.assertFalse(result)
-        self.node.send_msg_to_node.assert_not_called()
+        self.node.broadcast.assert_not_called()
 
     def test_try_send_bodies_to_node_success(self):
-        self.node.send_msg_to_node = MagicMock()
+        self.node.broadcast = MagicMock()
         result = self.block_queuing_service.try_send_bodies_to_node(self.block_hashes[:4])
 
         self.assertTrue(result)
-        self.node.send_msg_to_node.assert_called_once_with(
+        self.node.broadcast.assert_called_once_with(
             BlockBodiesEthProtocolMessage(
                 None,
                 self.block_bodies[:4]
-            )
+            ),
+            connection_types=[ConnectionType.BLOCKCHAIN_NODE]
         )
 
     def test_try_send_bodies_to_node_unknown_block(self):
-        self.node.send_msg_to_node = MagicMock()
+        self.node.broadcast = MagicMock()
         result = self.block_queuing_service.try_send_bodies_to_node(
             [self.block_hashes[0], helpers.generate_object_hash()]
         )
 
         self.assertFalse(result)
-        self.node.send_msg_to_node.assert_not_called()
+        self.node.broadcast.assert_not_called()
 

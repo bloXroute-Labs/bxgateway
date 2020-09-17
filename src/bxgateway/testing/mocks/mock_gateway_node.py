@@ -53,7 +53,7 @@ class MockGatewayNode(AbstractGatewayNode):
         super(MockGatewayNode, self).__init__(opts, node_ssl_service)
 
         self.broadcast_messages = []
-        self.send_to_node_messages = []
+        self.broadcast_to_nodes_messages = []
         self._tx_service = GatewayTransactionService(self, 0)
         self.block_cleanup_service = self._get_cleanup_service()
         self.block_queuing_service = block_queueing_cls(self)
@@ -65,18 +65,17 @@ class MockGatewayNode(AbstractGatewayNode):
             self._tx_service = GatewayTransactionService(self, self.network_num)
         self.opts.has_fully_updated_tx_service = True
         self.requester = MagicMock()
-        self.node_conn = MagicMock()
-        self.node_conn.is_active = MagicMock(return_value=True)
+        self.has_active_blockchain_peer = MagicMock(return_value=True)
 
     def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, connection_types=None):
         if connection_types is None:
             connection_types = [ConnectionType.RELAY_ALL]
 
-        self.broadcast_messages.append((msg, connection_types))
+        if len(connection_types) == 1 and connection_types[0] == ConnectionType.BLOCKCHAIN_NODE:
+            self.broadcast_to_nodes_messages.append(msg)
+        else:
+            self.broadcast_messages.append((msg, connection_types))
         return [MockConnection(MockSocketConnection(1, ip_address="123.123.123.123", port=1000), self)]
-
-    def send_msg_to_node(self, msg):
-        self.send_to_node_messages.append(msg)
 
     def get_tx_service(self, _network_num=None):
         return self._tx_service

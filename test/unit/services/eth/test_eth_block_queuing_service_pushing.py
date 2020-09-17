@@ -43,7 +43,7 @@ class EthBlockQueuingServicePushingTest(AbstractTestCase):
         self.node.block_queuing_service = self.block_queuing_service
         self.node.block_processing_service = self.block_processing_service
 
-        self.node.send_msg_to_node = MagicMock()
+        self.node.broadcast = MagicMock()
 
         time.time = MagicMock(return_value=time.time())
 
@@ -730,27 +730,27 @@ class EthBlockQueuingServicePushingTest(AbstractTestCase):
         self.assertEqual(expected_result, self.block_queuing_service.partial_chainstate(10))
 
     def _assert_block_sent(self, block_hash: Sha256Hash) -> None:
-        self.node.send_msg_to_node.assert_called()
+        self.node.broadcast.assert_called()
 
         num_calls = 0
-        for call_args in self.node.send_msg_to_node.call_args_list:
+        for call_args in self.node.broadcast.call_args_list:
             ((block_message, ), _) = call_args
             if isinstance(block_message, NewBlockEthProtocolMessage):
                 self.assertEqual(block_hash, block_message.block_hash())
                 num_calls += 1
 
         self.assertEqual(1, num_calls, "No blocks were sent")
-        self.node.send_msg_to_node.reset_mock()
+        self.node.broadcast.reset_mock()
 
     def _assert_no_blocks_sent(self) -> None:
-        for call_args in self.node.send_msg_to_node.call_args_list:
+        for call_args in self.node.broadcast.call_args_list:
             ((block_message, ), _) = call_args
             if isinstance(block_message, NewBlockEthProtocolMessage):
                 self.fail(f"Unexpected block sent: {block_message.block_hash()}")
 
     def _assert_headers_sent(self, hashes: List[Sha256Hash]):
-        self.node.send_msg_to_node.assert_called_once()
-        ((headers_message, ), _) = self.node.send_msg_to_node.call_args
+        self.node.broadcast.assert_called_once()
+        ((headers_message, ), _) = self.node.broadcast.call_args
         assert isinstance(headers_message, BlockHeadersEthProtocolMessage)
 
         headers = headers_message.get_block_headers()
@@ -759,7 +759,7 @@ class EthBlockQueuingServicePushingTest(AbstractTestCase):
         for expected_hash, header in zip(hashes, headers):
             self.assertEqual(expected_hash, header.hash_object())
 
-        self.node.send_msg_to_node.reset_mock()
+        self.node.broadcast.reset_mock()
 
     def _progress_time(self):
         time.time = MagicMock(return_value=time.time() + BLOCK_INTERVAL)

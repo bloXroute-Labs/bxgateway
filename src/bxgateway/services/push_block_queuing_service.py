@@ -69,12 +69,12 @@ class PushBlockQueuingService(
         super().push(block_hash, block_msg, waiting_for_recovery)
 
         if (
-            not waiting_for_recovery
-            and self.is_node_connection_ready()
+            not waiting_for_recovery and
+            self.node.has_active_blockchain_peer()
         ):
             assert block_msg is not None
             if self._can_send_block_message(block_hash, block_msg):
-                self.send_block_to_node(block_hash, block_msg)
+                self.send_block_to_nodes(block_hash, block_msg)
                 self.remove_from_queue(block_hash)
                 return
 
@@ -124,13 +124,13 @@ class PushBlockQueuingService(
         self._blocks_seen_by_blockchain_node.add(block_hash)
         self.remove_from_queue(block_hash)
 
-    def send_block_to_node(
+    def send_block_to_nodes(
         self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None
     ) -> None:
         if block_msg is None:
             block_msg = self._blocks[block_hash]
 
-        super(PushBlockQueuingService, self).send_block_to_node(
+        super(PushBlockQueuingService, self).send_block_to_nodes(
             block_hash, block_msg
         )
         self._last_block_sent_time = time.time()
@@ -221,7 +221,7 @@ class PushBlockQueuingService(
             self._last_alarm_id = self.node.alarm_queue.register_alarm(
                 timeout, func
             )
-        elif not self.is_node_connection_ready():
+        elif not self.node.has_active_blockchain_peer():
             self.node.alarm_queue.register_alarm(
                 gateway_constants.NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S,
                 func,
@@ -233,7 +233,7 @@ class PushBlockQueuingService(
         if len(self._block_queue) == 0:
             return constants.CANCEL_ALARMS
 
-        if not self.is_node_connection_ready():
+        if not self.node.has_active_blockchain_peer():
             self._schedule_alarm_for_next_item()
             return constants.CANCEL_ALARMS
 
@@ -254,7 +254,7 @@ class PushBlockQueuingService(
         assert index == 0
 
         if self._is_elapsed_time_shorter_than_ttl(time.time() - timestamp, block_hash):
-            self.send_block_to_node(block_hash, block_msg)
+            self.send_block_to_nodes(block_hash, block_msg)
         else:
             self._remove_old_blocks_from_queue()
 

@@ -119,8 +119,7 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
                     constants.MIN_SLEEP_TIMEOUT,
                     self.clean_block_transactions_from_block_queue,
                     block_hash)
-
-            elif self.node.node_conn is not None:
+            elif self.node.has_active_blockchain_peer():
                 self._request_block(block_hash)
             else:
                 logger.debug("Block cleanup for '{}' failed. No connection to node.", repr(block_hash))

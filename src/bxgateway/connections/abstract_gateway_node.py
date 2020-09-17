@@ -1,7 +1,9 @@
 import asyncio
 # TODO: remove try-catch when removing py3.7 support
 import functools
+from collections import defaultdict
 
+from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxgateway.feed.new_block_feed import NewBlockFeed
@@ -15,7 +17,7 @@ except ImportError:
 import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Future
-from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union, cast
+from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union, cast, Dict
 from prometheus_client import Gauge
 
 from bxcommon import constants
@@ -88,7 +90,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     # pyre-fixme[8]: Attribute has type `Type[AbstractRelayConnection]`; used as `None`.
     RELAY_CONNECTION_CLS: ClassVar[Type[AbstractRelayConnection]] = None
 
-    node_conn: Optional[AbstractGatewayBlockchainConnection] = None
     remote_blockchain_ip: Optional[str] = None
     remote_blockchain_port: Optional[int] = None
     remote_node_conn: Optional[AbstractGatewayBlockchainConnection] = None
@@ -97,13 +98,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     _blockchain_liveliness_alarm: Optional[AlarmId] = None
     _relay_liveliness_alarm: Optional[AlarmId] = None
 
-    node_msg_queue: BlockchainMessageQueue
     remote_node_msg_queue: BlockchainMessageQueue
 
     peer_gateways: Set[OutboundPeerModel]
     # if opts.split_relays is set, then this set contains only block relays
     peer_relays: Set[OutboundPeerModel]
     peer_transaction_relays: Set[OutboundPeerModel]
+    blockchain_peers: Set[BlockchainPeerInfo]
+    num_active_blockchain_peers: int
     blocks_seen: ExpiringSet
     in_progress_blocks: BlockEncryptedCache
     block_recovery_service: BlockRecoveryService
@@ -114,6 +116,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     _block_from_node_handling_times: ExpiringDict[Sha256Hash, float]
     _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[float, str]]
+
+    time_blockchain_peer_conn_destroyed_by_ip: Dict[Tuple[str, int], float] = defaultdict(float)
 
     feed_manager: FeedManager
     has_feed_subscribers: bool
@@ -146,13 +150,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.account_model = None
 
         self.quota_level = 0
+        self.num_active_blockchain_peers = 0
+        self.blockchain_peers = set()
+        self.blockchain_peers.add(BlockchainPeerInfo(opts.blockchain_ip, opts.blockchain_port))
         self.transaction_streamer_peer = None
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
         self.peer_transaction_relays = set(opts.peer_transaction_relays)
         self.peer_relays_min_count = 1
 
-        self.node_msg_queue = BlockchainMessageQueue(opts.blockchain_message_ttl)
         self.remote_node_msg_queue = BlockchainMessageQueue(opts.remote_blockchain_message_ttl)
 
         self.blocks_seen = ExpiringSet(
@@ -544,7 +550,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                                self.opts.external_ip, self.opts.continent, self.opts.country,
                                                self.opts.should_update_source_version, self.account_id,
                                                self.quota_level)
-        if self.is_local_blockchain_address(ip, port):
+        if self.is_blockchain_peer(ip, port):
             return self.build_blockchain_connection(socket_connection)
         elif self.remote_blockchain_ip == ip and self.remote_blockchain_port == port:
             return self.build_remote_blockchain_connection(socket_connection)
@@ -570,23 +576,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                          "Tried: {}:{}, from_me={}. Ignoring.", ip, port, from_me)
             return None
 
-    def is_local_blockchain_address(self, ip, port) -> bool:
-        return ip == self.opts.blockchain_ip and port == self.opts.blockchain_port
+    def is_blockchain_peer(self, ip, port) -> bool:
+        return BlockchainPeerInfo(ip, port) in self.blockchain_peers
 
-    def send_transaction_to_node(self, msg: AbstractMessage) -> bool:
-        self.send_msg_to_node(msg)
+    def broadcast_transactions_to_node(
+        self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
+    ) -> bool:
+        self.broadcast(msg, broadcasting_conn=broadcasting_conn, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
         return True
-
-    def send_msg_to_node(self, msg: AbstractMessage) -> None:
-        """
-        Sends a message to the blockchain node this is connected to.
-        """
-        node_conn = self.node_conn
-        if node_conn is not None:
-            node_conn.enqueue_msg(msg)
-        else:
-            logger.trace("Adding message to local node's message queue: {}", msg)
-            self.node_msg_queue.append(msg)
 
     def send_msg_to_remote_node(self, msg: AbstractMessage) -> None:
         """
@@ -602,15 +599,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def continue_retrying_connection(self, ip: str, port: int, connection_type: ConnectionType) -> bool:
         return (super(AbstractGatewayNode, self).continue_retrying_connection(ip, port, connection_type)
                 or OutboundPeerModel(ip, port) in self.opts.peer_gateways
-                or connection_type == ConnectionType.BLOCKCHAIN_NODE
+                or (connection_type == ConnectionType.BLOCKCHAIN_NODE and
+                    (self.num_active_blockchain_peers == 0 or
+                     time.time() - self.time_blockchain_peer_conn_destroyed_by_ip[(ip, port)]
+                     < gateway_constants.MULTIPLE_BLOCKCHAIN_NODE_MAX_RETRY_S))
                 or (connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE and
                     self.num_retries_by_ip[(ip, port)] < gateway_constants.REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES))
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection) -> None:
-        for msg in self.node_msg_queue.pop_items():
-            connection.enqueue_msg(msg)
-
-        self.node_conn = connection
+        self.blockchain_peers.add(BlockchainPeerInfo(connection.peer_ip, connection.peer_port))
         self.cancel_blockchain_liveliness_check()
         self.requester.send_threaded_request(
             sdn_http_service.submit_peer_connection_event,
@@ -619,6 +616,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             connection.peer_ip,
             connection.peer_port
         )
+        self.num_active_blockchain_peers = \
+            len(list(self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
 
     def on_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection) -> None:
         self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_event,
@@ -627,8 +626,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                              connection.peer_ip,
                                              connection.peer_port,
                                              connection.get_connection_state_details())
-        self.node_conn = None
-        self.node_msg_queue.pop_items()
+        self.num_active_blockchain_peers = \
+            max(0, len(list(self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))) - 1)
+        self.time_blockchain_peer_conn_destroyed_by_ip[(connection.peer_ip, connection.peer_port)] = time.time()
 
     def log_refused_connection(self, peer_info: ConnectionPeerInfo, error: str) -> None:
         if peer_info.connection_type == ConnectionType.BLOCKCHAIN_NODE:
@@ -817,13 +817,25 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.alarm_queue.unregister_alarm(relay_liveliness_alarm)
             self._relay_liveliness_alarm = None
 
+    def has_active_blockchain_peer(self) -> bool:
+        for conn in self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]):
+            if conn.is_active():
+                return True
+        return False
+
+    def get_any_active_blockchain_connection(self) -> Optional[AbstractConnection]:
+        for conn in self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]):
+            if conn.is_active():
+                return conn
+        return None
+
     def check_blockchain_liveliness(self) -> None:
         """
         Checks that the gateway has functional connections to the blockchain node.
 
         Closes the gateway if it does not, as the gateway is not providing any useful functionality.
         """
-        if self.node_conn is None:
+        if not self.has_active_blockchain_peer():
             self.should_force_exit = True
             logger.error(log_messages.NO_ACTIVE_BLOCKCHAIN_CONNECTION)
 
@@ -840,8 +852,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             result = False
             reason = "Tx sync in progress"
 
-        node_conn = self.node_conn
-        if node_conn is None or not node_conn.is_active():
+        if not self.has_active_blockchain_peer():
             result = False
             reason = "No blockchain connection"
 
@@ -1101,7 +1112,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def _get_next_retry_timeout(self, ip: str, port: int) -> int:
         base_timeout = super(AbstractGatewayNode, self)._get_next_retry_timeout(ip, port)
 
-        if self.is_local_blockchain_address(ip, port):
+        if self.is_blockchain_peer(ip, port):
             return base_timeout + gateway_constants.ADDITIONAL_BLOCKCHAIN_RECONNECT_TIMEOUT_S
 
         return base_timeout

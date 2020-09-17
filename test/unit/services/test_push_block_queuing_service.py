@@ -3,6 +3,8 @@ from typing import List, Optional
 
 from mock import MagicMock, Mock
 
+from bxcommon.test_utils.mocks.mock_connection import MockConnection
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -121,12 +123,6 @@ class BlockQueuingServiceTest(AbstractTestCase):
                 blockchain_message_ttl=TTL
             )
         )
-
-        self.node_connection = Mock()
-        self.node_connection.is_active = MagicMock(return_value=True)
-
-        self.node.node_conn = self.node_connection
-
         self.block_queuing_service = TestPushBlockQueuingService(self.node)
 
     def test_block_added_to_empty_queue(self):
@@ -137,8 +133,8 @@ class BlockQueuingServiceTest(AbstractTestCase):
             block_hash, block_msg, waiting_for_recovery=False
         )
 
-        self.assertEqual(1, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg, self.node.send_to_node_messages[0])
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg, self.node.broadcast_to_nodes_messages[0])
 
         self.assertEqual(0, len(self.block_queuing_service))
         self.assertEqual(1, len(self.block_queuing_service.blocks_sent))
@@ -152,7 +148,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.assertIn(block_hash, self.block_queuing_service)
 
     def test_block_added_when_node_is_not_ready(self):
-        self.node.node_conn = None
+        self.node.has_active_blockchain_peer = MagicMock(return_value=False)
 
         block_hash = Sha256Hash(helpers.generate_hash())
         block_msg = create_block_message(block_hash)
@@ -161,7 +157,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
             block_hash, block_msg, waiting_for_recovery=False
         )
 
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(1, len(self.block_queuing_service))
         self.assertIn(block_hash, self.block_queuing_service)
 
@@ -173,12 +169,11 @@ class BlockQueuingServiceTest(AbstractTestCase):
 
         # verify that item is still in the queue if node connection
         # is still not available
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(1, len(self.block_queuing_service))
         self.assertIn(block_hash, self.block_queuing_service)
 
-        self.node.node_conn = Mock()
-        self.node.node_conn.is_active = MagicMock(return_value=False)
+        self.node.has_active_blockchain_peer = MagicMock(return_value=True)
 
         time.time = MagicMock(
             return_value=time.time()
@@ -186,23 +181,9 @@ class BlockQueuingServiceTest(AbstractTestCase):
         )
         self.node.alarm_queue.fire_alarms()
 
-        # verify that item is still in the queue if node connection
-        # is available but not active
-        self.assertEqual(0, len(self.node.send_to_node_messages))
-        self.assertEqual(1, len(self.block_queuing_service))
-        self.assertIn(block_hash, self.block_queuing_service)
-
-        self.node.node_conn.is_active = MagicMock(return_value=True)
-
-        time.time = MagicMock(
-            return_value=time.time()
-            + NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S * 3
-        )
-        self.node.alarm_queue.fire_alarms()
-
         # verify that is sent to node once connection to node is active
-        self.assertEqual(1, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg, self.node.send_to_node_messages[0])
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg, self.node.broadcast_to_nodes_messages[0])
         self.assertEqual(0, len(self.block_queuing_service))
 
         # verify item still cached, since confirmation not received
@@ -217,15 +198,15 @@ class BlockQueuingServiceTest(AbstractTestCase):
 
         # first block gets sent immediately
         self.block_queuing_service.push(block_hash_1, block_msg_1)
-        self.assertEqual(1, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg_1, self.node.send_to_node_messages[0])
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg_1, self.node.broadcast_to_nodes_messages[0])
         self.assertEqual(0, len(self.block_queuing_service))
         self.assertIn(block_hash_1, self.block_queuing_service)
 
         # no confirmation, wait on block 1
         self.block_queuing_service.push(block_hash_2, block_msg_2)
-        self.assertEqual(1, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg_1, self.node.send_to_node_messages[0])
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg_1, self.node.broadcast_to_nodes_messages[0])
         self.assertEqual(1, len(self.block_queuing_service))
         self.assertIn(block_hash_1, self.block_queuing_service)
         self.assertIn(block_hash_2, self.block_queuing_service)
@@ -233,8 +214,8 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.block_queuing_service.mark_blocks_seen_by_blockchain_node(
             [block_hash_1]
         )
-        self.assertEqual(2, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg_2, self.node.send_to_node_messages[1])
+        self.assertEqual(2, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg_2, self.node.broadcast_to_nodes_messages[1])
         self.assertEqual(0, len(self.block_queuing_service))
 
     def test_block_added_send_immediately_with_confirmation(self):
@@ -246,8 +227,8 @@ class BlockQueuingServiceTest(AbstractTestCase):
 
         # first block gets sent immediately
         self.block_queuing_service.push(block_hash_1, block_msg_1)
-        self.assertEqual(1, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg_1, self.node.send_to_node_messages[0])
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg_1, self.node.broadcast_to_nodes_messages[0])
         self.assertEqual(0, len(self.block_queuing_service))
         self.assertIn(block_hash_1, self.block_queuing_service)
 
@@ -256,14 +237,14 @@ class BlockQueuingServiceTest(AbstractTestCase):
             block_hash_1, None
         )
         self.block_queuing_service.push(block_hash_2, block_msg_2)
-        self.assertEqual(2, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg_2, self.node.send_to_node_messages[1])
+        self.assertEqual(2, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg_2, self.node.broadcast_to_nodes_messages[1])
         self.assertEqual(0, len(self.block_queuing_service))
         self.assertIn(block_hash_1, self.block_queuing_service)
         self.assertIn(block_hash_2, self.block_queuing_service)
 
     def test_block_removed_with_ttl_check(self):
-        self.node.node_conn.is_active = MagicMock(return_value=False)
+        self.node.has_active_blockchain_peer = MagicMock(return_value=False)
 
         block_hash_start = Sha256Hash(helpers.generate_hash())
         block_msg_start = create_block_message(block_hash_start)
@@ -277,9 +258,9 @@ class BlockQueuingServiceTest(AbstractTestCase):
             self.block_queuing_service.push(block_hash, block_msg)
 
         self.assertEqual(BLOCK_QUEUE_LENGTH_LIMIT, len(self.block_queuing_service))
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
 
-        self.node.node_conn.is_active = MagicMock(return_value=True)
+        self.node.has_active_blockchain_peer = MagicMock(return_value=True)
         time.time = MagicMock(
             return_value=time.time()
             + MAX_BLOCK_CACHE_TIME_S * 2
@@ -300,8 +281,8 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.block_queuing_service.push(block_hash_1, block_msg_1)
         self.block_queuing_service.push(block_hash_2, block_msg_2)
 
-        self.assertEqual(1, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg_1, self.node.send_to_node_messages[0])
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg_1, self.node.broadcast_to_nodes_messages[0])
         self.assertEqual(1, len(self.block_queuing_service))
         self.assertIn(block_hash_1, self.block_queuing_service)
         self.assertIn(block_hash_2, self.block_queuing_service)
@@ -312,8 +293,8 @@ class BlockQueuingServiceTest(AbstractTestCase):
         )
         self.node.alarm_queue.fire_alarms()
 
-        self.assertEqual(2, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg_2, self.node.send_to_node_messages[1])
+        self.assertEqual(2, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg_2, self.node.broadcast_to_nodes_messages[1])
         self.assertEqual(0, len(self.block_queuing_service))
         self.assertIn(block_hash_1, self.block_queuing_service)
         self.assertIn(block_hash_2, self.block_queuing_service)
@@ -324,7 +305,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.block_queuing_service.push(
             block_hash, None, waiting_for_recovery=True
         )
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(1, len(self.block_queuing_service))
         self.assertIn(block_hash, self.block_queuing_service)
 
@@ -347,7 +328,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
             block_hash3, block_msg3, waiting_for_recovery=False
         )
 
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(3, len(self.block_queuing_service))
         self.assertIn(block_hash1, self.block_queuing_service)
         self.assertIn(block_hash2, self.block_queuing_service)
@@ -358,7 +339,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
             return_value=time.time() + BLOCK_RECOVERY_MAX_QUEUE_TIME / 2 + 1
         )
         self.node.alarm_queue.fire_alarms()
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(3, len(self.block_queuing_service))
         self.assertIn(block_hash1, self.block_queuing_service)
         self.assertIn(block_hash2, self.block_queuing_service)
@@ -369,9 +350,9 @@ class BlockQueuingServiceTest(AbstractTestCase):
             return_value=time.time() + BLOCK_RECOVERY_MAX_QUEUE_TIME
         )
         self.node.alarm_queue.fire_alarms()
-        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(1, len(self.block_queuing_service))
-        self.assertEqual(block_msg2, self.node.send_to_node_messages[0])
+        self.assertEqual(block_msg2, self.node.broadcast_to_nodes_messages[0])
         self.assertNotIn(block_hash1, self.block_queuing_service)
         self.assertIn(block_hash2, self.block_queuing_service)
         self.assertIn(block_hash3, self.block_queuing_service)
@@ -402,27 +383,27 @@ class BlockQueuingServiceTest(AbstractTestCase):
             block_hash3, block_msg3, waiting_for_recovery=True
         )
 
-        self.assertEqual(2, len(self.node.send_to_node_messages))
+        self.assertEqual(2, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(1, len(self.block_queuing_service))
-        self.assertEqual(block_msg1, self.node.send_to_node_messages[0])
-        self.assertEqual(block_msg2, self.node.send_to_node_messages[1])
+        self.assertEqual(block_msg1, self.node.broadcast_to_nodes_messages[0])
+        self.assertEqual(block_msg2, self.node.broadcast_to_nodes_messages[1])
 
-        self.node.send_to_node_messages = []
+        self.node.broadcast_to_nodes_messages = []
 
         # don't send, since not recovered enough though timeout
         time.time = MagicMock(
             return_value=time.time() + MAX_INTERVAL_BETWEEN_BLOCKS_S
         )
         self.node.alarm_queue.fire_alarms()
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(1, len(self.block_queuing_service))
 
         self.block_queuing_service.update_recovered_block(
             block_hash3, block_msg3
         )
-        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(0, len(self.block_queuing_service))
-        self.assertEqual(block_msg3, self.node.send_to_node_messages[0])
+        self.assertEqual(block_msg3, self.node.broadcast_to_nodes_messages[0])
 
     def test_top_block_is_recovered(self):
         block_hash1 = Sha256Hash(helpers.generate_hash())
@@ -444,36 +425,36 @@ class BlockQueuingServiceTest(AbstractTestCase):
             block_hash3, block_msg3, waiting_for_recovery=False
         )
 
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(3, len(self.block_queuing_service))
 
         self.block_queuing_service.update_recovered_block(
             block_hash1, block_msg1
         )
-        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(2, len(self.block_queuing_service))
-        self.assertEqual(block_msg1, self.node.send_to_node_messages[0])
+        self.assertEqual(block_msg1, self.node.broadcast_to_nodes_messages[0])
 
-        del self.node.send_to_node_messages[0]
+        del self.node.broadcast_to_nodes_messages[0]
 
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(2, len(self.block_queuing_service))
 
         self.block_queuing_service.mark_blocks_seen_by_blockchain_node(
             [block_hash1]
         )
-        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(1, len(self.block_queuing_service))
-        self.assertEqual(block_msg2, self.node.send_to_node_messages[0])
+        self.assertEqual(block_msg2, self.node.broadcast_to_nodes_messages[0])
 
-        del self.node.send_to_node_messages[0]
+        del self.node.broadcast_to_nodes_messages[0]
 
         self.block_queuing_service.mark_blocks_seen_by_blockchain_node(
             [block_hash2]
         )
-        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(0, len(self.block_queuing_service))
-        self.assertEqual(block_msg3, self.node.send_to_node_messages[0])
+        self.assertEqual(block_msg3, self.node.broadcast_to_nodes_messages[0])
 
     def test_waiting_recovery_top_block_timeout(self):
         block_hash1 = Sha256Hash(helpers.generate_hash())
@@ -494,7 +475,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
             block_hash3, block_msg3, waiting_for_recovery=False
         )
 
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(3, len(self.block_queuing_service))
         self.assertIn(block_hash1, self.block_queuing_service)
         self.assertIn(block_hash2, self.block_queuing_service)
@@ -507,18 +488,18 @@ class BlockQueuingServiceTest(AbstractTestCase):
         )
         self.node.alarm_queue.fire_alarms()
 
-        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(1, len(self.block_queuing_service))
-        self.assertEqual(block_msg2, self.node.send_to_node_messages[0])
+        self.assertEqual(block_msg2, self.node.broadcast_to_nodes_messages[0])
 
-        del self.node.send_to_node_messages[0]
+        del self.node.broadcast_to_nodes_messages[0]
         self.block_queuing_service.mark_blocks_seen_by_blockchain_node(
             [block_hash2]
         )
 
-        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(0, len(self.block_queuing_service))
-        self.assertEqual(block_msg3, self.node.send_to_node_messages[0])
+        self.assertEqual(block_msg3, self.node.broadcast_to_nodes_messages[0])
 
     def test_waiting_recovery_last_block_is_removed(self):
         block_hash1 = Sha256Hash(helpers.generate_hash())
@@ -540,23 +521,23 @@ class BlockQueuingServiceTest(AbstractTestCase):
             block_hash3, block_msg3, waiting_for_recovery=True
         )
 
-        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(2, len(self.block_queuing_service))
-        self.assertEqual(block_msg1, self.node.send_to_node_messages[0])
+        self.assertEqual(block_msg1, self.node.broadcast_to_nodes_messages[0])
 
-        del self.node.send_to_node_messages[0]
+        del self.node.broadcast_to_nodes_messages[0]
 
         self.block_queuing_service.remove(block_hash3)
 
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(1, len(self.block_queuing_service))
 
         self.block_queuing_service.mark_blocks_seen_by_blockchain_node(
             [block_hash1]
         )
-        self.assertEqual(1, len(self.node.send_to_node_messages))
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
         self.assertEqual(0, len(self.block_queuing_service))
-        self.assertEqual(block_msg2, self.node.send_to_node_messages[0])
+        self.assertEqual(block_msg2, self.node.broadcast_to_nodes_messages[0])
 
     def test_sending_headers_to_node(self):
         block_hash = Sha256Hash(helpers.generate_hash())
@@ -564,9 +545,9 @@ class BlockQueuingServiceTest(AbstractTestCase):
         self.block_queuing_service.push(block_hash, block_message)
         success = self.block_queuing_service.try_send_header_to_node(block_hash)
         self.assertTrue(success)
-        self.assertEqual(2, len(self.node.send_to_node_messages))
+        self.assertEqual(2, len(self.node.broadcast_to_nodes_messages))
 
-        block_header_message = self.node.send_to_node_messages[1]
+        block_header_message = self.node.broadcast_to_nodes_messages[1]
         self.assertIsInstance(block_header_message, TestBlockHeaderMessage)
         self.assertEqual(block_hash, block_header_message.block_hash)
 
@@ -577,7 +558,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
         )
         success = self.block_queuing_service.try_send_header_to_node(block_hash)
         self.assertFalse(success)
-        self.assertEqual(0, len(self.node.send_to_node_messages))
+        self.assertEqual(0, len(self.node.broadcast_to_nodes_messages))
 
     def test_sending_block_timed_out(self):
         block_hash_1 = Sha256Hash(helpers.generate_hash())
@@ -588,8 +569,8 @@ class BlockQueuingServiceTest(AbstractTestCase):
 
         # first block gets sent immediately
         self.block_queuing_service.push(block_hash_1, block_msg_1)
-        self.assertEqual(1, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg_1, self.node.send_to_node_messages[0])
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg_1, self.node.broadcast_to_nodes_messages[0])
         self.assertEqual(0, len(self.block_queuing_service))
         self.assertIn(block_hash_1, self.block_queuing_service)
 
@@ -599,8 +580,8 @@ class BlockQueuingServiceTest(AbstractTestCase):
 
         # too much time has elapsed, message is dropped
         self.node.alarm_queue.fire_alarms()
-        self.assertEqual(1, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg_1, self.node.send_to_node_messages[0])
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg_1, self.node.broadcast_to_nodes_messages[0])
         self.assertEqual(0, len(self.block_queuing_service))
 
     def test_block_queue_continues_after_timeout(self):
@@ -613,7 +594,7 @@ class BlockQueuingServiceTest(AbstractTestCase):
         block_hash_3 = helpers.generate_object_hash()
         block_msg_3 = create_block_message(block_hash_3, block_hash_2)
 
-        self.node.node_conn = None
+        self.node.has_active_blockchain_peer = MagicMock(return_value=False)
 
         self.block_queuing_service.push(block_hash_1, block_msg_1)
         time.time = MagicMock(return_value=time.time() + 150)
@@ -623,8 +604,8 @@ class BlockQueuingServiceTest(AbstractTestCase):
         time.time = MagicMock(return_value=time.time() + TTL - 150 + 1)
 
         # too much time has elapsed for the first message
-        self.node.node_conn = self.node_connection
+        self.node.has_active_blockchain_peer = MagicMock(return_value=True)
         self.node.alarm_queue.fire_alarms()
 
-        self.assertEqual(1, len(self.node.send_to_node_messages))
-        self.assertEqual(block_msg_2, self.node.send_to_node_messages[0])
+        self.assertEqual(1, len(self.node.broadcast_to_nodes_messages))
+        self.assertEqual(block_msg_2, self.node.broadcast_to_nodes_messages[0])

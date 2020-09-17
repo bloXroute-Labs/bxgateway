@@ -359,7 +359,9 @@ class EthGatewayNode(AbstractGatewayNode):
         for transaction in transactions:
             self.average_gas_price.add_value(transaction.gas_price)
 
-    def send_transaction_to_node(self, msg: AbstractMessage) -> bool:
+    def broadcast_transactions_to_node(
+        self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
+    ) -> bool:
         msg = cast(TransactionsEthProtocolMessage, msg)
         if self.opts.filter_txs_factor > 0:
             assert len(msg.get_transactions()) == 1
@@ -374,7 +376,7 @@ class EthGatewayNode(AbstractGatewayNode):
                 )
                 return False
 
-        return super().send_transaction_to_node(msg)
+        return super().broadcast_transactions_to_node(msg, broadcasting_conn)
 
     def get_enode(self) -> str:
         return \
@@ -385,11 +387,9 @@ class EthGatewayNode(AbstractGatewayNode):
     ) -> None:
         super().on_block_received_from_bdn(block_hash, block_message)
 
-        node_conn = self.node_conn
+        node_conn = cast(EthNodeConnection, self.get_any_active_blockchain_connection())
         if node_conn is not None:
-            eth_connection_protocol = cast(
-                EthNodeConnectionProtocol, node_conn.connection_protocol
-            )
+            eth_connection_protocol = node_conn.connection_protocol
             eth_connection_protocol.pending_new_block_parts.remove_item(block_hash)
 
     # pyre-fixme[14]: Inconsistent override:

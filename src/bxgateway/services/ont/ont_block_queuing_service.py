@@ -1,5 +1,6 @@
 from typing import List, Union, Optional, cast, TYPE_CHECKING, Iterator
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.exceptions import ChecksumError
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
@@ -92,7 +93,7 @@ class OntBlockQueuingService(
                     inv_type=InventoryOntType.MSG_BLOCK,
                     blocks=[block_hash],
                 )
-                self.node.send_msg_to_node(inv_msg)
+                self.node.broadcast(inv_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
         # pyre-fixme[25]: `block_msg` has type `OntConsensusMessage`,
         #  assertion `not isinstance(block_msg, bxgateway.messages.ont.consensus_ont_message.OntConsensusMessage)`
         #  will always fail.
@@ -101,7 +102,7 @@ class OntBlockQueuingService(
                 logger.info("Sending consensus message with block hash {} to blockchain node", block_hash)
                 # self.node.block_queuing_service.send_block_to_node(block_hash)
                 # the above one line is good, except for the wrong broadcast type in BLOCK_SENT_TO_BLOCKCHAIN_NODE
-                self.node.send_msg_to_node(block_msg)
+                self.node.broadcast(block_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
                 handling_time, relay_desc = self.node.track_block_from_bdn_handling_ended(block_hash)
                 if not self.node.opts.track_detailed_sent_messages:
                     block_stats.add_block_event_by_block_hash(
@@ -122,7 +123,7 @@ class OntBlockQueuingService(
     #  type `Optional[Union[BlockOntMessage, OntConsensusMessage]]` is not a supertype of the overridden parameter
     #  `Optional[Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
     #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]]`.
-    def send_block_to_node(
+    def send_block_to_nodes(
         self,
         block_hash: Sha256Hash,
         block_msg: Optional[Union[BlockOntMessage, OntConsensusMessage]] = None,
@@ -139,7 +140,7 @@ class OntBlockQueuingService(
         block_msg = self._blocks[block_hash]
         # pyre-fixme[25]: `block_msg` has type `None`, assertion `block_msg` will always fail.
         assert block_msg is not None
-        super(OntBlockQueuingService, self).send_block_to_node(
+        super(OntBlockQueuingService, self).send_block_to_nodes(
             block_hash, block_msg
         )
         # TODO test remove_from_queue and EncBlockReceivedByGatewayFromNetwork stat event
@@ -162,12 +163,12 @@ class OntBlockQueuingService(
                 inv_type=InventoryOntType.MSG_BLOCK,
                 blocks=[block_hash],
             )
-            self.node.send_msg_to_node(inv_msg)
+            self.node.broadcast(inv_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
         # pyre-fixme[25]: `block_msg` has type `OntConsensusMessage`,
         #  assertion `not isinstance(block_msg, bxgateway.messages.ont.consensus_ont_message.OntConsensusMessage)`
         #  will always fail.
         elif isinstance(block_msg, OntConsensusMessage):
-            self.node.send_msg_to_node(block_msg)
+            self.node.broadcast(block_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
 
     def mark_blocks_seen_by_blockchain_node(
         self, block_hashes: List[Sha256Hash]

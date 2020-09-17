@@ -72,4 +72,4 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
                              frame_utils.get_frames(headers.msg_type, headers.rawbytes()))
         for headers_frame in headers_frames:
             helpers.receive_node_message(self.gateway_node, self.remote_node_fileno, headers_frame)
-        self.eth_node_connection.enqueue_msg.assert_called_with(headers)
+        self.eth_node_connection.enqueue_msg.assert_called_with(headers, False)

@@ -1,6 +1,8 @@
+import typing
 from abc import abstractmethod
 from typing import TYPE_CHECKING
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
 
@@ -59,5 +61,10 @@ class AbstractOntBlockCleanupService(AbstractBlockCleanupService):
             # pyre-fixme[6]: Expected `[OntObjectHash]` for 3rd parameter but got `Sha256Hash`
             block=block_hash
         )
-        self.node.send_msg_to_node(block_request_message)
+        node_conn = typing.cast("bxgateway.connections.ont.ont_node_connection.OntNodeConnection",
+                                self.node.get_any_active_blockchain_connection())
+        if node_conn is None:
+            logger.debug("Request for block '{}' failed. No connection to node.", repr(block_hash))
+            return
+        node_conn.enqueue_msg(block_request_message)
         logger.trace("Received block cleanup request: {}", block_hash)
