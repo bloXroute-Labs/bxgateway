@@ -465,9 +465,10 @@ class BlockProcessingService:
                 "Discarding duplicate block {} from the BDN.",
                 block_hash
             )
-            self._node.on_block_seen_by_blockchain_node(block_hash)
             if block_message is not None:
                 self._node.on_block_received_from_bdn(block_hash, block_message)
+                if not self._node.block_queuing_service.block_body_exists(block_hash):
+                    self._node.block_queuing_service.store_block_data(block_hash, block_message)
             return
 
         if not recovered:
