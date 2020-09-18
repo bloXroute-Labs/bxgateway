@@ -4,6 +4,7 @@ from bxcommon import constants
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
+from bxcommon.rpc.rpc_constants import ContentType
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.helpers import async_test
 from bxgateway.gateway_opts import GatewayOpts
@@ -38,11 +39,12 @@ class SecuredGatewayRpcServerTest(AbstractGatewayRpcIntegrationTest):
         return opts
 
     async def request(self, req: BxJsonRpcRequest):
-        headers = dict()
-        headers[rpc_constants.CONTENT_TYPE_HEADER_KEY] = rpc_constants.PLAIN_HEADER_TYPE
-        headers[rpc_constants.AUTHORIZATION_HEADER_KEY] = base64.b64encode(
+        headers = {
+            rpc_constants.CONTENT_TYPE_HEADER_KEY: ContentType.JSON.value,
+            rpc_constants.AUTHORIZATION_HEADER_KEY: base64.b64encode(
                 f"{self.rpc_user}:{self.rpc_password}".encode("utf-8")
             ).decode("utf-8")
+        }
 
         async with ClientSession() as session:
             async with session.post(
@@ -50,7 +52,7 @@ class SecuredGatewayRpcServerTest(AbstractGatewayRpcIntegrationTest):
                 data=req.to_jsons(),
                 headers=headers
             ) as response:
-                return JsonRpcResponse.from_jsons(await response.json())
+                return JsonRpcResponse.from_json(await response.json())
 
     @async_test
     async def tearDown(self) -> None:

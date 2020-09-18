@@ -168,10 +168,10 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
     return merged_opts
 
 
-async def format_response(response: ClientResponse, content_type=rpc_constants.JSON_HEADER_TYPE) -> str:
+async def format_response(response: ClientResponse) -> str:
     try:
-        response_json_str = await response.json(content_type=content_type)
-        response_json_dict = json.loads(response_json_str)
+        response_json_str = await response.text()
+        response_json_dict = json.loads(json.loads(response_json_str))
         result = response_json_dict.get("result", None)
         if not result:
             result = response_json_dict.get("error", "Unknown error")
