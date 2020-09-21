@@ -9,7 +9,7 @@ from typing import IO
 
 from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
 from bloxroute_cli.provider.ws_provider import WsProvider
-from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
+from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
 
 
 class HashEntry:
@@ -196,8 +196,7 @@ async def process_new_txs_eth(
     eth_url: str, exclude_tx_contents: bool, min_gas: Optional[int], addresses: List[str]
 ) -> None:
     print(f"Initiating connection to: {eth_url}")
-    # pyre-fixme[6]: Expected `FeedManager` for 1st param but got `bool`.
-    async with EthWsSubscriber(eth_url, False, None, None) as eth_ws:
+    async with EthWsSubscriber(eth_url) as eth_ws:
         print(f"websockets endpoint: {eth_url} established")
 
         global eth_ws_provider
@@ -378,6 +377,11 @@ def get_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--include-from-blockchain", action="store_true")
     return parser
+
+
+def run_main():
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
 
 
 if __name__ == "__main__":

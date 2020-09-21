@@ -18,7 +18,7 @@ from bxgateway.feed.eth.eth_on_block_feed import (
 )
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.testing.mocks.mock_eth_ws_subscriber import MockEthWsSubscriber
+from bxgateway.testing.mocks.mock_eth_ws_proxy_publisher import MockEthWsProxyPublisher
 
 from bxutils import constants as utils_constants
 
@@ -55,8 +55,8 @@ class EthOnBlockFeedTest(AbstractTestCase):
             blockchain_protocol="Ethereum",
         )
         self.node = MockGatewayNode(opts)
-        self.node.eth_ws_subscriber = MockEthWsSubscriber(None, None, None, self.node)
-        self.node.eth_ws_subscriber.call_rpc = AsyncMock(
+        self.node.eth_ws_proxy_publisher = MockEthWsProxyPublisher(None, None, None, self.node)
+        self.node.eth_ws_proxy_publisher.call_rpc = AsyncMock(
             return_value=JsonRpcResponse(request_id=1)
         )
         self.sut = EthOnBlockFeed(self.node)
@@ -77,7 +77,7 @@ class EthOnBlockFeedTest(AbstractTestCase):
         block_number = 999
         subscriber = self.sut.subscribe({"call_params": [{"data": data, "name": "1"}]})
         await self._publish_to_feed(block_number)
-        self.node.eth_ws_subscriber.call_rpc.mock.assert_called_with(
+        self.node.eth_ws_proxy_publisher.call_rpc.mock.assert_called_with(
             "eth_call", [{"data": data}, hex(block_number)]
         )
         self.assertEqual(subscriber.messages.qsize(), 2)
@@ -95,7 +95,7 @@ class EthOnBlockFeedTest(AbstractTestCase):
                 self.sut.subscribe({"call_params": [{"data": data, "name": data}]})
             )
         await self._publish_to_feed()
-        calls = self.node.eth_ws_subscriber.call_rpc.mock.call_args_list
+        calls = self.node.eth_ws_proxy_publisher.call_rpc.mock.call_args_list
         self.assertEqual(len(calls), 10)
         for subscriber in subscribers:
             self.assertEqual(subscriber.messages.qsize(), 2)
@@ -115,7 +115,7 @@ class EthOnBlockFeedTest(AbstractTestCase):
             }
         )
         await self._publish_to_feed()
-        calls = self.node.eth_ws_subscriber.call_rpc.mock.call_args_list
+        calls = self.node.eth_ws_proxy_publisher.call_rpc.mock.call_args_list
         self.assertEqual(len(calls), calls_number)
         self.assertEqual(subscriber.messages.qsize(), calls_number + 1)
 
@@ -173,7 +173,7 @@ class EthOnBlockFeedTest(AbstractTestCase):
         subscriber = self.sut.subscribe(
             {"call_params": [{"data": hex(1), "name": call_name}]}
         )
-        self.node.eth_ws_subscriber.call_rpc = AsyncMock(
+        self.node.eth_ws_proxy_publisher.call_rpc = AsyncMock(
             side_effect=RpcError(RpcErrorCode.SERVER_ERROR, "1", None, "out of gas")
         )
 
@@ -236,7 +236,7 @@ class EthOnBlockFeedTest(AbstractTestCase):
         subscriber = self.sut.subscribe(
             {"call_params": [{"name": "1", "method": method, **subscribe_payload}]})
         await self._publish_to_feed(block_number)
-        self.node.eth_ws_subscriber.call_rpc.mock.assert_called_with(
+        self.node.eth_ws_proxy_publisher.call_rpc.mock.assert_called_with(
             method, request_payload
         )
         self.assertEqual(subscriber.messages.qsize(), 2)

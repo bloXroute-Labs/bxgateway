@@ -19,8 +19,9 @@ from bxcommon.test_utils.helpers import async_test, AsyncMock
 from bxcommon.rpc.rpc_errors import RpcError
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.rpc.provider.abstract_ws_provider import WsException
 
+from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
@@ -28,12 +29,11 @@ from bxgateway.feed.new_transaction_feed import RawTransaction, RawTransactionFe
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
-from bxgateway.rpc.provider.abstract_ws_provider import WsException
 from bxgateway.rpc.ws.ws_server import WsServer
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.testing.mocks.mock_eth_ws_subscriber import MockEthWsSubscriber
+from bxgateway.testing.mocks.mock_eth_ws_proxy_publisher import MockEthWsProxyPublisher
 
 
 def generate_new_eth_transaction() -> TxMessage:
@@ -318,8 +318,8 @@ class WsProviderTest(AbstractTestCase):
         self.gateway_node.feed_manager.register_feed(
             EthOnBlockFeed(self.gateway_node)
         )
-        self.gateway_node.eth_ws_subscriber = MockEthWsSubscriber("", None, None, self.gateway_node)
-        self.gateway_node.eth_ws_subscriber.call_rpc = AsyncMock(
+        self.gateway_node.eth_ws_proxy_publisher = MockEthWsProxyPublisher("", None, None, self.gateway_node)
+        self.gateway_node.eth_ws_proxy_publisher.call_rpc = AsyncMock(
             return_value=JsonRpcResponse(request_id=1)
         )
 

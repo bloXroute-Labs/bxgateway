@@ -8,6 +8,8 @@ from unittest.mock import patch
 from mock import MagicMock
 
 from bxcommon import constants
+from bxcommon.models.node_type import NodeType
+from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.rpc.json_rpc_request import JsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.test_utils import helpers
@@ -22,7 +24,7 @@ from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigB
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.subscriber import Subscriber
 from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
-from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
+from bxgateway.rpc.external.eth_ws_proxy_publisher import EthWsProxyPublisher
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
@@ -39,7 +41,7 @@ def tx_to_eth_rpc_json(transaction: Transaction) -> Dict[str, Any]:
     return payload
 
 
-class EthWsSubscriberTest(AbstractTestCase):
+class EthWsProxyPublisherTest(AbstractTestCase):
     @async_test
     async def setUp(self) -> None:
         crypto_utils.recover_public_key = MagicMock(
@@ -60,11 +62,12 @@ class EthWsSubscriberTest(AbstractTestCase):
             8000, eth_ws_uri=self.eth_ws_uri, ws=True)
         gateway_opts.set_account_options(account_model)
         self.gateway_node = MockGatewayNode(gateway_opts)
+        self.gateway_node.transaction_streamer_peer = OutboundPeerModel("127.0.0.1", 8006, node_type=NodeType.INTERNAL_GATEWAY)
         self.gateway_node.feed_manager.register_feed(
             EthPendingTransactionFeed(self.gateway_node.alarm_queue)
         )
 
-        self.eth_ws_subscriber = EthWsSubscriber(
+        self.eth_ws_proxy_publisher = EthWsProxyPublisher(
             self.eth_ws_uri, self.gateway_node.feed_manager, self.gateway_node.get_tx_service(), self.gateway_node
         )
         self.subscriber: Subscriber[
@@ -72,10 +75,10 @@ class EthWsSubscriberTest(AbstractTestCase):
         ] = self.gateway_node.feed_manager.subscribe_to_feed(EthPendingTransactionFeed.NAME, {})
         self.assertIsNotNone(self.subscriber)
 
-        await self.eth_ws_subscriber.start()
+        await self.eth_ws_proxy_publisher.start()
         await asyncio.sleep(0.01)
 
-        self.assertEqual(len(self.eth_ws_subscriber.receiving_tasks), 2)
+        self.assertEqual(len(self.eth_ws_proxy_publisher.receiving_tasks), 2)
         self.assertEqual(0, self.subscriber.messages.qsize())
 
         self.sample_transactions = {
@@ -176,8 +179,8 @@ class EthWsSubscriberTest(AbstractTestCase):
         expected_contents = self.sample_transactions[3].to_json()
         self.assertEqual(expected_contents, tx_message["tx_contents"])
 
-    @patch("bxgateway.gateway_constants.WS_RECONNECT_TIMEOUTS", [0.01])
-    @patch("bxgateway.gateway_constants.WS_MIN_RECONNECT_TIMEOUT_S", 0)
+    @patch("bxcommon.constants.WS_RECONNECT_TIMEOUTS", [0.01])
+    @patch("bxcommon.constants.WS_MIN_RECONNECT_TIMEOUT_S", 0)
     @async_test
     async def test_disconnect_server(self):
         tx_hash = helpers.generate_object_hash()
@@ -194,10 +197,10 @@ class EthWsSubscriberTest(AbstractTestCase):
         await asyncio.sleep(0.05)
 
         self.assertEqual(0, self.subscriber.messages.qsize())
-        self.assertFalse(self.eth_ws_subscriber.running)
+        self.assertFalse(self.eth_ws_proxy_publisher.running)
 
-    @patch("bxgateway.gateway_constants.WS_RECONNECT_TIMEOUTS", [0.01, 0.05])
-    @patch("bxgateway.gateway_constants.WS_MIN_RECONNECT_TIMEOUT_S", 0)
+    @patch("bxcommon.constants.WS_RECONNECT_TIMEOUTS", [0.01, 0.05])
+    @patch("bxcommon.constants.WS_MIN_RECONNECT_TIMEOUT_S", 0)
     @async_test
     async def test_disconnect_server_reconnect(self):
         tx_hash = helpers.generate_object_hash()
@@ -214,21 +217,21 @@ class EthWsSubscriberTest(AbstractTestCase):
         await asyncio.sleep(0.02)
 
         self.assertEqual(0, self.subscriber.messages.qsize())
-        self.assertTrue(self.eth_ws_subscriber.running)
-        self.assertFalse(self.eth_ws_subscriber.connected_event.is_set())
+        self.assertTrue(self.eth_ws_proxy_publisher.running)
+        self.assertFalse(self.eth_ws_proxy_publisher.connected_event.is_set())
 
         await self.start_server()
         await asyncio.sleep(0.1)
 
-        self.assertTrue(self.eth_ws_subscriber.connected_event.is_set())
+        self.assertTrue(self.eth_ws_proxy_publisher.connected_event.is_set())
         self.assertEqual(0, self.subscriber.messages.qsize())
 
         await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash.binary)}"))
         await asyncio.sleep(0.01)
         self.assertEqual(1, self.subscriber.messages.qsize())
 
-    @patch("bxgateway.gateway_constants.WS_RECONNECT_TIMEOUTS", [0.01])
-    @patch("bxgateway.gateway_constants.WS_MIN_RECONNECT_TIMEOUT_S", 0)
+    @patch("bxcommon.constants.WS_RECONNECT_TIMEOUTS", [0.01])
+    @patch("bxcommon.constants.WS_MIN_RECONNECT_TIMEOUT_S", 0)
     @async_test
     async def test_disconnect_server_revive(self):
         tx_hash = helpers.generate_object_hash()
@@ -245,19 +248,19 @@ class EthWsSubscriberTest(AbstractTestCase):
         await asyncio.sleep(0.05)
 
         self.assertEqual(0, self.subscriber.messages.qsize())
-        self.assertFalse(self.eth_ws_subscriber.running)
+        self.assertFalse(self.eth_ws_proxy_publisher.running)
 
         await self.start_server()
         await asyncio.sleep(0)
 
-        await self.eth_ws_subscriber.revive()
+        await self.eth_ws_proxy_publisher.revive()
         await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash.binary)}"))
         await asyncio.sleep(0.01)
         self.assertEqual(1, self.subscriber.messages.qsize())
 
     @async_test
     async def tearDown(self) -> None:
-        await self.eth_ws_subscriber.stop()
+        await self.eth_ws_proxy_publisher.stop()
         self.eth_test_ws_server.close()
         await self.eth_test_ws_server.wait_closed()
         crypto_utils.recover_public_key = _recover_public_key

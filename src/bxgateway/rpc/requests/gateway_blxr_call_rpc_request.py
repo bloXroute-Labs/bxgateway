@@ -73,7 +73,7 @@ class GatewayBlxrCallRpcRequest(AbstractRpcRequest["EthGatewayNode"]):
         return await self.process_eth_call(transaction_obj, tag)
 
     async def process_eth_call(self, transaction_obj: Dict, tag: TAG_TYPE) -> JsonRpcResponse:
-        response = await self.node.eth_ws_subscriber.call_rpc(
+        response = await self.node.eth_ws_proxy_publisher.call_rpc(
             "eth_call",
             [transaction_obj, tag]
         )

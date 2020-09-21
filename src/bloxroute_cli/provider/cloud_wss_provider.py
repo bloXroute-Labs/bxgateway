@@ -1,19 +1,30 @@
 import os
 import ssl
+import sys
 import urllib.request
 from ssl import Purpose
 from typing import Optional
+from os import path
+from pathlib import Path
 
 import websockets
 
 from bloxroute_cli.provider.ws_provider import WsProvider
 from bxcommon.models.node_type import NodeType
-from bxcommon.utils import config
+from bxcommon import constants
 from bxutils import constants as utils_constants
 
 CLOUD_WEBSOCKETS_URL = "wss://eth.feed.blxrbdn.com:28333"
 CA_CERT_URL = "https://certificates.blxrbdn.com/ca/ca_cert.pem"
 DEFAULT_NODE_NAME = NodeType.EXTERNAL_GATEWAY.name.lower()
+
+
+def _get_default_data_path():
+    home_path = str(Path.home())
+    if sys.platform == constants.PLATFORM_MAC:
+        return path.join(home_path, "Library", "bloXroute")
+    else:
+        return path.join(home_path, "bloxroute")
 
 
 class CloudWssProvider(WsProvider):
@@ -29,7 +40,7 @@ class CloudWssProvider(WsProvider):
     ):
         if ssl_dir is None:
             ssl_dir = os.path.join(
-                config.get_default_data_path(),
+                _get_default_data_path(),
                 utils_constants.SSL_FOLDER,
                 DEFAULT_NODE_NAME,
                 "registration_only"
