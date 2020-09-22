@@ -7,7 +7,7 @@ from typing import Optional, Dict, TextIO, Set, cast
 
 from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
 from bloxroute_cli.provider.ws_provider import WsProvider
-from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
+from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
 
 
 class HashEntry:
@@ -167,9 +167,7 @@ def handle_eth_block_hash(block_hash, time_received: float):
 
 async def process_new_blocks_eth(eth_url: str, exclude_block_contents: bool) -> None:
     print(f"Initiating connection to: {eth_url}")
-    # TODO: Check the call to EthWsSubscriber. 2nd argument should be FeedManager and not bool
-    # pyre-fixme[6]: Expected `FeedManager` for 1st param but got `bool`.
-    async with EthWsSubscriber(eth_url, False, None, None) as eth_ws:
+    async with EthWsSubscriber(eth_url) as eth_ws:
         print(f"websockets endpoint: {eth_url} established")
 
         global eth_ws_provider

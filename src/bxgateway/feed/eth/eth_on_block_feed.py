@@ -324,7 +324,7 @@ class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
             request_payload = []
         else:
             raise ValueError(f"Invalid EthCommand Option: {command}")
-        response = await self.node.eth_ws_subscriber.call_rpc(
+        response = await self.node.eth_ws_proxy_publisher.call_rpc(
             str(command), request_payload,
         )
         return response.to_json()

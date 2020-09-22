@@ -1,7 +1,7 @@
 from typing import Optional, List, Union, Any, Dict, Tuple
 
 
-from bxgateway.rpc.provider.abstract_ws_provider import AbstractWsProvider
+from bxcommon.rpc.provider.abstract_ws_provider import AbstractWsProvider
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_errors import RpcError

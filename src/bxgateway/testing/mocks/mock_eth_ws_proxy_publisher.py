@@ -5,8 +5,8 @@ from bxcommon.rpc.rpc_errors import RpcError
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
+from bxcommon.rpc.provider.abstract_ws_provider import AbstractWsProvider
 from bxgateway.feed.feed_manager import FeedManager
-from bxgateway.rpc.provider.abstract_ws_provider import AbstractWsProvider
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxutils import logging
 
@@ -15,7 +15,7 @@ logger = logging.get_logger(__name__)
 SUBSCRIBE_REQUEST_ID = "1"
 
 
-class MockEthWsSubscriber(AbstractWsProvider):
+class MockEthWsProxyPublisher(AbstractWsProvider):
 
     def __init__(
         self,

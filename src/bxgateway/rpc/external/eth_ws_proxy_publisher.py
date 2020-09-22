@@ -1,8 +1,9 @@
 import asyncio
 from asyncio import Future
-from typing import Optional, cast, List, Tuple, Dict, Any, TYPE_CHECKING
+from typing import Optional, cast, List, Dict, Any, TYPE_CHECKING
 
-from bxcommon.rpc.rpc_errors import RpcError
+from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
+from bxcommon.rpc.provider.abstract_ws_provider import WsException
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
@@ -11,7 +12,6 @@ from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.new_transaction_feed import FeedSource
-from bxgateway.rpc.provider.abstract_ws_provider import AbstractWsProvider, WsException
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 from bxutils import logging
 
@@ -23,24 +23,14 @@ logger = logging.get_logger(__name__)
 SUBSCRIBE_REQUEST_ID = "1"
 
 
-class EthWsSubscriber(AbstractWsProvider):
+class EthWsProxyPublisher(EthWsSubscriber):
     """
-    Subscriber to Ethereum websockets RPC interface. Publishes transactions
-    accepted to Ethereum mempool to a `pendingTxs` feed.
-
-    Requires Ethereum startup arguments:
-    --ws --wsapi eth --wsport 8546
-
-    See https://geth.ethereum.org/docs/rpc/server for more info.
-    (--ws-addr 127.0.0.1 maybe a good idea too)
-
-    Requires Gateway startup arguments:
-    --eth-ws-uri ws://127.0.0.1:8546
+    Publishes transactions accepted to Ethereum mempool to a `pendingTxs` feed.
     """
 
     def __init__(
         self,
-        ws_uri: Optional[str],
+        ws_uri: str,
         feed_manager: FeedManager,
         transaction_service: TransactionService,
         node: "EthGatewayNode"
@@ -50,8 +40,7 @@ class EthWsSubscriber(AbstractWsProvider):
         self.node = node
 
         # ok, lifecycle patterns are a bit different
-        # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[str]`.
-        super().__init__(ws_uri, True)
+        super().__init__(ws_uri)
         self.receiving_tasks: List[Future] = []
 
     async def revive(self) -> None:
@@ -80,27 +69,6 @@ class EthWsSubscriber(AbstractWsProvider):
             logger.info("Reconnected to Ethereum websocket feed")
         else:
             logger.warning(log_messages.ETH_RPC_COULD_NOT_RECONNECT)
-
-    async def subscribe(self, channel: str, options: Optional[Dict[str, Any]] = None) -> str:
-        response = await self.call_rpc(
-            "eth_subscribe",
-            [channel]
-        )
-        subscription_id = response.result
-        assert isinstance(subscription_id, str)
-        self.subscription_manager.register_subscription(subscription_id)
-        return subscription_id
-
-    async def unsubscribe(self, subscription_id: str) -> Tuple[bool, Optional[RpcError]]:
-        response = await self.call_rpc(
-            "eth_unsubscribe",
-            [subscription_id]
-        )
-        if response.result is not None:
-            self.subscription_manager.unregister_subscription(subscription_id)
-            return True, None
-        else:
-            return False, response.error
 
     async def start(self) -> None:
         ws_uri = self.uri

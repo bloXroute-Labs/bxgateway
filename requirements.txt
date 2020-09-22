@@ -1,7 +1,5 @@
 pympler==0.8
 requests==2.22.0
-# TODO: consider upgrade independent of bxapi
-websockets==8.1
 
 # Ethereum dependencies
 ipaddress==1.0.22

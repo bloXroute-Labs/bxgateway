@@ -2,7 +2,6 @@ import datetime
 import time
 import unittest
 from abc import abstractmethod
-import base64
 from unittest.mock import MagicMock
 
 from bxcommon import constants
@@ -15,7 +14,6 @@ from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigB
 from bxcommon.models.bdn_service_type import BdnServiceType
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
-from bxcommon.rpc.rpc_errors import RpcErrorCode
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.services.threaded_request_service import ThreadedRequestService
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -26,7 +24,7 @@ from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.rpc.gateway_status_details_level import GatewayStatusDetailsLevel
 from bxgateway.rpc.requests import gateway_memory_rpc_request
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.testing.mocks.mock_eth_ws_subscriber import MockEthWsSubscriber
+from bxgateway.testing.mocks.mock_eth_ws_proxy_publisher import MockEthWsProxyPublisher
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import \
     gateway_bdn_performance_stats_service
 
@@ -149,8 +147,8 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @async_test
     async def test_blxr_eth_call(self):
-        self.gateway_node.eth_ws_subscriber = MockEthWsSubscriber(None, None, None, None)
-        self.gateway_node.eth_ws_subscriber.call_rpc = AsyncMock(
+        self.gateway_node.eth_ws_proxy_publisher = MockEthWsProxyPublisher(None, None, None, None)
+        self.gateway_node.eth_ws_proxy_publisher.call_rpc = AsyncMock(
             return_value=JsonRpcResponse(request_id=1)
         )
         result = await self.request(BxJsonRpcRequest(
@@ -161,7 +159,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
                 rpc_constants.TAG_PARAMS_KEY: "latest"
             }
         ))
-        self.gateway_node.eth_ws_subscriber.call_rpc.mock.assert_called_with(
+        self.gateway_node.eth_ws_proxy_publisher.call_rpc.mock.assert_called_with(
             "eth_call", [TRANSACTION_JSON, "latest"])
         self.assertIsNone(result.error)
 

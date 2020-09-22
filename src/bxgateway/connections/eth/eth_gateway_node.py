@@ -36,7 +36,7 @@ from bxgateway.messages.eth import eth_message_converter_factory as converter_fa
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
-from bxgateway.rpc.external.eth_ws_subscriber import EthWsSubscriber
+from bxgateway.rpc.external.eth_ws_proxy_publisher import EthWsProxyPublisher
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
 from bxgateway.services.eth.eth_block_processing_service import EthBlockProcessingService
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
@@ -111,7 +111,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self.init_eth_on_block_feed_stat_logging()
 
         self.message_converter = converter_factory.create_eth_message_converter(self.opts)
-        self.eth_ws_subscriber = EthWsSubscriber(opts.eth_ws_uri, self.feed_manager, self._tx_service, self)
+        self.eth_ws_proxy_publisher = EthWsProxyPublisher(opts.eth_ws_uri, self.feed_manager, self._tx_service, self)
         if self.opts.ws and not self.opts.eth_ws_uri:
             logger.warning(log_messages.ETH_WS_SUBSCRIBER_NOT_STARTED)
 
@@ -350,8 +350,8 @@ class EthGatewayNode(AbstractGatewayNode):
         self.feed_manager.register_feed(EthNewBlockFeed(self))
 
     def on_new_subscriber_request(self) -> None:
-        if self.opts.eth_ws_uri and not self.eth_ws_subscriber.running:
-            asyncio.create_task(self.eth_ws_subscriber.revive())
+        if self.opts.eth_ws_uri and not self.eth_ws_proxy_publisher.running:
+            asyncio.create_task(self.eth_ws_proxy_publisher.revive())
 
     def on_transactions_in_block(self, transactions: List[Transaction]) -> None:
         for transaction in transactions:
@@ -407,7 +407,7 @@ class EthGatewayNode(AbstractGatewayNode):
         await super().init()
         try:
             await asyncio.wait_for(
-                self.eth_ws_subscriber.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
+                self.eth_ws_proxy_publisher.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
             )
         except Exception as e:
             logger.error(log_messages.ETH_WS_INITIALIZATION_FAIL, e)
@@ -416,7 +416,7 @@ class EthGatewayNode(AbstractGatewayNode):
     async def close(self) -> None:
         try:
             await asyncio.wait_for(
-                self.eth_ws_subscriber.stop(),
+                self.eth_ws_proxy_publisher.stop(),
                 rpc_constants.RPC_SERVER_STOP_TIMEOUT_S
             )
         except Exception as e:
