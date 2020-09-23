@@ -17,6 +17,7 @@ INTERVAL_START_TIME = "interval_start_time"
 INTERVAL_END_TIME = "interval_end_time"
 BLOCKS_FROM_BDN = "blocks_from_bdn_percentage"
 TX_FROM_BDN = "transactions_from_bdn_percentage"
+BLOCKS_SEEN = "total_blocks_seen"
 
 
 class BdnPerformanceRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
@@ -39,10 +40,13 @@ class BdnPerformanceRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
         ] = gateway_bdn_performance_stats_service.get_most_recent_stats()
 
         if interval_data is None:
-            stats[INTERVAL_START_TIME] = float("nan")
-            stats[INTERVAL_END_TIME] = float("nan")
-            stats[BLOCKS_FROM_BDN] = float("nan")
-            stats[TX_FROM_BDN] = float("nan")
+            stats.update({
+                INTERVAL_START_TIME: float("nan"),
+                INTERVAL_END_TIME: float("nan"),
+                BLOCKS_FROM_BDN: float("nan"),
+                TX_FROM_BDN: float("nan"),
+                BLOCKS_SEEN: float("nan"),
+            })
             return stats
 
         stats[INTERVAL_START_TIME] = str(interval_data.start_time)
@@ -85,4 +89,7 @@ class BdnPerformanceRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
                 )
             )
 
+        stats.update({
+            BLOCKS_SEEN: interval_data.new_blocks_seen,
+        })
         return stats

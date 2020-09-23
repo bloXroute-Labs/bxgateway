@@ -221,6 +221,7 @@ class AbstractBlockchainConnectionProtocol:
                 msg.extra_stats_data()
             )
         )
+        gateway_bdn_performance_stats_service.log_block_message_from_blockchain_node(True)
         if block_hash in self.node.blocks_seen.contents:
             self.node.on_block_seen_by_blockchain_node(block_hash, block_number=block_number)
             block_stats.add_block_event_by_block_hash(

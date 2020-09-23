@@ -115,7 +115,6 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node_low_fee
         )
 
-
     def test_bdn_stats_tx_new_from_node(self):
         txs = [
             mock_eth_messages.get_dummy_transaction(1),

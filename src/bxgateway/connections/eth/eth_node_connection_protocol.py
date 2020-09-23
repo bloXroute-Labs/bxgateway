@@ -31,6 +31,8 @@ from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message impor
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import \
+    gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging
 
@@ -140,6 +142,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 ),
                 block_height=block_number,
             )
+            gateway_bdn_performance_stats_service.log_block_message_from_blockchain_node(False)
 
             if block_hash in self.node.blocks_seen.contents:
                 self.node.on_block_seen_by_blockchain_node(block_hash, block_number=block_number)
