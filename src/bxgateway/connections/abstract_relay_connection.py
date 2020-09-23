@@ -367,7 +367,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 self.node.alarm_queue.register_approx_alarm(
                     2 * constants.MIN_SLEEP_TIMEOUT, constants.MIN_SLEEP_TIMEOUT, status_log.update_alarm_callback,
                     self.node.connection_pool, self.node.opts.use_extensions, self.node.opts.source_version,
-                    self.node.opts.external_ip, self.node.opts.continent, self.node.opts.country, self.node.opts.region,
+                    self.node.opts.external_ip, self.node.opts.continent, self.node.opts.country,
                     self.node.opts.should_update_source_version, self.node.account_id,
                     self.node.quota_level
                 )
