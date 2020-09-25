@@ -30,7 +30,7 @@ class AbstractOntBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
 
     def _get_sample_block(self, file_path):
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(file_path))))
-        with open(os.path.join(root_dir, "ont_sample_block.txt")) as sample_file:
+        with open(os.path.join(root_dir, "samples/ont_sample_block.txt")) as sample_file:
             ont_block = sample_file.read().strip("\n")
         buf = bytearray(convert.hex_to_bytes(ont_block))
         parsed_block = BlockOntMessage(buf=buf)

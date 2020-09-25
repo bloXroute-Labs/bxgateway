@@ -58,7 +58,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.node.init_live_feeds()
 
         self.connection = helpers.create_connection(
-            EthNodeConnection, self.node, opts
+            EthNodeConnection, self.node, opts, port=opts.blockchain_port
         )
         self.connection.on_connection_established()
         self.node.node_conn = self.connection

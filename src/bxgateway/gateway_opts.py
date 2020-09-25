@@ -1,22 +1,27 @@
+import os
+import sys
+
+from argparse import Namespace
 from dataclasses import dataclass
-from bxcommon.common_opts import CommonOpts
-from bxcommon.utils import ip_resolver
 from typing import Optional, Set, Dict
+
+from bxcommon import constants
+from bxcommon.common_opts import CommonOpts
+from bxcommon.utils import ip_resolver, node_cache
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
+from bxcommon.utils.convert import hex_to_bytes
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.models.quota_type_model import QuotaType
-from bxcommon.utils.convert import hex_to_bytes
-from argparse import Namespace
-from bxcommon.utils import node_cache
+from bxgateway import argument_parsers
 from bxgateway import gateway_constants
-from bxcommon.utils.blockchain_utils.eth import eth_common_constants
+from bxgateway import log_messages
+from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxgateway.utils.eth.eccx import ECCx
 from bxutils import logging
-from bxgateway import log_messages
-import os
-import sys
+
 
 logger = logging.get_logger(__name__)
 
@@ -55,6 +60,8 @@ class GatewayOpts(CommonOpts):
     chain_difficulty: str
     no_discovery: bool
     remote_public_key: str
+    blockchain_peers: Set[BlockchainPeerInfo]
+    blockchain_peers_file: str
     compact_block: bool
     compact_block_min_tx_count: int
     dump_short_id_mapping_compression: bool
@@ -139,6 +146,12 @@ class GatewayOpts(CommonOpts):
         else:
             opts.blockchain_protocol = None
 
+        if not opts.blockchain_peers:
+            opts.blockchain_peers = set()
+
+        if opts.blockchain_peers_file:
+            cls.read_blockchain_peers_from_file(opts)
+
         if not opts.cookie_file_path:
             opts.cookie_file_path = gateway_constants.COOKIE_FILE_PATH_TEMPLATE.format(
                 "{}_{}".format(get_sdn_hostname(opts.sdn_url), opts.external_ip)
@@ -147,26 +160,48 @@ class GatewayOpts(CommonOpts):
         opts.min_peer_relays_count = 1
         return opts
 
+    @classmethod
+    def read_blockchain_peers_from_file(cls, opts) -> None:
+        try:
+            with open(opts.blockchain_peers_file, "r", encoding=constants.DEFAULT_TEXT_ENCODING) as peers_file:
+                blockchain_peers_list = peers_file.readlines()
+                blockchain_peers_list = [peer.strip() for peer in blockchain_peers_list]
+                blockchain_peers_list = [peer for peer in blockchain_peers_list if peer]
+                for peer in blockchain_peers_list:
+                    opts.blockchain_peers.add(argument_parsers.parse_peer(opts.blockchain_protocol, peer))
+        except FileNotFoundError:
+            logger.fatal(log_messages.BLOCKCHAIN_PEERS_FILE_NOT_FOUND, opts.blockchain_peers_file, exc_info=False)
+            sys.exit(1)
+
     def __post_init__(self):
         if self.filter_txs_factor < 0:
             logger.fatal("--filter_txs_factor cannot be below 0.")
             sys.exit(1)
 
     def validate_eth_opts(self) -> None:
-        if self.blockchain_ip is None:
-            logger.fatal(log_messages.ETH_MISSING_BLOCKCHAIN_IP, exc_info=False)
+        if not self.blockchain_ip and not self.blockchain_peers:
+            logger.fatal(log_messages.ETH_MISSING_BLOCKCHAIN_IP_AND_BLOCKCHAIN_PEERS, exc_info=False)
             sys.exit(1)
-        if self.node_public_key is None:
-            logger.fatal(log_messages.ETH_MISSING_NODE_PUBLIC_KEY, exc_info=False)
-            sys.exit(1)
-        validate_pub_key(self.node_public_key)
+
+        if self.blockchain_ip:
+            if self.node_public_key is None:
+                logger.fatal(log_messages.ETH_MISSING_NODE_PUBLIC_KEY, exc_info=False)
+                sys.exit(1)
+            validate_pub_key(self.node_public_key)
+
+        if self.blockchain_peers:
+            for blockchain_peer in self.blockchain_peers:
+                if blockchain_peer.ip is None:
+                    logger.fatal(log_messages.ETH_MISSING_BLOCKCHAIN_IP_FROM_BLOCKCHAIN_PEERS, exc_info=False)
+                    sys.exit(1)
+                if blockchain_peer.node_public_key is None:
+                    logger.fatal(log_messages.ETH_MISSING_NODE_PUBLIC_KEY_FROM_BLOCKCHAIN_PEERS, exc_info=False)
+                    sys.exit(1)
+                validate_pub_key(blockchain_peer.node_public_key)
 
         if self.remote_blockchain_peer is not None:
             if self.remote_public_key is None:
-                logger.fatal(
-                    "--remote-public-key of the blockchain node must be included with command-line specified remote "
-                    "blockchain peer. Use --remote-public-key",
-                    exc_info=False)
+                logger.fatal(log_messages.ETH_MISSING_REMOTE_NODE_PUBLIC_KEY, exc_info=False)
                 sys.exit(1)
             validate_pub_key(self.remote_public_key)
 
@@ -180,7 +215,7 @@ class GatewayOpts(CommonOpts):
             blockchain_protocol = blockchain_protocol.lower()
             if self.blockchain_protocol:
                 if self.blockchain_protocol != blockchain_protocol:
-                    logger.fatal("Blockchain protocol information does not match account details, exiting.")
+                    logger.fatal(log_messages.BLOCKCHAIN_PROTOCOL_AND_ACCOUNT_MISMATCH, exc_info=False)
                     sys.exit(1)
             else:
                 self.blockchain_protocol = blockchain_protocol
@@ -203,8 +238,15 @@ class GatewayOpts(CommonOpts):
         if blockchain_protocol == BlockchainProtocol.ETHEREUM:
             self.validate_eth_opts()
 
-        self.blockchain_ip = validate_blockchain_ip(
-            self.blockchain_ip, self.is_docker)
+        if not self.blockchain_ip and not self.blockchain_peers:
+            logger.fatal(log_messages.MISSING_BLOCKCHAIN_IP_AND_BLOCKCHAIN_PEERS, exc_info=False)
+            sys.exit(1)
+
+        if self.blockchain_ip:
+            self.blockchain_ip = validate_blockchain_ip(self.blockchain_ip, self.is_docker)
+        if self.blockchain_peers:
+            for blockchain_peer in self.blockchain_peers:
+                blockchain_peer.ip = validate_blockchain_ip(blockchain_peer.ip, self.is_docker)
 
 
 def get_sdn_hostname(sdn_url: str) -> str:
@@ -230,7 +272,7 @@ def validate_pub_key(key) -> None:
 
 def validate_blockchain_ip(blockchain_ip, is_docker=False) -> str:
     if blockchain_ip is None:
-        logger.fatal(log_messages.MISSING_BLOCKCHAIN_IP, exc_info=False)
+        logger.fatal(log_messages.MISSING_BLOCKCHAIN_IP_FROM_BLOCKCHAIN_PEERS, exc_info=False)
         sys.exit(1)
 
     if blockchain_ip == gateway_constants.LOCALHOST and is_docker:

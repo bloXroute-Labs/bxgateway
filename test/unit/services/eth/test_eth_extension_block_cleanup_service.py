@@ -23,7 +23,7 @@ class EthExtensionBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
 
     def _get_sample_block(self, file_path):
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(file_path))))
-        with open(os.path.join(root_dir, "eth_sample_block.txt")) as sample_file:
+        with open(os.path.join(root_dir, "samples/eth_sample_block.txt")) as sample_file:
             btc_block = sample_file.read().strip("\n")
         buf = bytearray(convert.hex_to_bytes(btc_block))
         parsed_block = NewBlockEthProtocolMessage(msg_bytes=buf)

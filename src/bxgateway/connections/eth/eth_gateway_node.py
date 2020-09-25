@@ -87,7 +87,7 @@ class EthGatewayNode(AbstractGatewayNode):
 
         if opts.node_public_key is not None:
             self._node_public_key = convert.hex_to_bytes(opts.node_public_key)
-        else:
+        elif opts.blockchain_peers is None:
             raise RuntimeError(
                 "128 digit public key must be included with command-line specified blockchain peer.")
         if opts.remote_blockchain_peer is not None:
@@ -171,11 +171,12 @@ class EthGatewayNode(AbstractGatewayNode):
             ))
 
         local_protocol = TransportLayerProtocol.UDP if self._is_in_local_discovery() else TransportLayerProtocol.TCP
-        peers.append(ConnectionPeerInfo(
-            IpEndpoint(self.opts.blockchain_ip, self.opts.blockchain_port),
-            ConnectionType.BLOCKCHAIN_NODE,
-            local_protocol
-        ))
+        for blockchain_peer in self.blockchain_peers:
+            peers.append(ConnectionPeerInfo(
+                IpEndpoint(blockchain_peer.ip, blockchain_peer.port),
+                ConnectionType.BLOCKCHAIN_NODE,
+                local_protocol
+            ))
 
         if self.remote_blockchain_ip is not None and self.remote_blockchain_port is not None:
             remote_protocol = TransportLayerProtocol.UDP if self._is_in_remote_discovery() else \
@@ -233,8 +234,19 @@ class EthGatewayNode(AbstractGatewayNode):
             remote_blockchain_ip, remote_blockchain_port, ConnectionType.REMOTE_BLOCKCHAIN_NODE
         )
 
-    def get_node_public_key(self) -> bytes:
-        return self._node_public_key
+    def get_node_public_key(self, ip: str, port: int) -> bytes:
+        node_public_key = None
+        for blockchain_peer in self.blockchain_peers:
+            if blockchain_peer.ip == ip and blockchain_peer.port == port:
+                node_public_key = blockchain_peer.node_public_key
+                break
+
+        if not node_public_key:
+            raise RuntimeError(
+                f"128 digit public key must be included with for blockchain peer ip {ip} and port {port}."
+            )
+
+        return convert.hex_to_bytes(node_public_key)
 
     def get_remote_public_key(self) -> bytes:
         return self._remote_public_key

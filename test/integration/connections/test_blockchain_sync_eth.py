@@ -22,9 +22,14 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
     def setUp(self):
         self.local_node_fileno = 1
         self.remote_node_fileno = 2
+        self.local_blockchain_ip = "127.0.0.1"
+        self.local_blockchain_port = 30303
 
         eth_node_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
-        self.gateway_node = spies.make_spy_node(EthGatewayNode, 8000, include_default_eth_args=True, pub_key="d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396")
+        self.gateway_node = spies.make_spy_node(
+            EthGatewayNode, 8000, include_default_eth_args=True,
+            blockchain_address=(self.local_blockchain_ip, self.local_blockchain_port),
+            pub_key="d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396")
         gateway_node_private_key = convert.hex_to_bytes(self.gateway_node.opts.private_key)
         eth_node_public_key = crypto_utils.private_to_public_key(eth_node_private_key)
 
@@ -32,8 +37,8 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
 
         self.gateway_node._node_public_key = eth_node_public_key
         self.gateway_node._remote_public_key = eth_node_public_key
-        self.eth_node_connection = spies.make_spy_connection(EthNodeConnection, self.local_node_fileno, 8001,
-                                                             self.gateway_node)
+        self.eth_node_connection = spies.make_spy_connection(EthNodeConnection, self.local_node_fileno,
+                                                             self.local_blockchain_port, self.gateway_node)
         self.eth_remote_node_connection = spies.make_spy_connection(EthRemoteConnection, self.remote_node_fileno, 8002,
                                                                     self.gateway_node)
 
@@ -44,7 +49,9 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
 
         self.gateway_node.node_conn = self.eth_node_connection
         self.gateway_node.remote_node_conn = self.eth_remote_node_connection
-        self.gateway_node.connection_pool.add(self.local_node_fileno, LOCALHOST, 8001, self.eth_node_connection)
+        self.gateway_node.connection_pool.add(
+            self.local_node_fileno, LOCALHOST, self.local_blockchain_port, self.eth_node_connection
+        )
         self.gateway_node.connection_pool.add(self.remote_node_fileno, LOCALHOST, 8002, self.eth_remote_node_connection)
 
     def test_block_headers_request(self):

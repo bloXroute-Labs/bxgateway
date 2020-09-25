@@ -151,8 +151,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         self.quota_level = 0
         self.num_active_blockchain_peers = 0
-        self.blockchain_peers = set()
-        self.blockchain_peers.add(BlockchainPeerInfo(opts.blockchain_ip, opts.blockchain_port))
+        self.blockchain_peers = self.opts.blockchain_peers
+        self.blockchain_peers.add(BlockchainPeerInfo(opts.blockchain_ip, opts.blockchain_port, opts.node_public_key))
         self.transaction_streamer_peer = None
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
@@ -520,9 +520,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             )
             for peer in self.outbound_peers
         ]
-        peers.append(ConnectionPeerInfo(
-            IpEndpoint(self.opts.blockchain_ip, self.opts.blockchain_port), ConnectionType.BLOCKCHAIN_NODE
-        ))
+        for blockchain_peer in self.blockchain_peers:
+            peers.append(ConnectionPeerInfo(
+                IpEndpoint(blockchain_peer.ip, blockchain_peer.port), ConnectionType.BLOCKCHAIN_NODE
+            ))
         if self.remote_blockchain_ip is not None and self.remote_blockchain_port is not None:
             peers.append(ConnectionPeerInfo(
                 # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[str]`.
