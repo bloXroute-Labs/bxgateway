@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from bxcommon.rpc.https.http_rpc_handler import HttpRpcHandler
 from bxcommon.rpc.requests.transaction_status_rpc_request import TransactionStatusRpcRequest
 from bxcommon.rpc.rpc_request_type import RpcRequestType
+from bxgateway.rpc.requests.add_blockchain_peer_rpc_request import AddBlockchainPeerRpcRequest
 from bxgateway.rpc.requests.bdn_performance_rpc_request import BdnPerformanceRpcRequest
 from bxgateway.rpc.requests.gateway_blxr_transaction_rpc_request import GatewayBlxrTransactionRpcRequest
 from bxgateway.rpc.requests.gateway_memory_usage_report_rpc_request import GatewayMemoryUsageRpcRequest
@@ -40,5 +41,6 @@ class GatewayHttpRpcHandler(HttpRpcHandler["AbstractGatewayNode"]):
             RpcRequestType.QUOTA_USAGE: QuotaUsageRpcRequest,
             RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest,
             RpcRequestType.TX_STATUS: TransactionStatusRpcRequest,
-            RpcRequestType.TX_SERVICE: GatewayTransactionServiceRpcRequest
+            RpcRequestType.TX_SERVICE: GatewayTransactionServiceRpcRequest,
+            RpcRequestType.ADD_BLOCKCHAIN_PEER: AddBlockchainPeerRpcRequest
         }

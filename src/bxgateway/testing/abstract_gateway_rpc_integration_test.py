@@ -5,8 +5,10 @@ from abc import abstractmethod
 from unittest.mock import MagicMock
 
 from bxcommon import constants
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.rpc import rpc_constants
 from bxcommon.test_utils import helpers
+from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxutils import constants as utils_constants
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_base import BdnServiceModelBase
@@ -271,6 +273,25 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
                 "status": "assigned short ID",
                 "short_ids": [123],
                 "assignment_time": expected_assignment_time
+            },
+            result.result
+        )
+
+    @async_test
+    async def test_add_blockchain_peer(self):
+        self.gateway_node.enqueue_connection = MagicMock()
+        result = await self.request(BxJsonRpcRequest(
+            "8",
+            RpcRequestType.ADD_BLOCKCHAIN_PEER,
+            {"peer": "enode://d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396@127.0.0.1:30302"}
+        ))
+        self.gateway_node.enqueue_connection.assert_called_once_with("127.0.0.1", 30302, ConnectionType.BLOCKCHAIN_NODE)
+        self.assertIn(BlockchainPeerInfo("127.0.0.1", 30302), self.gateway_node.blockchain_peers)
+        self.assertEqual("8", result.id)
+        self.assertIsNone(result.error)
+        self.assertEqual(
+            {
+                "new_peer": "127.0.0.1:30302"
             },
             result.result
         )

@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 import asyncio
 
 from bxcommon.models.quota_type_model import QuotaType
-from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.exceptions import ParseError
 from bxcommon.rpc import rpc_constants
@@ -10,7 +9,6 @@ from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_blxr_transaction_rpc_request import AbstractBlxrTransactionRpcRequest
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
 from bxcommon.utils import convert
-from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxcommon.models.blockchain_protocol import BlockchainProtocol

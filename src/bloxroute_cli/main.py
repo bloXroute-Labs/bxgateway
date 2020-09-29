@@ -164,6 +164,9 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
     elif merged_opts.command == RpcRequestType.TX_SERVICE:
         if merged_opts.request_params is None and unrecognized_params:
             merged_opts.request_params = {rpc_constants.TX_SERVICE_FILE_NAME_PARAMS_KEY: unrecognized_params[0]}
+    elif merged_opts.command == RpcRequestType.ADD_BLOCKCHAIN_PEER:
+        if merged_opts.request_params is None and unrecognized_params:
+            merged_opts.request_params = {rpc_constants.ADD_BLOCKCHAIN_PEER_PARAMS_KEY: unrecognized_params[0]}
 
     return merged_opts
 

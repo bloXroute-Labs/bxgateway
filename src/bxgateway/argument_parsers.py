@@ -1,5 +1,6 @@
 import argparse
 import sys
+from typing import Tuple
 
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
@@ -11,40 +12,51 @@ from bxutils import logging
 logger = logging.get_logger(__name__)
 
 
+# Make sure enode is at least as long as the public key
+def enode_is_valid_length(enode: str) -> bool:
+    return len(enode) >= 2 * eth_common_constants.PUBLIC_KEY_LEN
+
+
+def get_enode_parts(enode: str) -> Tuple[str, str, str]:
+    enode_and_pub_key, ip_and_port = enode.split("@")
+    if enode_and_pub_key.startswith("enode://"):
+        pub_key = enode_and_pub_key[8:]
+    else:
+        pub_key = enode_and_pub_key
+    ip, port_and_disc = ip_and_port.split(":")
+    port = port_and_disc.split("?")[0]
+    return pub_key, ip, port
+
+
+def get_ip_port_string_parts(ip_port_string: str) -> Tuple[str, str]:
+    ip_port_list = ip_port_string.strip().split(":")
+    ip = ip_port_list[0]
+    port = ip_port_list[1]
+    return ip, port
+
+
 def parse_enode(enode: str) -> BlockchainPeerInfo:
-    # Make sure enode is at least as long as the public key
-    if len(enode) < 2 * eth_common_constants.PUBLIC_KEY_LEN:
+    if not enode_is_valid_length(enode):
         logger.fatal(log_messages.ETH_PARSER_INVALID_ENODE_LENGTH, enode, len(enode), exc_info=False)
         sys.exit(1)
     try:
-        enode_and_pub_key, ip_and_port = enode.split("@")
-        if enode_and_pub_key.startswith("enode://"):
-            pub_key = enode_and_pub_key[8:]
-        else:
-            pub_key = enode_and_pub_key
-        ip, port_and_disc = ip_and_port.split(":")
-        port = port_and_disc.split("?")[0]
-        # Port validation
+        pub_key, ip, port = get_enode_parts(enode)
         if not port.isnumeric():
             logger.fatal(log_messages.PARSER_INVALID_PORT, port, exc_info=False)
             sys.exit(1)
-        port = int(port)
     except ValueError:
         logger.fatal(log_messages.ETH_PARSER_INVALID_ENODE, enode, exc_info=False)
         sys.exit(1)
     else:
-        return BlockchainPeerInfo(ip, port, pub_key)
+        return BlockchainPeerInfo(ip, int(port), pub_key)
 
 
 def parse_ip_port(ip_port_string: str) -> BlockchainPeerInfo:
-    ip_port_list = ip_port_string.strip().split(":")
-    ip = ip_port_list[0]
-    port = ip_port_list[1]
+    ip, port = get_ip_port_string_parts(ip_port_string)
     if not port.isnumeric():
         logger.fatal(log_messages.PARSER_INVALID_PORT, port, exc_info=False)
         sys.exit(1)
-    port = int(port)
-    return BlockchainPeerInfo(ip, port)
+    return BlockchainPeerInfo(ip, int(port))
 
 
 def parse_peer(blockchain_protocol: str, peer: str) -> BlockchainPeerInfo:

@@ -6,7 +6,6 @@ from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.utils import config
-from bxgateway import log_messages
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
