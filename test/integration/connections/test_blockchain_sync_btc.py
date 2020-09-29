@@ -35,4 +35,4 @@ class BlockchainSyncBtcTest(AbstractTestCase):
 
         response_headers = HeadersBtcMessage(12345, [])
         helpers.receive_node_message(self.gateway_node, self.remote_node_fileno, response_headers.rawbytes())
-        self.btc_node_connection.enqueue_msg.assert_called_once_with(response_headers, False)
+        self.btc_node_connection.enqueue_msg.assert_called_once_with(response_headers)

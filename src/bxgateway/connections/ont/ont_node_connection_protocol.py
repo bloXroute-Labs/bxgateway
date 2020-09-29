@@ -111,7 +111,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
     def msg_get_headers(self, msg: GetHeadersOntMessage):
         send_successful = self.node.block_queuing_service.try_send_header_to_node(msg.hash_stop())
         if not send_successful:
-            self.msg_proxy_request(msg)
+            self.msg_proxy_request(msg, self.connection)
 
     def msg_pong(self, msg: PongOntMessage):
         if msg.height() > self.node.current_block_height:

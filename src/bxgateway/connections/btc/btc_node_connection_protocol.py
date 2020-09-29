@@ -37,8 +37,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             BtcMessageType.INVENTORY: self.msg_inv,
             BtcMessageType.BLOCK: self.msg_block,
             BtcMessageType.TRANSACTIONS: self.msg_tx,
-            BtcMessageType.GET_BLOCKS: self.msg_proxy_request,
-            BtcMessageType.GET_HEADERS: self.msg_proxy_request,
+            BtcMessageType.GET_BLOCKS: self.msg_get_blocks,
+            BtcMessageType.GET_HEADERS: self.msg_get_headers,
             BtcMessageType.GET_DATA: self.msg_get_data,
             BtcMessageType.REJECT: self.msg_reject,
             BtcMessageType.COMPACT_BLOCK: self.msg_compact_block,
@@ -139,7 +139,13 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, object_hash)]
             )
             self.connection.enqueue_msg(inv_msg)
-        return self.msg_proxy_request(msg)
+        return self.msg_proxy_request(msg, self.connection)
+
+    def msg_get_blocks(self, msg):
+        self.msg_proxy_request(msg, self.connection)
+
+    def msg_get_headers(self, msg):
+        self.msg_proxy_request(msg, self.connection)
 
     def msg_reject(self, msg):
         """

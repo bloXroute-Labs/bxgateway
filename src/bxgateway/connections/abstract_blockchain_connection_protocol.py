@@ -1,13 +1,12 @@
 import time
 from abc import ABCMeta, abstractmethod
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.utils import performance_utils
-from bxcommon.utils.blockchain_utils.eth import eth_common_utils, transaction_validation_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -249,18 +248,22 @@ class AbstractBlockchainConnectionProtocol:
         self.node.block_queuing_service.store_block_data(block_hash, msg)
         return
 
-    def msg_proxy_request(self, msg):
+    def msg_proxy_request(self, msg, requesting_connection: AbstractGatewayBlockchainConnection):
         """
         Handle a chainstate request message.
         """
+        self.node.msg_proxy_requester_queue.append(requesting_connection)
         self.node.send_msg_to_remote_node(msg)
 
     def msg_proxy_response(self, msg):
         """
         Handle a chainstate response message.
         """
-        # TODO: Send only to node that requested (https://bloxroute.atlassian.net/browse/BX-1920)
-        self.node.broadcast(msg, self.connection, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+        if self.node.msg_proxy_requester_queue:
+            requester_connection = self.node.msg_proxy_requester_queue.popleft()
+            requester_connection.enqueue_msg(msg)
+        else:
+            logger.error(log_messages.MSG_PROXY_REQUESTER_QUEUE_EMPTY_ON_RESPONSE)
 
     def is_valid_block_timestamp(self, msg: AbstractBlockMessage) -> bool:
         max_time_offset = (

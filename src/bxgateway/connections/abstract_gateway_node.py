@@ -1,7 +1,7 @@
 import asyncio
 # TODO: remove try-catch when removing py3.7 support
 import functools
-from collections import defaultdict
+from collections import defaultdict, deque
 
 from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.connections.connection_state import ConnectionState
@@ -17,7 +17,7 @@ except ImportError:
 import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Future
-from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union, cast, Dict
+from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union, cast, Dict, Deque
 from prometheus_client import Gauge
 
 from bxcommon import constants
@@ -99,6 +99,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     _relay_liveliness_alarm: Optional[AlarmId] = None
 
     remote_node_msg_queue: BlockchainMessageQueue
+    msg_proxy_requester_queue: Deque[AbstractGatewayBlockchainConnection]
 
     peer_gateways: Set[OutboundPeerModel]
     # if opts.split_relays is set, then this set contains only block relays
@@ -160,6 +161,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.peer_relays_min_count = 1
 
         self.remote_node_msg_queue = BlockchainMessageQueue(opts.remote_blockchain_message_ttl)
+        self.msg_proxy_requester_queue: Deque[AbstractGatewayBlockchainConnection] = deque(
+            maxlen=gateway_constants.MSG_PROXY_REQUESTER_QUEUE_LIMIT
+        )
 
         self.blocks_seen = ExpiringSet(
             self.alarm_queue,

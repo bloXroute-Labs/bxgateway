@@ -198,14 +198,14 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 msg
             )
             if not processed:
-                self.msg_proxy_request(msg)
+                self.msg_proxy_request(msg, self.connection)
 
     def msg_get_block_bodies(self, msg: GetBlockBodiesEthProtocolMessage):
         processed = self.node.block_processing_service.try_process_get_block_bodies_request(msg)
 
         if not processed:
             self.node.log_requested_remote_blocks(msg.get_block_hashes())
-            self.msg_proxy_request(msg)
+            self.msg_proxy_request(msg, self.connection)
 
     def msg_block_headers(self, msg: BlockHeadersEthProtocolMessage):
         if not self.node.should_process_block_hash():
@@ -277,7 +277,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
     def msg_get_receipts(self, msg: GetReceiptsEthProtocolMessage) -> None:
         self.node.log_requested_remote_blocks(msg.get_block_hashes())
-        self.msg_proxy_request(msg)
+        self.msg_proxy_request(msg, self.connection)
 
     def _stop_waiting_checkpoint_headers_request(self):
         self._waiting_checkpoint_headers_request = False
