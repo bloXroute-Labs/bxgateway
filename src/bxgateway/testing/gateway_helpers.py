@@ -59,6 +59,7 @@ def get_gateway_opts(
     enable_block_compression: bool = True,
     filter_txs_factor: float = 0,
     blockchain_protocol: str = "Bitcoin",
+    should_restart_on_high_memory: bool = False,
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:
@@ -154,7 +155,8 @@ def get_gateway_opts(
             "request_recovery": True,
             "enable_block_compression": enable_block_compression,
             "filter_txs_factor": filter_txs_factor,
-            "min_peer_relays_count": None
+            "min_peer_relays_count": None,
+            "should_restart_on_high_memory": should_restart_on_high_memory,
         }
     )
 

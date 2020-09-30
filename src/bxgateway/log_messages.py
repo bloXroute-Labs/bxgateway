@@ -1,6 +1,6 @@
 from bxutils.logging_messages_utils import LogMessage
 from bxutils.log_message_categories import REQUEST_RESPONSE_CATEGORY, CONNECTION_PROBLEM_CATEGORY, \
-    NETWORK_CATEGORY, \
+    NETWORK_CATEGORY, MEMORY_CATEGORY, \
     GENERAL_CATEGORY, PROCESSING_FAILED_CATEGORY, LOGGING_CATEGORY, \
     NOTIFICATION_FROM_RELAY_CATEGORY, AUTHENTICATION_ERROR, RPC_ERROR
 
@@ -486,4 +486,9 @@ BLOCKCHAIN_PEERS_FILE_NOT_FOUND = LogMessage(
     "G-000090",
     GENERAL_CATEGORY,
     "Blockchain peers file not found at path: {}"
+)
+NODE_EXCEEDS_MEMORY = LogMessage(
+    "G-000091",
+    MEMORY_CATEGORY,
+    "Gateway exceeded allowed memory, restarting"
 )

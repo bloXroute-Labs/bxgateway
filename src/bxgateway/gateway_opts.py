@@ -84,6 +84,7 @@ class GatewayOpts(CommonOpts):
     enable_block_compression: bool
     filter_txs_factor: float
     min_peer_relays_count: int
+    should_restart_on_high_memory: bool
 
     # IPC
     ipc: bool

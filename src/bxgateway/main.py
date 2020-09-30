@@ -169,7 +169,10 @@ def get_argument_parser() -> argparse.ArgumentParser:
                             help="IPC filename that represents a unix domain socket",
                             type=str,
                             default="bxgateway.ipc")
-
+    arg_parser.add_argument("--should-restart-on-high-memory",
+                            help="Should a gateway restart itself if memory exceeds 2GB",
+                            type=convert.str_to_bool,
+                            default=True)
     # Ontology specific
     # TODO: Remove test only arguments
     arg_parser.add_argument("--http-info-port", help="(TEST ONLY)Ontology http server port to view node information",

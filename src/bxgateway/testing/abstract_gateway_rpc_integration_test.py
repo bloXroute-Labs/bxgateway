@@ -203,6 +203,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertIsNone(result.error)
         self.assertEqual({}, result.result)
         self.gateway_node.should_force_exit = True
+        self.gateway_node.should_restart_on_high_memory = False
 
     @async_test
     async def test_memory(self):
