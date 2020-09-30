@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Union
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import log_messages
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
-from bxgateway.messages.eth.serializers.block import Block
+from bxcommon.messages.eth.serializers.block import Block
 from bxutils import logging
 
 logger = logging.get_logger(__name__)

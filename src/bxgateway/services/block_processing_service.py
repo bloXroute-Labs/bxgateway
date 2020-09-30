@@ -1,12 +1,12 @@
 import datetime
 import time
-import typing
-from typing import Iterable, Optional, TYPE_CHECKING
+from typing import Iterable, Optional, TYPE_CHECKING, Union
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
+from bxcommon.messages.eth.validation.abstract_block_validator import AbstractBlockValidator
 from bxcommon.utils import convert, crypto, block_content_debug_utils
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
@@ -71,6 +71,10 @@ class BlockProcessingService:
             f"block_processing_holds"
         )
 
+        self._block_validator: Optional[AbstractBlockValidator] = None
+        self._last_confirmed_block_number: Optional[int] = None
+        self._last_confirmed_block_difficulty: Optional[int] = None
+
     def place_hold(self, block_hash, connection) -> None:
         """
         Places hold on block hash and propagates message.
@@ -110,6 +114,10 @@ class BlockProcessingService:
             "Processing block {} from local blockchain node.",
             block_hash
         )
+
+        valid_block = self._validate_block_header_in_block_message(block_message)
+        if not valid_block:
+            return
 
         if block_hash in self._holds.contents:
             hold: BlockHold = self._holds.contents[block_hash]
@@ -284,6 +292,36 @@ class BlockProcessingService:
 
             self._node.block_recovery_service.clean_up_recovered_blocks()
 
+    def reset_last_confirmed_block_parameters(self):
+        self._last_confirmed_block_number = None
+        self._last_confirmed_block_difficulty = None
+
+    def set_last_confirmed_block_parameters(
+        self,
+        last_confirmed_block_number: int,
+        last_confirmed_block_difficulty: int
+    ) -> None:
+
+        if not self._node.peer_relays:
+            logger.debug("Skip updating last confirmed block parameters because there is no connection to block relay")
+            return
+
+        if self._last_confirmed_block_number is not None:
+
+            old_last_confirmed_block_number = self._last_confirmed_block_number
+            assert old_last_confirmed_block_number is not None
+
+            if last_confirmed_block_number < old_last_confirmed_block_number:
+                logger.trace("New last confirmed block number {} is smaller than current {}. Skipping operation.",
+                             last_confirmed_block_number, old_last_confirmed_block_number)
+                return
+
+        self._last_confirmed_block_number = last_confirmed_block_number
+        self._last_confirmed_block_difficulty = last_confirmed_block_difficulty
+
+        logger.trace("Updated last confirmed block number to {} and difficulty to {}.",
+                     self._last_confirmed_block_number, self._last_confirmed_block_difficulty)
+
     def _compute_hold_timeout(self, _block_message) -> int:
         """
         Computes timeout after receiving block message before sending the block anyway if not received from network.
@@ -398,6 +436,10 @@ class BlockProcessingService:
         transaction_service = self._node.get_tx_service()
         message_converter = self._node.message_converter
         assert message_converter is not None
+
+        valid_block = self._validate_compressed_block_header(bx_block)
+        if not valid_block:
+            return
 
         # TODO: determine if a real block or test block. Discard if test block.
         if self._node.remote_node_conn or self._node.has_active_blockchain_peer():
@@ -641,4 +683,32 @@ class BlockProcessingService:
             )
 
     def _on_block_decompressed(self, block_msg) -> None:
+        pass
+
+    def _validate_block_header_in_block_message(self, block_message: AbstractBlockMessage) -> bool:
+        block_header_bytes = self._get_block_header_bytes_from_block_message(block_message)
+        return self._validate_block_header(block_header_bytes)
+
+    def _validate_compressed_block_header(self, compressed_block_bytes: Union[bytearray, memoryview]) -> bool:
+        block_header_bytes = self._get_compressed_block_header_bytes(compressed_block_bytes)
+        return self._validate_block_header(block_header_bytes)
+
+    def _validate_block_header(self, block_header_bytes: Union[bytearray, memoryview]) -> bool:
+        if self._block_validator and self._last_confirmed_block_number and self._last_confirmed_block_difficulty:
+            block_validator = self._block_validator
+            assert block_validator is not None
+            return block_validator.validate_block_header(block_header_bytes,
+                                                         self._last_confirmed_block_number,
+                                                         self._last_confirmed_block_difficulty)
+        logger.debug(
+            "Skipping block validation. Block validator - {}, last confirmed block - {}, last confirmed block difficulty - {}",
+            self._block_validator, self._last_confirmed_block_number, self._last_confirmed_block_difficulty)
+        return True
+
+    def _get_compressed_block_header_bytes(self, compressed_block_bytes: Union[bytearray, memoryview]) -> Union[
+        bytearray, memoryview]:
+        pass
+
+    def _get_block_header_bytes_from_block_message(self, block_message: AbstractBlockMessage) -> Union[
+        bytearray, memoryview]:
         pass

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway.messages.eth.serializers.block_header import BlockHeader
+from bxcommon.messages.eth.serializers.block_header import BlockHeader
 from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
 
 

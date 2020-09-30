@@ -230,10 +230,20 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             block_hashes.insert(0, Sha256Hash(block_headers[0].prev_hash))
             self.node.block_cleanup_service.mark_blocks_and_request_cleanup(block_hashes)
 
+        latest_block_number = 0
+        latest_block_difficulty = 0
+
         for block_header in block_headers:
             self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
                 block_header.hash_object(), None, block_header.number
             )
+
+            if block_header.number > latest_block_number:
+                latest_block_number = block_header.number
+                latest_block_difficulty = block_header.difficulty
+
+        self.node.block_processing_service.set_last_confirmed_block_parameters(latest_block_number,
+                                                                               latest_block_difficulty)
 
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage):
         if not self.node.should_process_block_hash():

@@ -9,7 +9,7 @@ from bxgateway.messages.eth.abstract_eth_message import AbstractEthMessage
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
-from bxgateway.messages.eth.serializers.block_header import BlockHeader
+from bxcommon.messages.eth.serializers.block_header import BlockHeader
 from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
 
 
@@ -38,9 +38,10 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
     def __init__(self, msg_bytes, *args, **kwargs):
         super(InternalEthBlockInfo, self).__init__(msg_bytes, *args, **kwargs)
 
-        self._block_header: memoryview = None
-        self._block_hash: Sha256Hash = None
-        self._timestamp: int = None
+        self._block_header: Optional[memoryview] = None
+        self._block_hash: Optional[Sha256Hash] = None
+        self._timestamp: Optional[int] = None
+        self._difficulty: Optional[int] = None
         self._block_number: Optional[int] = None
 
     def block_header(self) -> memoryview:
@@ -51,14 +52,20 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
             _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
             self._block_header = block_msg_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
 
-        return self._block_header
+        block_header = self._block_header
+        assert block_header is not None
+
+        return block_header
 
     def block_hash(self) -> Sha256Hash:
         if self._block_hash is None:
             raw_hash = eth_common_utils.keccak_hash(self.block_header())
             self._block_hash = Sha256Hash(raw_hash)
 
-        return self._block_hash
+        block_hash = self._block_hash
+        assert block_hash is not None
+
+        return block_hash
 
     def extra_stats_data(self) -> str:
         if self.has_block_number():
@@ -80,6 +87,27 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
         prev_block_bytes = block_hdr_bytes[prev_block_itm_start:prev_block_itm_start + prev_block_itm_len]
 
         return Sha256Hash(prev_block_bytes)
+
+    def difficulty(self) -> int:
+        """
+        :return: seconds since epoch
+        """
+        if self._difficulty is None:
+            _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)
+            block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
+
+            _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
+            block_hdr_bytes = block_msg_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
+
+            offset = BlockHeader.FIXED_LENGTH_FIELD_OFFSET
+
+            difficulty, _difficulty_length = rlp_utils.decode_int(block_hdr_bytes, offset)
+            self._difficulty = difficulty
+
+        difficulty = self._difficulty
+        assert difficulty is not None
+
+        return difficulty
 
     def timestamp(self) -> int:
         """
@@ -105,7 +133,10 @@ class InternalEthBlockInfo(AbstractEthMessage, AbstractBlockMessage, ABC):
             timestamp, _timestamp_length = rlp_utils.decode_int(block_hdr_bytes, offset)
             self._timestamp = timestamp
 
-        return self._timestamp
+        timestamp = self._timestamp
+        assert timestamp is not None
+
+        return timestamp
 
     def has_total_difficulty(self) -> bool:
         _, block_msg_itm_len, block_msg_itm_start = rlp_utils.consume_length_prefix(self._memory_view, 0)

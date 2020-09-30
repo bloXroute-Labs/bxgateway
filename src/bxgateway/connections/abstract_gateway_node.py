@@ -1174,6 +1174,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             )
             self._schedule_fetch_relays_from_sdn()
 
+        # Reset confirmed blocks if gateway lost connection to block relay
+        if len(self.peer_relays) == 0:
+            self.block_processing_service.reset_last_confirmed_block_parameters()
+
     def _remove_relay_transaction_peer(self, ip: str, port: int, remove_block_relay: bool = True) -> None:
         """
         Clean up relay transactions peer on connection failure. (after giving up retry)

@@ -1,6 +1,7 @@
 from typing import Optional
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.messages.eth.serializers.block_header import BlockHeader
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
@@ -12,8 +13,7 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import \
     NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
-from bxgateway.messages.eth.serializers.block import Block
-from bxgateway.messages.eth.serializers.block_header import BlockHeader
+from bxcommon.messages.eth.serializers.block import Block
 from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.eth.serializers.transient_block_body import \
     TransientBlockBody
