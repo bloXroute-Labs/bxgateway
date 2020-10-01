@@ -40,7 +40,7 @@ NEUTRALITY_EXPECTED_RECEIPT_PERCENT = 50
 # previous block in chain. This value can be set to 0 if a blockchain node implementation is capable of
 # immediately taking block messages without validating previous block.
 
-MAX_INTERVAL_BETWEEN_BLOCKS_S = 2
+MAX_INTERVAL_BETWEEN_BLOCKS_S = 0.6
 NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S = 5
 MAX_BLOCK_CACHE_TIME_S = 20 * 60
 
