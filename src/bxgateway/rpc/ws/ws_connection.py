@@ -68,6 +68,11 @@ class WsConnection:
         alive_handler = self.alive_handler
         if alive_handler is not None:
             alive_handler.cancel()
+            
+        # cleanup to avoid circular reference and allow immediate GC.
+        self.request_handler = None
+        self.publish_handler = None
+        self.alive_handler = None
 
         await self.ws.close()
 
