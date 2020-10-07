@@ -34,6 +34,8 @@ from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import \
     gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
+
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
@@ -366,10 +368,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
     def publish_transaction(
         self, tx_hash: Sha256Hash, tx_contents: memoryview
     ) -> None:
+        transaction_feed_stats_service.log_new_transaction(tx_hash)
         self.node.feed_manager.publish_to_feed(
             EthNewTransactionFeed.NAME,
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )
+        transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
         self.node.feed_manager.publish_to_feed(
             EthPendingTransactionFeed.NAME,
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
