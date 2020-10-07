@@ -380,7 +380,7 @@ class EthGatewayNode(AbstractGatewayNode):
             transaction = msg.get_transactions()[0]
 
             if (float(transaction.gas_price) < self.average_gas_price.average * self.opts.filter_txs_factor):
-                logger.debug(
+                logger.trace(
                     "Skipping sending transaction {} with gas price: {}. Average was {}",
                     transaction.hash(),
                     float(transaction.gas_price),

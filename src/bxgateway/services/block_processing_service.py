@@ -6,7 +6,8 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
-from bxcommon.messages.eth.validation.abstract_block_validator import AbstractBlockValidator
+from bxcommon.messages.eth.validation.abstract_block_validator import AbstractBlockValidator, \
+    BlockValidationResult
 from bxcommon.utils import convert, crypto, block_content_debug_utils
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
@@ -81,25 +82,29 @@ class BlockProcessingService:
         :param block_hash: ObjectHash
         :param connection:
         """
-        block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_REQUESTED,
-                                                  network_num=connection.network_num,
-                                                  peers=[connection],
-                                                  )
+        block_stats.add_block_event_by_block_hash(
+            block_hash, BlockStatEventType.BLOCK_HOLD_REQUESTED,
+            network_num=connection.network_num,
+            peers=[connection],
+        )
 
         if block_hash in self._node.blocks_seen.contents:
             return
 
         if block_hash not in self._holds.contents:
             self._holds.add(block_hash, BlockHold(time.time(), connection))
-            conns = self._node.broadcast(BlockHoldingMessage(block_hash, self._node.network_num),
-                                         broadcasting_conn=connection,
-                                         connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY])
+            conns = self._node.broadcast(
+                BlockHoldingMessage(block_hash, self._node.network_num),
+                broadcasting_conn=connection,
+                connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY]
+            )
             if len(conns) > 0:
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
-                                                          network_num=self._node.network_num,
-                                                          peers=conns,
-                                                          )
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
+                    network_num=self._node.network_num,
+                    peers=conns,
+                )
 
     def queue_block_for_processing(self, block_message, connection) -> None:
         """
@@ -116,15 +121,24 @@ class BlockProcessingService:
         )
 
         valid_block = self._validate_block_header_in_block_message(block_message)
-        if not valid_block:
+        if not valid_block.is_valid:
+            reason = valid_block.reason
+            assert reason is not None
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_FAILED_VALIDATION,
+                connection.network_num,
+                more_info=reason
+            )
             return
 
         if block_hash in self._holds.contents:
             hold: BlockHold = self._holds.contents[block_hash]
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_HELD_BLOCK,
-                                                      network_num=connection.network_num,
-                                                      peers=[hold.holding_connection],
-                                                      )
+            block_stats.add_block_event_by_block_hash(
+                block_hash, BlockStatEventType.BLOCK_HOLD_HELD_BLOCK,
+                network_num=connection.network_num,
+                peers=[hold.holding_connection],
+            )
             if hold.alarm is None:
                 hold.alarm = self._node.alarm_queue.register_alarm(
                     self._node.opts.blockchain_block_hold_timeout_s, self._holding_timeout, block_hash, hold
@@ -177,10 +191,12 @@ class BlockProcessingService:
         if not self._node.should_process_block_hash(msg.block_hash()):
             return
 
-        block_stats.add_block_event(msg,
-                                    BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
-                                    network_num=connection.network_num,
-                                    more_info=stats_format.connection(connection))
+        block_stats.add_block_event(
+            msg,
+            BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
+            network_num=connection.network_num,
+            more_info=stats_format.connection(connection)
+        )
 
         block_hash = msg.block_hash()
         is_encrypted = msg.is_encrypted()
@@ -205,12 +221,14 @@ class BlockProcessingService:
             block = self._node.in_progress_blocks.decrypt_ciphertext(block_hash, cipherblob)
 
             if block is not None:
-                block_stats.add_block_event(msg,
-                                            BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
-                                            start_date_time=decrypt_start_datetime,
-                                            end_date_time=datetime.datetime.utcnow(),
-                                            network_num=connection.network_num,
-                                            more_info=stats_format.timespan(decrypt_start_timestamp, time.time()))
+                block_stats.add_block_event(
+                    msg,
+                    BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
+                    start_date_time=decrypt_start_datetime,
+                    end_date_time=datetime.datetime.utcnow(),
+                    network_num=connection.network_num,
+                    more_info=stats_format.timespan(decrypt_start_timestamp, time.time())
+                )
                 self._handle_decrypted_block(
                     block,
                     connection,
@@ -258,21 +276,26 @@ class BlockProcessingService:
             block = self._node.in_progress_blocks.decrypt_and_get_payload(block_hash, key)
 
             if block is not None:
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
-                                                          start_date_time=decrypt_start_datetime,
-                                                          end_date_time=datetime.datetime.utcnow(),
-                                                          network_num=connection.network_num,
-                                                          more_info=stats_format.timespan(decrypt_start_timestamp,
-                                                                                          time.time()))
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
+                    start_date_time=decrypt_start_datetime,
+                    end_date_time=datetime.datetime.utcnow(),
+                    network_num=connection.network_num,
+                    more_info=stats_format.timespan(
+                        decrypt_start_timestamp,
+                        time.time())
+                )
                 self._handle_decrypted_block(
                     block, connection,
                     encrypted_block_hash_hex=convert.bytes_to_hex(block_hash.binary)
                 )
             else:
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
-                                                          network_num=connection.network_num)
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
+                    network_num=connection.network_num
+                )
         else:
             connection.log_trace("No cipher text found on key message. Storing.")
             self._node.in_progress_blocks.add_key(block_hash, key)
@@ -439,6 +462,14 @@ class BlockProcessingService:
 
         valid_block = self._validate_compressed_block_header(bx_block)
         if not valid_block:
+            reason = valid_block.reason
+            assert reason is not None
+            block_stats.add_block_event_by_block_hash(
+                valid_block.block_hash,
+                BlockStatEventType.BLOCK_DECOMPRESSED_FAILED_VALIDATION,
+                connection.network_num,
+                more_info=reason
+            )
             return
 
         # TODO: determine if a real block or test block. Discard if test block.
@@ -685,30 +716,38 @@ class BlockProcessingService:
     def _on_block_decompressed(self, block_msg) -> None:
         pass
 
-    def _validate_block_header_in_block_message(self, block_message: AbstractBlockMessage) -> bool:
+    def _validate_block_header_in_block_message(
+        self, block_message: AbstractBlockMessage
+    ) -> BlockValidationResult:
         block_header_bytes = self._get_block_header_bytes_from_block_message(block_message)
         return self._validate_block_header(block_header_bytes)
 
-    def _validate_compressed_block_header(self, compressed_block_bytes: Union[bytearray, memoryview]) -> bool:
+    def _validate_compressed_block_header(
+        self, compressed_block_bytes: Union[bytearray, memoryview]
+    ) -> BlockValidationResult:
         block_header_bytes = self._get_compressed_block_header_bytes(compressed_block_bytes)
         return self._validate_block_header(block_header_bytes)
 
-    def _validate_block_header(self, block_header_bytes: Union[bytearray, memoryview]) -> bool:
+    def _validate_block_header(self, block_header_bytes: Union[bytearray, memoryview]) -> BlockValidationResult:
         if self._block_validator and self._last_confirmed_block_number and self._last_confirmed_block_difficulty:
             block_validator = self._block_validator
             assert block_validator is not None
-            return block_validator.validate_block_header(block_header_bytes,
-                                                         self._last_confirmed_block_number,
-                                                         self._last_confirmed_block_difficulty)
+            return block_validator.validate_block_header(
+                block_header_bytes,
+                self._last_confirmed_block_number,
+                self._last_confirmed_block_difficulty
+            )
         logger.debug(
             "Skipping block validation. Block validator - {}, last confirmed block - {}, last confirmed block difficulty - {}",
             self._block_validator, self._last_confirmed_block_number, self._last_confirmed_block_difficulty)
-        return True
+        return BlockValidationResult(True, None, None)
 
-    def _get_compressed_block_header_bytes(self, compressed_block_bytes: Union[bytearray, memoryview]) -> Union[
-        bytearray, memoryview]:
+    def _get_compressed_block_header_bytes(
+        self, compressed_block_bytes: Union[bytearray, memoryview]
+    ) -> Union[bytearray, memoryview]:
         pass
 
-    def _get_block_header_bytes_from_block_message(self, block_message: AbstractBlockMessage) -> Union[
-        bytearray, memoryview]:
+    def _get_block_header_bytes_from_block_message(
+        self, block_message: AbstractBlockMessage
+    ) -> Union[bytearray, memoryview]:
         pass

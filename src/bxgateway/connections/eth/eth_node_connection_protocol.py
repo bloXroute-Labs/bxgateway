@@ -93,6 +93,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
     def msg_status(self, msg: StatusEthProtocolMessage):
         super(EthNodeConnectionProtocol, self).msg_status(msg)
+
         self.connection.on_connection_established()
 
         self.connection.schedule_pings()
@@ -244,8 +245,9 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 latest_block_number = block_header.number
                 latest_block_difficulty = block_header.difficulty
 
-        self.node.block_processing_service.set_last_confirmed_block_parameters(latest_block_number,
-                                                                               latest_block_difficulty)
+        self.node.block_processing_service.set_last_confirmed_block_parameters(
+            latest_block_number, latest_block_difficulty
+        )
 
     def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage):
         if not self.node.should_process_block_hash():
