@@ -8,6 +8,7 @@ from prometheus_client import REGISTRY
 from prometheus_client import exposition as prometheus_client
 
 from bxcommon.rpc import rpc_constants
+from bxcommon.rpc.https import abstract_http_rpc_server
 from bxcommon.rpc.https.abstract_http_rpc_server import AbstractHttpRpcServer
 from bxcommon.rpc.https.http_rpc_handler import HttpRpcHandler
 from bxcommon.rpc.rpc_errors import RpcAccountIdError
@@ -65,7 +66,7 @@ class GatewayHttpRpcServer(AbstractHttpRpcServer["AbstractGatewayNode"]):
             response = Response(body=output, headers={"Content-Type": content_type})
             return response
         except HTTPClientError as e:
-            return self._format_http_error(e)
+            return abstract_http_rpc_server.format_http_error(e, self._handler.content_type)
 
     def set_encoded_auth(self):
         encoded_auth = \
