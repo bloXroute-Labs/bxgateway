@@ -176,7 +176,7 @@ class WsProviderTest(AbstractTestCase):
         )
 
         async with WsProvider(self.ws_uri) as ws:
-            subscription_id = await ws.subscribe("newTxs")
+            subscription_id = await ws.subscribe("newTxs", {"include_from_blockchain": False})
 
             self.gateway_node.feed_manager.publish_to_feed(
                 "newTxs", eth_transaction
