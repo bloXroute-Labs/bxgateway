@@ -24,7 +24,7 @@ from bxgateway.messages.eth.eth_abstract_message_converter import EthAbstractMes
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
-from bxgateway.messages.eth.serializers.block import Block
+from bxcommon.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.compact_block import CompactBlock
 from bxgateway.messages.eth.serializers.short_transaction import ShortTransaction
 from bxgateway.testing import gateway_helpers

@@ -2,6 +2,7 @@ import os
 import random
 import typing
 from abc import abstractmethod
+from mock import MagicMock
 
 from bxutils import logging
 from bxutils.logging.log_level import LogLevel
@@ -29,13 +30,16 @@ class AbstractOntBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
 
     def _get_sample_block(self, file_path):
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(file_path))))
-        with open(os.path.join(root_dir, "ont_sample_block.txt")) as sample_file:
+        with open(os.path.join(root_dir, "samples/ont_sample_block.txt")) as sample_file:
             ont_block = sample_file.read().strip("\n")
         buf = bytearray(convert.hex_to_bytes(ont_block))
         parsed_block = BlockOntMessage(buf=buf)
         return parsed_block
 
     def _test_mark_blocks_and_request_cleanup(self):
+        self.node.has_active_blockchain_peer = MagicMock(return_value=True)
+        self.cleanup_service._request_block = MagicMock()
+
         marked_block = OntObjectHash(binary=helpers.generate_bytearray(ont_constants.ONT_HASH_LEN))
         prev_block = OntObjectHash(binary=helpers.generate_bytearray(ont_constants.ONT_HASH_LEN))
         tracked_blocks = []
@@ -52,8 +56,7 @@ class AbstractOntBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
         self.assertTrue(self.cleanup_service.is_marked_for_cleanup(marked_block))
         self.assertFalse(self.cleanup_service.is_marked_for_cleanup(unmarked_block))
         self.assertEqual(marked_block, self.cleanup_service.last_confirmed_block)
-        msg = self.node.send_to_node_messages.pop(-1)
-        self.assertEqual((InventoryOntType.MSG_BLOCK.value, marked_block), msg.inv_type())
+        self.cleanup_service._request_block.assert_called_once()
 
     def _test_block_cleanup(self):
         block_msg = self._get_sample_block(self._get_file_path())

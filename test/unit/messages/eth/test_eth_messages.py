@@ -3,6 +3,7 @@ import time
 
 import rlp
 
+from bxcommon.messages.eth.serializers.block_header import BlockHeader
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils import helpers
 from bxcommon.utils import convert
@@ -27,9 +28,8 @@ from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthPro
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
-from bxgateway.messages.eth.serializers.block import Block
+from bxcommon.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.block_hash import BlockHash
-from bxgateway.messages.eth.serializers.block_header import BlockHeader
 from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
 from bxgateway.testing.mocks import mock_eth_messages

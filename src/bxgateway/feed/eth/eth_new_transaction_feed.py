@@ -37,7 +37,7 @@ class EthNewTransactionFeed(Feed[EthTransactionFeedEntry, EthRawTransaction]):
     def any_subscribers_want_item(self, raw_message: EthRawTransaction) -> bool:
         if raw_message.source == FeedSource.BLOCKCHAIN_SOCKET:
             for subscriber in self.subscribers.values():
-                if subscriber.options.get("include_from_blockchain", False):
+                if subscriber.options.get("include_from_blockchain", True):
                     return True
             return False
         return True
@@ -50,7 +50,7 @@ class EthNewTransactionFeed(Feed[EthTransactionFeedEntry, EthRawTransaction]):
     ) -> bool:
         if (
             raw_message.source == FeedSource.BLOCKCHAIN_SOCKET
-            and not subscriber.options.get("include_from_blockchain", False)
+            and not subscriber.options.get("include_from_blockchain", True)
         ):
             return False
         else:

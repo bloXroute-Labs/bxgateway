@@ -2,6 +2,7 @@ import typing
 from abc import abstractmethod
 from typing import Iterable, TYPE_CHECKING
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
@@ -80,10 +81,11 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
         pass
 
     def _request_block(self, block_hash: Sha256Hash) -> None:
-        node_conn = self.node.node_conn
-        assert node_conn is not None
-        connection_protocol = \
-            typing.cast("bxgateway.connections.eth.eth_node_connection_protocol.EthNodeConnectionProtocol",
-                        node_conn.connection_protocol)
+        node_conn = typing.cast("bxgateway.connections.eth.eth_node_connection.EthNodeConnection",
+                                self.node.get_any_active_blockchain_connection())
+        if node_conn is None:
+            logger.debug("Request for block '{}' failed. No connection to node.", repr(block_hash))
+            return
+        connection_protocol = node_conn.connection_protocol
         connection_protocol.request_block_body([block_hash])
         logger.trace("Block cleanup request for {}", block_hash)

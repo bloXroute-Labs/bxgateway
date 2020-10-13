@@ -1,6 +1,6 @@
 from bxutils.logging_messages_utils import LogMessage
 from bxutils.log_message_categories import REQUEST_RESPONSE_CATEGORY, CONNECTION_PROBLEM_CATEGORY, \
-    NETWORK_CATEGORY, \
+    NETWORK_CATEGORY, MEMORY_CATEGORY, \
     GENERAL_CATEGORY, PROCESSING_FAILED_CATEGORY, LOGGING_CATEGORY, \
     NOTIFICATION_FROM_RELAY_CATEGORY, AUTHENTICATION_ERROR, RPC_ERROR
 
@@ -381,20 +381,22 @@ ETH_WS_SUBSCRIBER_CONNECTION_BROKEN = LogMessage(
     RPC_ERROR,
     "Ethereum websockets connection was broken. Attempting reconnection..."
 )
-ETH_MISSING_BLOCKCHAIN_IP = LogMessage(
+ETH_MISSING_BLOCKCHAIN_IP_AND_BLOCKCHAIN_PEERS = LogMessage(
     "G-000071",
     GENERAL_CATEGORY,
-    "Either --blockchain-ip or --enode arguments are required."
+    "At least one of the following four arguments is required for blockchain node connection:"
+    "--blockchain-ip, --enode, --blockchain-peers, or --blockchain-peers-file"
 )
 ETH_MISSING_NODE_PUBLIC_KEY = LogMessage(
     "G-000072",
     GENERAL_CATEGORY,
     "--node-public-key argument is required but not specified."
 )
-MISSING_BLOCKCHAIN_IP = LogMessage(
+MISSING_BLOCKCHAIN_IP_AND_BLOCKCHAIN_PEERS = LogMessage(
     "G-000073",
     GENERAL_CATEGORY,
-    "--blockchain-ip is required but not specified."
+    "At least one of the following three arguments is required for blockchain node connection:"
+    "--blockchain-ip, --blockchain-peers, or --blockchain-peers-file"
 )
 MISSING_BLOCKCHAIN_PROTOCOL = LogMessage(
     "G-000074",
@@ -438,4 +440,55 @@ COULD_NOT_DESERIALIZE_BLOCK = LogMessage(
     "G-000081",
     PROCESSING_FAILED_CATEGORY,
     "Could not deserialize block to Ethereum payload: {}, body: {}. Error: {}",
+)
+BLOCKCHAIN_PROTOCOL_AND_ACCOUNT_MISMATCH = LogMessage(
+    "G-000082",
+    GENERAL_CATEGORY,
+    "Blockchain protocol information does not match account details, exiting."
+)
+ETH_MISSING_REMOTE_NODE_PUBLIC_KEY = LogMessage(
+    "G-000083",
+    GENERAL_CATEGORY,
+    "--remote-public-key of the blockchain node must be included with command-line specified remote blockchain peer. "
+    "Use --remote-public-key."
+)
+MISSING_BLOCKCHAIN_IP_FROM_BLOCKCHAIN_PEERS = LogMessage(
+    "G-000084",
+    GENERAL_CATEGORY,
+    "blockchain ip is required but not specified in --blockchain-peers argument"
+)
+ETH_MISSING_BLOCKCHAIN_IP_FROM_BLOCKCHAIN_PEERS = LogMessage(
+    "G-000085",
+    GENERAL_CATEGORY,
+    "Blockchain ip is required but not specified in --blockchain-peers or --blockchain-peers-file"
+)
+ETH_MISSING_NODE_PUBLIC_KEY_FROM_BLOCKCHAIN_PEERS = LogMessage(
+    "G-000086",
+    GENERAL_CATEGORY,
+    "Node public key is required but not specified in --blockchain-peers or --blockchain-peers-file"
+)
+ETH_PARSER_INVALID_ENODE_LENGTH = LogMessage(
+    "G-000087",
+    GENERAL_CATEGORY,
+    "Invalid enode: {}, with length: {}"
+)
+ETH_PARSER_INVALID_ENODE = LogMessage(
+    "G-000088",
+    GENERAL_CATEGORY,
+    "Invalid enode: {}"
+)
+PARSER_INVALID_PORT = LogMessage(
+    "G-000089",
+    GENERAL_CATEGORY,
+    "Invalid port: {}"
+)
+BLOCKCHAIN_PEERS_FILE_NOT_FOUND = LogMessage(
+    "G-000090",
+    GENERAL_CATEGORY,
+    "Blockchain peers file not found at path: {}"
+)
+NODE_EXCEEDS_MEMORY = LogMessage(
+    "G-000091",
+    MEMORY_CATEGORY,
+    "Gateway exceeded allowed memory, restarting"
 )

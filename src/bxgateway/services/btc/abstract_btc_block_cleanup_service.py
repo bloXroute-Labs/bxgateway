@@ -1,5 +1,6 @@
 from abc import abstractmethod
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxutils import logging
 
 from bxcommon.services.transaction_service import TransactionService
@@ -54,5 +55,9 @@ class AbstractBtcBlockCleanupService(AbstractBlockCleanupService):
             inv_vects=[(InventoryType.MSG_BLOCK, block_hash)],
             request_witness_data=False
         )
-        self.node.send_msg_to_node(block_request_message)
         logger.trace("Received block cleanup request: {}", block_hash)
+        node_conn = self.node.get_any_active_blockchain_connection()
+        if node_conn:
+            node_conn.enqueue_msg(block_request_message)
+        else:
+            logger.debug("Request for block '{}' failed. No connection to node.", repr(block_hash))

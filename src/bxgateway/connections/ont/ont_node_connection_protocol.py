@@ -106,12 +106,12 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                     self.node.opts.blockchain_network
                 )
             )
-        self.node.block_queuing_service.send_block_to_node(item_hash)
+        self.node.block_queuing_service.send_block_to_nodes(item_hash)
 
     def msg_get_headers(self, msg: GetHeadersOntMessage):
         send_successful = self.node.block_queuing_service.try_send_header_to_node(msg.hash_stop())
         if not send_successful:
-            self.msg_proxy_request(msg)
+            self.msg_proxy_request(msg, self.connection)
 
     def msg_pong(self, msg: PongOntMessage):
         if msg.height() > self.node.current_block_height:
@@ -178,7 +178,8 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                                                       BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
                                                       network_num=self.node.network_num,
                                                       broadcast_type=BroadcastMessageType.CONSENSUS,
-                                                      more_info=stats_format.connections(conns))
+                                                      peers=conns
+                                                      )
 
         try:
             bx_block, block_info = self.node.consensus_message_converter.block_to_bx_block(

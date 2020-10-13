@@ -84,11 +84,6 @@ def get_argument_parser() -> argparse.ArgumentParser:
     arg_parser.add_argument("--blockchain-ip", help="Blockchain node ip",
                             type=ip_resolver.blocking_resolve_ip,
                             default=None)
-    arg_parser.add_argument("--enode", help="Ethereum enode. ex) enode://<eth node public key>@<eth node "
-                                            "ip>:<port>?discport=0",
-                            action=argument_parsers.ParseEnode,
-                            type=str,
-                            default=None)
     arg_parser.add_argument("--peer-gateways",
                             help="Optional gateway peer ip/ports that will always be connected to. "
                                  "Should be in the format ip1:port1:GATEWAY,ip2:port2:GATEWAY",
@@ -146,6 +141,25 @@ def get_argument_parser() -> argparse.ArgumentParser:
                             help="Public key of remote bloXroute owned Ethereum node for encrypted communication "
                                  "during chainstate sync ",
                             type=str)
+    arg_parser.add_argument("--enode", help="Ethereum enode. ex) enode://<eth node public key>@<eth node "
+                                            "ip>:<port>?discport=0",
+                            action=argument_parsers.ParseEnode,
+                            type=str,
+                            default=None)
+    # Blockchain peers specified by --blockchain-peers and --blockchain-peers-file would be aggregated together
+    arg_parser.add_argument("--blockchain-peers",
+                            help="A comma separated list of node peer info. "
+                                 "For Ethereum, the format is enode://<eth node public key>@<eth node ip>:<port>. "
+                                 "For other blockchain protocols, the format is <ip>:<port>",
+                            action=argument_parsers.ParseBlockchainPeers,
+                            type=str,
+                            default=None)
+    arg_parser.add_argument("--blockchain-peers-file",
+                            help="A new line separated list of node peer info. "
+                                 "For Ethereum, the format is enode://<eth node public key>@<eth node ip>:<port>. "
+                                 "For other blockchain protocols, the format is <ip>:<port>",
+                            type=str,
+                            default=None)
     # IPC
     arg_parser.add_argument("--ipc",
                             help="Boolean indicating if IPC should be enabled.",
@@ -155,7 +169,10 @@ def get_argument_parser() -> argparse.ArgumentParser:
                             help="IPC filename that represents a unix domain socket",
                             type=str,
                             default="bxgateway.ipc")
-
+    arg_parser.add_argument("--should-restart-on-high-memory",
+                            help="Should a gateway restart itself if memory exceeds 2GB",
+                            type=convert.str_to_bool,
+                            default=True)
     # Ontology specific
     # TODO: Remove test only arguments
     arg_parser.add_argument("--http-info-port", help="(TEST ONLY)Ontology http server port to view node information",

@@ -2,6 +2,8 @@ import os
 from typing import cast, List
 from unittest import skip
 
+from bxgateway.connections.ont.ont_node_connection import OntNodeConnection
+from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from mock import MagicMock
@@ -56,16 +58,17 @@ class OntRelayConnectionTest(AbstractTestCase):
         self.sut = OntRelayConnection(MockSocketConnection(
             node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
         )
-        self.gateway_node.node_conn = MockConnection(MockSocketConnection(
+        node_conn = MockConnection(MockSocketConnection(
             1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
         )
-        self.gateway_node_sut = OntNodeConnectionProtocol(self.gateway_node.node_conn)
+        self.gateway_node.connection_pool.add(1, LOCALHOST, 8002, node_conn)
+        self.gateway_node_sut = OntNodeConnectionProtocol(cast(OntNodeConnection, node_conn))
         self.gateway_node.message_converter = converter_factory.create_ont_message_converter(
             12345, self.gateway_node.opts
         )
-        self.gateway_node.node_conn.state = ConnectionState.ESTABLISHED
+        self.gateway_node.has_active_blockchain_peer = MagicMock(return_value=True)
 
-        self.gateway_node.send_msg_to_node = MagicMock()
+        self.gateway_node.broadcast = MagicMock()
         self.sut.enqueue_msg = MagicMock()
         gateway_transaction_stats_service.set_node(self.gateway_node)
 
@@ -115,7 +118,12 @@ class OntRelayConnectionTest(AbstractTestCase):
         self.sut.msg_broadcast(broadcast_message)
         self.sut.msg_broadcast(broadcast_message)
 
-        self.gateway_node.send_msg_to_node.assert_not_called()
+        self.assertEqual(3, len(self.gateway_node.broadcast.call_args_list))
+        for call, conn_type in self.gateway_node.broadcast.call_args_list:
+            msg, conn = call
+            self.assertTrue(isinstance(msg, BlockReceivedMessage))
+        self.gateway_node.broadcast.reset_mock()
+
         self.assertEqual(1, len(self.gateway_node.in_progress_blocks))
 
         key_message = KeyMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "", key)
@@ -175,7 +183,7 @@ class OntRelayConnectionTest(AbstractTestCase):
         self.sut.msg_key(known_key_message)
         self.gateway_node_sut.msg_get_data(GetDataOntMessage(self.magic, InventoryOntType.MSG_BLOCK.value, block_hash))
 
-        self.gateway_node.send_msg_to_node.assert_called()
+        self.gateway_node.broadcast.assert_called()
         self.assertEqual(0, len(self.gateway_node.block_queuing_service))
         self.assertEqual(0, len(self.gateway_node.block_recovery_service._block_hash_to_bx_block_hashes))
         self.assertIn(block_hash, self.gateway_node.blocks_seen.contents)
@@ -188,7 +196,7 @@ class OntRelayConnectionTest(AbstractTestCase):
         key, ciphertext = symmetric_encrypt(bx_block)
         block_hash = crypto.double_sha256(ciphertext)
 
-        self.gateway_node.send_msg_to_node.assert_not_called()
+        self.gateway_node.broadcast.assert_not_called()
 
         key_message = KeyMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "", key)
         self.sut.msg_key(key_message)
@@ -220,7 +228,7 @@ class OntRelayConnectionTest(AbstractTestCase):
             self.assertEqual(transaction_hash, stored_hash)
             self.assertEqual(transaction.tx_val(), stored_content)
 
-        self.assertEqual(len(transactions), self.gateway_node.send_msg_to_node.call_count)
+        self.assertEqual(len(transactions), self.gateway_node.broadcast.call_count)
 
     def test_msg_tx_additional_sid(self):
         transactions = self.bx_transactions(assign_short_ids=True)
@@ -246,7 +254,7 @@ class OntRelayConnectionTest(AbstractTestCase):
             self.assertEqual(transaction.tx_val(), stored_content2)
 
         # only 10 times even with rebroadcast SID
-        self.assertEqual(len(transactions), self.gateway_node.send_msg_to_node.call_count)
+        self.assertEqual(len(transactions), self.gateway_node.broadcast.call_count)
 
     def test_msg_tx_duplicate_ignore(self):
         transactions = self.bx_transactions(assign_short_ids=True)
@@ -256,7 +264,7 @@ class OntRelayConnectionTest(AbstractTestCase):
         for transaction in transactions:
             self.sut.msg_tx(transaction)
 
-        self.assertEqual(len(transactions), self.gateway_node.send_msg_to_node.call_count)
+        self.assertEqual(len(transactions), self.gateway_node.broadcast.call_count)
 
     @skip("Encrpytion in Ontology is not developed yet")
     def test_get_txs_block_recovery_encrypted(self):
@@ -282,7 +290,6 @@ class OntRelayConnectionTest(AbstractTestCase):
 
         self.gateway_node.block_recovery_service.add_block = \
             MagicMock(wraps=self.gateway_node.block_recovery_service.add_block)
-        self.gateway_node.send_msg_to_node = MagicMock()
         self.gateway_node.broadcast = MagicMock()
 
         key, ciphertext = symmetric_encrypt(bx_block)
@@ -338,7 +345,6 @@ class OntRelayConnectionTest(AbstractTestCase):
 
         self.gateway_node.block_recovery_service.add_block = \
             MagicMock(wraps=self.gateway_node.block_recovery_service.add_block)
-        self.gateway_node.send_msg_to_node = MagicMock()
         self.gateway_node.broadcast = MagicMock()
 
         broadcast_message = BroadcastMessage(block.block_hash(), DEFAULT_NETWORK_NUM, "",
@@ -399,12 +405,16 @@ class OntRelayConnectionTest(AbstractTestCase):
             self.assertEqual(tx_info.contents, stored_content)
 
     def _assert_block_sent(self, ont_block):
-        self.gateway_node.send_msg_to_node.assert_called()
-        calls = self.gateway_node.send_msg_to_node.call_args_list
+        self.gateway_node.broadcast.assert_called()
+        calls = self.gateway_node.broadcast.call_args_list
 
-        self.assertEqual(1, len(calls))
+        broadcast_to_blockchain_calls = []
+        for call, conn_type in calls:
+            if conn_type["connection_types"][0] == ConnectionType.BLOCKCHAIN_NODE:
+                broadcast_to_blockchain_calls.append((call, conn_type))
+        self.assertEqual(1, len(broadcast_to_blockchain_calls))
 
-        ((sent_inv_msg,), _) = calls[0]
+        ((sent_inv_msg,), _) = broadcast_to_blockchain_calls[0]
         self.assertIsInstance(sent_inv_msg, InvOntMessage)
         sent_inv_msg = cast(InvOntMessage, sent_inv_msg)
 
@@ -414,7 +424,7 @@ class OntRelayConnectionTest(AbstractTestCase):
 
     def _get_sample_block(self):
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        with open(os.path.join(root_dir, "ont_sample_block.txt")) as sample_file:
+        with open(os.path.join(root_dir, "samples/ont_sample_block.txt")) as sample_file:
             ont_block = sample_file.read().strip("\n")
         buf = bytearray(convert.hex_to_bytes(ont_block))
         parsed_block = BlockOntMessage(buf=buf)

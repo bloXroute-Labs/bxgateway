@@ -1,7 +1,9 @@
 import asyncio
 # TODO: remove try-catch when removing py3.7 support
 import functools
+from collections import defaultdict, deque
 
+from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxgateway.feed.new_block_feed import NewBlockFeed
@@ -15,7 +17,7 @@ except ImportError:
 import time
 from abc import ABCMeta, abstractmethod
 from concurrent.futures import Future
-from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union, cast
+from typing import Tuple, Optional, ClassVar, Type, Set, List, Iterable, Union, cast, Dict, Deque
 from prometheus_client import Gauge
 
 from bxcommon import constants
@@ -88,7 +90,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     # pyre-fixme[8]: Attribute has type `Type[AbstractRelayConnection]`; used as `None`.
     RELAY_CONNECTION_CLS: ClassVar[Type[AbstractRelayConnection]] = None
 
-    node_conn: Optional[AbstractGatewayBlockchainConnection] = None
     remote_blockchain_ip: Optional[str] = None
     remote_blockchain_port: Optional[int] = None
     remote_node_conn: Optional[AbstractGatewayBlockchainConnection] = None
@@ -97,13 +98,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     _blockchain_liveliness_alarm: Optional[AlarmId] = None
     _relay_liveliness_alarm: Optional[AlarmId] = None
 
-    node_msg_queue: BlockchainMessageQueue
     remote_node_msg_queue: BlockchainMessageQueue
+    msg_proxy_requester_queue: Deque[AbstractGatewayBlockchainConnection]
 
     peer_gateways: Set[OutboundPeerModel]
     # if opts.split_relays is set, then this set contains only block relays
     peer_relays: Set[OutboundPeerModel]
     peer_transaction_relays: Set[OutboundPeerModel]
+    blockchain_peers: Set[BlockchainPeerInfo]
+    num_active_blockchain_peers: int
     blocks_seen: ExpiringSet
     in_progress_blocks: BlockEncryptedCache
     block_recovery_service: BlockRecoveryService
@@ -114,6 +117,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     _block_from_node_handling_times: ExpiringDict[Sha256Hash, float]
     _block_from_bdn_handling_times: ExpiringDict[Sha256Hash, Tuple[float, str]]
+
+    time_blockchain_peer_conn_destroyed_by_ip: Dict[Tuple[str, int], float] = defaultdict(float)
 
     feed_manager: FeedManager
     has_feed_subscribers: bool
@@ -146,14 +151,19 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.account_model = None
 
         self.quota_level = 0
+        self.num_active_blockchain_peers = 0
+        self.blockchain_peers = self.opts.blockchain_peers
+        self.blockchain_peers.add(BlockchainPeerInfo(opts.blockchain_ip, opts.blockchain_port, opts.node_public_key))
         self.transaction_streamer_peer = None
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
         self.peer_transaction_relays = set(opts.peer_transaction_relays)
         self.peer_relays_min_count = 1
 
-        self.node_msg_queue = BlockchainMessageQueue(opts.blockchain_message_ttl)
         self.remote_node_msg_queue = BlockchainMessageQueue(opts.remote_blockchain_message_ttl)
+        self.msg_proxy_requester_queue: Deque[AbstractGatewayBlockchainConnection] = deque(
+            maxlen=gateway_constants.MSG_PROXY_REQUESTER_QUEUE_LIMIT
+        )
 
         self.blocks_seen = ExpiringSet(
             self.alarm_queue,
@@ -282,6 +292,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.account_id,
             self.quota_level
         )
+
+        if self.opts.should_restart_on_high_memory:
+            self.alarm_queue.register_alarm(
+                gateway_constants.CHECK_MEMORY_THRESHOLD_INTERVAL_S,
+                self._check_memory_threshold,
+                alarm_name="check_memory_threshold"
+            )
 
     @abstractmethod
     def build_blockchain_connection(
@@ -514,9 +531,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             )
             for peer in self.outbound_peers
         ]
-        peers.append(ConnectionPeerInfo(
-            IpEndpoint(self.opts.blockchain_ip, self.opts.blockchain_port), ConnectionType.BLOCKCHAIN_NODE
-        ))
+        for blockchain_peer in self.blockchain_peers:
+            peers.append(ConnectionPeerInfo(
+                IpEndpoint(blockchain_peer.ip, blockchain_peer.port), ConnectionType.BLOCKCHAIN_NODE
+            ))
         if self.remote_blockchain_ip is not None and self.remote_blockchain_port is not None:
             peers.append(ConnectionPeerInfo(
                 # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[str]`.
@@ -544,7 +562,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                                self.opts.external_ip, self.opts.continent, self.opts.country,
                                                self.opts.should_update_source_version, self.account_id,
                                                self.quota_level)
-        if self.is_local_blockchain_address(ip, port):
+        if self.is_blockchain_peer(ip, port):
             return self.build_blockchain_connection(socket_connection)
         elif self.remote_blockchain_ip == ip and self.remote_blockchain_port == port:
             return self.build_remote_blockchain_connection(socket_connection)
@@ -570,23 +588,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                          "Tried: {}:{}, from_me={}. Ignoring.", ip, port, from_me)
             return None
 
-    def is_local_blockchain_address(self, ip, port) -> bool:
-        return ip == self.opts.blockchain_ip and port == self.opts.blockchain_port
+    def is_blockchain_peer(self, ip, port) -> bool:
+        return BlockchainPeerInfo(ip, port) in self.blockchain_peers
 
-    def send_transaction_to_node(self, msg: AbstractMessage) -> bool:
-        self.send_msg_to_node(msg)
+    def broadcast_transactions_to_node(
+        self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
+    ) -> bool:
+        self.broadcast(msg, broadcasting_conn=broadcasting_conn, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
         return True
-
-    def send_msg_to_node(self, msg: AbstractMessage) -> None:
-        """
-        Sends a message to the blockchain node this is connected to.
-        """
-        node_conn = self.node_conn
-        if node_conn is not None:
-            node_conn.enqueue_msg(msg)
-        else:
-            logger.trace("Adding message to local node's message queue: {}", msg)
-            self.node_msg_queue.append(msg)
 
     def send_msg_to_remote_node(self, msg: AbstractMessage) -> None:
         """
@@ -602,15 +611,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def continue_retrying_connection(self, ip: str, port: int, connection_type: ConnectionType) -> bool:
         return (super(AbstractGatewayNode, self).continue_retrying_connection(ip, port, connection_type)
                 or OutboundPeerModel(ip, port) in self.opts.peer_gateways
-                or connection_type == ConnectionType.BLOCKCHAIN_NODE
+                or (connection_type == ConnectionType.BLOCKCHAIN_NODE and
+                    (self.num_active_blockchain_peers == 0 or
+                     time.time() - self.time_blockchain_peer_conn_destroyed_by_ip[(ip, port)]
+                     < gateway_constants.MULTIPLE_BLOCKCHAIN_NODE_MAX_RETRY_S))
                 or (connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE and
                     self.num_retries_by_ip[(ip, port)] < gateway_constants.REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES))
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection) -> None:
-        for msg in self.node_msg_queue.pop_items():
-            connection.enqueue_msg(msg)
-
-        self.node_conn = connection
+        self.blockchain_peers.add(BlockchainPeerInfo(connection.peer_ip, connection.peer_port))
         self.cancel_blockchain_liveliness_check()
         self.requester.send_threaded_request(
             sdn_http_service.submit_peer_connection_event,
@@ -619,6 +628,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             connection.peer_ip,
             connection.peer_port
         )
+        self.num_active_blockchain_peers = \
+            len(list(self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
 
     def on_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection) -> None:
         self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_event,
@@ -627,8 +638,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                              connection.peer_ip,
                                              connection.peer_port,
                                              connection.get_connection_state_details())
-        self.node_conn = None
-        self.node_msg_queue.pop_items()
+        self.num_active_blockchain_peers = \
+            max(0, len(list(self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))) - 1)
+        self.time_blockchain_peer_conn_destroyed_by_ip[(connection.peer_ip, connection.peer_port)] = time.time()
 
     def log_refused_connection(self, peer_info: ConnectionPeerInfo, error: str) -> None:
         if peer_info.connection_type == ConnectionType.BLOCKCHAIN_NODE:
@@ -709,7 +721,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     ip,
                     port
                 )
-            self._remove_relay_peer(ip, port)
+            self.remove_relay_peer(ip, port)
         elif self.opts.split_relays and ConnectionType.RELAY_TRANSACTION in connection_type:
             if ConnectionState.ESTABLISHED in connection_state:
                 self.requester.send_threaded_request(
@@ -718,7 +730,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     ip,
                     port
                 )
-            self._remove_relay_transaction_peer(ip, port)
+            self.remove_relay_transaction_peer(ip, port)
 
         # Reset number of retries in case if SDN instructs to connect to the same node again
         self.num_retries_by_ip[(ip, port)] = 0
@@ -760,6 +772,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         self.log_blocks_network_content(self.network_num, block_message)
         return recovery_canceled
+
+    def on_block_received_from_bdn(
+        self, block_hash: Sha256Hash, block_message: AbstractBlockMessage
+    ) -> None:
+        self.blocks_seen.add(block_hash)
+        if not self.block_queuing_service.block_body_exists(block_hash):
+            self.block_queuing_service.store_block_data(block_hash, block_message)
+        self.block_recovery_service.cancel_recovery_for_block(block_hash)
 
     def publish_block(
         self,
@@ -809,13 +829,25 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.alarm_queue.unregister_alarm(relay_liveliness_alarm)
             self._relay_liveliness_alarm = None
 
+    def has_active_blockchain_peer(self) -> bool:
+        for conn in self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]):
+            if conn.is_active():
+                return True
+        return False
+
+    def get_any_active_blockchain_connection(self) -> Optional[AbstractConnection]:
+        for conn in self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]):
+            if conn.is_active():
+                return conn
+        return None
+
     def check_blockchain_liveliness(self) -> None:
         """
         Checks that the gateway has functional connections to the blockchain node.
 
         Closes the gateway if it does not, as the gateway is not providing any useful functionality.
         """
-        if self.node_conn is None:
+        if not self.has_active_blockchain_peer():
             self.should_force_exit = True
             logger.error(log_messages.NO_ACTIVE_BLOCKCHAIN_CONNECTION)
 
@@ -832,8 +864,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             result = False
             reason = "Tx sync in progress"
 
-        node_conn = self.node_conn
-        if node_conn is None or not node_conn.is_active():
+        if not self.has_active_blockchain_peer():
             result = False
             reason = "No blockchain connection"
 
@@ -856,7 +887,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def reevaluate_transaction_streamer_connection(self) -> None:
         if self.NODE_TYPE is not NodeType.EXTERNAL_GATEWAY:
             return
-        
+
         if self.transaction_streamer_peer is None:
             logger.error(log_messages.MISSING_TRANSACTION_STREAMER_PEER_INFO)
             return
@@ -887,7 +918,149 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def get_network_min_transaction_fee(self) -> int:
         return self.get_blockchain_network().min_tx_network_fee
-      
+
+    def get_blockchain_network(self) -> BlockchainNetworkModel:
+        if self.network_num in self.opts.blockchain_networks:
+            return self.opts.blockchain_networks[self.network_num]
+        raise EnvironmentError(
+            f"Unexpectedly did not find network num {self.network_num} in set of blockchain networks: "
+            f"{self.opts.blockchain_networks.values()}"
+        )
+
+    def sync_tx_services(self) -> int:
+        logger.info("Starting to sync transaction state with BDN.")
+        super(AbstractGatewayNode, self).sync_tx_services()
+        if self.opts.sync_tx_service:
+            retry = True
+            if self.opts.split_relays:
+                relay_tx_connection: Optional[AbstractRelayConnection] = next(
+                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION])), None
+                )
+                relay_block_connection: Optional[AbstractRelayConnection] = next(
+                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])), None
+                )
+
+                if (
+                    relay_tx_connection and relay_block_connection and
+                    relay_tx_connection.is_active() and relay_block_connection.is_active()
+                ):
+                    if self.transaction_sync_timeout_alarm_id:
+                        alarm_id = self.transaction_sync_timeout_alarm_id
+                        assert alarm_id is not None
+                        self.alarm_queue.unregister_alarm(alarm_id)
+                        self.transaction_sync_timeout_alarm_id = None
+                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
+                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
+                    )
+
+                    # the sync with relay_tx must be the last one. since each call erase the previous call alarm
+                    relay_block_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    self._clear_transaction_service()
+                    retry = False
+            else:
+                relay_connection: Optional[AbstractRelayConnection] = next(
+                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])), None
+                )
+                if relay_connection and relay_connection.is_active():
+                    if self.transaction_sync_timeout_alarm_id:
+                        alarm_id = self.transaction_sync_timeout_alarm_id
+                        assert alarm_id is not None
+                        self.alarm_queue.unregister_alarm(alarm_id)
+                        self.transaction_sync_timeout_alarm_id = None
+
+                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
+                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
+                    )
+                    relay_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    self._clear_transaction_service()
+                    retry = False
+
+            if retry:
+                logger.info("Relay connection is not ready to sync transaction state with BDN. Scheduling retry.")
+                return constants.TX_SERVICE_SYNC_PROGRESS_S
+        else:
+            self.on_fully_updated_tx_service()
+        return constants.CANCEL_ALARMS
+
+    def check_sync_relay_connections(self, conn: AbstractConnection) -> int:
+        if (
+            self.network_num in self.last_sync_message_received_by_network
+            and time.time() - self.last_sync_message_received_by_network[self.network_num]
+            > constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
+        ):
+            logger.warning(
+                log_messages.RELAY_CONNECTION_TIMEOUT, constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
+            )
+
+            # restart the sync process
+            conn: InternalNodeConnection = cast(InternalNodeConnection, conn)
+            conn.tx_sync_service.send_tx_service_sync_req(self.network_num)
+
+        return constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
+
+    def sync_and_send_request_for_relay_peers(self, network_num: int) -> int:
+        return super().sync_and_send_request_for_relay_peers(self.network_num)
+
+    # pyre-fixme[14]: `process_potential_relays_from_sdn` overrides method defined in `AbstractNode` inconsistently.
+    def process_potential_relays_from_sdn(self, get_potential_relays_future: Future):
+        """
+        part of sync_and_send_request_for_relay_peers logic
+        This function is called once there is a result from SDN regarding potential_relays.
+        The process of potential_relays should be run in the main thread, hence the register_alarm
+        :param get_potential_relays_future: the list of potentital relays from the BDN API
+        :return:
+        """
+
+        try:
+            potential_relay_peers = get_potential_relays_future.result()
+
+            if potential_relay_peers:
+                node_cache.update(self.opts, potential_relay_peers)
+            else:
+                # if called too many times to sync_and_send_request_for_relay_peers,
+                # reset relay peers to empty list in cache file
+                if (
+                    self.send_request_for_relay_peers_num_of_calls
+                    > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS
+                ):
+                    node_cache.update(self.opts, [])
+                    self.send_request_for_relay_peers_num_of_calls = 0
+                self.send_request_for_relay_peers_num_of_calls += 1
+
+                cache_file_info = node_cache.read(self.opts)
+                if cache_file_info is not None:
+                    potential_relay_peers = cache_file_info.relay_peers
+
+                if not potential_relay_peers:
+                    self._schedule_fetch_relays_from_sdn()
+                    return
+
+            # check the network latency using the thread pool
+            self.requester.send_threaded_request(
+                self._find_best_relay_peers,
+                potential_relay_peers,
+                done_callback=self.register_potential_relay_peers_from_future
+            )
+        except Exception as e:
+            logger.info("Got {} when trying to read potential_relays from sdn", e)
+
+    def register_potential_relay_peers_from_future(self, ping_potential_relays_future: Future) -> None:
+        best_relay_peers = ping_potential_relays_future.result()
+        self._register_potential_relay_peers(best_relay_peers)
+
+    def update_node_settings_from_blockchain_network(self, blockchain_network: BlockchainNetworkModel) -> None:
+        self.opts.enable_block_compression = blockchain_network.enable_block_compression
+
+    def get_gateway_transaction_streamers_count(self) -> int:
+        return 0
+
+    def is_gas_price_above_min_network_fee(self, transaction_contents: Union[bytearray, memoryview]) -> bool:
+        return True
+
+    def on_new_subscriber_request(self) -> None:
+        pass
+
     def _set_transaction_streamer_peer(self) -> None:
         if self.transaction_streamer_peer is not None or self.NODE_TYPE is not NodeType.EXTERNAL_GATEWAY:
             return
@@ -969,7 +1142,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     constants.SDN_CONTACT_RETRY_SECONDS, self._send_request_for_gateway_peers
                 )
 
-    def _remove_relay_peer(self, ip: str, port: int) -> None:
+    def remove_relay_peer(self, ip: str, port: int) -> None:
         """
         Clean up relay peer on connection failure. (after giving up retry)
         Destroys matching transaction relay if split relays enabled.
@@ -985,7 +1158,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 logger.debug("Removing relay transaction connection matching block relay host: {}",
                              transaction_connection)
                 transaction_connection.mark_for_close(False)
-            self._remove_relay_transaction_peer(ip, port + 1, False)
+            self.remove_relay_transaction_peer(ip, port + 1, False)
 
         self.outbound_peers = self._get_all_peers()
 
@@ -1001,7 +1174,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             )
             self._schedule_fetch_relays_from_sdn()
 
-    def _remove_relay_transaction_peer(self, ip: str, port: int, remove_block_relay: bool = True) -> None:
+        # Reset confirmed blocks if gateway lost connection to block relay
+        if len(self.peer_relays) == 0:
+            self.block_processing_service.reset_last_confirmed_block_parameters()
+
+    def remove_relay_transaction_peer(self, ip: str, port: int, remove_block_relay: bool = True) -> None:
         """
         Clean up relay transactions peer on connection failure. (after giving up retry)
         Destroys matching block relay.
@@ -1016,7 +1193,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             logger.debug("Removing relay block connection matching transaction relay host: {}",
                          block_connection)
             block_connection.mark_for_close(False)
-            self._remove_relay_peer(ip, port - 1)
+            self.remove_relay_peer(ip, port - 1)
 
     def _find_active_connection(self, outbound_peers):
         for peer in outbound_peers:
@@ -1026,74 +1203,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     return connection
         return None
 
-    def get_blockchain_network(self) -> BlockchainNetworkModel:
-        if self.network_num in self.opts.blockchain_networks:
-            return self.opts.blockchain_networks[self.network_num]
-        raise EnvironmentError(
-            f"Unexpectedly did not find network num {self.network_num} in set of blockchain networks: "
-            f"{self.opts.blockchain_networks.values()}"
-        )
-
-    def sync_tx_services(self) -> int:
-        logger.info("Starting to sync transaction state with BDN.")
-        super(AbstractGatewayNode, self).sync_tx_services()
-        if self.opts.sync_tx_service:
-            retry = True
-            if self.opts.split_relays:
-                relay_tx_connection: Optional[AbstractRelayConnection] = next(
-                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION])), None
-                )
-                relay_block_connection: Optional[AbstractRelayConnection] = next(
-                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])), None
-                )
-
-                if (
-                    relay_tx_connection and relay_block_connection and
-                    relay_tx_connection.is_active() and relay_block_connection.is_active()
-                ):
-                    if self.transaction_sync_timeout_alarm_id:
-                        alarm_id = self.transaction_sync_timeout_alarm_id
-                        assert alarm_id is not None
-                        self.alarm_queue.unregister_alarm(alarm_id)
-                        self.transaction_sync_timeout_alarm_id = None
-                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
-                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
-                    )
-
-                    # the sync with relay_tx must be the last one. since each call erase the previous call alarm
-                    relay_block_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
-                    relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
-                    self._clear_transaction_service()
-                    retry = False
-            else:
-                relay_connection: Optional[AbstractRelayConnection] = next(
-                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])), None
-                )
-                if relay_connection and relay_connection.is_active():
-                    if self.transaction_sync_timeout_alarm_id:
-                        alarm_id = self.transaction_sync_timeout_alarm_id
-                        assert alarm_id is not None
-                        self.alarm_queue.unregister_alarm(alarm_id)
-                        self.transaction_sync_timeout_alarm_id = None
-
-                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
-                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
-                    )
-                    relay_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
-                    self._clear_transaction_service()
-                    retry = False
-
-            if retry:
-                logger.info("Relay connection is not ready to sync transaction state with BDN. Scheduling retry.")
-                return constants.TX_SERVICE_SYNC_PROGRESS_S
-        else:
-            self.on_fully_updated_tx_service()
-        return constants.CANCEL_ALARMS
-
     def _get_next_retry_timeout(self, ip: str, port: int) -> int:
         base_timeout = super(AbstractGatewayNode, self)._get_next_retry_timeout(ip, port)
 
-        if self.is_local_blockchain_address(ip, port):
+        if self.is_blockchain_peer(ip, port):
             return base_timeout + gateway_constants.ADDITIONAL_BLOCKCHAIN_RECONNECT_TIMEOUT_S
 
         return base_timeout
@@ -1109,68 +1222,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.on_network_synced(self.network_num)
         self.on_fully_updated_tx_service()
         return constants.CANCEL_ALARMS
-
-    def check_sync_relay_connections(self, conn: AbstractConnection) -> int:
-        if (
-            self.network_num in self.last_sync_message_received_by_network
-            and time.time() - self.last_sync_message_received_by_network[self.network_num]
-            > constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
-        ):
-            logger.warning(
-                log_messages.RELAY_CONNECTION_TIMEOUT, constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
-            )
-
-            # restart the sync process
-            conn: InternalNodeConnection = cast(InternalNodeConnection, conn)
-            conn.tx_sync_service.send_tx_service_sync_req(self.network_num)
-
-        return constants.LAST_MSG_FROM_RELAY_THRESHOLD_S
-
-    def sync_and_send_request_for_relay_peers(self, network_num: int) -> int:
-        return super().sync_and_send_request_for_relay_peers(self.network_num)
-
-    # pyre-fixme[14]: `process_potential_relays_from_sdn` overrides method defined in `AbstractNode` inconsistently.
-    def process_potential_relays_from_sdn(self, get_potential_relays_future: Future):
-        """
-        part of sync_and_send_request_for_relay_peers logic
-        This function is called once there is a result from SDN regarding potential_relays.
-        The process of potential_relays should be run in the main thread, hence the register_alarm
-        :param get_potential_relays_future: the list of potentital relays from the BDN API
-        :return:
-        """
-
-        try:
-            potential_relay_peers = get_potential_relays_future.result()
-
-            if potential_relay_peers:
-                node_cache.update(self.opts, potential_relay_peers)
-            else:
-                # if called too many times to sync_and_send_request_for_relay_peers,
-                # reset relay peers to empty list in cache file
-                if (
-                    self.send_request_for_relay_peers_num_of_calls
-                    > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS
-                ):
-                    node_cache.update(self.opts, [])
-                    self.send_request_for_relay_peers_num_of_calls = 0
-                self.send_request_for_relay_peers_num_of_calls += 1
-
-                cache_file_info = node_cache.read(self.opts)
-                if cache_file_info is not None:
-                    potential_relay_peers = cache_file_info.relay_peers
-
-                if not potential_relay_peers:
-                    self._schedule_fetch_relays_from_sdn()
-                    return
-
-            # check the network latency using the thread pool
-            self.requester.send_threaded_request(
-                self._find_best_relay_peers,
-                potential_relay_peers,
-                done_callback=self.register_potential_relay_peers_from_future
-            )
-        except Exception as e:
-            logger.info("Got {} when trying to read potential_relays from sdn", e)
 
     def _find_best_relay_peers(
         self, potential_relay_peers: List[OutboundPeerModel]
@@ -1202,10 +1253,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         logger.trace("Best relay peers to node {} are: {}", self.opts.node_id, best_relay_peers)
 
         return best_relay_peers
-
-    def register_potential_relay_peers_from_future(self, ping_potential_relays_future: Future) -> None:
-        best_relay_peers = ping_potential_relays_future.result()
-        self._register_potential_relay_peers(best_relay_peers)
 
     def _register_potential_relay_peers(self, best_relay_peers: List[OutboundPeerModel]) -> None:
         best_relay_set = set(best_relay_peers)
@@ -1277,9 +1324,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         except Exception as e:
             logger.info("Got {} when trying to read remote blockchain peer from sdn", e)
 
-    def on_new_subscriber_request(self) -> None:
-        pass
-
     def _schedule_fetch_relays_from_sdn(
         self,
         delay: int = constants.SDN_CONTACT_RETRY_SECONDS
@@ -1296,16 +1340,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             delay, self.sync_and_send_request_for_relay_peers, self.network_num
         )
 
-    def update_node_settings_from_blockchain_network(self, blockchain_network: BlockchainNetworkModel) -> None:
-        self.opts.enable_block_compression = blockchain_network.enable_block_compression
-
-    def get_gateway_transaction_streamers_count(self) -> int:
-        return 0
-
-    def is_gas_price_above_min_network_fee(self, transaction_contents: Union[bytearray, memoryview]) -> bool:
-        return True
-
     def _clear_transaction_service(self) -> None:
         logger.debug("Clearing all data in transaction service.")
         self._tx_service.clear()
 
+    def _check_memory_threshold(self):
+        if self.opts.should_restart_on_high_memory and \
+                memory_utils.get_app_memory_usage() > gateway_constants.CHECK_MEMORY_THRESHOLD_LIMIT:
+            logger.warning(log_messages.NODE_EXCEEDS_MEMORY)
+            self.should_force_exit = True
+            self.should_restart_on_high_memory = True
+        return gateway_constants.CHECK_MEMORY_THRESHOLD_INTERVAL_S

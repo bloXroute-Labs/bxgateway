@@ -4,6 +4,7 @@ import struct
 from dataclasses import dataclass
 from typing import List, Optional, Union
 
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils import crypto, model_loader
 from bxcommon.utils.blockchain_utils.ont.ont_common_utils import ont_varint_to_int, get_txid
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
@@ -19,7 +20,7 @@ class ConsensusMsgPayload:
     payload: str
 
 
-class OntConsensusMessage(OntMessage):
+class OntConsensusMessage(OntMessage, AbstractBlockMessage):
     MESSAGE_TYPE = OntMessageType.CONSENSUS
 
     def __init__(self, magic: Optional[int] = None, version: Optional[int] = None,

@@ -1,5 +1,6 @@
 from mock import Mock, MagicMock
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -22,7 +23,7 @@ class EthBlockProcessingServiceTest(AbstractTestCase):
             gateway_helpers.get_gateway_opts(8000, max_block_interval_s=0)
         )
 
-        self.node.send_msg_to_node = MagicMock()
+        self.node.broadcast = MagicMock()
 
         self.block_queuing_service = EthBlockQueuingService(self.node)
         self.node.block_queuing_service = self.block_queuing_service
@@ -60,7 +61,7 @@ class EthBlockProcessingServiceTest(AbstractTestCase):
             prev_block_hash = block_hash
 
         self.block_processing_service = EthBlockProcessingService(self.node)
-        self.node.send_msg_to_node.reset_mock()
+        self.node.broadcast.reset_mock()
 
     def test_try_process_get_block_bodies_request(self):
         success = self.block_processing_service.try_process_get_block_bodies_request(
@@ -70,11 +71,12 @@ class EthBlockProcessingServiceTest(AbstractTestCase):
             )
         )
         self.assertTrue(success)
-        self.node.send_msg_to_node.assert_called_once_with(
+        self.node.broadcast.assert_called_once_with(
             BlockBodiesEthProtocolMessage(
                 None,
-                self.block_bodies[:2]
-            )
+                self.block_bodies[:2],
+            ),
+            connection_types=[ConnectionType.BLOCKCHAIN_NODE]
         )
 
     def test_try_process_get_block_bodies_request_not_found(self):
@@ -85,4 +87,4 @@ class EthBlockProcessingServiceTest(AbstractTestCase):
             )
         )
         self.assertFalse(success)
-        self.node.send_msg_to_node.assert_not_called()
+        self.node.broadcast.assert_not_called()

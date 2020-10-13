@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator, cast, Tup
     Deque, Callable
 
 from bxcommon import constants
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxcommon.utils import memory_utils, crypto
 from bxcommon.utils.alarm_queue import AlarmId
@@ -244,9 +245,8 @@ class EthBlockQueuingService(
         self, block_hashes: List[Sha256Hash]
     ):
         """
-        Unused by Ethereum.
+        Unused by Ethereum. Requires block number to function correctly.
         """
-        pass
 
     def mark_block_seen_by_blockchain_node(
         self,
@@ -310,7 +310,7 @@ class EthBlockQueuingService(
                 break
         return index
 
-    def send_block_to_node(
+    def send_block_to_nodes(
         self, block_hash: Sha256Hash, block_msg: Optional[InternalEthBlockInfo] = None,
     ) -> None:
         assert block_msg is not None
@@ -324,7 +324,7 @@ class EthBlockQueuingService(
 
         if block_msg.has_total_difficulty():
             new_block_msg = block_msg.to_new_block_msg()
-            super(EthBlockQueuingService, self).send_block_to_node(
+            super(EthBlockQueuingService, self).send_block_to_nodes(
                 block_hash, new_block_msg
             )
             self.node.set_known_total_difficulty(
@@ -343,14 +343,14 @@ class EthBlockQueuingService(
                 new_block_headers_msg = NewBlockHashesEthProtocolMessage.from_block_hash_number_pair(
                     block_hash, new_block_parts.block_number
                 )
-                super(EthBlockQueuingService, self).send_block_to_node(
+                super(EthBlockQueuingService, self).send_block_to_nodes(
                     block_hash, new_block_headers_msg
                 )
             else:
                 new_block_msg = NewBlockEthProtocolMessage.from_new_block_parts(
                     new_block_parts, calculated_total_difficulty
                 )
-                super(EthBlockQueuingService, self).send_block_to_node(
+                super(EthBlockQueuingService, self).send_block_to_nodes(
                     block_hash, new_block_msg
                 )
 
@@ -456,7 +456,9 @@ class EthBlockQueuingService(
             )
 
         full_message = BlockBodiesEthProtocolMessage(None, bodies)
-        self.node.send_msg_to_node(full_message)
+
+        # TODO: Should only be sent to the node that requested (https://bloxroute.atlassian.net/browse/BX-1922)
+        self.node.broadcast(full_message, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
         return True
 
     def try_send_headers_to_node(self, block_hashes: List[Sha256Hash]) -> bool:
@@ -493,7 +495,9 @@ class EthBlockQueuingService(
             )
 
         full_header_message = BlockHeadersEthProtocolMessage(None, headers)
-        self.node.send_msg_to_node(full_header_message)
+
+        # TODO: Should only be sent to the node that requested (https://bloxroute.atlassian.net/browse/BX-1922)
+        self.node.broadcast(full_header_message, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
         return True
 
     def get_block_hashes_starting_from_hash(
@@ -738,7 +742,8 @@ class EthBlockQueuingService(
             None, block_hash.binary, 1, 0, 0
         )
 
-        self.node.send_msg_to_node(get_confirmation_message)
+        # TODO: Should only be sent to the node that requested (https://bloxroute.atlassian.net/browse/BX-1922)
+        self.node.broadcast(get_confirmation_message, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
 
         if self.block_check_repeat_count[block_hash] < eth_common_constants.CHECK_BLOCK_RECEIPT_MAX_COUNT:
             self.block_check_repeat_count[block_hash] += 1
@@ -803,7 +808,7 @@ class EthBlockQueuingService(
             self._next_push_alarm_id = self.node.alarm_queue.register_alarm(
                 timeout, func
             )
-        elif not self.is_node_connection_ready():
+        elif not self.node.has_active_blockchain_peer():
             self.node.alarm_queue.register_alarm(
                 gateway_constants.NODE_READINESS_FOR_BLOCKS_CHECK_INTERVAL_S,
                 func,
@@ -815,7 +820,7 @@ class EthBlockQueuingService(
         if len(self.ordered_block_queue) == 0:
             return
 
-        if not self.is_node_connection_ready():
+        if not self.node.has_active_blockchain_peer():
             self._schedule_alarm_for_next_item()
             return
 
@@ -834,7 +839,7 @@ class EthBlockQueuingService(
         block_msg = self._blocks[block_hash]
         self.remove_from_queue(block_hash)
 
-        self.send_block_to_node(block_hash, block_msg)
+        self.send_block_to_nodes(block_hash, block_msg)
 
         self._schedule_alarm_for_next_item()
         return
@@ -976,7 +981,7 @@ class EthBlockQueuingService(
                 "expected height.",
                 block_hash, block_number
             )
-            self.send_block_to_node(block_hash, block_msg)
+            self.send_block_to_nodes(block_hash, block_msg)
             self.remove_from_queue(block_hash)
             self.node.publish_block(
                 block_number, block_hash, block_msg, FeedSource.BDN_SOCKET

@@ -93,6 +93,8 @@ class TransactionFeedStatsService(
             new_transaction_feed_subscribers = None
 
         return {
+            "start_time": self.interval_data.start_time,
+            "end_time": self.interval_data.end_time,
             "new_transactions": len(interval_data.new_transaction_received_times),
             "pending_transactions": len(interval_data.pending_transaction_received_times),
             "pending_transactions_from_internal": len(

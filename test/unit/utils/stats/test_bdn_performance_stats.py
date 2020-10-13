@@ -47,15 +47,17 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
         dummy_public_key = crypto_utils.private_to_public_key(dummy_private_key)
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
+        local_ip = "127.0.0.1"
+        eth_port = 30303
         eth_opts = gateway_helpers.get_gateway_opts(
-            1234, include_default_eth_args=True, pub_key=convert.bytes_to_hex(dummy_public_key)
+            1234, include_default_eth_args=True, blockchain_address=(local_ip, eth_port), pub_key=convert.bytes_to_hex(dummy_public_key)
         )
         self.eth_node = EthGatewayNode(eth_opts, node_ssl_service)
         self.node.node_conn = EthNodeConnection(
-            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.eth_node)
+            MockSocketConnection(node=self.node, ip_address=local_ip, port=eth_port), self.eth_node)
 
         self.blockchain_connection = EthBaseConnection(
-            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=333), self.node)
+            MockSocketConnection(node=self.node, ip_address=local_ip, port=333), self.node)
         self.blockchain_connection.state = ConnectionState.ESTABLISHED
         self.node.node_conn = self.blockchain_connection
 
@@ -69,7 +71,7 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.block_blockchain_connection_protocol.publish_transaction = MagicMock()
 
         self.relay_connection = AbstractRelayConnection(
-            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
+            MockSocketConnection(node=self.node, ip_address=local_ip, port=12345), self.node
         )
         self.relay_connection.state = ConnectionState.INITIALIZED
 
@@ -114,7 +116,6 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.assertEqual(
             1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node_low_fee
         )
-
 
     def test_bdn_stats_tx_new_from_node(self):
         txs = [

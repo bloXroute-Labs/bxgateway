@@ -21,7 +21,7 @@ from bxgateway.messages.ont import ont_messages_util
 
 def get_sample_block():
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(root_dir, "ont_consensus_sample_block.txt")) as sample_file:
+    with open(os.path.join(root_dir, "samples/ont_consensus_sample_block.txt")) as sample_file:
         ont_block = sample_file.read().strip("\n")
     buf = bytearray(convert.hex_to_bytes(ont_block))
     parsed_block = OntConsensusMessage(buf=buf)

@@ -1,3 +1,10 @@
+from typing import Union, cast
+
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
+from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
+from bxcommon.messages.eth.validation.eth_block_validator import EthBlockValidator
+from bxcommon.utils.blockchain_utils.eth import rlp_utils
+from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import (
     GetBlockBodiesEthProtocolMessage,
 )
@@ -12,6 +19,11 @@ logger = logging.get_logger(__name__)
 
 class EthBlockProcessingService(BlockProcessingService):
     _node: "bxgateway.connections.eth.eth_gateway_node.EthGatewayNode"
+
+    def __init__(self, node):
+        super(EthBlockProcessingService, self).__init__(node)
+
+        self._block_validator = EthBlockValidator()
 
     def try_process_get_block_headers_request(
         self, msg: GetBlockHeadersEthProtocolMessage
@@ -76,3 +88,22 @@ class EthBlockProcessingService(BlockProcessingService):
         return self._node.block_queuing_service.try_send_bodies_to_node(
             block_hashes
         )
+
+    def _get_compressed_block_header_bytes(self, compressed_block_bytes: Union[bytearray, memoryview]) -> Union[
+        bytearray, memoryview]:
+        block_msg_bytes = compressed_block_bytes if isinstance(compressed_block_bytes, memoryview) else memoryview(compressed_block_bytes)
+
+        block_offsets = compact_block_short_ids_serializer.get_bx_block_offsets(block_msg_bytes)
+
+        block_bytes = block_msg_bytes[block_offsets.block_begin_offset: block_offsets.short_id_offset]
+
+        _, block_itm_len, block_itm_start = rlp_utils.consume_length_prefix(block_bytes, 0)
+        block_itm_bytes = block_bytes[block_itm_start:]
+
+        _, block_hdr_len, block_hdr_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
+        return block_itm_bytes[0:block_hdr_start + block_hdr_len]
+
+    def _get_block_header_bytes_from_block_message(self, block_message: AbstractBlockMessage) -> Union[
+        bytearray, memoryview]:
+        eth_block_message = cast(InternalEthBlockInfo, block_message)
+        return eth_block_message.block_header()

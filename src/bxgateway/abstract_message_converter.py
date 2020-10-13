@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Tuple, Optional, List, Set, Union, NamedTuple, Deque
 
 from bxcommon import constants
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 
@@ -19,7 +20,7 @@ from bxgateway.utils.block_info import BlockInfo
 
 
 class BlockDecompressionResult(NamedTuple):
-    block_msg: Optional[AbstractMessage]
+    block_msg: Optional[AbstractBlockMessage]
     block_info: BlockInfo
     unknown_short_ids: List[int]
     unknown_tx_hashes: List[Sha256Hash]

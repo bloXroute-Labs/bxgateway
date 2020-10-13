@@ -164,14 +164,17 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
     elif merged_opts.command == RpcRequestType.TX_SERVICE:
         if merged_opts.request_params is None and unrecognized_params:
             merged_opts.request_params = {rpc_constants.TX_SERVICE_FILE_NAME_PARAMS_KEY: unrecognized_params[0]}
+    elif merged_opts.command == RpcRequestType.ADD_BLOCKCHAIN_PEER:
+        if merged_opts.request_params is None and unrecognized_params:
+            merged_opts.request_params = {rpc_constants.ADD_BLOCKCHAIN_PEER_PARAMS_KEY: unrecognized_params[0]}
 
     return merged_opts
 
 
-async def format_response(response: ClientResponse, content_type=rpc_constants.JSON_HEADER_TYPE) -> str:
+async def format_response(response: ClientResponse) -> str:
     try:
-        response_json_str = await response.json(content_type=content_type)
-        response_json_dict = json.loads(response_json_str)
+        response_json_str = await response.text()
+        response_json_dict = json.loads(json.loads(response_json_str))
         result = response_json_dict.get("result", None)
         if not result:
             result = response_json_dict.get("error", "Unknown error")

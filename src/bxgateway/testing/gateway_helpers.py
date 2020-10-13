@@ -6,6 +6,7 @@ from bxcommon.models.node_type import NodeType
 from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.test_utils.helpers import COOKIE_FILE_PATH, get_common_opts, \
     BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT
+from bxgateway import argument_parsers
 from bxgateway.gateway_opts import GatewayOpts
 
 
@@ -28,6 +29,8 @@ def get_gateway_opts(
     remote_blockchain_ip=None,
     remote_blockchain_port=None,
     connect_to_remote_blockchain=False,
+    blockchain_peers=None,
+    blockchain_peers_file=None,
     is_internal_gateway=False,
     is_gateway_miner=False,
     enable_buffered_send=False,
@@ -56,6 +59,7 @@ def get_gateway_opts(
     enable_block_compression: bool = True,
     filter_txs_factor: float = 0,
     blockchain_protocol: str = "Bitcoin",
+    should_restart_on_high_memory: bool = False,
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:
@@ -76,6 +80,14 @@ def get_gateway_opts(
         remote_blockchain_peer = (remote_blockchain_ip, remote_blockchain_port)
     else:
         remote_blockchain_peer = None
+    # below is the same as `class ParseBlockchainPeers(argparse.Action)`
+    if blockchain_peers is not None:
+        blockchain_peers_set = set()
+        blockchain_protocol = blockchain_protocol
+        for peer in blockchain_peers.split(","):
+            blockchain_peer = argument_parsers.parse_peer(blockchain_protocol, peer) # from bxgateway import argument_parsers,
+            blockchain_peers_set.add(blockchain_peer)
+        blockchain_peers = blockchain_peers_set
 
     partial_apply_args = locals().copy()
     for kwarg, arg in partial_apply_args["kwargs"].items():
@@ -105,6 +117,8 @@ def get_gateway_opts(
             "remote_blockchain_port": remote_blockchain_port,
             "remote_blockchain_peer": remote_blockchain_peer,
             "connect_to_remote_blockchain": connect_to_remote_blockchain,
+            "blockchain_peers": blockchain_peers,
+            "blockchain_peers_file": blockchain_peers_file,
             "is_internal_gateway": is_internal_gateway,
             "is_gateway_miner": is_gateway_miner,
             "encrypt_blocks": encrypt_blocks,
@@ -141,7 +155,8 @@ def get_gateway_opts(
             "request_recovery": True,
             "enable_block_compression": enable_block_compression,
             "filter_txs_factor": filter_txs_factor,
-            "min_peer_relays_count": None
+            "min_peer_relays_count": None,
+            "should_restart_on_high_memory": should_restart_on_high_memory,
         }
     )
 

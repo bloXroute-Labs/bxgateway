@@ -2,14 +2,13 @@ from typing import TYPE_CHECKING
 import asyncio
 
 from bxcommon.models.quota_type_model import QuotaType
-from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.exceptions import ParseError
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_blxr_transaction_rpc_request import AbstractBlxrTransactionRpcRequest
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
-from bxcommon.utils.stats import stats_format
+from bxcommon.utils import convert
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
@@ -26,17 +25,10 @@ logger = logging.get_logger(__name__)
 
 
 class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["AbstractGatewayNode"]):
-    QUOTA_TYPE: str = "quota_type"
+    QUOTA_TYPE = "quota_type"
     SYNCHRONOUS = rpc_constants.SYNCHRONOUS_PARAMS_KEY
 
-    def __init__(self, request: BxJsonRpcRequest, node: "AbstractGatewayNode") -> None:
-        super().__init__(request, node)
-        params = self.params
-        assert isinstance(params, dict)
-
-        lowercase_true = str(True).lower()
-        self.synchronous = \
-            params.get(self.SYNCHRONOUS, lowercase_true).lower() == lowercase_true
+    synchronous: bool = True
 
     def validate_params(self) -> None:
         params = self.params
@@ -52,7 +44,12 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             tx_json = params[rpc_constants.TRANSACTION_JSON_PARAMS_KEY]
             tx_bytes = Transaction.from_json_with_validation(tx_json).contents().tobytes()
             params[rpc_constants.TRANSACTION_PARAMS_KEY] = tx_bytes.hex()
+
         super(GatewayBlxrTransactionRpcRequest, self).validate_params()
+
+        if self.SYNCHRONOUS in params:
+            synchronous = params[rpc_constants.SYNCHRONOUS_PARAMS_KEY]
+            self.synchronous = convert.str_to_bool(str(synchronous).lower(), default=True)
 
     async def process_request(self) -> JsonRpcResponse:
         params = self.params
@@ -129,9 +126,9 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             network_num,
             account_id=account_id
         )
-        if self.node.node_conn is not None:
+        if self.node.has_active_blockchain_peer():
             blockchain_tx_message = self.node.message_converter.bx_tx_to_tx(bx_tx)
-            self.node.send_msg_to_node(blockchain_tx_message)
+            self.node.broadcast(blockchain_tx_message, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
 
         # All connections outside of this one is a bloXroute server
         broadcast_peers = self.node.broadcast(bx_tx, connection_types=[ConnectionType.RELAY_TRANSACTION])
@@ -139,7 +136,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             tx_hash,
             TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,
             network_num,
-            peers=stats_format.connections(broadcast_peers)
+            peers=broadcast_peers
         )
         tx_stats.add_tx_by_hash_event(
             tx_hash,

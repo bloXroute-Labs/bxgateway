@@ -31,7 +31,7 @@ FULL_BLOCK_BYTES_HEX = "dab5bffa626c6f636b00000000000000e40c00008a8332a900000020
 
 def get_sample_block():
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(root_dir, "btc_sample_block.txt")) as sample_file:
+    with open(os.path.join(root_dir, "samples/btc_sample_block.txt")) as sample_file:
         btc_block = sample_file.read().strip("\n")
     buf = bytearray(convert.hex_to_bytes(btc_block))
     parsed_block = BlockBtcMessage(buf=buf)
@@ -40,7 +40,7 @@ def get_sample_block():
 
 def get_segwit_block():
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(root_dir, "btc_segwit_sample_block.txt")) as sample_file:
+    with open(os.path.join(root_dir, "samples/btc_segwit_sample_block.txt")) as sample_file:
         btc_block = sample_file.read().strip("\n")
     block = convert.hex_to_bytes(btc_block)
     buf = bytearray(BTC_HDR_COMMON_OFF + len(block))

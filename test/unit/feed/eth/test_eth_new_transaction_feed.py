@@ -16,7 +16,7 @@ class EthNewTransactionFeedTest(AbstractTestCase):
 
     @async_test
     async def test_publish_from_blockchain(self):
-        normal_subscriber = self.sut.subscribe({})
+        normal_subscriber = self.sut.subscribe({"include_from_blockchain": False})
         yes_from_bc_subscriber = self.sut.subscribe({"include_from_blockchain": True})
 
         self.sut.publish(

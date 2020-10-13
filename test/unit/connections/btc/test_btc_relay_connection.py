@@ -1,5 +1,6 @@
 from typing import cast
 
+from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from mock import MagicMock
@@ -8,7 +9,6 @@ from bxcommon.models.transaction_info import TransactionInfo
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import DEFAULT_NETWORK_NUM, LOCALHOST
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
@@ -52,17 +52,18 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.sut = BtcRelayConnection(MockSocketConnection(
             node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
         )
-        self.gateway_node.node_conn = MockConnection(MockSocketConnection(
+        self.gateway_node.connection_pool.add(1, LOCALHOST, 8002, MockConnection(MockSocketConnection(
             1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
-        )
+        ))
         self.gateway_node.message_converter = converter_factory.create_btc_message_converter(
             12345, self.gateway_node.opts
         )
-        self.gateway_node.node_conn.state = ConnectionState.ESTABLISHED
 
-        self.gateway_node.send_msg_to_node = MagicMock()
+        self.gateway_node.broadcast = MagicMock()
         self.sut.enqueue_msg = MagicMock()
         gateway_transaction_stats_service.set_node(self.gateway_node)
+
+        self.gateway_node.has_active_blockchain_peer = MagicMock(return_value=True)
 
     def btc_transactions(self):
         return [TxBtcMessage(self.MAGIC, self.VERSION, [], [], i) for i in range(10)]
@@ -112,7 +113,12 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.sut.msg_broadcast(broadcast_message)
         self.sut.msg_broadcast(broadcast_message)
 
-        self.gateway_node.send_msg_to_node.assert_not_called()
+        self.assertEqual(3, len(self.gateway_node.broadcast.call_args_list))
+        for call, conn_type in self.gateway_node.broadcast.call_args_list:
+            msg, conn = call
+            self.assertTrue(isinstance(msg, BlockReceivedMessage))
+        self.gateway_node.broadcast.reset_mock()
+
         self.assertEqual(1, len(self.gateway_node.in_progress_blocks))
 
         key_message = KeyMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "", key)
@@ -182,7 +188,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         key, ciphertext = symmetric_encrypt(bx_block)
         block_hash = crypto.double_sha256(ciphertext)
 
-        self.gateway_node.send_msg_to_node.assert_not_called()
+        self.gateway_node.broadcast.assert_not_called()
 
         key_message = KeyMessage(Sha256Hash(block_hash), self.TEST_NETWORK_NUM, "", key)
         self.sut.msg_key(key_message)
@@ -214,7 +220,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
             self.assertEqual(transaction_hash, stored_hash)
             self.assertEqual(transaction.tx_val(), stored_content)
 
-        self.assertEqual(len(transactions), self.gateway_node.send_msg_to_node.call_count)
+        self.assertEqual(len(transactions), self.gateway_node.broadcast.call_count)
 
     def test_msg_tx_additional_sid(self):
         transactions = self.bx_transactions(assign_short_ids=True)
@@ -240,7 +246,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
             self.assertEqual(transaction.tx_val(), stored_content2)
 
         # only 10 times even with rebroadcast SID
-        self.assertEqual(len(transactions), self.gateway_node.send_msg_to_node.call_count)
+        self.assertEqual(len(transactions), self.gateway_node.broadcast.call_count)
 
     def test_msg_tx_duplicate_ignore(self):
         transactions = self.bx_transactions(assign_short_ids=True)
@@ -250,7 +256,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         for transaction in transactions:
             self.sut.msg_tx(transaction)
 
-        self.assertEqual(len(transactions), self.gateway_node.send_msg_to_node.call_count)
+        self.assertEqual(len(transactions), self.gateway_node.broadcast.call_count)
 
     def test_get_txs_block_recovery(self):
         btc_block = self.btc_block()
@@ -273,7 +279,6 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         self.gateway_node.block_recovery_service.add_block = \
             MagicMock(wraps=self.gateway_node.block_recovery_service.add_block)
-        self.gateway_node.send_msg_to_node = MagicMock()
         self.gateway_node.broadcast = MagicMock()
 
         key, ciphertext = symmetric_encrypt(bx_block)
@@ -345,12 +350,16 @@ class BtcRelayConnectionTest(AbstractTestCase):
             self.assertEqual(tx_info.contents, stored_content)
 
     def _assert_block_sent(self, btc_block):
-        self.gateway_node.send_msg_to_node.assert_called()
-        calls = self.gateway_node.send_msg_to_node.call_args_list
+        self.gateway_node.broadcast.assert_called()
+        calls = self.gateway_node.broadcast.call_args_list
 
-        self.assertEqual(2, len(calls))
+        broadcast_to_blockchain_calls = []
+        for call, conn_type in calls:
+            if conn_type["connection_types"][0] == ConnectionType.BLOCKCHAIN_NODE:
+                broadcast_to_blockchain_calls.append((call, conn_type))
+        self.assertEqual(2, len(broadcast_to_blockchain_calls))
 
-        ((sent_block_msg,), _) = calls[0]
+        ((sent_block_msg,), _) = broadcast_to_blockchain_calls[0]
         self.assertEqual(btc_block.version(), sent_block_msg.version())
         self.assertEqual(btc_block.magic(), sent_block_msg.magic())
         self.assertEqual(btc_block.prev_block_hash(), sent_block_msg.prev_block_hash())
@@ -360,7 +369,7 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.assertEqual(btc_block.nonce(), sent_block_msg.nonce())
         self.assertEqual(btc_block.txn_count(), sent_block_msg.txn_count())
 
-        ((sent_inv_msg,), _) = calls[1]
+        ((sent_inv_msg,), _) = broadcast_to_blockchain_calls[1]
         self.assertIsInstance(sent_inv_msg, InvBtcMessage)
         sent_inv_msg = cast(InvBtcMessage, sent_inv_msg)
 

@@ -6,6 +6,7 @@ from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
@@ -17,6 +18,7 @@ from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxgateway.connections.eth.eth_node_connection_protocol import EthNodeConnectionProtocol
 from bxgateway.feed.feed_source import FeedSource
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
@@ -85,7 +87,7 @@ class EthGatewayNode(AbstractGatewayNode):
 
         if opts.node_public_key is not None:
             self._node_public_key = convert.hex_to_bytes(opts.node_public_key)
-        else:
+        elif opts.blockchain_peers is None:
             raise RuntimeError(
                 "128 digit public key must be included with command-line specified blockchain peer.")
         if opts.remote_blockchain_peer is not None:
@@ -169,11 +171,12 @@ class EthGatewayNode(AbstractGatewayNode):
             ))
 
         local_protocol = TransportLayerProtocol.UDP if self._is_in_local_discovery() else TransportLayerProtocol.TCP
-        peers.append(ConnectionPeerInfo(
-            IpEndpoint(self.opts.blockchain_ip, self.opts.blockchain_port),
-            ConnectionType.BLOCKCHAIN_NODE,
-            local_protocol
-        ))
+        for blockchain_peer in self.blockchain_peers:
+            peers.append(ConnectionPeerInfo(
+                IpEndpoint(blockchain_peer.ip, blockchain_peer.port),
+                ConnectionType.BLOCKCHAIN_NODE,
+                local_protocol
+            ))
 
         if self.remote_blockchain_ip is not None and self.remote_blockchain_port is not None:
             remote_protocol = TransportLayerProtocol.UDP if self._is_in_remote_discovery() else \
@@ -231,8 +234,19 @@ class EthGatewayNode(AbstractGatewayNode):
             remote_blockchain_ip, remote_blockchain_port, ConnectionType.REMOTE_BLOCKCHAIN_NODE
         )
 
-    def get_node_public_key(self) -> bytes:
-        return self._node_public_key
+    def get_node_public_key(self, ip: str, port: int) -> bytes:
+        node_public_key = None
+        for blockchain_peer in self.blockchain_peers:
+            if blockchain_peer.ip == ip and blockchain_peer.port == port:
+                node_public_key = blockchain_peer.node_public_key
+                break
+
+        if not node_public_key:
+            raise RuntimeError(
+                f"128 digit public key must be included with for blockchain peer ip {ip} and port {port}."
+            )
+
+        return convert.hex_to_bytes(node_public_key)
 
     def get_remote_public_key(self) -> bytes:
         return self._remote_public_key
@@ -357,14 +371,16 @@ class EthGatewayNode(AbstractGatewayNode):
         for transaction in transactions:
             self.average_gas_price.add_value(transaction.gas_price)
 
-    def send_transaction_to_node(self, msg: AbstractMessage) -> bool:
+    def broadcast_transactions_to_node(
+        self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
+    ) -> bool:
         msg = cast(TransactionsEthProtocolMessage, msg)
         if self.opts.filter_txs_factor > 0:
             assert len(msg.get_transactions()) == 1
             transaction = msg.get_transactions()[0]
 
             if (float(transaction.gas_price) < self.average_gas_price.average * self.opts.filter_txs_factor):
-                logger.debug(
+                logger.trace(
                     "Skipping sending transaction {} with gas price: {}. Average was {}",
                     transaction.hash(),
                     float(transaction.gas_price),
@@ -372,11 +388,21 @@ class EthGatewayNode(AbstractGatewayNode):
                 )
                 return False
 
-        return super().send_transaction_to_node(msg)
+        return super().broadcast_transactions_to_node(msg, broadcasting_conn)
 
     def get_enode(self) -> str:
         return \
             f"enode://{convert.bytes_to_hex(self.get_public_key())}@{self.opts.external_ip}:{self.opts.non_ssl_port}"
+
+    def on_block_received_from_bdn(
+        self, block_hash: Sha256Hash, block_message: AbstractBlockMessage
+    ) -> None:
+        super().on_block_received_from_bdn(block_hash, block_message)
+
+        node_conn = cast(EthNodeConnection, self.get_any_active_blockchain_connection())
+        if node_conn is not None:
+            eth_connection_protocol = node_conn.connection_protocol
+            eth_connection_protocol.pending_new_block_parts.remove_item(block_hash)
 
     # pyre-fixme[14]: Inconsistent override:
     # Parameter of type InternalEthBlockInfo is not a supertype of AbstractBlockMessage

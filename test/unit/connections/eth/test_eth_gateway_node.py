@@ -3,7 +3,6 @@ from bxcommon.models.node_type import NodeType
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.socket_connection_state import SocketConnectionState
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.utils import convert
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -31,13 +30,17 @@ class EthGatewayNodeTest(AbstractTestCase):
 
     def test_get_gateway_connection_class__do_not_initiate_handshake(self):
         node = self._set_up_test_node(False, generate_pub_key=True)
-        connection = node.build_blockchain_connection(MockSocketConnection(ip_address=LOCALHOST, port=8000))
+        connection = node.build_blockchain_connection(
+            MockSocketConnection(ip_address=self.blockchain_ip, port=self.blockchain_port)
+        )
         self.assertIsInstance(connection, EthNodeConnection)
 
     @skip("We now require that the public key is always specified, so this test no longer applies")
     def test_get_gateway_connection_class__initiate_handshake_no_remote_pub_key(self):
         node = self._set_up_test_node(True, generate_pub_key=True)
-        connection = node.build_blockchain_connection(MockSocketConnection(ip_address=LOCALHOST, port=8000))
+        connection = node.build_blockchain_connection(
+            MockSocketConnection(ip_address=self.blockchain_ip, port=self.blockchain_port)
+        )
         self.assertIsInstance(connection, EthNodeDiscoveryConnection)
 
     def test_get_gateway_connection_class__initiate_handshake_with_remote_pub_key(self):
@@ -71,7 +74,7 @@ class EthGatewayNodeTest(AbstractTestCase):
 
     def test_get_node_public_key__default(self):
         node = self._set_up_test_node(False, generate_pub_key=True)
-        node_public_key = node.get_node_public_key()
+        node_public_key = node.get_node_public_key(self.blockchain_ip, self.blockchain_port)
         self.assertIsNotNone(node_public_key)
 
     def test_set_node_public_key(self):
@@ -85,7 +88,7 @@ class EthGatewayNodeTest(AbstractTestCase):
         node.connection_pool.add(dummy_con_fileno, dummy_con_ip, dummy_con_port, discovery_connection)
         self.assertEqual(1, len(self.node.connection_pool))
 
-        node_public_key = node.get_node_public_key()
+        node_public_key = node.get_node_public_key(self.blockchain_ip, self.blockchain_port)
         self.assertIsNotNone(node_public_key)
 
         new_node_public_key = self._get_dummy_public_key()
@@ -94,7 +97,7 @@ class EthGatewayNodeTest(AbstractTestCase):
         self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in discovery_connection.socket_connection.state)
         self.assertTrue(SocketConnectionState.DO_NOT_RETRY in discovery_connection.socket_connection.state)
 
-        updated_node_public_key = node.get_node_public_key()
+        updated_node_public_key = node.get_node_public_key(self.blockchain_ip, self.blockchain_port)
         self.assertIsNotNone(updated_node_public_key)
 
     def _test_get_outbound_peer_addresses(self, initiate_handshake, expected_node_con_protocol):

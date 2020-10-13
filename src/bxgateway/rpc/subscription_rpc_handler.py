@@ -14,6 +14,7 @@ from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxgateway import gateway_constants, log_messages
 from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.subscriber import Subscriber
+from bxgateway.rpc.requests.add_blockchain_peer_rpc_request import AddBlockchainPeerRpcRequest
 from bxgateway.rpc.requests.bdn_performance_rpc_request import BdnPerformanceRpcRequest
 from bxgateway.rpc.requests.gateway_blxr_transaction_rpc_request import \
     GatewayBlxrTransactionRpcRequest
@@ -65,7 +66,8 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             RpcRequestType.QUOTA_USAGE: QuotaUsageRpcRequest,
             RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest,
             RpcRequestType.TX_STATUS: TransactionStatusRpcRequest,
-            RpcRequestType.TX_SERVICE: GatewayTransactionServiceRpcRequest
+            RpcRequestType.TX_SERVICE: GatewayTransactionServiceRpcRequest,
+            RpcRequestType.ADD_BLOCKCHAIN_PEER: AddBlockchainPeerRpcRequest
         }
 
         self.feed_manager = feed_manager

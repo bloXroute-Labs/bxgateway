@@ -2,6 +2,7 @@ import typing
 from abc import abstractmethod
 from typing import List
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import btc_constants, gateway_constants
@@ -62,7 +63,7 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         # If Synced Headers is not up-to-date than Bitcoin node does not push compact blocks to the gateway
         inv_msg = InvBtcMessage(magic=self.node.opts.blockchain_net_magic,
                                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())])
-        self.node.send_msg_to_node(inv_msg)
+        self.connection.enqueue_msg(inv_msg)
 
     def msg_ping(self, msg):
         """

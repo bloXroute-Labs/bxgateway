@@ -12,6 +12,7 @@ from typing import (
     NamedTuple,
     Iterator)
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.expiring_dict import ExpiringDict
@@ -187,7 +188,7 @@ class AbstractBlockQueuingService(
     ) -> None:
         self._blocks[block_hash] = block_msg
 
-    def send_block_to_node(
+    def send_block_to_nodes(
         self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None
     ) -> None:
         if not self.node.should_process_block_hash(block_hash):
@@ -199,7 +200,8 @@ class AbstractBlockQueuingService(
         logger.info("Forwarding block {} to blockchain node.", block_hash)
 
         assert block_msg is not None
-        self.node.send_msg_to_node(block_msg)
+        # TODO add queueing service per node (https://bloxroute.atlassian.net/browse/BX-1922)
+        self.node.broadcast(block_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
         (
             handling_time,
             relay_desc,
@@ -229,7 +231,7 @@ class AbstractBlockQueuingService(
             return False
 
         header_msg = self.build_block_header_message(block_hash, block_message)
-        self.node.send_msg_to_node(header_msg)
+        self.node.broadcast(header_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
         block_stats.add_block_event_by_block_hash(
             block_hash,
             BlockStatEventType.BLOCK_HEADER_SENT_TO_BLOCKCHAIN_NODE,
@@ -276,10 +278,6 @@ class AbstractBlockQueuingService(
         max_count: int = gateway_constants.TRACKED_BLOCK_MAX_HASH_LOOKUP
     ) -> Iterator[Sha256Hash]:
         raise NotImplementedError
-
-    def is_node_connection_ready(self) -> bool:
-        node_conn = self.node.node_conn
-        return node_conn is not None and node_conn.is_active()
 
     def log_memory_stats(self):
         pass

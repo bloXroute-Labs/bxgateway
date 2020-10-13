@@ -1,12 +1,13 @@
 import datetime
 import time
-import typing
-from typing import Iterable, Optional, TYPE_CHECKING
+from typing import Iterable, Optional, TYPE_CHECKING, Union
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
+from bxcommon.messages.eth.validation.abstract_block_validator import AbstractBlockValidator, \
+    BlockValidationResult
 from bxcommon.utils import convert, crypto, block_content_debug_utils
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
@@ -71,29 +72,39 @@ class BlockProcessingService:
             f"block_processing_holds"
         )
 
+        self._block_validator: Optional[AbstractBlockValidator] = None
+        self._last_confirmed_block_number: Optional[int] = None
+        self._last_confirmed_block_difficulty: Optional[int] = None
+
     def place_hold(self, block_hash, connection) -> None:
         """
         Places hold on block hash and propagates message.
         :param block_hash: ObjectHash
         :param connection:
         """
-        block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_REQUESTED,
-                                                  network_num=connection.network_num,
-                                                  more_info=stats_format.connection(connection))
+        block_stats.add_block_event_by_block_hash(
+            block_hash, BlockStatEventType.BLOCK_HOLD_REQUESTED,
+            network_num=connection.network_num,
+            peers=[connection],
+        )
 
         if block_hash in self._node.blocks_seen.contents:
             return
 
         if block_hash not in self._holds.contents:
             self._holds.add(block_hash, BlockHold(time.time(), connection))
-            conns = self._node.broadcast(BlockHoldingMessage(block_hash, self._node.network_num),
-                                         broadcasting_conn=connection,
-                                         connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY])
+            conns = self._node.broadcast(
+                BlockHoldingMessage(block_hash, self._node.network_num),
+                broadcasting_conn=connection,
+                connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY]
+            )
             if len(conns) > 0:
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
-                                                          network_num=self._node.network_num,
-                                                          more_info=stats_format.connections(conns))
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
+                    network_num=self._node.network_num,
+                    peers=conns,
+                )
 
     def queue_block_for_processing(self, block_message, connection) -> None:
         """
@@ -109,11 +120,25 @@ class BlockProcessingService:
             block_hash
         )
 
+        valid_block = self._validate_block_header_in_block_message(block_message)
+        if not valid_block.is_valid:
+            reason = valid_block.reason
+            assert reason is not None
+            block_stats.add_block_event_by_block_hash(
+                block_hash,
+                BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_FAILED_VALIDATION,
+                connection.network_num,
+                more_info=reason
+            )
+            return
+
         if block_hash in self._holds.contents:
             hold: BlockHold = self._holds.contents[block_hash]
-            block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_HELD_BLOCK,
-                                                      network_num=connection.network_num,
-                                                      more_info=stats_format.connection(hold.holding_connection))
+            block_stats.add_block_event_by_block_hash(
+                block_hash, BlockStatEventType.BLOCK_HOLD_HELD_BLOCK,
+                network_num=connection.network_num,
+                peers=[hold.holding_connection],
+            )
             if hold.alarm is None:
                 hold.alarm = self._node.alarm_queue.register_alarm(
                     self._node.opts.blockchain_block_hold_timeout_s, self._holding_timeout, block_hash, hold
@@ -134,7 +159,7 @@ class BlockProcessingService:
                         block_hash,
                         BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,
                         network_num=self._node.network_num,
-                        more_info=stats_format.connections(conns)
+                        peers=conns
                     )
             self._process_and_broadcast_block(block_message, connection)
 
@@ -147,7 +172,8 @@ class BlockProcessingService:
         if block_hash in self._holds.contents:
             block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_LIFTED,
                                                       network_num=connection.network_num,
-                                                      more_info=stats_format.connection(connection))
+                                                      peers=[connection],
+                                                      )
 
             hold = self._holds.contents[block_hash]
             if hold.alarm is not None:
@@ -165,10 +191,12 @@ class BlockProcessingService:
         if not self._node.should_process_block_hash(msg.block_hash()):
             return
 
-        block_stats.add_block_event(msg,
-                                    BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
-                                    network_num=connection.network_num,
-                                    more_info=stats_format.connection(connection))
+        block_stats.add_block_event(
+            msg,
+            BlockStatEventType.ENC_BLOCK_RECEIVED_BY_GATEWAY_FROM_NETWORK,
+            network_num=connection.network_num,
+            more_info=stats_format.connection(connection)
+        )
 
         block_hash = msg.block_hash()
         is_encrypted = msg.is_encrypted()
@@ -193,12 +221,14 @@ class BlockProcessingService:
             block = self._node.in_progress_blocks.decrypt_ciphertext(block_hash, cipherblob)
 
             if block is not None:
-                block_stats.add_block_event(msg,
-                                            BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
-                                            start_date_time=decrypt_start_datetime,
-                                            end_date_time=datetime.datetime.utcnow(),
-                                            network_num=connection.network_num,
-                                            more_info=stats_format.timespan(decrypt_start_timestamp, time.time()))
+                block_stats.add_block_event(
+                    msg,
+                    BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
+                    start_date_time=decrypt_start_datetime,
+                    end_date_time=datetime.datetime.utcnow(),
+                    network_num=connection.network_num,
+                    more_info=stats_format.timespan(decrypt_start_timestamp, time.time())
+                )
                 self._handle_decrypted_block(
                     block,
                     connection,
@@ -217,7 +247,7 @@ class BlockProcessingService:
                 block_hash,
                 BlockStatEventType.ENC_BLOCK_SENT_BLOCK_RECEIPT,
                 network_num=connection.network_num,
-                more_info=stats_format.connections(conns)
+                peers=conns,
             )
 
     def process_block_key(self, msg, connection: AbstractRelayConnection) -> None:
@@ -234,8 +264,7 @@ class BlockProcessingService:
         block_stats.add_block_event_by_block_hash(block_hash,
                                                   BlockStatEventType.ENC_BLOCK_KEY_RECEIVED_BY_GATEWAY_FROM_NETWORK,
                                                   network_num=connection.network_num,
-                                                  connection_type=connection.CONNECTION_TYPE,
-                                                  more_info=stats_format.connection(connection))
+                                                  peers=[connection])
 
         if self._node.in_progress_blocks.has_encryption_key_for_hash(block_hash):
             return
@@ -247,21 +276,26 @@ class BlockProcessingService:
             block = self._node.in_progress_blocks.decrypt_and_get_payload(block_hash, key)
 
             if block is not None:
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
-                                                          start_date_time=decrypt_start_datetime,
-                                                          end_date_time=datetime.datetime.utcnow(),
-                                                          network_num=connection.network_num,
-                                                          more_info=stats_format.timespan(decrypt_start_timestamp,
-                                                                                          time.time()))
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.ENC_BLOCK_DECRYPTED_SUCCESS,
+                    start_date_time=decrypt_start_datetime,
+                    end_date_time=datetime.datetime.utcnow(),
+                    network_num=connection.network_num,
+                    more_info=stats_format.timespan(
+                        decrypt_start_timestamp,
+                        time.time())
+                )
                 self._handle_decrypted_block(
                     block, connection,
                     encrypted_block_hash_hex=convert.bytes_to_hex(block_hash.binary)
                 )
             else:
-                block_stats.add_block_event_by_block_hash(block_hash,
-                                                          BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
-                                                          network_num=connection.network_num)
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.ENC_BLOCK_DECRYPTION_ERROR,
+                    network_num=connection.network_num
+                )
         else:
             connection.log_trace("No cipher text found on key message. Storing.")
             self._node.in_progress_blocks.add_key(block_hash, key)
@@ -271,7 +305,8 @@ class BlockProcessingService:
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.ENC_BLOCK_KEY_SENT_BY_GATEWAY_TO_PEERS,
                                                       network_num=self._node.network_num,
-                                                      more_info=stats_format.connections(conns))
+                                                      peers=conns
+                                                      )
 
     def retry_broadcast_recovered_blocks(self, connection) -> None:
         if self._node.block_recovery_service.recovered_blocks and self._node.opts.has_fully_updated_tx_service:
@@ -279,6 +314,36 @@ class BlockProcessingService:
                 self._handle_decrypted_block(msg, connection, recovered=True, recovered_txs_source=recovery_source)
 
             self._node.block_recovery_service.clean_up_recovered_blocks()
+
+    def reset_last_confirmed_block_parameters(self):
+        self._last_confirmed_block_number = None
+        self._last_confirmed_block_difficulty = None
+
+    def set_last_confirmed_block_parameters(
+        self,
+        last_confirmed_block_number: int,
+        last_confirmed_block_difficulty: int
+    ) -> None:
+
+        if not self._node.peer_relays:
+            logger.debug("Skip updating last confirmed block parameters because there is no connection to block relay")
+            return
+
+        if self._last_confirmed_block_number is not None:
+
+            old_last_confirmed_block_number = self._last_confirmed_block_number
+            assert old_last_confirmed_block_number is not None
+
+            if last_confirmed_block_number < old_last_confirmed_block_number:
+                logger.trace("New last confirmed block number {} is smaller than current {}. Skipping operation.",
+                             last_confirmed_block_number, old_last_confirmed_block_number)
+                return
+
+        self._last_confirmed_block_number = last_confirmed_block_number
+        self._last_confirmed_block_difficulty = last_confirmed_block_difficulty
+
+        logger.trace("Updated last confirmed block number to {} and difficulty to {}.",
+                     self._last_confirmed_block_number, self._last_confirmed_block_difficulty)
 
     def _compute_hold_timeout(self, _block_message) -> int:
         """
@@ -292,7 +357,8 @@ class BlockProcessingService:
     def _holding_timeout(self, block_hash, hold):
         block_stats.add_block_event_by_block_hash(block_hash, BlockStatEventType.BLOCK_HOLD_TIMED_OUT,
                                                   network_num=hold.connection.network_num,
-                                                  more_info=stats_format.connection(hold.connection))
+                                                  peers=[hold.connection]
+                                                  )
         self._process_and_broadcast_block(hold.block_message, hold.connection)
 
     def _process_and_broadcast_block(self, block_message, connection: AbstractGatewayBlockchainConnection) -> None:
@@ -394,8 +460,20 @@ class BlockProcessingService:
         message_converter = self._node.message_converter
         assert message_converter is not None
 
+        valid_block = self._validate_compressed_block_header(bx_block)
+        if not valid_block:
+            reason = valid_block.reason
+            assert reason is not None
+            block_stats.add_block_event_by_block_hash(
+                valid_block.block_hash,
+                BlockStatEventType.BLOCK_DECOMPRESSED_FAILED_VALIDATION,
+                connection.network_num,
+                more_info=reason
+            )
+            return
+
         # TODO: determine if a real block or test block. Discard if test block.
-        if self._node.node_conn or self._node.remote_node_conn:
+        if self._node.remote_node_conn or self._node.has_active_blockchain_peer():
             try:
                 (
                     block_message, block_info, unknown_sids, unknown_hashes
@@ -460,8 +538,10 @@ class BlockProcessingService:
                 "Discarding duplicate block {} from the BDN.",
                 block_hash
             )
-            if not self._node.block_queuing_service.block_body_exists(block_hash):
-                self._node.block_queuing_service.store_block_data(block_hash, block_message)
+            if block_message is not None:
+                self._node.on_block_received_from_bdn(block_hash, block_message)
+                if not self._node.block_queuing_service.block_body_exists(block_hash):
+                    self._node.block_queuing_service.store_block_data(block_hash, block_message)
             return
 
         if not recovered:
@@ -503,13 +583,10 @@ class BlockProcessingService:
             if block_hash not in self._node.blocks_seen.contents:
                 gateway_bdn_performance_stats_service.log_block_from_bdn()
 
-            self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
-            self._node.blocks_seen.add(block_hash)
+            self._node.on_block_received_from_bdn(block_hash, block_message)
             transaction_service.track_seen_short_ids(block_hash, all_sids)
 
-            self._node.publish_block(
-                None, block_hash, typing.cast(AbstractBlockMessage, block_message), FeedSource.BDN_SOCKET
-            )
+            self._node.publish_block(None, block_hash, block_message, FeedSource.BDN_SOCKET)
         else:
             if block_hash in self._node.block_queuing_service and not recovered:
                 connection.log_trace("Handling already queued block again. Ignoring.")
@@ -583,7 +660,7 @@ class BlockProcessingService:
                 all_unknown_sids,
                 TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REQUESTED_BY_GATEWAY_FROM_RELAY,
                 network_num=self._node.network_num,
-                peer=connection.peer_desc,
+                peers=[connection],
                 block_hash=convert.bytes_to_hex(block_hash.binary)
             )
             block_stats.add_block_event_by_block_hash(
@@ -637,4 +714,40 @@ class BlockProcessingService:
             )
 
     def _on_block_decompressed(self, block_msg) -> None:
+        pass
+
+    def _validate_block_header_in_block_message(
+        self, block_message: AbstractBlockMessage
+    ) -> BlockValidationResult:
+        block_header_bytes = self._get_block_header_bytes_from_block_message(block_message)
+        return self._validate_block_header(block_header_bytes)
+
+    def _validate_compressed_block_header(
+        self, compressed_block_bytes: Union[bytearray, memoryview]
+    ) -> BlockValidationResult:
+        block_header_bytes = self._get_compressed_block_header_bytes(compressed_block_bytes)
+        return self._validate_block_header(block_header_bytes)
+
+    def _validate_block_header(self, block_header_bytes: Union[bytearray, memoryview]) -> BlockValidationResult:
+        if self._block_validator and self._last_confirmed_block_number and self._last_confirmed_block_difficulty:
+            block_validator = self._block_validator
+            assert block_validator is not None
+            return block_validator.validate_block_header(
+                block_header_bytes,
+                self._last_confirmed_block_number,
+                self._last_confirmed_block_difficulty
+            )
+        logger.debug(
+            "Skipping block validation. Block validator - {}, last confirmed block - {}, last confirmed block difficulty - {}",
+            self._block_validator, self._last_confirmed_block_number, self._last_confirmed_block_difficulty)
+        return BlockValidationResult(True, None, None)
+
+    def _get_compressed_block_header_bytes(
+        self, compressed_block_bytes: Union[bytearray, memoryview]
+    ) -> Union[bytearray, memoryview]:
+        pass
+
+    def _get_block_header_bytes_from_block_message(
+        self, block_message: AbstractBlockMessage
+    ) -> Union[bytearray, memoryview]:
         pass

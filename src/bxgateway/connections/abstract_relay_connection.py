@@ -54,6 +54,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     CONNECTION_TYPE = ConnectionType.RELAY_ALL
 
+    node: "AbstractGatewayNode"
+
     def __init__(self, sock: AbstractSocketConnectionProtocol, node: "AbstractGatewayNode"):
         super(AbstractRelayConnection, self).__init__(sock, node)
 
@@ -144,7 +146,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
                 network_num,
                 short_id,
-                peer=stats_format.connection(self),
+                peers=[self],
                 is_compact_transaction=False
             )
             self.log_trace("Transaction has already been seen: {}", tx_hash)
@@ -157,7 +159,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER_IGNORE_SEEN,
                 network_num,
                 short_id,
-                peer=stats_format.connection(self),
+                peers=[self],
                 is_compact_transaction=is_compact
             )
             return
@@ -167,7 +169,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             TransactionStatEventType.TX_RECEIVED_BY_GATEWAY_FROM_PEER,
             network_num,
             short_id,
-            peer=stats_format.connection(self),
+            peers=[self],
             is_compact_transaction=msg.is_compact()
         )
         gateway_transaction_stats_service.log_transaction_from_relay(
@@ -177,7 +179,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         )
 
         if processing_result.assigned_short_id:
-            was_missing = self.node.block_recovery_service.check_missing_sid(short_id, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
+            was_missing = self.node.block_recovery_service.check_missing_sid(short_id,
+                                                                             RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
             attempt_recovery |= was_missing
             tx_stats.add_tx_by_hash_event(
                 tx_hash,
@@ -193,7 +196,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 TransactionStatEventType.TX_SHORT_ID_EMPTY_IN_MSG_FROM_RELAY,
                 network_num,
                 short_id,
-                peer=stats_format.connection(self)
+                peers=[self]
             )
 
         if not is_compact and processing_result.existing_contents:
@@ -204,16 +207,18 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             gateway_bdn_performance_stats_service.log_tx_from_bdn(
                 not self.node.is_gas_price_above_min_network_fee(tx_contents)
             )
-            attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
+            attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash,
+                                                                                       RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
 
             self.publish_new_transaction(
                 tx_hash, tx_contents
             )
 
-            if self.node.node_conn is not None:
+            if self.node.has_active_blockchain_peer():
                 blockchain_tx_message = self.node.message_converter.bx_tx_to_tx(msg)
                 transaction_feed_stats_service.log_new_transaction(tx_hash)
-                sent = self.node.send_transaction_to_node(blockchain_tx_message)
+
+                sent = self.node.broadcast_transactions_to_node(blockchain_tx_message, self)
                 if sent:
                     tx_stats.add_tx_by_hash_event(
                         tx_hash,
@@ -263,7 +268,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             map(lambda x: x.short_id, transactions),
             TransactionStatEventType.TX_UNKNOWN_SHORT_IDS_REPLY_RECEIVED_BY_GATEWAY_FROM_RELAY,
             network_num=self.node.network_num,
-            peer=stats_format.connection(self),
+            peers=[self],
             found_tx_hashes=map(lambda x: convert.bytes_to_hex(x.hash.binary),
                                 transactions
                                 )
@@ -278,7 +283,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 TransactionStatEventType.TX_UNKNOWN_TRANSACTION_RECEIVED_BY_GATEWAY_FROM_RELAY,
                 self.node.network_num,
                 short_id,
-                peer=stats_format.connection(self)
+                peers=[self]
             )
 
         self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
@@ -295,6 +300,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             msg.block_hash(),
             BlockStatEventType.ENC_BLOCK_COMPRESSED_TXS_RECEIVED_BY_GATEWAY,
             network_num=msg.network_num(),
+            peers=[self],
             more_info="{}. processing time: {}".format(
                 stats_format.connection(self),
                 stats_format.timespan(start_time, time.time())
@@ -348,7 +354,10 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             bdn_stats_interval.new_blocks_received_from_bdn,
             bdn_stats_interval.new_tx_received_from_blockchain_node,
             bdn_stats_interval.new_tx_received_from_bdn,
-            memory_utilization_mb
+            memory_utilization_mb,
+            bdn_stats_interval.new_blocks_seen,
+            bdn_stats_interval.new_block_messages_from_blockchain_node,
+            bdn_stats_interval.new_block_announcements_from_blockchain_node
         )
         self.enqueue_msg(msg_to_send)
 
@@ -409,6 +418,35 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             NewTransactionFeed.NAME,
             RawTransactionFeedEntry(tx_hash, tx_contents)
         )
+
+    def on_connection_established(self):
+        super(AbstractRelayConnection, self).on_connection_established()
+
+        if self.is_relay_connection() and self.node.opts.split_relays:
+            self.node.alarm_queue.register_alarm(gateway_constants.CHECK_RELAY_CONNECTIONS_DELAY_S,
+                                                 self._check_matching_relay_connection)
+
+    def _check_matching_relay_connection(self):
+        self.log_debug("Verifying that matching relay connection has been established.")
+
+        matching_relay_ip = self.peer_ip
+        if self.CONNECTION_TYPE == ConnectionType.RELAY_TRANSACTION:
+            matching_relay_port = self.peer_port - 1
+        else:
+            matching_relay_port = self.peer_port + 1
+
+        if self.node.connection_pool.has_connection(matching_relay_ip, matching_relay_port):
+            matching_connection = self.node.connection_pool.by_ipport[(matching_relay_ip, matching_relay_port)]
+            if matching_connection.is_active():
+                self.log_debug("Matching connection check for relay connection {} is successful. "
+                               "Matching connection is {}", self, matching_connection)
+                return
+
+        self.log_debug("Closing relay connection {} because matching relay connection is not available.", self)
+        if self.CONNECTION_TYPE == ConnectionType.RELAY_TRANSACTION:
+            self.node.remove_relay_transaction_peer(self.peer_ip, self.peer_port, True)
+        else:
+            self.node.remove_relay_peer(self.peer_ip, self.peer_port)
 
     def _process_blockchain_network_from_sdn(self, get_blockchain_network_future: Future):
         try:

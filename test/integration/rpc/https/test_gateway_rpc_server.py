@@ -4,6 +4,7 @@ from bxcommon import constants
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
+from bxcommon.rpc.rpc_constants import ContentType
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.helpers import async_test
 from bxgateway.gateway_opts import GatewayOpts
@@ -28,8 +29,9 @@ class GatewayRpcServerTest(AbstractGatewayRpcIntegrationTest):
             8000, rpc_port=self.rpc_port, account_model=self._account_model, blockchain_protocol="Ethereum")
 
     async def request(self, req: BxJsonRpcRequest):
-        headers = dict()
-        headers[rpc_constants.CONTENT_TYPE_HEADER_KEY] = rpc_constants.PLAIN_HEADER_TYPE
+        headers = {
+            rpc_constants.CONTENT_TYPE_HEADER_KEY: ContentType.JSON.value
+        }
 
         async with ClientSession() as session:
             async with session.post(
@@ -37,7 +39,7 @@ class GatewayRpcServerTest(AbstractGatewayRpcIntegrationTest):
                 data=req.to_jsons(),
                 headers=headers
             ) as response:
-                return JsonRpcResponse.from_jsons(await response.json())
+                return JsonRpcResponse.from_json(await response.json())
 
     @async_test
     async def tearDown(self) -> None:

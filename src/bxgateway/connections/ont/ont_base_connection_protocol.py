@@ -3,6 +3,7 @@ from abc import abstractmethod
 from typing import List
 
 from bxcommon import constants
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import ont_constants
@@ -74,7 +75,7 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
         # If Synced Headers is not up-to-date than Ontology node does not push compact blocks to the gateway
         inv_msg = InvOntMessage(magic=self.node.opts.blockchain_net_magic,
                                 inv_type=InventoryOntType.MSG_BLOCK, blocks=[block_hash])
-        self.node.send_msg_to_node(inv_msg)
+        self.connection.enqueue_msg(inv_msg)
         self.node.update_current_block_height(msg.height(), block_hash)
 
     def msg_ping(self, msg: PingOntMessage) -> None:

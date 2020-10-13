@@ -1,6 +1,7 @@
 import time
 from typing import List, TYPE_CHECKING
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import NULL_BTC_BLOCK_HASH
@@ -36,8 +37,8 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             BtcMessageType.INVENTORY: self.msg_inv,
             BtcMessageType.BLOCK: self.msg_block,
             BtcMessageType.TRANSACTIONS: self.msg_tx,
-            BtcMessageType.GET_BLOCKS: self.msg_proxy_request,
-            BtcMessageType.GET_HEADERS: self.msg_proxy_request,
+            BtcMessageType.GET_BLOCKS: self.msg_get_blocks,
+            BtcMessageType.GET_HEADERS: self.msg_get_headers,
             BtcMessageType.GET_DATA: self.msg_get_data,
             BtcMessageType.REJECT: self.msg_reject,
             BtcMessageType.COMPACT_BLOCK: self.msg_compact_block,
@@ -137,8 +138,14 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             inv_msg = InvBtcMessage(
                 magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, object_hash)]
             )
-            self.node.send_msg_to_node(inv_msg)
-        return self.msg_proxy_request(msg)
+            self.connection.enqueue_msg(inv_msg)
+        return self.msg_proxy_request(msg, self.connection)
+
+    def msg_get_blocks(self, msg):
+        self.msg_proxy_request(msg, self.connection)
+
+    def msg_get_headers(self, msg):
+        self.msg_proxy_request(msg, self.connection)
 
     def msg_reject(self, msg):
         """
@@ -152,7 +159,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             inv_msg = InvBtcMessage(
                 magic=self.magic, inv_vects=[(InventoryType.MSG_BLOCK, msg.obj_hash())]
             )
-            self.node.send_msg_to_node(inv_msg)
+            self.connection.enqueue_msg(inv_msg)
 
     def msg_compact_block(self, msg: CompactBlockBtcMessage) -> None:
         """
@@ -208,7 +215,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 magic=self.magic,
                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
             )
-            self.node.send_msg_to_node(get_data_msg)
+            self.connection.enqueue_msg(get_data_msg)
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.COMPACT_BLOCK_REQUEST_FULL,
                                                       network_num=self.connection.network_num)
@@ -237,7 +244,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
                 magic=self.magic,
                 inv_vects=[(InventoryType.MSG_BLOCK, msg.block_hash())]
             )
-            self.node.send_msg_to_node(get_data_msg)
+            self.connection.enqueue_msg(get_data_msg)
             return
 
         if not parse_result.success:
@@ -245,7 +252,7 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
 
             get_block_txs_msg = GetBlockTransactionsBtcMessage(magic=self.magic, block_hash=block_hash,
                                                                indices=parse_result.missing_indices)
-            self.node.send_msg_to_node(get_block_txs_msg)
+            self.connection.enqueue_msg(get_block_txs_msg)
 
     def msg_block_transactions(self, msg: BlockTransactionsBtcMessage) -> None:
         """

@@ -2,6 +2,8 @@ import asyncio
 import json
 from typing import Any
 # TODO: remove try-catch when removing py3.7 support
+from bxcommon.models.node_type import NodeType
+from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxutils.encoding.json_encoder import Case
 
 try:
@@ -33,6 +35,8 @@ class IpcServerTest(AbstractGatewayRpcIntegrationTest):
     @async_test
     async def setUp(self) -> None:
         await super().setUp()
+        self.gateway_node.NODE_TYPE = NodeType.INTERNAL_GATEWAY
+        self.transaction_streamer_peer = OutboundPeerModel("127.0.0.1", 8006, node_type=NodeType.INTERNAL_GATEWAY)
         self.feed_manager = FeedManager(self.gateway_node)
         self.server = IpcServer(
             "bxgateway.ipc", self.feed_manager, self.gateway_node, Case.SNAKE
