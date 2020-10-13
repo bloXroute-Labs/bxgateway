@@ -721,7 +721,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     ip,
                     port
                 )
-            self._remove_relay_peer(ip, port)
+            self.remove_relay_peer(ip, port)
         elif self.opts.split_relays and ConnectionType.RELAY_TRANSACTION in connection_type:
             if ConnectionState.ESTABLISHED in connection_state:
                 self.requester.send_threaded_request(
@@ -730,7 +730,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     ip,
                     port
                 )
-            self._remove_relay_transaction_peer(ip, port)
+            self.remove_relay_transaction_peer(ip, port)
 
         # Reset number of retries in case if SDN instructs to connect to the same node again
         self.num_retries_by_ip[(ip, port)] = 0
@@ -1142,7 +1142,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     constants.SDN_CONTACT_RETRY_SECONDS, self._send_request_for_gateway_peers
                 )
 
-    def _remove_relay_peer(self, ip: str, port: int) -> None:
+    def remove_relay_peer(self, ip: str, port: int) -> None:
         """
         Clean up relay peer on connection failure. (after giving up retry)
         Destroys matching transaction relay if split relays enabled.
@@ -1158,7 +1158,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 logger.debug("Removing relay transaction connection matching block relay host: {}",
                              transaction_connection)
                 transaction_connection.mark_for_close(False)
-            self._remove_relay_transaction_peer(ip, port + 1, False)
+            self.remove_relay_transaction_peer(ip, port + 1, False)
 
         self.outbound_peers = self._get_all_peers()
 
@@ -1178,7 +1178,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if len(self.peer_relays) == 0:
             self.block_processing_service.reset_last_confirmed_block_parameters()
 
-    def _remove_relay_transaction_peer(self, ip: str, port: int, remove_block_relay: bool = True) -> None:
+    def remove_relay_transaction_peer(self, ip: str, port: int, remove_block_relay: bool = True) -> None:
         """
         Clean up relay transactions peer on connection failure. (after giving up retry)
         Destroys matching block relay.
@@ -1193,7 +1193,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             logger.debug("Removing relay block connection matching transaction relay host: {}",
                          block_connection)
             block_connection.mark_for_close(False)
-            self._remove_relay_peer(ip, port - 1)
+            self.remove_relay_peer(ip, port - 1)
 
     def _find_active_connection(self, outbound_peers):
         for peer in outbound_peers:
