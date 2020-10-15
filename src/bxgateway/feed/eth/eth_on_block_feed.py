@@ -193,8 +193,12 @@ class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
         block_height = raw_message.block_height
         if block_height and block_height <= self.last_block_height:
             # ignore older blocks by height
+            logger.debug(
+                "Ignore EthOnBlockFeed block notification for old block height: {} last: {}",
+                block_height, self.last_block_height
+            )
             return
-        logger.info("Processing EthOnBlockFeed notification for block height: {}", block_height)
+        logger.debug("Processing EthOnBlockFeed notification for block height: {}", block_height)
         self.last_block_height = block_height
         event_init_time = time.time()
 
