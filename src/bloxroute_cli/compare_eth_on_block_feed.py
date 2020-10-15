@@ -1,4 +1,5 @@
 import asyncio
+import distutils
 import json
 import logging
 import time
@@ -8,7 +9,10 @@ import sys
 
 from abc import abstractmethod
 from collections import defaultdict, Counter
+from distutils.util import strtobool
+from enum import Enum
 from typing import Union, Optional, Dict
+from datetime import datetime
 
 from bloxroute_cli.provider.ws_provider import WsProvider
 from bxcommon.rpc.provider.abstract_ws_provider import AbstractWsProvider
@@ -17,6 +21,7 @@ from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
 from bxcommon.rpc.rpc_errors import RpcError
 
 logger = logging.getLogger(__name__)
+logger_block_result = logging.getLogger("block_result")
 
 
 def setup_logger() -> None:
@@ -29,13 +34,38 @@ def setup_logger() -> None:
 
 
 class ResultCounter:
-    def __init__(self) -> None:
+    def __init__(self, duration: int) -> None:
         self.notifications = dict()
         self.results = defaultdict(dict)
         self.summary = Counter()
+        self.delta = Counter()
+        self.duration = duration
+        self.start = datetime.now()
 
-    def log_results_summary(self) -> None:
-        logger.info("Results: {}", " ".join([f"{k}:{v}" for k, v in self.summary.items()]))
+    def log_results_summary(self, final: bool = True) -> None:
+        current_time = datetime.now()
+        blocks = sum(self.summary.values())
+        node_types = ["Blxr", "Eth"]
+        logger.info("")
+        if final:
+            logger.info(f"Start: {self.start}, End: {current_time}")
+        else:
+            logger.info(f"Interval summary, Start: {self.start}, Current time: {current_time}")
+        logger.info(f"Blocks seen in duration: {len(self.results)}")
+        logger.info(f"Number of Blocks with results: {blocks}")
+        for node_type in node_types:
+            if node_type in self.summary:
+                logger.info(f"Number of results from {node_type} first: {self.summary[node_type]}")
+        if blocks:
+            logger.info("")
+            ratio_from_gateway_first = self.summary.get("Blxr", 0) / blocks
+            logger.info(f"Percentage of results seen first from gateway: {ratio_from_gateway_first:.2%}")
+            for node_type in node_types:
+                if node_type in self.delta:
+                    avg_delta = self.delta[node_type] / self.summary[node_type]
+                    logger.info(
+                        f"Average time difference for results received first from {node_type} (seconds): {avg_delta:.5f}s"
+                    )
 
     def log_notification(self, block_number: Union[str, int]) -> None:
         if block_number not in self.notifications:
@@ -43,7 +73,7 @@ class ResultCounter:
 
     def log_result_row(self, block_number: Union[str, int], name: str) -> None:
         if name in self.results[block_number]:
-            logger.debug("result previously logged ignore {} {}", block_number, name)
+            logger.debug("Result was previously logged. Ignore block {} #{}.", name, block_number)
             return
         self.results[block_number][name] = time.time()
         row = self.results[block_number]
@@ -55,13 +85,14 @@ class ResultCounter:
                 duration_loser = loser_res - self.notifications[block_number]
             else:
                 duration_winner, duration_loser = None, None
-            logger.info(
-                f"{block_number}: First: {winner} "
+            logger_block_result.info(
+                f"Block number: {block_number}: First: {winner} "
                 f"Duration first: {duration_winner:.5f} "
                 f"Duration second: {duration_loser:.5f} "
                 f"delta {delta:.5f} "
             )
             self.summary[winner] += 1
+            self.delta[winner] += delta
 
 
 class AbstractCallFeed:
@@ -92,7 +123,7 @@ class CallFeed(AbstractCallFeed):
         ws = await EthWsSubscriber(self.uri)
         assert ws.running
         self.subscription_id = await ws.subscribe("newHeads")
-        logger.debug(f"init subscription {self.name}: {self.subscription_id}")
+        logger.debug(f"Initialized subscription {self.name}: {self.subscription_id}")
         self.ws = ws
         asyncio.create_task(self.handle_block_notifications())
 
@@ -130,12 +161,30 @@ class CallFeed(AbstractCallFeed):
 
     async def eth_call(self, block_number, **kwargs) -> None:
         ws = self.ws
+        name = kwargs.pop("name", None)
+        command = kwargs.pop("method", "eth_call")
+        address = kwargs.pop("address", "0x0000000000000000000000000000000000000000")
+        pos = kwargs.pop("pos", "0x")
+        tag = hex(block_number)
+
+        if command == "eth_call":
+            request_payload = [kwargs, tag]
+        elif command in {"eth_getBalance", "eth_getCode", "eth_getTransactionCount"}:
+            request_payload = [address, tag]
+        elif command in {"eth_getStorageAt"}:
+            request_payload = [address, pos, tag]
+        elif command in {"eth_blockNumber"}:
+            request_payload = []
+        else:
+            raise ValueError(f"Invalid EthCommand Option: {command}")
+
         assert ws is not None
         for i in range(10):
             try:
                 _response = await ws.call_rpc(
-                    "eth_call", [kwargs, hex(block_number)]
+                    command, request_payload
                 )
+                logger.debug(f"{self.name} #{block_number}: {_response.to_jsons()}")
                 break
             except RpcError as e:
                 if e.message == "header not found":
@@ -180,6 +229,7 @@ class BlxrCallFeed(CallFeed):
         )
         self.ws = ws
         self.subscription_id = sub_id
+        logger.debug(f"Initialized subscription {self.name}: {self.subscription_id}")
         asyncio.create_task(self.wait_on_sub_id(sub_id))
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
@@ -195,7 +245,10 @@ class BlxrCallFeed(CallFeed):
 
     async def handle_response(self, response) -> None:
         block_number = response.notification["blockHeight"]
+        logger.debug(f"{self.name} #{block_number}: {response.notification['response']}")
         self.counter.log_notification(block_number)
+        if response.notification["name"] == "TaskDisabledEvent":
+            logger.error(f"Invalid subscription task, task was disabled {response.notification}")
         if response.notification["name"] == "TaskCompletedEvent":
             self.counter.log_result_row(block_number, self.name)
 
@@ -240,12 +293,11 @@ def _get_feed_connection(
 async def log_counter_stats(counter: ResultCounter, summary_interval: int = 0) -> None:
     while summary_interval > 0:
         await asyncio.sleep(summary_interval)
-        counter.log_results_summary()
-    else:
-        counter.log_results_summary()
+        counter.log_results_summary(final=False)
 
 
 async def main(opts: argparse.Namespace, counter: ResultCounter) -> None:
+    logger.info(f"Started feed comparison. Duration {opts.duration}s.")
     conn_a = _get_feed_connection(
         opts.eth_call_params, "Node", opts.eth, "Eth", counter,
     )
@@ -256,36 +308,40 @@ async def main(opts: argparse.Namespace, counter: ResultCounter) -> None:
     )
     await conn_a.initialize()
     await conn_b.initialize()
-    asyncio.create_task(log_counter_stats(counter, summary_interval=opts.summary_interval))
+    if opts.summary_interval:
+        asyncio.create_task(log_counter_stats(counter, summary_interval=opts.summary_interval))
 
-    await asyncio.sleep(opts.interval)
-    await log_counter_stats(counter)
+    await asyncio.sleep(opts.duration)
+    counter.log_results_summary(final=True)
 
 
 def get_opts(argv=None) -> argparse.Namespace:
+    DEFAULT_ETH_NODE_URI = "ws://127.0.0.1:8546"
+    DEFAULT_GATEWAY_NODE_URI = "wss://eth.feed.blxrbdn.com:28333"
+
     arg_parser = argparse.ArgumentParser()
     arg_parser.add_argument("--eth",
-                            help="example ws://127.0.0.1:8546",
+                            help=f"Eth node uri. Default: {DEFAULT_ETH_NODE_URI}",
                             type=str,
-                            default="ws://127.0.0.1:8546")
+                            default=DEFAULT_ETH_NODE_URI)
     arg_parser.add_argument("--gateway",
-                            help="example ws://127.0.0.1:28333",
+                            help=f"Gateway node uri. Default: {DEFAULT_GATEWAY_NODE_URI}",
                             type=str,
-                            default="wss://eth.feed.blxrbdn.com:28333")
-    arg_parser.add_argument("--gateway-type",
-                            help="options Local/BdnCloud",
-                            choices=["Local", "Cloud"],
-                            type=str,
-                            default="Cloud")
+                            default=DEFAULT_GATEWAY_NODE_URI)
+    arg_parser.add_argument("--use-cloud-api",
+                            help="Default True(CloudApi) False for local Gateway node",
+                            type=strtobool,
+                            default=True)
     arg_parser.add_argument("--gateway-ssl-dir",
                             help="for cloud connection only path to ssl certificate",
                             type=str,
                             )
     arg_parser.add_argument("--gateway-ca_cert_url",
                             help="for bdn cloud only url for ca cert",
+                            default="https://certificates.blxrbdn.com/ca/ca_cert.pem",
                             type=str,
                             )
-    arg_parser.add_argument("--interval",
+    arg_parser.add_argument("--duration",
                             help="test duration in seconds",
                             type=int,
                             default=600
@@ -293,8 +349,19 @@ def get_opts(argv=None) -> argparse.Namespace:
     arg_parser.add_argument("--summary-interval",
                             help="display summary every N seconds",
                             type=int,
-                            default=60
+                            default=0
                             ),
+    arg_parser.add_argument("-v", "--verbose",
+                            help="display per block results",
+                            action="store_true",
+                            default=False
+                            ),
+    arg_parser.add_argument("-d", "--debug",
+                            help="log debug information",
+                            action="store_true",
+                            default=False
+                            ),
+
     arg_parser.add_argument("--call-params-file",
                             help="Json File that contains the ETH call settings, please see example file",
                             type=str,
@@ -304,15 +371,26 @@ def get_opts(argv=None) -> argparse.Namespace:
     opts = arg_parser.parse_args(argv)
     with open(opts.call_params_file, "rb+") as f:
         opts.eth_call_params = json.loads(f.read())
+    if opts.verbose:
+        logger_block_result.setLevel(logging.DEBUG)
+    if opts.debug:
+        logger.setLevel(logging.DEBUG)
+    if opts.use_cloud_api:
+        opts.gateway_type = "Cloud"
+    else:
+        opts.gateway_type = "Local"
     return opts
 
 
 if __name__ == "__main__":
     setup_logger()
-    result_counter = ResultCounter()
+    opts = get_opts()
+    result_counter = ResultCounter(
+        duration=opts.duration
+    )
     try:
         asyncio.get_event_loop().run_until_complete(
-            main(get_opts(), result_counter)
+            main(opts, result_counter)
         )
     except KeyboardInterrupt:
         logger.error("Exit requested. Shutting down")
