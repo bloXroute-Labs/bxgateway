@@ -66,6 +66,7 @@ class MockGatewayNode(AbstractGatewayNode):
         self.opts.has_fully_updated_tx_service = True
         self.requester = MagicMock()
         self.has_active_blockchain_peer = MagicMock(return_value=True)
+        self.min_tx_from_node_gas_price = MagicMock()
 
     def broadcast(self, msg, broadcasting_conn=None, prepend_to_queue=False, connection_types=None):
         if connection_types is None:
