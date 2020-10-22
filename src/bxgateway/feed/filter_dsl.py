@@ -43,7 +43,7 @@ def handle(
         for val in values
     ]
 
-    return operations[operator](*values)
+    return operations[operator](values)
 
 
 def reformat(
