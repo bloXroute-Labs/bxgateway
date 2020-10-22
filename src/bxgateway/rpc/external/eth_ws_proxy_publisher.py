@@ -162,10 +162,12 @@ class EthWsProxyPublisher(EthWsSubscriber):
             logger.debug(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, tx_hash)
             transaction_feed_stats_service.log_pending_transaction_missing_contents()
         else:
-            self.feed_manager.publish_to_feed(
-                EthPendingTransactionFeed.NAME,
-                EthRawTransaction(tx_hash, parsed_tx, FeedSource.BLOCKCHAIN_RPC)
-            )
+            gas_price = int(parsed_tx["gasPrice"], 16)
+            if gas_price >= self.node.get_network_min_transaction_fee():
+                self.feed_manager.publish_to_feed(
+                    EthPendingTransactionFeed.NAME,
+                    EthRawTransaction(tx_hash, parsed_tx, FeedSource.BLOCKCHAIN_RPC)
+                )
 
     async def stop(self) -> None:
         await self.close()
