@@ -4,6 +4,7 @@ compare_eth_on_block_feed.py is a script that compares the performance of the bl
 offered by the bloXroute Gateway or Cloud API against custom implementation with an Ethereum node's feeds.
 
 Example statistics output:
+
 ````
 Started feed comparison. Duration: 600s
 Start: 2020-10-11 18:02:03.410172, End: 2020-10-11 18:12:05.430070
@@ -12,8 +13,8 @@ Number of blocks with results: 46
 Number of results from Blxr first: 42
 Number of results from Eth first: 4
 Percentage of results seen first from gateway: 91.30%
-Average time difference for results received first from Blxr (seconds): 2.06704
-Average time difference for results received first from Eth (seconds): 1.28599
+Average time difference for results received first from Blxr (ms): 2067.04
+Average time difference for results received first from Eth (ms): 1285.99
 ````
 
 # Installing and setting up

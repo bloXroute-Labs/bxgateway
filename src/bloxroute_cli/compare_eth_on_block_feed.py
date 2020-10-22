@@ -20,17 +20,20 @@ from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
 from bxcommon.rpc.rpc_errors import RpcError
 
-logger = logging.getLogger(__name__)
-logger_block_result = logging.getLogger("block_result")
+logger_summary = logging.getLogger("summary")
+logger = logging.getLogger(f"{__name__}")
+logger_block_result = logging.getLogger(f"{__name__}.block_result")
 
 
 def setup_logger() -> None:
-    root_logger = logging.getLogger()
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter('%(asctime)s - %(message)s'))
-    root_logger.addHandler(handler)
+    logger.addHandler(handler)
     logging.getLogger("bxgateway").setLevel(logging.CRITICAL)
-    logging.getLogger(__name__).setLevel(logging.INFO)
+    logger.setLevel(logging.INFO)
+
+    logger_summary.addHandler(logging.StreamHandler(sys.stdout))
+    logger_summary.setLevel(logging.INFO)
 
 
 class ResultCounter:
@@ -46,25 +49,24 @@ class ResultCounter:
         current_time = datetime.now()
         blocks = sum(self.summary.values())
         node_types = ["Blxr", "Eth"]
-        logger.info("")
+        logger_summary.info("")
         if final:
-            logger.info(f"Start: {self.start}, End: {current_time}")
+            logger_summary.info(f"Start: {self.start}, End: {current_time}")
         else:
-            logger.info(f"Interval summary, Start: {self.start}, Current time: {current_time}")
-        logger.info(f"Blocks seen in duration: {len(self.results)}")
-        logger.info(f"Number of Blocks with results: {blocks}")
+            logger_summary.info(f"Interval summary, Start: {self.start}, Current time: {current_time}")
+        logger_summary.info(f"Blocks seen in duration: {len(self.results)}")
+        logger_summary.info(f"Number of Blocks with results: {blocks}")
         for node_type in node_types:
             if node_type in self.summary:
-                logger.info(f"Number of results from {node_type} first: {self.summary[node_type]}")
+                logger_summary.info(f"Number of results from {node_type} first: {self.summary[node_type]}")
         if blocks:
-            logger.info("")
             ratio_from_gateway_first = self.summary.get("Blxr", 0) / blocks
-            logger.info(f"Percentage of results seen first from gateway: {ratio_from_gateway_first:.2%}")
+            logger_summary.info(f"Percentage of results seen first from gateway: {ratio_from_gateway_first:.2%}")
             for node_type in node_types:
                 if node_type in self.delta:
                     avg_delta = self.delta[node_type] / self.summary[node_type]
-                    logger.info(
-                        f"Average time difference for results received first from {node_type} (seconds): {avg_delta:.5f}s"
+                    logger_summary.info(
+                        f"Average time difference for results received first from {node_type} (ms): {avg_delta * 1000:.5f}"
                     )
 
     def log_notification(self, block_number: Union[str, int]) -> None:
@@ -86,13 +88,18 @@ class ResultCounter:
             else:
                 duration_winner, duration_loser = None, None
             logger_block_result.info(
-                f"Block number: {block_number}: First: {winner} "
-                f"Duration first: {duration_winner:.5f} "
-                f"Duration second: {duration_loser:.5f} "
-                f"delta {delta:.5f} "
+                f"Block number: {block_number}: First response {winner}, "
+                f"Duration from Block time {duration_winner * 1000:.5f} (ms). "
+                f"{loser} Duration from Block time {duration_loser * 1000:.5f} (ms). "
+                f"Delta {delta * 1000:.5f} (ms)"
             )
             self.summary[winner] += 1
             self.delta[winner] += delta
+        else:
+            logger_block_result.debug(
+                f"Block number partial results: {block_number}: First: {name} "
+                f"Duration first: {self.results[block_number][name] - self.notifications[block_number]:.5f} "
+            )
 
 
 class AbstractCallFeed:
@@ -306,7 +313,8 @@ async def main(opts: argparse.Namespace, counter: ResultCounter) -> None:
         opts.gateway_type, opts.gateway, "Blxr", counter,
         ssl_dir=opts.gateway_ssl_dir, ca_url=opts.gateway_ca_cert_url
     )
-    await conn_a.initialize()
+    if opts.use_eth_node:
+        await conn_a.initialize()
     await conn_b.initialize()
     if opts.summary_interval:
         asyncio.create_task(log_counter_stats(counter, summary_interval=opts.summary_interval))
@@ -324,6 +332,10 @@ def get_opts(argv=None) -> argparse.Namespace:
                             help=f"Eth node uri. Default: {DEFAULT_ETH_NODE_URI}",
                             type=str,
                             default=DEFAULT_ETH_NODE_URI)
+    arg_parser.add_argument("--use-eth-node",
+                            help=f"Default: True, set to false to test only Gateway performance",
+                            type=strtobool,
+                            default=True)
     arg_parser.add_argument("--gateway",
                             help=f"Gateway node uri. Default: {DEFAULT_GATEWAY_NODE_URI}",
                             type=str,
@@ -371,10 +383,14 @@ def get_opts(argv=None) -> argparse.Namespace:
     opts = arg_parser.parse_args(argv)
     with open(opts.call_params_file, "rb+") as f:
         opts.eth_call_params = json.loads(f.read())
-    if opts.verbose:
-        logger_block_result.setLevel(logging.DEBUG)
     if opts.debug:
+        log_level = logging.DEBUG
         logger.setLevel(logging.DEBUG)
+    else:
+        log_level = logging.INFO
+    if opts.verbose:
+        logger_block_result.setLevel(log_level)
+
     if opts.use_cloud_api:
         opts.gateway_type = "Cloud"
     else:
@@ -389,7 +405,7 @@ if __name__ == "__main__":
         duration=opts.duration
     )
     try:
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             main(opts, result_counter)
         )
     except KeyboardInterrupt:
