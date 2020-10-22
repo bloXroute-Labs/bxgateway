@@ -6,6 +6,7 @@ ipaddress==1.0.22
 cffi==1.12.2
 csiphash==0.0.5
 aiohttp==3.6.2
+web3==5.10.0
 
 # TODO: plan future work to remove this package
 bloxroute-pyelliptic==1.5.10
