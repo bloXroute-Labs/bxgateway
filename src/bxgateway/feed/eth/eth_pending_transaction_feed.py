@@ -7,8 +7,15 @@ from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.feed.eth.eth_transaction_feed_entry import EthTransactionFeedEntry
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.feed.eth import eth_filter_handlers
 from bxgateway.feed.feed import Feed
 from bxgateway.feed.subscriber import Subscriber
+from bxgateway.feed import filter_dsl
+from bxutils import logging
+from bxutils.logging.log_record_type import LogRecordType
+
+logger = logging.get_logger()
+logger_filters = logging.get_logger(LogRecordType.TransactionFiltering, __name__)
 
 EXPIRATION_TIME_S = 5 * 60
 
@@ -16,6 +23,7 @@ EXPIRATION_TIME_S = 5 * 60
 class EthPendingTransactionFeed(Feed[EthTransactionFeedEntry, EthRawTransaction]):
     NAME = rpc_constants.ETH_PENDING_TRANSACTION_FEED_NAME
     FIELDS = ["tx_hash", "tx_contents"]
+    FILTERS = {"transaction_value_range_eth", "from", "to"}
 
     published_transactions: ExpiringSet[Sha256Hash]
 
@@ -28,15 +36,11 @@ class EthPendingTransactionFeed(Feed[EthTransactionFeedEntry, EthRawTransaction]
             alarm_queue, EXPIRATION_TIME_S, "pendingTxs"
         )
 
-    def subscribe(
-        self, options: Dict[str, Any]
-    ) -> Subscriber[EthTransactionFeedEntry]:
+    def subscribe(self, options: Dict[str, Any]) -> Subscriber[EthTransactionFeedEntry]:
         duplicates = options.get("duplicates", None)
         if duplicates is not None:
             if not isinstance(duplicates, bool):
-                raise RpcInvalidParams(
-                    "\"duplicates\" must be a boolean"
-                )
+                raise RpcInvalidParams('"duplicates" must be a boolean')
 
         return super().subscribe(options)
 
@@ -64,12 +68,27 @@ class EthPendingTransactionFeed(Feed[EthTransactionFeedEntry, EthRawTransaction]
         self,
         subscriber: Subscriber[EthTransactionFeedEntry],
         raw_message: EthRawTransaction,
-        serialized_message: EthTransactionFeedEntry
+        serialized_message: EthTransactionFeedEntry,
     ) -> bool:
         if (
             raw_message.tx_hash in self.published_transactions
             and not subscriber.options.get("duplicates", False)
         ):
             return False
-        else:
-            return True
+        should_publish = True
+        if subscriber.filters:
+            logger_filters.trace(
+                "checking if should publish to {} with filters {}",
+                subscriber.subscription_id,
+                subscriber.filters,
+            )
+            should_publish = filter_dsl.handle(
+                subscriber.filters,
+                eth_filter_handlers.handle_filter,
+                serialized_message,
+            )
+        logger_filters.trace("should publish: {}", should_publish)
+        return should_publish
+
+    def reformat_filters(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+        return filter_dsl.reformat(filters, eth_filter_handlers.reformat_filter)

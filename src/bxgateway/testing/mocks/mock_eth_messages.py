@@ -33,6 +33,17 @@ def generate_eth_raw_transaction(source: FeedSource = FeedSource.BDN_SOCKET) -> 
     )
 
 
+def generate_eth_raw_transaction_with_to_address(
+        source: FeedSource = FeedSource.BDN_SOCKET,
+        to_address: str = helpers.generate_bytes(eth_common_constants.ADDRESS_LEN)) -> EthRawTransaction:
+    transaction = get_dummy_transaction(1, to_address_str=to_address)
+    transactions_eth_message = TransactionsEthProtocolMessage(None, [transaction])
+    tx_message = EthNormalMessageConverter().tx_to_bx_txs(transactions_eth_message, 5)[0][0]
+    return EthRawTransaction(
+        tx_message.tx_hash(), tx_message.tx_val(), source
+    )
+
+
 def get_dummy_transaction(
     nonce: int, gas_price: Optional[int] = None, v: int = 27, to_address_str: Optional[str] = None
 ) -> Transaction:
