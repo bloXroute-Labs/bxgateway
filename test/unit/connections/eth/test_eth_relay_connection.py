@@ -44,6 +44,17 @@ class EthRelayConnectionTest(AbstractTestCase):
             NewTransactionFeed.NAME, expected_publication
         )
 
+    def test_publish_new_transaction_low_gas(self):
+        bx_tx_message = self._convert_to_bx_message(mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE)
+
+        self.node.feed_manager.publish_to_feed = MagicMock()
+        self.node.get_blockchain_network().min_tx_network_fee = (
+            mock_eth_messages.EIP_155_TRANSACTION_GAS_PRICE + 10
+        )
+        self.connection.msg_tx(bx_tx_message)
+
+        self.node.feed_manager.publish_to_feed.assert_not_called()
+
     def test_transaction_updates_filters_based_on_factor(self):
         self.node.opts.filter_txs_factor = 1
         self._set_bc_connection()
