@@ -650,16 +650,23 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             len(list(self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
 
     def on_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection) -> None:
-        self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_event,
-                                             NodeEventType.BLOCKCHAIN_NODE_CONN_ERR,
-                                             self.opts.node_id,
-                                             connection.peer_ip,
-                                             connection.peer_port,
-                                             connection.get_connection_state_details())
+        if BlockchainPeerInfo(connection.peer_ip, connection.peer_port) in self.blockchain_peers:
+            event_type = NodeEventType.BLOCKCHAIN_NODE_CONN_ERR
+            self.time_blockchain_peer_conn_destroyed_by_ip[(connection.peer_ip, connection.peer_port)] = time.time()
+        else:
+            event_type = NodeEventType.BLOCKCHAIN_NODE_CONN_REMOVED
+            self.time_blockchain_peer_conn_destroyed_by_ip.pop((connection.peer_ip, connection.peer_port), None)
+
+        self.requester.send_threaded_request(
+            sdn_http_service.submit_peer_connection_event,
+            event_type,
+            self.opts.node_id,
+            connection.peer_ip,
+            connection.peer_port,
+            connection.get_connection_state_details()
+        )
         self.num_active_blockchain_peers = \
             max(0, len(list(self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))) - 1)
-        if (connection.peer_ip, connection.peer_port) not in self.time_blockchain_peer_conn_destroyed_by_ip:
-            self.time_blockchain_peer_conn_destroyed_by_ip[(connection.peer_ip, connection.peer_port)] = time.time()
         self.block_queuing_service_manager.remove_block_queuing_service(connection)
 
     def log_refused_connection(self, peer_info: ConnectionPeerInfo, error: str) -> None:
