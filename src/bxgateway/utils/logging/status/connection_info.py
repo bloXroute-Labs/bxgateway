@@ -12,4 +12,4 @@ class ConnectionInfo:
     connection_time: Optional[str]
 
     def get_connection_state(self) -> ConnectionState:
-        return ConnectionState.DISCONNECTED if self.ip_address is None else ConnectionState.ESTABLISHED
+        return ConnectionState.DISCONNECTED if self.fileno is None else ConnectionState.ESTABLISHED

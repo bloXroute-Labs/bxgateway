@@ -576,8 +576,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
                                                self.opts.external_ip, self.opts.continent, self.opts.country,
-                                               self.opts.should_update_source_version, self.account_id,
-                                               self.quota_level)
+                                               self.opts.should_update_source_version, self.blockchain_peers,
+                                               self.account_id, self.quota_level)
         if self.is_blockchain_peer(ip, port):
             return self.build_blockchain_connection(socket_connection)
         elif self.remote_blockchain_ip == ip and self.remote_blockchain_port == port:
@@ -720,8 +720,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                                status_log.update_alarm_callback, self.connection_pool,
                                                self.opts.use_extensions, self.opts.source_version,
                                                self.opts.external_ip, self.opts.continent, self.opts.country,
-                                               self.opts.should_update_source_version, self.account_id,
-                                               self.quota_level)
+                                               self.opts.should_update_source_version, self.blockchain_peers,
+                                               self.account_id, self.quota_level)
         if connection_type in ConnectionType.GATEWAY:
             if ConnectionState.ESTABLISHED in connection_state:
                 self.requester.send_threaded_request(
