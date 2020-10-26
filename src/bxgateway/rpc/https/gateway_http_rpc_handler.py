@@ -14,6 +14,7 @@ from bxgateway.rpc.requests.gateway_peers_rpc_request import GatewayPeersRpcRequ
 from bxgateway.rpc.requests.gateway_transaction_service_rpc_request import GatewayTransactionServiceRpcRequest
 from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 from bxgateway.rpc.requests.gateway_blxr_call_rpc_request import GatewayBlxrCallRpcRequest
+from bxgateway.rpc.requests.remove_blockchain_peer_rpc_request import RemoveBlockchainPeerRpcRequest
 
 from bxutils import logging
 
@@ -42,5 +43,6 @@ class GatewayHttpRpcHandler(HttpRpcHandler["AbstractGatewayNode"]):
             RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest,
             RpcRequestType.TX_STATUS: TransactionStatusRpcRequest,
             RpcRequestType.TX_SERVICE: GatewayTransactionServiceRpcRequest,
-            RpcRequestType.ADD_BLOCKCHAIN_PEER: AddBlockchainPeerRpcRequest
+            RpcRequestType.ADD_BLOCKCHAIN_PEER: AddBlockchainPeerRpcRequest,
+            RpcRequestType.REMOVE_BLOCKCHAIN_PEER: RemoveBlockchainPeerRpcRequest
         }

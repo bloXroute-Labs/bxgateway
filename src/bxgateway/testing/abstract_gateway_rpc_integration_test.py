@@ -8,6 +8,8 @@ from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.rpc import rpc_constants
 from bxcommon.test_utils import helpers
+from bxcommon.test_utils.mocks.mock_connection import MockConnection
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxutils import constants as utils_constants
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
@@ -293,6 +295,48 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertEqual(
             {
                 "new_peer": "127.0.0.1:30302"
+            },
+            result.result
+        )
+
+    @async_test
+    async def test_remove_blockchain_peer(self):
+        conn = MockConnection(MockSocketConnection(9, ip_address="127.0.0.1", port=30302), self.gateway_node)
+        conn.mark_for_close = MagicMock()
+        self.gateway_node.connection_pool.add(9, "127.0.0.1", 30302, conn)
+        self.gateway_node.blockchain_peers.add(BlockchainPeerInfo("127.0.0.1", 30302, "d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396"))
+        result = await self.request(BxJsonRpcRequest(
+            "9",
+            RpcRequestType.REMOVE_BLOCKCHAIN_PEER,
+            {"peer": "enode://d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396@127.0.0.1:30302"}
+        ))
+        self.assertNotIn(BlockchainPeerInfo("127.0.0.1", 30302), self.gateway_node.blockchain_peers)
+        conn.mark_for_close.assert_called_once_with(False)
+        self.assertEqual("9", result.id)
+        self.assertIsNone(result.error)
+        self.assertEqual(
+            {
+                "removed_peer": "127.0.0.1:30302"
+            },
+            result.result
+        )
+
+    @async_test
+    async def test_remove_blockchain_peer_not_in_pool(self):
+        self.gateway_node.alarm_queue.register_alarm = MagicMock()
+        self.gateway_node.blockchain_peers.add(BlockchainPeerInfo("127.0.0.1", 30302, "d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396"))
+        result = await self.request(BxJsonRpcRequest(
+            "9",
+            RpcRequestType.REMOVE_BLOCKCHAIN_PEER,
+            {"peer": "enode://d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396@127.0.0.1:30302"}
+        ))
+        self.assertNotIn(BlockchainPeerInfo("127.0.0.1", 30302), self.gateway_node.blockchain_peers)
+        self.gateway_node.alarm_queue.register_alarm.assert_called()
+        self.assertEqual("9", result.id)
+        self.assertIsNone(result.error)
+        self.assertEqual(
+            {
+                "removed_peer": "127.0.0.1:30302"
             },
             result.result
         )
