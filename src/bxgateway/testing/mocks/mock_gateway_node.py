@@ -6,6 +6,7 @@ from mock import MagicMock
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.eth.serializers.transaction import Transaction
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.models.node_type import NodeType
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.services.transaction_service import TransactionService
@@ -28,7 +29,6 @@ from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingServ
 from bxgateway.services.gateway_transaction_service import GatewayTransactionService
 from bxgateway.services.push_block_queuing_service import PushBlockQueuingService
 from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxutils.services.node_ssl_service import NodeSSLService
 
 

@@ -2,13 +2,13 @@ import mock
 import os
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 
 from bxgateway import main, argument_parsers
 from bxgateway import gateway_opts
 from bxgateway import log_messages
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 
 
 class MainTest(AbstractTestCase):

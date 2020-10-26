@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Optional
 
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcInternalError
 from bxgateway import argument_parsers
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences

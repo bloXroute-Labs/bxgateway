@@ -146,6 +146,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
                             action=argument_parsers.ParseEnode,
                             type=str,
                             default=None)
+
     # Blockchain peers specified by --blockchain-peers and --blockchain-peers-file would be aggregated together
     arg_parser.add_argument("--blockchain-peers",
                             help="A comma separated list of node peer info. "

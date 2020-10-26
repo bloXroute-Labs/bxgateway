@@ -11,10 +11,10 @@ from prometheus_client import Enum
 from bxcommon.connections.connection_pool import ConnectionPool
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import OS_VERSION
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.utils import config
 from bxcommon.utils import model_loader
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxgateway.utils.logging.status.analysis import Analysis
 from bxgateway.utils.logging.status.connection_state import ConnectionState
 from bxgateway.utils.logging.status.diagnostics import Diagnostics

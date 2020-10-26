@@ -3,6 +3,7 @@ from typing import cast
 from mock import MagicMock
 
 from bxcommon.constants import LOCALHOST
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
@@ -12,7 +13,6 @@ from bxgateway.connections.abstract_gateway_blockchain_connection import Abstrac
 from bxgateway.services.abstract_block_queuing_service import BlockQueueEntry
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 
 
 class BlockQueuingServiceManagerTest(AbstractTestCase):

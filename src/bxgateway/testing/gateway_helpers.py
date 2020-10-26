@@ -14,7 +14,7 @@ from bxgateway.gateway_opts import GatewayOpts
 
 
 # pylint: disable=unused-argument,too-many-branches
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 
 
 def get_gateway_opts(

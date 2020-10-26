@@ -4,7 +4,6 @@ import functools
 from collections import defaultdict, deque
 
 from bxgateway.services.block_queuing_service_manager import BlockQueuingServiceManager
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxgateway.feed.new_block_feed import NewBlockFeed
@@ -28,6 +27,7 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -98,6 +98,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     _blockchain_liveliness_alarm: Optional[AlarmId] = None
     _relay_liveliness_alarm: Optional[AlarmId] = None
+    _active_blockchain_peers_alarm: Optional[AlarmId] = None
 
     remote_node_msg_queue: BlockchainMessageQueue
     msg_proxy_requester_queue: Deque[AbstractGatewayBlockchainConnection]
@@ -155,8 +156,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         self.quota_level = 0
         self.num_active_blockchain_peers = 0
-        self.blockchain_peers = self.opts.blockchain_peers
-        self.blockchain_peers.add(BlockchainPeerInfo(opts.blockchain_ip, opts.blockchain_port, opts.node_public_key))
+        self.blockchain_peers = self.get_blockchain_peers_from_cache_and_command_line()
         self.transaction_streamer_peer = None
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
@@ -242,6 +242,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         self.schedule_blockchain_liveliness_check(opts.initial_liveliness_check)
         self.schedule_relay_liveliness_check(opts.initial_liveliness_check)
+        self.schedule_active_blockchain_peers_liveliness_check(
+            gateway_constants.ACTIVE_BLOCKCHAIN_PEERS_LIVELINESS_CHECK_S
+        )
 
         self.opts.has_fully_updated_tx_service = False
 
@@ -845,6 +848,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self._blockchain_liveliness_alarm = self.alarm_queue.register_alarm(time_from_now_s,
                                                                                 self.check_blockchain_liveliness)
 
+    def schedule_active_blockchain_peers_liveliness_check(self, time_from_now_s: int) -> None:
+        if not self._active_blockchain_peers_alarm and self.opts.require_blockchain_connection:
+            self._active_blockchain_peers_alarm = self.alarm_queue.register_alarm(time_from_now_s,
+                                                                                  self.check_active_blockchain_peers)
+
     def schedule_relay_liveliness_check(self, time_from_now_s: int) -> None:
         if not self._relay_liveliness_alarm:
             self._relay_liveliness_alarm = self.alarm_queue.register_alarm(time_from_now_s,
@@ -861,6 +869,19 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if relay_liveliness_alarm:
             self.alarm_queue.unregister_alarm(relay_liveliness_alarm)
             self._relay_liveliness_alarm = None
+
+    def get_blockchain_peers_from_cache_and_command_line(self) -> Set[BlockchainPeerInfo]:
+        blockchain_peers = self.opts.blockchain_peers
+        blockchain_peers.add(
+            BlockchainPeerInfo(self.opts.blockchain_ip, self.opts.blockchain_port, self.opts.node_public_key)
+        )
+        cache_file_info = node_cache.read(self.opts)
+        if cache_file_info is not None:
+            blockchain_peers_from_cache = cache_file_info.blockchain_peers
+            if blockchain_peers_from_cache is not None:
+                for blockchain_peer in blockchain_peers_from_cache:
+                    blockchain_peers.add(blockchain_peer)
+        return blockchain_peers
 
     def has_active_blockchain_peer(self) -> bool:
         for conn in self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]):
@@ -883,6 +904,17 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if not self.has_active_blockchain_peer():
             self.should_force_exit = True
             logger.error(log_messages.NO_ACTIVE_BLOCKCHAIN_CONNECTION)
+
+    def check_active_blockchain_peers(self) -> int:
+        """
+        Checks active blockchain node peers and updates node cache file
+        """
+        active_blockchain_peers = []
+        for peer in self.blockchain_peers:
+            if self.connection_pool.has_connection(peer.ip, peer.port):
+                active_blockchain_peers.append(peer)
+        node_cache.update_cache_file(self.opts, blockchain_peers=active_blockchain_peers)
+        return gateway_constants.ACTIVE_BLOCKCHAIN_PEERS_LIVELINESS_CHECK_S
 
     def check_relay_liveliness(self) -> None:
         if not list(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])):
@@ -1049,7 +1081,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             potential_relay_peers = get_potential_relays_future.result()
 
             if potential_relay_peers:
-                node_cache.update(self.opts, potential_relay_peers)
+                node_cache.update_cache_file(self.opts, potential_relay_peers=potential_relay_peers)
             else:
                 # if called too many times to sync_and_send_request_for_relay_peers,
                 # reset relay peers to empty list in cache file
@@ -1057,7 +1089,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     self.send_request_for_relay_peers_num_of_calls
                     > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS
                 ):
-                    node_cache.update(self.opts, [])
+                    node_cache.update_cache_file(self.opts, potential_relay_peers=[])
                     self.send_request_for_relay_peers_num_of_calls = 0
                 self.send_request_for_relay_peers_num_of_calls += 1
 

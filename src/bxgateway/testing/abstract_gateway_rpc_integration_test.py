@@ -10,12 +10,12 @@ from bxcommon.rpc import rpc_constants
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxutils import constants as utils_constants
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_base import BdnServiceModelBase
 from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
 from bxcommon.models.bdn_service_type import BdnServiceType
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType

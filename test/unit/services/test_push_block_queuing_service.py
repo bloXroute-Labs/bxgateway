@@ -4,6 +4,7 @@ from typing import List, Optional
 from mock import MagicMock
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.test_utils.helpers import TestBlockMessage
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -25,7 +26,6 @@ from bxgateway.services.push_block_queuing_service import (
     PushBlockQueuingService,
 )
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 
 
 class TestBlockHeaderMessage(AbstractMessage):

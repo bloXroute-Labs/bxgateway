@@ -2,6 +2,7 @@ import os
 import uuid
 from typing import Tuple, Set
 
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
@@ -11,7 +12,6 @@ from bxcommon.utils import config
 from bxcommon.utils import model_loader
 from bxcommon.connections.connection_pool import ConnectionPool
 from bxcommon.connections.connection_type import ConnectionType
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxgateway.utils.logging.status.blockchain_connection import BlockchainConnection
 from bxgateway.utils.logging.status.connection_state import ConnectionState
 from bxgateway.utils.logging.status.status_log import initialize, update, Diagnostics, Summary, Analysis, Environment, \
