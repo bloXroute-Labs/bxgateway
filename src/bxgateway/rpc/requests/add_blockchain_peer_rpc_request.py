@@ -1,4 +1,6 @@
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.models.node_event_model import NodeEventType
+from bxcommon.services import sdn_http_service
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc import rpc_constants
 from bxgateway.rpc.requests.abstract_blockchain_peer_rpc_request import AbstractBlockchainPeerRpcRequest
@@ -18,6 +20,13 @@ class AddBlockchainPeerRpcRequest(AbstractBlockchainPeerRpcRequest):
         self.node.blockchain_peers.add(blockchain_peer_info)
         self.node.enqueue_connection(
             blockchain_peer_info.ip, blockchain_peer_info.port, ConnectionType.BLOCKCHAIN_NODE
+        )
+        self.node.requester.send_threaded_request(
+            sdn_http_service.submit_peer_connection_event,
+            NodeEventType.BLOCKCHAIN_NODE_CONN_ADDED,
+            self.node.opts.node_id,
+            blockchain_peer_info.ip,
+            blockchain_peer_info.port,
         )
 
         return self.ok({
