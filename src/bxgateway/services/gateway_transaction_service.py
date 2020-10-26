@@ -51,6 +51,7 @@ class GatewayTransactionService(TransactionService):
             not short_id
             and self.has_transaction_short_id(transaction_hash)
             and self.has_transaction_contents(transaction_hash)
+            or self.removed_transaction(transaction_hash)
         ):
             return TransactionFromBdnGatewayProcessingResult(ignore_seen=True)
 
@@ -96,7 +97,10 @@ class GatewayTransactionService(TransactionService):
 
         for bx_tx_message, tx_hash, tx_bytes in bx_tx_messages:
             tx_cache_key = self._tx_hash_to_cache_key(tx_hash)
-            tx_seen_flag = self.has_transaction_contents_by_cache_key(tx_cache_key)
+            tx_seen_flag = (
+                self.has_transaction_contents_by_cache_key(tx_cache_key)
+                or self.removed_transaction_by_cache_key(tx_cache_key)
+            )
 
             if not tx_seen_flag:
                 self.set_transaction_contents(tx_hash, tx_bytes)
