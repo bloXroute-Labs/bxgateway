@@ -210,7 +210,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 blockchain_tx_message = self.node.message_converter.bx_tx_to_tx(msg)
                 transaction_feed_stats_service.log_new_transaction(tx_hash)
 
-                sent = self.node.broadcast_transactions_to_node(blockchain_tx_message, self)
+                sent = self.node.broadcast_transactions_to_nodes(blockchain_tx_message, self)
                 if sent:
                     tx_stats.add_tx_by_hash_event(
                         tx_hash,

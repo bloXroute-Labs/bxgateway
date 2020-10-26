@@ -7,7 +7,6 @@ from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.services.ont.ont_block_queuing_service import OntBlockQueuingService
 from mock import MagicMock, Mock
 
-from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 
@@ -24,7 +23,7 @@ class OntBlockQueuingServiceTest(AbstractTestCase):
 
         self.node.node_conn = self.node_connection
 
-        self.block_queuing_service = OntBlockQueuingService(self.node)
+        self.block_queuing_service = OntBlockQueuingService(self.node, self.node.node_conn)
 
         self.block_hashes = []
         self.block_msg = self._get_sample_block()

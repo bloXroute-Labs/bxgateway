@@ -1,9 +1,12 @@
 import time
 from asyncio import Future
-from typing import Optional
+from typing import Optional, List
 from unittest import skip
 from mock import MagicMock, call
 
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.testing import gateway_helpers
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
@@ -36,6 +39,29 @@ from bxgateway.gateway_opts import GatewayOpts
 from bxutils.services.node_ssl_service import NodeSSLService
 
 
+class MockPushBlockQueuingService(
+    PushBlockQueuingService[AbstractBlockMessage, AbstractMessage]
+):
+    def __init__(self, node, node_conn):
+        super().__init__(node, node_conn)
+        self.blocks_sent: List[Sha256Hash] = []
+
+    def build_block_header_message(
+        self, block_hash: Sha256Hash, _block_message: AbstractBlockMessage
+    ) -> AbstractMessage:
+        return AbstractMessage()
+
+    def get_previous_block_hash_from_message(
+        self, block_message: AbstractBlockMessage
+    ) -> Sha256Hash:
+        pass
+
+    def on_block_sent(
+        self, block_hash: Sha256Hash, _block_message: AbstractBlockMessage
+    ):
+        pass
+
+
 class GatewayNode(AbstractGatewayNode):
 
     def __init__(self, opts: GatewayOpts, node_ssl_service: Optional[NodeSSLService] = None):
@@ -44,8 +70,8 @@ class GatewayNode(AbstractGatewayNode):
         super().__init__(opts, node_ssl_service)
         self.requester = MagicMock()
 
-    def build_block_queuing_service(self) -> PushBlockQueuingService:
-        pass
+    def build_block_queuing_service(self, connection: AbstractGatewayBlockchainConnection) -> PushBlockQueuingService:
+        return MockPushBlockQueuingService(self, connection)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         pass
@@ -614,6 +640,12 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
             node.on_blockchain_connection_ready(blockchain_conn)
             self.assertIsNone(node._blockchain_liveliness_alarm)
+            block_queuing_service = node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn)
+            self.assertIsNotNone(block_queuing_service)
+            self.assertEqual(
+                block_queuing_service,
+                node.block_queuing_service_manager.get_designated_block_queuing_service()
+            )
 
         if initialize_relay_conn:
             node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))

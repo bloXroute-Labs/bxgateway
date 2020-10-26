@@ -15,6 +15,7 @@ from bxcommon.network.peer_info import ConnectionPeerInfo
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.rpc import rpc_constants
 from bxcommon.utils import convert
+from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants, eth_common_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -101,7 +102,11 @@ class EthGatewayNode(AbstractGatewayNode):
                 self._remote_public_key = convert.hex_to_bytes(opts.remote_public_key)
 
         self.block_processing_service: EthBlockProcessingService = EthBlockProcessingService(self)
-        self.block_queuing_service: EthBlockQueuingService = EthBlockQueuingService(self)
+        self.block_parts_storage: ExpiringDict[Sha256Hash, NewBlockParts] = ExpiringDict(
+            self.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_parts",
+        )
 
         # List of know total difficulties, tuples of values (block hash, total difficulty)
         self._last_known_difficulties = deque(maxlen=eth_common_constants.LAST_KNOWN_TOTAL_DIFFICULTIES_MAX_COUNT)
@@ -147,8 +152,11 @@ class EthGatewayNode(AbstractGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         return EthRemoteConnection(socket_connection, self)
 
-    def build_block_queuing_service(self) -> EthBlockQueuingService:
-        return EthBlockQueuingService(self)
+    def build_block_queuing_service(
+        self,
+        connection: AbstractGatewayBlockchainConnection
+    ) -> EthBlockQueuingService:
+        return EthBlockQueuingService(self, connection)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         if self.opts.use_extensions:
@@ -376,7 +384,7 @@ class EthGatewayNode(AbstractGatewayNode):
         for transaction in transactions:
             self.average_block_gas_price.add_value(transaction.gas_price)
 
-    def broadcast_transactions_to_node(
+    def broadcast_transactions_to_nodes(
         self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
     ) -> bool:
         msg = cast(TransactionsEthProtocolMessage, msg)
@@ -413,7 +421,7 @@ class EthGatewayNode(AbstractGatewayNode):
                 )
                 return False
 
-        return super().broadcast_transactions_to_node(msg, broadcasting_conn)
+        return super().broadcast_transactions_to_nodes(msg, broadcasting_conn)
 
     def get_enode(self) -> str:
         return \
@@ -498,11 +506,15 @@ class EthGatewayNode(AbstractGatewayNode):
         if block_message:
             yield block_message
         else:
-            block_parts = self.block_queuing_service.get_block_parts(block_hash)
-            if block_parts:
-                block_message = InternalEthBlockInfo.from_new_block_parts(block_parts)
-                assert block_message is not None
-                yield block_message
+            block_queuing_service = cast(
+                EthBlockQueuingService,
+                self.block_queuing_service_manager.get_designated_block_queuing_service()
+            )
+            if block_queuing_service is not None:
+                block_parts = block_queuing_service.get_block_parts(block_hash)
+                if block_parts:
+                    block_message = InternalEthBlockInfo.from_new_block_parts(block_parts)
+                    yield block_message
 
     def _publish_block_to_new_block_feed(
         self,

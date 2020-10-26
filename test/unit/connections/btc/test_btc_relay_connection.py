@@ -52,13 +52,26 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.sut = BtcRelayConnection(MockSocketConnection(
             node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
         )
-        self.gateway_node.connection_pool.add(1, LOCALHOST, 8002, MockConnection(MockSocketConnection(
-            1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
-        ))
         self.gateway_node.message_converter = converter_factory.create_btc_message_converter(
             12345, self.gateway_node.opts
         )
 
+        self.node_conn = MockConnection(MockSocketConnection(
+            1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
+        )
+        self.gateway_node.connection_pool.add(1, LOCALHOST, 8002, self.node_conn)
+        gateway_helpers.add_blockchain_peer(self.gateway_node, self.node_conn)
+
+        self.node_conn_2 = MockConnection(MockSocketConnection(
+            1, self.gateway_node, ip_address=LOCALHOST, port=8003), self.gateway_node
+        )
+        self.gateway_node.connection_pool.add(1, LOCALHOST, 8003, self.node_conn_2)
+        gateway_helpers.add_blockchain_peer(self.gateway_node, self.node_conn_2)
+
+        self.blockchain_connections = [self.node_conn, self.node_conn_2]
+
+        self.node_conn.enqueue_msg = MagicMock()
+        self.node_conn_2.enqueue_msg = MagicMock()
         self.gateway_node.broadcast = MagicMock()
         self.sut.enqueue_msg = MagicMock()
         gateway_transaction_stats_service.set_node(self.gateway_node)
@@ -169,15 +182,16 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.sut.msg_broadcast(unknown_message)
         self.sut.msg_key(unknown_key_message)
 
-        self.assertEqual(1, len(self.gateway_node.block_queuing_service))
-        self.assertEqual(True, self.gateway_node.block_queuing_service._blocks_waiting_for_recovery[block_hash])
+        block_queuing_service = self.gateway_node.block_queuing_service_manager.get_block_queuing_service(self.node_conn)
+        self.assertEqual(1, len(block_queuing_service))
+        self.assertEqual(True, block_queuing_service._blocks_waiting_for_recovery[block_hash])
         self.assertEqual(1, len(self.gateway_node.block_recovery_service._block_hash_to_bx_block_hashes))
         self.assertNotIn(block_hash, self.gateway_node.blocks_seen.contents)
 
         self.sut.msg_broadcast(known_message)
         self.sut.msg_key(known_key_message)
 
-        self.assertEqual(0, len(self.gateway_node.block_queuing_service))
+        self.assertEqual(0, len(block_queuing_service))
         self.assertEqual(0, len(self.gateway_node.block_recovery_service._block_hash_to_bx_block_hashes))
         self.assertIn(block_hash, self.gateway_node.blocks_seen.contents)
 
@@ -350,32 +364,32 @@ class BtcRelayConnectionTest(AbstractTestCase):
             self.assertEqual(tx_info.contents, stored_content)
 
     def _assert_block_sent(self, btc_block):
-        self.gateway_node.broadcast.assert_called()
-        calls = self.gateway_node.broadcast.call_args_list
+        for node_conn in self.blockchain_connections:
+            node_conn.enqueue_msg.assert_called()
+            calls = node_conn.enqueue_msg.call_args_list
 
-        broadcast_to_blockchain_calls = []
-        for call, conn_type in calls:
-            if conn_type["connection_types"][0] == ConnectionType.BLOCKCHAIN_NODE:
-                broadcast_to_blockchain_calls.append((call, conn_type))
-        self.assertEqual(2, len(broadcast_to_blockchain_calls))
+            sent_to_blockchain_calls = []
+            for call, _ in calls:
+                sent_to_blockchain_calls.append((call, _))
+            self.assertEqual(2, len(sent_to_blockchain_calls))
 
-        ((sent_block_msg,), _) = broadcast_to_blockchain_calls[0]
-        self.assertEqual(btc_block.version(), sent_block_msg.version())
-        self.assertEqual(btc_block.magic(), sent_block_msg.magic())
-        self.assertEqual(btc_block.prev_block_hash(), sent_block_msg.prev_block_hash())
-        self.assertEqual(btc_block.merkle_root(), sent_block_msg.merkle_root())
-        self.assertEqual(btc_block.timestamp(), sent_block_msg.timestamp())
-        self.assertEqual(btc_block.bits(), sent_block_msg.bits())
-        self.assertEqual(btc_block.nonce(), sent_block_msg.nonce())
-        self.assertEqual(btc_block.txn_count(), sent_block_msg.txn_count())
+            ((sent_block_msg,), _) = sent_to_blockchain_calls[0]
+            self.assertEqual(btc_block.version(), sent_block_msg.version())
+            self.assertEqual(btc_block.magic(), sent_block_msg.magic())
+            self.assertEqual(btc_block.prev_block_hash(), sent_block_msg.prev_block_hash())
+            self.assertEqual(btc_block.merkle_root(), sent_block_msg.merkle_root())
+            self.assertEqual(btc_block.timestamp(), sent_block_msg.timestamp())
+            self.assertEqual(btc_block.bits(), sent_block_msg.bits())
+            self.assertEqual(btc_block.nonce(), sent_block_msg.nonce())
+            self.assertEqual(btc_block.txn_count(), sent_block_msg.txn_count())
 
-        ((sent_inv_msg,), _) = broadcast_to_blockchain_calls[1]
-        self.assertIsInstance(sent_inv_msg, InvBtcMessage)
-        sent_inv_msg = cast(InvBtcMessage, sent_inv_msg)
+            ((sent_inv_msg,), _) = sent_to_blockchain_calls[1]
+            self.assertIsInstance(sent_inv_msg, InvBtcMessage)
+            sent_inv_msg = cast(InvBtcMessage, sent_inv_msg)
 
-        inv_items = list(iter(sent_inv_msg))
-        self.assertEqual(1, len(inv_items))
+            inv_items = list(iter(sent_inv_msg))
+            self.assertEqual(1, len(inv_items))
 
-        block_inv = inv_items[0]
-        self.assertEqual(InventoryType.MSG_BLOCK, block_inv[0])
-        self.assertEqual(btc_block.block_hash(), block_inv[1])
+            block_inv = inv_items[0]
+            self.assertEqual(InventoryType.MSG_BLOCK, block_inv[0])
+            self.assertEqual(btc_block.block_hash(), block_inv[1])

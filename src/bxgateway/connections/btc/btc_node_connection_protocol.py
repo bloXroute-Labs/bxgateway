@@ -116,7 +116,9 @@ class BtcNodeConnectionProtocol(BtcBaseConnectionProtocol):
             )
             self.connection.enqueue_msg(get_data, prepend=contains_block)
 
-        self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
+        block_queuing_service = self.node.block_queuing_service_manager.get_block_queuing_service(self.connection)
+        if block_queuing_service is not None:
+            block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
 
     def msg_get_data(self, msg: GetDataBtcMessage) -> None:
         """

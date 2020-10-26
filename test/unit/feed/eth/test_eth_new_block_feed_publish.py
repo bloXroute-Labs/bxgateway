@@ -2,7 +2,9 @@ import time
 from unittest.mock import MagicMock
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils.blockchain_utils.eth import crypto_utils
 from bxcommon.test_utils import helpers
 
@@ -10,6 +12,7 @@ from bxgateway.feed.eth.eth_new_block_feed import EthNewBlockFeed
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
 
 from bxgateway.feed.feed_source import FeedSource
+from bxgateway.gateway_constants import LOCALHOST
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.testing import gateway_helpers
@@ -22,7 +25,6 @@ _recover_public_key = crypto_utils.recover_public_key
 class EthNewBlockFeedPublishTest(AbstractTestCase):
 
     def setUp(self) -> None:
-
         crypto_utils.recover_public_key = MagicMock(
             return_value=bytes(32))
 
@@ -33,6 +35,12 @@ class EthNewBlockFeedPublishTest(AbstractTestCase):
             helpers.set_extensions_parallelism()
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
         self.node = EthGatewayNode(opts, node_ssl_service)
+        self.node_conn = MockConnection(MockSocketConnection(
+            1, self.node, ip_address=LOCALHOST, port=8002), self.node
+        )
+        self.node.connection_pool.add(1, LOCALHOST, 8002, self.node_conn)
+        gateway_helpers.add_blockchain_peer(self.node, self.node_conn)
+        self.block_queuing_service = self.node.block_queuing_service_manager.get_designated_block_queuing_service()
 
         self.sut = EthNewBlockFeed(self.node)
 
@@ -73,7 +81,7 @@ class EthNewBlockFeedPublishTest(AbstractTestCase):
             self.assertIsNone(block)
 
         # returns block
-        self.node.block_queuing_service._block_parts[block_hash] = block_msg.to_new_block_parts()
+        self.node.block_parts_storage[block_hash] = block_msg.to_new_block_parts()
         lazy_block = self.node._get_block_message_lazy(None, block_hash)
         block = next(lazy_block)
         self.assertEqual(block.block_hash(), block_hash)
@@ -90,7 +98,7 @@ class EthNewBlockFeedPublishTest(AbstractTestCase):
         block_number = block_msg.block_number()
 
         # called without block_msg
-        self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
+        self.block_queuing_service.mark_block_seen_by_blockchain_node(
             block_hash,
             None,
             block_number,
@@ -100,7 +108,7 @@ class EthNewBlockFeedPublishTest(AbstractTestCase):
 
         # called for same block with message
         self.node.publish_block = MagicMock()
-        self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
+        self.block_queuing_service.mark_block_seen_by_blockchain_node(
             block_hash,
             block_msg,
             block_number,
@@ -115,7 +123,7 @@ class EthNewBlockFeedPublishTest(AbstractTestCase):
         stale_block_number = stale_block_msg.block_number()
         self.node.publish_block = MagicMock()
 
-        self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
+        self.block_queuing_service.mark_block_seen_by_blockchain_node(
             stale_block_hash,
             stale_block_msg,
             stale_block_number,
@@ -128,7 +136,7 @@ class EthNewBlockFeedPublishTest(AbstractTestCase):
         block_hash = block_msg.block_hash()
         block_number = block_msg.block_number()
 
-        self.node.block_queuing_service.push(
+        self.node.block_queuing_service_manager.push(
             block_hash, block_msg
         )
         self.node.publish_block.assert_called_once()
@@ -180,13 +188,13 @@ class EthNewBlockFeedPublishTest(AbstractTestCase):
         self.sut.publish_blocks_from_queue(10, 20)
         # no blocks in queueing service
         self.sut.publish.assert_not_called()
-        self.node.block_queuing_service.accepted_block_hash_at_height[11] = "11"
+        self.block_queuing_service.accepted_block_hash_at_height[11] = "11"
         self.sut.publish_blocks_from_queue(10, 20)
         # only one block in queueing service
         self.sut.publish.assert_called_once()
         self.sut.publish = MagicMock()
         for i in range(10, 20):
-            self.node.block_queuing_service.accepted_block_hash_at_height[i] = str(i)
+            self.block_queuing_service.accepted_block_hash_at_height[i] = str(i)
         self.sut.publish_blocks_from_queue(10, 20)
         # only one block in queueing service
         call_args = self.sut.publish.call_args_list

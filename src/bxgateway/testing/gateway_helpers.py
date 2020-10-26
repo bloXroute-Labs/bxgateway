@@ -1,16 +1,22 @@
 from argparse import Namespace
-from unittest.mock import MagicMock
+from typing import cast
 
 from bxcommon import constants
+from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.test_utils.helpers import COOKIE_FILE_PATH, get_common_opts, \
     BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
+from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway import argument_parsers
 from bxgateway.gateway_opts import GatewayOpts
 
 
 # pylint: disable=unused-argument,too-many-branches
+from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
+
+
 def get_gateway_opts(
     port,
     node_id=None,
@@ -221,3 +227,10 @@ def get_gateway_opts(
         "blockchain_block_hold_timeout_s": blockchain_block_hold_timeout_s,
     })
     return gateway_opts
+
+
+def add_blockchain_peer(node: AbstractGatewayNode, connection: AbstractConnection):
+    node_conn = cast(AbstractGatewayBlockchainConnection, connection)
+    node.blockchain_peers.add(BlockchainPeerInfo(node_conn.peer_ip, node_conn.peer_port))
+    block_queuing_service = node.build_block_queuing_service(node_conn)
+    node.block_queuing_service_manager.add_block_queuing_service(node_conn, block_queuing_service)

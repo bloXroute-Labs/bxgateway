@@ -74,7 +74,7 @@ class EthRelayConnectionTest(AbstractTestCase):
             TransactionsEthProtocolMessage(None, [mock_eth_messages.get_dummy_transaction(1, 15)])
         )
         self.connection.msg_tx(expensive_tx)
-        self.node.broadcast.assert_called_once()
+        self._assert_tx_sent()
 
     def _convert_to_bx_message(self, transactions_eth_msg: TransactionsEthProtocolMessage) -> TxMessage:
         bx_tx_message, _, _ = self.node.message_converter.tx_to_bx_txs(
@@ -90,3 +90,14 @@ class EthRelayConnectionTest(AbstractTestCase):
         self.node.requester.send_threaded_request = MagicMock()
         self.node.on_blockchain_connection_ready(blockchain_conn)
         self.assertIsNone(self.node._blockchain_liveliness_alarm)
+
+    def _assert_tx_sent(self):
+        self.node.broadcast.assert_called_once()
+        calls = self.node.broadcast.call_args_list
+
+        ((sent_tx_msg,), connection_info) = calls[0]
+        self.assertIsInstance(sent_tx_msg, TransactionsEthProtocolMessage)
+        connection_types = connection_info["connection_types"]
+        self.assertEqual(len(connection_types), 1)
+        connection_type = connection_types[0]
+        self.assertEqual(connection_type, ConnectionType.BLOCKCHAIN_NODE)

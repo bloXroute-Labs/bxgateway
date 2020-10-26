@@ -3,6 +3,7 @@ import asyncio
 import functools
 from collections import defaultdict, deque
 
+from bxgateway.services.block_queuing_service_manager import BlockQueuingServiceManager
 from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
@@ -60,7 +61,7 @@ from bxgateway.feed.feed_source import FeedSource
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
+from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService, TBlockMessage
 from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.block_recovery_service import BlockRecoveryService, RecoveredTxsSource
 from bxgateway.services.gateway_broadcast_service import GatewayBroadcastService
@@ -110,7 +111,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     blocks_seen: ExpiringSet
     in_progress_blocks: BlockEncryptedCache
     block_recovery_service: BlockRecoveryService
-    block_queuing_service: AbstractBlockQueuingService
+    blockchain_peer_to_block_queuing_service: Dict[AbstractGatewayBlockchainConnection, AbstractBlockQueuingService]
+    block_storage: ExpiringDict[Sha256Hash, Optional[AbstractBlockMessage]]
+    block_queuing_service_manager: BlockQueuingServiceManager
     block_processing_service: BlockProcessingService
     block_cleanup_service: AbstractBlockCleanupService
     _tx_service: GatewayTransactionService
@@ -173,9 +176,19 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.in_progress_blocks = BlockEncryptedCache(self.alarm_queue)
         self.block_recovery_service = BlockRecoveryService(self.alarm_queue)
         self.neutrality_service = NeutralityService(self)
-        self.block_queuing_service = self.build_block_queuing_service()
         self.block_processing_service = BlockProcessingService(self)
         self.block_cleanup_service = self.build_block_cleanup_service()
+
+        self.block_storage = ExpiringDict(
+            self.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "block_queuing_service_blocks"
+        )
+        self.blockchain_peer_to_block_queuing_service = {}
+        self.block_queuing_service_manager = BlockQueuingServiceManager(
+            self.block_storage,
+            self.blockchain_peer_to_block_queuing_service
+        )
 
         self.send_request_for_relay_peers_num_of_calls = 0
         self.check_relay_alarm_id: Optional[AlarmId] = None
@@ -322,7 +335,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         return GatewayConnection(socket_connection, self)
 
     @abstractmethod
-    def build_block_queuing_service(self) -> AbstractBlockQueuingService:
+    def build_block_queuing_service(
+        self,
+        connection: AbstractGatewayBlockchainConnection
+    ) -> AbstractBlockQueuingService:
         pass
 
     @abstractmethod
@@ -405,8 +421,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             object_type=memory_utils.ObjectType.META,
             size_type=memory_utils.SizeType.SPECIAL
         )
-
-        self.block_queuing_service.log_memory_stats()
+        for block_queuing_service in self.block_queuing_service_manager:
+            block_queuing_service.log_memory_stats()
 
         return super(AbstractGatewayNode, self).record_mem_stats()
 
@@ -591,7 +607,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def is_blockchain_peer(self, ip, port) -> bool:
         return BlockchainPeerInfo(ip, port) in self.blockchain_peers
 
-    def broadcast_transactions_to_node(
+    def broadcast_transactions_to_nodes(
         self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
     ) -> bool:
         self.broadcast(msg, broadcasting_conn=broadcasting_conn, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
@@ -620,6 +636,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection) -> None:
         self.blockchain_peers.add(BlockchainPeerInfo(connection.peer_ip, connection.peer_port))
+        block_queuing_service = self.build_block_queuing_service(connection)
+        self.block_queuing_service_manager.add_block_queuing_service(connection, block_queuing_service)
         self.cancel_blockchain_liveliness_check()
         self.requester.send_threaded_request(
             sdn_http_service.submit_peer_connection_event,
@@ -640,7 +658,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                              connection.get_connection_state_details())
         self.num_active_blockchain_peers = \
             max(0, len(list(self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))) - 1)
-        self.time_blockchain_peer_conn_destroyed_by_ip[(connection.peer_ip, connection.peer_port)] = time.time()
+        if (connection.peer_ip, connection.peer_port) not in self.time_blockchain_peer_conn_destroyed_by_ip:
+            self.time_blockchain_peer_conn_destroyed_by_ip[(connection.peer_ip, connection.peer_port)] = time.time()
+        self.block_queuing_service_manager.remove_block_queuing_service(connection)
 
     def log_refused_connection(self, peer_info: ConnectionPeerInfo, error: str) -> None:
         if peer_info.connection_type == ConnectionType.BLOCKCHAIN_NODE:
@@ -744,12 +764,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def on_block_seen_by_blockchain_node(
         self,
         block_hash: Sha256Hash,
+        connection: Optional[AbstractGatewayBlockchainConnection] = None,
         block_message: Optional[AbstractBlockMessage] = None,
         block_number: Optional[int] = None
     ) -> bool:
         self.blocks_seen.add(block_hash)
         recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
         if recovery_canceled:
+            if block_message is not None:
+                self.block_queuing_service_manager.update_recovered_block(block_hash, block_message)
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.BLOCK_RECOVERY_CANCELED,
@@ -761,11 +784,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 "Block recovery was cancelled by gateway. Reason - {}.",
                 block_hash, RecoveredTxsSource.BLOCK_RECEIVED_FROM_NODE
             )
-        self.block_queuing_service.mark_block_seen_by_blockchain_node(
-            block_hash,
-            block_message,
-            block_number
-        )
+        if connection:
+            block_queuing_service = self.block_queuing_service_manager.get_block_queuing_service(connection)
+            if block_queuing_service is not None:
+                block_queuing_service.mark_block_seen_by_blockchain_node(
+                    block_hash,
+                    block_message,
+                    block_number
+                )
         self.publish_block(
             block_number, block_hash, block_message, FeedSource.BLOCKCHAIN_SOCKET
         )
@@ -777,8 +803,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self, block_hash: Sha256Hash, block_message: AbstractBlockMessage
     ) -> None:
         self.blocks_seen.add(block_hash)
-        if not self.block_queuing_service.block_body_exists(block_hash):
-            self.block_queuing_service.store_block_data(block_hash, block_message)
+        if self.block_queuing_service_manager.get_block_data(block_hash) is None:
+            self.block_queuing_service_manager.store_block_data(block_hash, block_message)
         self.block_recovery_service.cancel_recovery_for_block(block_hash)
 
     def publish_block(
@@ -1293,8 +1319,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def _tracked_block_cleanup(self) -> float:
         tx_service = self.get_tx_service()
-        block_queuing_service = self.block_queuing_service
-        if self.block_queuing_service is not None:
+        block_queuing_service = self.block_queuing_service_manager.get_designated_block_queuing_service()
+        if block_queuing_service is not None:
             tracked_blocks_to_clean = []
             tracked_blocks = tx_service.get_oldest_tracked_block(0)
             recent_blocks = list(block_queuing_service.iterate_recent_block_hashes())

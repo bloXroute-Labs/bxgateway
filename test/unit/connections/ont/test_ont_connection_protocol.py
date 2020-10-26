@@ -24,6 +24,8 @@ class OntConnectionProtocolTest(AbstractTestCase):
         self.node.block_processing_service = MagicMock()
 
         self.connection = MagicMock()
+        gateway_helpers.add_blockchain_peer(self.node, self.connection)
+
         self.connection.node = self.node
         self.connection.peer_ip = LOCALHOST
         self.connection.peer_port = 8001

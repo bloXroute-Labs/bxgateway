@@ -1,4 +1,4 @@
-from typing import Set, TYPE_CHECKING
+from typing import Set, TYPE_CHECKING, cast
 
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
@@ -9,15 +9,17 @@ from bxgateway.feed.feed import Feed
 from bxgateway.feed.eth.eth_block_feed_entry import EthBlockFeedEntry
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
 from bxgateway.feed.feed_source import FeedSource
+from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
+from bxutils import logging
 
 if TYPE_CHECKING:
     from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 
-from bxutils import logging
-
 MAX_BLOCK_BACKLOG_TO_PUBLISH = 10
-
 logger = logging.get_logger(__name__)
+
+# Note: Block feed normal use case is only supported for gateways with a single blockchain connection
+# i.e. Multi-node gateway users cannot assume the block has been accepted to their Ethereum instance
 
 
 class EthNewBlockFeed(Feed[EthBlockFeedEntry, EthRawBlock]):
@@ -48,8 +50,15 @@ class EthNewBlockFeed(Feed[EthBlockFeedEntry, EthRawBlock]):
 
     def publish_blocks_from_queue(self, start_block_height, end_block_height) -> Set[int]:
         missing_blocks = set()
+        block_queuing_service = cast(
+            EthBlockQueuingService,
+            self.node.block_queuing_service_manager.get_designated_block_queuing_service()
+        )
+        if block_queuing_service is None:
+            return missing_blocks
+
         for block_number in range(start_block_height, end_block_height):
-            block_hash = self.node.block_queuing_service.accepted_block_hash_at_height.contents.get(block_number)
+            block_hash = block_queuing_service.accepted_block_hash_at_height.contents.get(block_number)
             if block_hash:
                 self.publish(
                     EthRawBlock(

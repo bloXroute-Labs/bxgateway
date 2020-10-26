@@ -46,8 +46,11 @@ class BtcGatewayNode(AbstractGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         return BtcRemoteConnection(socket_connection, self)
 
-    def build_block_queuing_service(self) -> PushBlockQueuingService:
-        return BtcBlockQueuingService(self)
+    def build_block_queuing_service(
+        self,
+        connection: AbstractGatewayBlockchainConnection
+    ) -> PushBlockQueuingService:
+        return BtcBlockQueuingService(self, connection)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         if self.opts.use_extensions:

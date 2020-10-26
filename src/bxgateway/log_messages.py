@@ -492,3 +492,8 @@ NODE_EXCEEDS_MEMORY = LogMessage(
     MEMORY_CATEGORY,
     "Gateway exceeded allowed memory, restarting"
 )
+ATTEMPTED_FETCH_FOR_NONEXISTENT_QUEUING_SERVICE = LogMessage(
+    "G-000092",
+    GENERAL_CATEGORY,
+    "Attmepted to fetch queuing service for blockchain node {}, but it was not found."
+)

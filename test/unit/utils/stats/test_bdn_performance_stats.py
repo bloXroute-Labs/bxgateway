@@ -38,7 +38,6 @@ def _block_with_timestamp(timestamp):
 class GatewayTransactionStatsServiceTest(AbstractTestCase):
     def setUp(self):
         self.node = MockGatewayNode(
-
             gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True, use_extensions=True),
             block_queueing_cls=MagicMock())
         self.node.message_converter = converter_factory.create_eth_message_converter(self.node.opts)
@@ -53,13 +52,18 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             1234, include_default_eth_args=True, blockchain_address=(local_ip, eth_port), pub_key=convert.bytes_to_hex(dummy_public_key)
         )
         self.eth_node = EthGatewayNode(eth_opts, node_ssl_service)
-        self.node.node_conn = EthNodeConnection(
+        self.node_conn = EthNodeConnection(
             MockSocketConnection(node=self.node, ip_address=local_ip, port=eth_port), self.eth_node)
 
         self.blockchain_connection = EthBaseConnection(
             MockSocketConnection(node=self.node, ip_address=local_ip, port=333), self.node)
         self.blockchain_connection.state = ConnectionState.ESTABLISHED
-        self.node.node_conn = self.blockchain_connection
+        self.node.mock_add_blockchain_peer(self.blockchain_connection)
+
+        self.blockchain_connection_2 = EthBaseConnection(
+            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=444), self.node)
+        self.blockchain_connection_2.state = ConnectionState.ESTABLISHED
+        self.node.mock_add_blockchain_peer(self.blockchain_connection_2)
 
         self.blockchain_connection.network_num = 0
 
@@ -69,6 +73,13 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             self.blockchain_connection, True, dummy_private_key, dummy_public_key)
         self.tx_blockchain_connection_protocol.publish_transaction = MagicMock()
         self.block_blockchain_connection_protocol.publish_transaction = MagicMock()
+
+        self.tx_blockchain_connection_protocol_2 = EthNodeConnectionProtocol(
+            self.blockchain_connection_2, True, dummy_private_key, dummy_public_key)
+        self.block_blockchain_connection_protocol_2 = EthNodeConnectionProtocol(
+            self.blockchain_connection_2, True, dummy_private_key, dummy_public_key)
+        self.tx_blockchain_connection_protocol_2.publish_transaction = MagicMock()
+        self.block_blockchain_connection_protocol_2.publish_transaction = MagicMock()
 
         self.relay_connection = AbstractRelayConnection(
             MockSocketConnection(node=self.node, ip_address=local_ip, port=12345), self.node
@@ -136,6 +147,18 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.tx_blockchain_connection_protocol.msg_tx(tx_msg)
         self.tx_blockchain_connection_protocol.msg_tx(tx_msg)
 
+        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node)
+
+    def test_bdn_stats_tx_new_from_node_ignore_duplicate_from_second_node(self):
+        txs = [
+            mock_eth_messages.get_dummy_transaction(1),
+        ]
+        tx_msg = TransactionsEthProtocolMessage(None, txs)
+
+        self.tx_blockchain_connection_protocol.msg_tx(tx_msg)
+        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node)
+
+        self.tx_blockchain_connection_protocol_2.msg_tx(tx_msg)
         self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node)
 
     def test_bdn_stats_tx_new_full_from_bdn_ignore_from_node(self):

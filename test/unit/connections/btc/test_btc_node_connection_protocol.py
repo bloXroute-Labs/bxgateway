@@ -25,6 +25,7 @@ class BtcNodeConnectionProtocolTest(AbstractTestCase):
         self.node.neutrality_service = MagicMock()
 
         self.connection = BtcNodeConnection(MockSocketConnection(node=self.node, ip_address=LOCALHOST, port=123), self.node)
+        gateway_helpers.add_blockchain_peer(self.node, self.connection)
 
         self.tx_hash = BtcObjectHash(buf=helpers.generate_bytearray(32), length=BTC_SHA_HASH_LEN)
         self.block_hash = BtcObjectHash(buf=helpers.generate_bytearray(32), length=BTC_SHA_HASH_LEN)

@@ -540,8 +540,8 @@ class BlockProcessingService:
             )
             if block_message is not None:
                 self._node.on_block_received_from_bdn(block_hash, block_message)
-                if not self._node.block_queuing_service.block_body_exists(block_hash):
-                    self._node.block_queuing_service.store_block_data(block_hash, block_message)
+                if self._node.block_queuing_service_manager.get_block_data(block_hash) is None:
+                    self._node.block_queuing_service_manager.store_block_data(block_hash, block_message)
             return
 
         if not recovered:
@@ -570,25 +570,24 @@ class BlockProcessingService:
                           "Queued behind {} blocks".format(
                     stats_format.percentage(compression_rate),
                     stats_format.duration(block_info.duration_ms),
-                    len(self._node.block_queuing_service)
+                    self._node.block_queuing_service_manager.get_length_of_each_queuing_service_stats_format()
                 )
             )
 
             self._on_block_decompressed(block_message)
-            if recovered or block_hash in self._node.block_queuing_service:
-                self._node.block_queuing_service.update_recovered_block(block_hash, block_message)
+            if recovered or block_hash in self._node.block_queuing_service_manager:
+                self._node.block_queuing_service_manager.update_recovered_block(block_hash, block_message)
             else:
-                self._node.block_queuing_service.push(block_hash, block_message)
+                self._node.block_queuing_service_manager.push(block_hash, block_message)
 
-            if block_hash not in self._node.blocks_seen.contents:
-                gateway_bdn_performance_stats_service.log_block_from_bdn()
+            gateway_bdn_performance_stats_service.log_block_from_bdn()
 
             self._node.on_block_received_from_bdn(block_hash, block_message)
             transaction_service.track_seen_short_ids(block_hash, all_sids)
 
             self._node.publish_block(None, block_hash, block_message, FeedSource.BDN_SOCKET)
         else:
-            if block_hash in self._node.block_queuing_service and not recovered:
+            if block_hash in self._node.block_queuing_service_manager and not recovered:
                 connection.log_trace("Handling already queued block again. Ignoring.")
                 return
 
@@ -619,7 +618,9 @@ class BlockProcessingService:
                 connection.log_error(log_messages.BLOCK_DECOMPRESSION_FAILURE,
                                      block_hash)
             else:
-                self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
+                self._node.block_queuing_service_manager.push(
+                    block_hash, waiting_for_recovery=True
+                )
 
     def start_transaction_recovery(
         self,
@@ -697,7 +698,7 @@ class BlockProcessingService:
         if recovery_attempts >= gateway_constants.BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS or recovery_timed_out:
             logger.error(log_messages.SHORT_ID_RECOVERY_FAIL, block_hash)
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
-            self._node.block_queuing_service.remove(block_hash)
+            self._node.block_queuing_service_manager.remove(block_hash)
         else:
             delay = gateway_constants.BLOCK_RECOVERY_RECOVERY_INTERVAL_S[recovery_attempts]
             self._node.alarm_queue.register_approx_alarm(delay, delay / 2, self._trigger_recovery_retry,

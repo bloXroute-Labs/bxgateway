@@ -1,6 +1,7 @@
 from mock import Mock, MagicMock
 
-from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.utils.expiring_dict import ExpiringDict
+from bxgateway import gateway_constants
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -22,11 +23,20 @@ class EthBlockProcessingServiceTest(AbstractTestCase):
         self.node = MockGatewayNode(
             gateway_helpers.get_gateway_opts(8000, max_block_interval_s=0)
         )
+        self.node.block_parts_storage = ExpiringDict(
+            self.node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_parts",
+        )
 
-        self.node.broadcast = MagicMock()
+        self.node_conn = Mock()
+        self.node_conn.is_active = MagicMock(return_value=True)
+        self.node_conn.enqueue_msg = MagicMock()
 
-        self.block_queuing_service = EthBlockQueuingService(self.node)
-        self.node.block_queuing_service = self.block_queuing_service
+        self.block_queuing_service = EthBlockQueuingService(self.node, self.node_conn)
+        self.node.block_queuing_service_manager.add_block_queuing_service(
+            self.node_conn, self.block_queuing_service
+        )
 
         self.block_hashes = []
         self.block_messages = []
@@ -57,26 +67,26 @@ class EthBlockProcessingServiceTest(AbstractTestCase):
                 ).get_blocks()[0]
             )
 
-            self.block_queuing_service.push(block_hash, block_message)
+            self.node.block_queuing_service_manager.push(block_hash, block_message)
             prev_block_hash = block_hash
 
         self.block_processing_service = EthBlockProcessingService(self.node)
-        self.node.broadcast.reset_mock()
+        self.node_conn.enqueue_msg.reset_mock()
 
     def test_try_process_get_block_bodies_request(self):
         success = self.block_processing_service.try_process_get_block_bodies_request(
             GetBlockBodiesEthProtocolMessage(
                 None,
                 [block_hash.binary for block_hash in self.block_hashes[:2]]
-            )
+            ),
+            self.block_queuing_service
         )
         self.assertTrue(success)
-        self.node.broadcast.assert_called_once_with(
+        self.node_conn.enqueue_msg.assert_called_once_with(
             BlockBodiesEthProtocolMessage(
                 None,
                 self.block_bodies[:2],
-            ),
-            connection_types=[ConnectionType.BLOCKCHAIN_NODE]
+            )
         )
 
     def test_try_process_get_block_bodies_request_not_found(self):
@@ -84,7 +94,8 @@ class EthBlockProcessingServiceTest(AbstractTestCase):
             GetBlockBodiesEthProtocolMessage(
                 None,
                 [self.block_hashes[0].binary, bytes(helpers.generate_hash())]
-            )
+            ),
+            self.block_queuing_service
         )
         self.assertFalse(success)
-        self.node.broadcast.assert_not_called()
+        self.node_conn.enqueue_msg.assert_not_called()
