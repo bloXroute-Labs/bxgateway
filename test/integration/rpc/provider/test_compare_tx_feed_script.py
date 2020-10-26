@@ -66,7 +66,7 @@ def verify_compare_tx_feed_script_results_exclude_duplicates(
     reset_compare_tx_feed_script_global_state()
 
 
-def verify_compare_tx_feed_script_results_not_include_from_blockchain(
+def verify_compare_tx_feed_script_results_exclude_from_blockchain(
     seen_hashes: Dict[str, compare_tx_feeds.HashEntry], ignore_delta: int, verbose: bool
 ) -> None:
     assert (len(seen_hashes) == 0)
@@ -243,7 +243,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
 
     @async_test(3)
     @patch("bloxroute_cli.compare_tx_feeds.stats", verify_compare_tx_feed_script_results)
-    async def test_compare_tx_feeds_script_new_txs_include_from_blockchain(self):
+    async def test_compare_tx_feeds_script_new_txs_include_from_blockchain_default(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
             EthNewTransactionFeed()
@@ -255,8 +255,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
             "--num-intervals", "1",
             "--interval", "2",
             "--lead-time", "0",
-            "--trail-time", "0",
-            "--include-from-blockchain"
+            "--trail-time", "0"
         ]
         compare_tx_feeds.process_new_txs_eth = AsyncMock()
         asyncio.create_task(self.send_tx_to_new_txs_feed(FeedSource.BLOCKCHAIN_SOCKET))
@@ -266,8 +265,8 @@ class CompareTxFeedScriptTest(AbstractTestCase):
             pass
 
     @async_test(3)
-    @patch("bloxroute_cli.compare_tx_feeds.stats", verify_compare_tx_feed_script_results_not_include_from_blockchain)
-    async def test_compare_tx_feeds_script_new_txs_not_include_from_blockchain(self):
+    @patch("bloxroute_cli.compare_tx_feeds.stats", verify_compare_tx_feed_script_results_exclude_from_blockchain)
+    async def test_compare_tx_feeds_script_new_txs_exclude_from_blockchain(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
             EthNewTransactionFeed()
@@ -280,6 +279,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
             "--interval", "2",
             "--lead-time", "0",
             "--trail-time", "0",
+            "--exclude-from-blockchain"
         ]
         compare_tx_feeds.process_new_txs_eth = AsyncMock()
         asyncio.create_task(self.send_tx_to_new_txs_feed(FeedSource.BLOCKCHAIN_SOCKET))

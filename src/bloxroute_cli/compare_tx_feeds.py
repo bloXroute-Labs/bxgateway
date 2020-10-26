@@ -86,7 +86,7 @@ async def main() -> None:
             args.feed_name,
             args.exclude_tx_contents,
             args.exclude_duplicates,
-            args.include_from_blockchain,
+            args.exclude_from_blockchain,
             min_gas,
             addresses
         ))
@@ -96,7 +96,7 @@ async def main() -> None:
             args.feed_name,
             args.exclude_tx_contents,
             args.exclude_duplicates,
-            args.include_from_blockchain,
+            args.exclude_from_blockchain,
             min_gas,
             addresses
         ))
@@ -130,10 +130,13 @@ async def main() -> None:
 
 
 async def process_new_txs_bdn(
-    feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, include_from_blockchain: bool,
+    feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, exclude_from_blockchain: bool,
     min_gas: Optional[int], addresses: List[str]
 ) -> None:
-    options: Dict[str, Any] = {"duplicates": not exclude_duplicates, "include_from_blockchain": include_from_blockchain}
+    options: Dict[str, Any] = {
+        "duplicates": not exclude_duplicates,
+        "include_from_blockchain": not exclude_from_blockchain
+    }
     if exclude_tx_contents:
         options["include"] = ["tx_hash"]
     subscription_id = await ws_provider.subscribe(feed_name, options)
@@ -166,7 +169,7 @@ async def process_new_txs_bdn(
 
 
 async def process_new_txs_cloud_api(
-    ssl_dir: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, include_from_blockchain: bool,
+    ssl_dir: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, exclude_from_blockchain: bool,
     min_gas: Optional[int], addresses: List[str]
 ) -> None:
     ws_uri = f"wss://eth.feed.blxrbdn.com:28333"
@@ -176,11 +179,11 @@ async def process_new_txs_cloud_api(
         global ws_provider
         ws_provider = cast(CloudWssProvider, ws)
 
-        await process_new_txs_bdn(feed_name, exclude_tx_contents, exclude_duplicates, include_from_blockchain, min_gas, addresses)
+        await process_new_txs_bdn(feed_name, exclude_tx_contents, exclude_duplicates, exclude_from_blockchain, min_gas, addresses)
 
 
 async def process_new_txs_gateway(
-    gateway_url: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, include_from_blockchain: bool,
+    gateway_url: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, exclude_from_blockchain: bool,
     min_gas: Optional[int], addresses: List[str]
 ) -> None:
     print(f"Initiating connection to: {gateway_url}")
@@ -189,7 +192,7 @@ async def process_new_txs_gateway(
         global ws_provider
         ws_provider = cast(WsProvider, ws)
 
-        await process_new_txs_bdn(feed_name, exclude_tx_contents, exclude_duplicates, include_from_blockchain, min_gas, addresses)
+        await process_new_txs_bdn(feed_name, exclude_tx_contents, exclude_duplicates, exclude_from_blockchain, min_gas, addresses)
 
 
 async def process_new_txs_eth(
@@ -375,7 +378,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--use-cloud-api", action="store_true")
     parser.add_argument("--ssl-dir", type=str, help="Example: /home/user/ssl/external_gateway/registration_only")
     parser.add_argument("--verbose", action="store_true")
-    parser.add_argument("--include-from-blockchain", action="store_true")
+    parser.add_argument("--exclude-from-blockchain", action="store_true")
     return parser
 
 

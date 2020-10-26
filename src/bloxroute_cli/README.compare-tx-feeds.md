@@ -109,5 +109,5 @@ Example: --ssl-dir /home/user/ssl/external_gateway/registration_only
 
 Use the `--verbose` flag to print extra statistics.
 
-Use the `--include-from-blockchain` flag to have the bloXroute feed include transactions received from the gateway's 
-blockchain node, rather than just from the BDN.
+Use the `--exclude-from-blockchain` flag to have the bloXroute feed exclude transactions received from the gateway's 
+blockchain node, instead only reporting those received from the BDN.
