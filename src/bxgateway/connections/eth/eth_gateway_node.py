@@ -15,12 +15,13 @@ from bxcommon.network.peer_info import ConnectionPeerInfo
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.rpc import rpc_constants
 from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants, eth_common_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-from bxgateway.connections.eth.eth_node_connection_protocol import EthNodeConnectionProtocol
-from bxgateway.feed.feed_source import FeedSource
-from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
+from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
+from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxgateway import log_messages, gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -31,10 +32,12 @@ from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.feed.eth.eth_new_block_feed import EthNewBlockFeed
 from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
+from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
+from bxgateway.feed.feed_source import FeedSource
 from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
+from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
@@ -45,11 +48,10 @@ from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingServ
 from bxgateway.services.eth.eth_normal_block_cleanup_service import EthNormalBlockCleanupService
 from bxgateway.testing.eth_lossy_relay_connection import EthLossyRelayConnection
 from bxgateway.testing.test_modes import TestModes
+from bxgateway.utils.interval_minimum import IntervalMinimum
 from bxgateway.utils.running_average import RunningAverage
-from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants, eth_common_utils
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
 from bxgateway.utils.stats.eth_on_block_feed_stats_service import eth_on_block_feed_stats_service
-from bxgateway import log_messages, gateway_constants
 from bxutils import logging
 from bxutils.services.node_ssl_service import NodeSSLService
 
@@ -80,7 +82,8 @@ class EthGatewayNode(AbstractGatewayNode):
     }
 
     def __init__(self, opts, node_ssl_service: NodeSSLService) -> None:
-        super(EthGatewayNode, self).__init__(opts, node_ssl_service, eth_common_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S)
+        super(EthGatewayNode, self).__init__(opts, node_ssl_service,
+                                             eth_common_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S)
 
         self._node_public_key = None
         self._remote_public_key = None
@@ -117,7 +120,8 @@ class EthGatewayNode(AbstractGatewayNode):
         if self.opts.ws and not self.opts.eth_ws_uri:
             logger.warning(log_messages.ETH_WS_SUBSCRIBER_NOT_STARTED)
 
-        self.average_gas_price = RunningAverage(gateway_constants.ETH_GAS_RUNNING_AVERAGE_SIZE)
+        self.average_block_gas_price = RunningAverage(gateway_constants.ETH_GAS_RUNNING_AVERAGE_SIZE)
+        self.min_tx_from_node_gas_price = IntervalMinimum(gateway_constants.ETH_MIN_GAS_INTERVAL_S, self.alarm_queue)
 
         logger.info("Gateway enode url: {}", self.get_enode())
 
@@ -286,7 +290,7 @@ class EthGatewayNode(AbstractGatewayNode):
                     BlockStatEventType.REMOTE_BLOCK_REQUESTED_BY_GATEWAY,
                     network_num=self.network_num,
                     more_info=f"Protocol: {self.opts.blockchain_protocol}, "
-                              f"Network: {self.opts.blockchain_network}"
+                    f"Network: {self.opts.blockchain_network}"
                 )
             self._requested_remote_blocks_queue.append(block_hashes)
 
@@ -296,7 +300,7 @@ class EthGatewayNode(AbstractGatewayNode):
 
             if len(expected_blocks) != blocks_count:
                 logger.warning(log_messages.BLOCK_COUNT_MISMATCH,
-                    blocks_count, len(expected_blocks))
+                               blocks_count, len(expected_blocks))
                 self._skip_remote_block_requests_stats_count = len(self._requested_remote_blocks_queue) * 2
                 self._requested_remote_blocks_queue.clear()
                 return
@@ -355,7 +359,8 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def init_eth_on_block_feed_stat_logging(self) -> None:
         eth_on_block_feed_stats_service.set_node(self)
-        self.alarm_queue.register_alarm(eth_on_block_feed_stats_service.interval, eth_on_block_feed_stats_service.flush_info)
+        self.alarm_queue.register_alarm(eth_on_block_feed_stats_service.interval,
+                                        eth_on_block_feed_stats_service.flush_info)
 
     def init_live_feeds(self) -> None:
         self.feed_manager.register_feed(EthNewTransactionFeed())
@@ -369,22 +374,42 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def on_transactions_in_block(self, transactions: List[Transaction]) -> None:
         for transaction in transactions:
-            self.average_gas_price.add_value(transaction.gas_price)
+            self.average_block_gas_price.add_value(transaction.gas_price)
 
     def broadcast_transactions_to_node(
         self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
     ) -> bool:
         msg = cast(TransactionsEthProtocolMessage, msg)
+
         if self.opts.filter_txs_factor > 0:
+            average_block_gas_filter = self.average_block_gas_price.average * self.opts.filter_txs_factor
+        else:
+            average_block_gas_filter = 0
+        min_gas_price_from_node = self.min_tx_from_node_gas_price.current_minimum
+
+        gas_price_filter = max(average_block_gas_filter, min_gas_price_from_node)
+
+        if gas_price_filter > 0:
             assert len(msg.get_transactions()) == 1
             transaction = msg.get_transactions()[0]
 
-            if (float(transaction.gas_price) < self.average_gas_price.average * self.opts.filter_txs_factor):
+            gas_price = float(transaction.gas_price)
+
+            if gas_price < gas_price_filter:
                 logger.trace(
-                    "Skipping sending transaction {} with gas price: {}. Average was {}",
+                    "Skipping sending transaction {} with gas price: {}. Average was {}. Minimum from node was {}.",
                     transaction.hash(),
                     float(transaction.gas_price),
-                    self.average_gas_price.average
+                    average_block_gas_filter,
+                    min_gas_price_from_node
+                )
+                tx_stats.add_tx_by_hash_event(
+                    transaction.hash(),
+                    TransactionStatEventType.TX_FROM_BDN_IGNORE_LOW_GAS_PRICE,
+                    self.network_num,
+                    peers=[broadcasting_conn],
+                    more_info="Tx gas price {}. Average block gas price: {}. Node min gas price {}."
+                        .format(gas_price, average_block_gas_filter, min_gas_price_from_node)
                 )
                 return False
 

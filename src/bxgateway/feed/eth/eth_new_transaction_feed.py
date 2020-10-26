@@ -6,24 +6,28 @@ from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.feed import Feed
 from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.feed.subscriber import Subscriber
+from bxgateway.feed import filter_dsl
+from bxgateway.feed.eth import eth_filter_handlers
+from bxutils import logging
+from bxutils.logging.log_record_type import LogRecordType
+
+logger = logging.get_logger()
+logger_filters = logging.get_logger(LogRecordType.TransactionFiltering, __name__)
 
 
 class EthNewTransactionFeed(Feed[EthTransactionFeedEntry, EthRawTransaction]):
     NAME = "newTxs"
     FIELDS = ["tx_hash", "tx_contents"]
+    FILTERS = {"transaction_value_range_eth", "from", "to"}
 
     def __init__(self) -> None:
         super().__init__(self.NAME)
 
-    def subscribe(
-        self, options: Dict[str, Any]
-    ) -> Subscriber[EthTransactionFeedEntry]:
+    def subscribe(self, options: Dict[str, Any]) -> Subscriber[EthTransactionFeedEntry]:
         include_from_blockchain = options.get("include_from_blockchain", None)
         if include_from_blockchain is not None:
             if not isinstance(include_from_blockchain, bool):
-                raise RpcInvalidParams(
-                    "\"include_from_blockchain\" must be a boolean"
-                )
+                raise RpcInvalidParams('"include_from_blockchain" must be a boolean')
         return super().subscribe(options)
 
     def publish(self, raw_message: EthRawTransaction) -> None:
@@ -46,12 +50,27 @@ class EthNewTransactionFeed(Feed[EthTransactionFeedEntry, EthRawTransaction]):
         self,
         subscriber: Subscriber[EthTransactionFeedEntry],
         raw_message: EthRawTransaction,
-        serialized_message: EthTransactionFeedEntry
+        serialized_message: EthTransactionFeedEntry,
     ) -> bool:
         if (
             raw_message.source == FeedSource.BLOCKCHAIN_SOCKET
             and not subscriber.options.get("include_from_blockchain", True)
         ):
             return False
-        else:
-            return True
+        should_publish = True
+        if subscriber.filters:
+            logger_filters.trace(
+                "checking if should publish to {} with filters {}",
+                subscriber.subscription_id,
+                subscriber.filters,
+            )
+            should_publish = filter_dsl.handle(
+                subscriber.filters,
+                eth_filter_handlers.handle_filter,
+                serialized_message,
+            )
+        logger_filters.trace("should publish: {}", should_publish)
+        return should_publish
+
+    def reformat_filters(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+        return filter_dsl.reformat(filters, eth_filter_handlers.reformat_filter)

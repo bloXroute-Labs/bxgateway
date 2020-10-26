@@ -15,6 +15,7 @@ from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEven
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
+from bxgateway.services.gateway_transaction_service import ProcessTransactionMessageFromNodeResult
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxutils import logging, log_messages
@@ -51,6 +52,8 @@ class AbstractBlockchainConnectionProtocol:
             self.node.get_network_min_transaction_fee(),
             self.node.opts.transaction_validation
         )
+
+        self.msg_tx_after_tx_service_process_complete(process_tx_msg_result)
 
         if not self.node.opts.has_fully_updated_tx_service:
             logger.debug(
@@ -195,6 +198,9 @@ class AbstractBlockchainConnectionProtocol:
             duration_broadcast_ms=duration_broadcast_ms,
             duration_set_content_ms=duration_set_content_ms
         )
+
+    def msg_tx_after_tx_service_process_complete(self, process_result: List[ProcessTransactionMessageFromNodeResult]):
+        pass
 
     @abstractmethod
     def msg_block(self, msg: AbstractBlockMessage) -> None:

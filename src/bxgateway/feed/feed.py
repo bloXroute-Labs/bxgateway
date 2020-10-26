@@ -1,6 +1,6 @@
 from abc import abstractmethod, ABCMeta
 from asyncio import QueueFull
-from typing import TypeVar, Generic, List, Dict, Optional, Any
+from typing import TypeVar, Generic, List, Dict, Optional, Any, Union, Set
 
 from bxgateway import log_messages
 from bxgateway.feed.subscriber import Subscriber
@@ -13,7 +13,7 @@ S = TypeVar("S")
 
 class Feed(Generic[T, S], metaclass=ABCMeta):
     FIELDS: List[str] = []
-
+    FILTERS: Set[str] = set()
     name: str
     subscribers: Dict[str, Subscriber[T]]
 
@@ -24,9 +24,7 @@ class Feed(Generic[T, S], metaclass=ABCMeta):
     def __repr__(self) -> str:
         return f"Feed<{self.name}>"
 
-    def subscribe(
-        self, options: Dict[str, Any]
-    ) -> Subscriber[T]:
+    def subscribe(self, options: Dict[str, Any]) -> Subscriber[T]:
         subscriber: Subscriber[T] = Subscriber(options)
         self.subscribers[subscriber.subscription_id] = subscriber
         return subscriber
@@ -79,3 +77,6 @@ class Feed(Generic[T, S], metaclass=ABCMeta):
         self, subscriber: Subscriber[T], raw_message: S, serialized_message: T
     ) -> bool:
         return True
+
+    def reformat_filters(self, filters: Dict[str, Any]) -> Dict[str, Any]:
+        return {}

@@ -2,13 +2,11 @@ import time
 from collections import deque
 from typing import List, Deque
 
-from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.blockchain_utils.eth import eth_common_utils, eth_common_constants
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash, NULL_SHA256_HASH
-from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import log_messages
@@ -31,11 +29,12 @@ from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message impor
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
+from bxgateway.services.gateway_transaction_service import ProcessTransactionMessageFromNodeResult
+from bxgateway.utils.eth import eth_utils
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import \
     gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
-
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
@@ -113,6 +112,15 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             gateway_transaction_stats_service.log_skipped_transaction_bytes(bytes_skipped_count)
         else:
             super().msg_tx(msg)
+
+    def msg_tx_after_tx_service_process_complete(self, process_result: List[ProcessTransactionMessageFromNodeResult]):
+        # calculate minimal tx gas price only if transaction validation is enabled
+        if not self.node.opts.transaction_validation:
+            return
+
+        for result in process_result:
+            fee = eth_common_utils.raw_tx_gas_price(memoryview(result.transaction_contents), 0)
+            self.node.min_tx_from_node_gas_price.add(fee)
 
     # pyre-fixme[14]: `msg_block` overrides method defined in
     #  `AbstractBlockchainConnectionProtocol` inconsistently.

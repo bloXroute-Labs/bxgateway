@@ -190,14 +190,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 was_missing=was_missing
             )
             gateway_transaction_stats_service.log_short_id_assignment_processed()
-        elif not short_id:
-            tx_stats.add_tx_by_hash_event(
-                tx_hash,
-                TransactionStatEventType.TX_SHORT_ID_EMPTY_IN_MSG_FROM_RELAY,
-                network_num,
-                short_id,
-                peers=[self]
-            )
 
         if not is_compact and processing_result.existing_contents:
             gateway_transaction_stats_service.log_redundant_transaction_content()

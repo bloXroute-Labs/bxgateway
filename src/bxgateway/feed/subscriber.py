@@ -1,6 +1,6 @@
 import asyncio
 import uuid
-from typing import Generic, TypeVar, Union, Dict, Any
+from typing import Generic, TypeVar, Union, Dict, Any, List
 
 from bxgateway import gateway_constants
 
@@ -24,6 +24,7 @@ class Subscriber(Generic[T]):
     subscription_id: str
     messages: 'asyncio.Queue[Union[T, Dict[str, Any]]]'
     options: Dict[str, Any]
+    filters: Dict[str, Any]
 
     def __init__(self, options: Dict[str, Any]) -> None:
         self.options = options
@@ -31,6 +32,8 @@ class Subscriber(Generic[T]):
         self.messages = asyncio.Queue(
             gateway_constants.RPC_SUBSCRIBER_MAX_QUEUE_SIZE
         )
+        filters = options.get("filters", None)
+        self.filters = filters if filters else {}
 
     async def receive(self) -> Union[T, Dict[str, Any]]:
         """

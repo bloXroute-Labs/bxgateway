@@ -10,6 +10,9 @@ from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactio
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.testing.mocks import mock_eth_messages
+from bxutils import logging
+
+logger = logging.get_logger()
 
 SAMPLE_TRANSACTION_FROM_WS = {
     "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a",
@@ -134,3 +137,73 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
         )
 
         self.assertEqual(0, subscriber.messages.qsize())
+
+    @async_test
+    async def test_publish_transaction_filtered_transaction(self):
+        to = "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be"
+        subscriber = self.sut.subscribe({"filters": {"to": to}})
+        self.sut.serialize = MagicMock(wraps=self.sut.serialize)
+        subscriber.queue = MagicMock(wraps=subscriber.queue)
+        raw_transaction = \
+            mock_eth_messages.generate_eth_raw_transaction_with_to_address(FeedSource.BLOCKCHAIN_SOCKET,
+                                                                           "3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be")
+
+        self.sut.publish(raw_transaction)
+        received_tx = await subscriber.receive()
+        self.assertTrue(received_tx)
+        self.assertEqual(received_tx["tx_contents"].get("to", None), to)
+        self.sut.serialize.assert_called_once()
+        self.sut.serialize.reset_mock()
+        subscriber.queue.assert_called_once()
+
+    @async_test
+    async def test_publish_transaction_denied_transaction(self):
+        to = "0x1111111111111111111111111111111111111111"
+        subscriber = self.sut.subscribe({"filters": {"to": to}})
+        self.sut.serialize = MagicMock(wraps=self.sut.serialize)
+        subscriber.queue = MagicMock(wraps=subscriber.queue)
+        raw_transaction = \
+            mock_eth_messages.generate_eth_raw_transaction_with_to_address(FeedSource.BLOCKCHAIN_SOCKET,
+                                                                           "3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be")
+
+        self.sut.publish(raw_transaction)
+        subscriber.queue.assert_not_called()
+
+
+    @async_test
+    async def test_validate_and_handle_filters(self):
+        filters_test = {
+            "AND": [
+                {"to": ["dai", "eth"]},
+                {
+                    "OR": [
+                        {"transaction_value_range_eth": ['0', '1']},
+                        {"from": ['0x8fdc5df186c58cdc2c22948beee12b1ae1406c6f',
+                                  '0x77e2b72689fc954c16b37fbcf1b0b1d395a0e288']},
+                    ]
+                }
+            ]
+        }
+        f = {"AND": [{"transaction_value_range_eth": ["187911390000000000", "450550050000000000"]}]}
+
+        valid = self.sut.reformat_filters(filters_test)
+        self.assertTrue(valid)
+
+        valid = self.sut.reformat_filters(f)
+        self.assertTrue(valid)
+
+        filters_test = {
+            "AND": [
+                {"to": ["dai", "eth"]},
+                {
+                    "OR": [
+                        {"hello": [0.0, 2.1]},
+                        {"from": ['0x8fdc5df186c58cdc2c22948beee12b1ae1406c6f',
+                                  '0x77e2b72689fc954c16b37fbcf1b0b1d395a0e288']},
+                    ]
+                }
+            ]
+        }
+        with self.assertRaises(Exception):
+            self.sut.reformat_filters(filters_test)
+

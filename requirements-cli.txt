@@ -1,3 +1,4 @@
 aiohttp==3.6.2
 websockets==8.1
 pyhumps==1.6.1
+web3==5.10.0

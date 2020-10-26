@@ -33,6 +33,17 @@ def generate_eth_raw_transaction(source: FeedSource = FeedSource.BDN_SOCKET) -> 
     )
 
 
+def generate_eth_raw_transaction_with_to_address(
+        source: FeedSource = FeedSource.BDN_SOCKET,
+        to_address: str = helpers.generate_bytes(eth_common_constants.ADDRESS_LEN)) -> EthRawTransaction:
+    transaction = get_dummy_transaction(1, to_address_str=to_address)
+    transactions_eth_message = TransactionsEthProtocolMessage(None, [transaction])
+    tx_message = EthNormalMessageConverter().tx_to_bx_txs(transactions_eth_message, 5)[0][0]
+    return EthRawTransaction(
+        tx_message.tx_hash(), tx_message.tx_val(), source
+    )
+
+
 def get_dummy_transaction(
     nonce: int, gas_price: Optional[int] = None, v: int = 27, to_address_str: Optional[str] = None
 ) -> Transaction:
@@ -130,6 +141,7 @@ def new_block_eth_protocol_message(
 # https://etherscan.io/tx/0x00278cf7120dbbbee72eb7bdaaa2eac8ec41ef931c30fd6d218bdad1b2b2324e
 
 EIP_155_TRANSACTION_HASH = "00278cf7120dbbbee72eb7bdaaa2eac8ec41ef931c30fd6d218bdad1b2b2324e"
+EIP_155_TRANSACTION_GAS_PRICE = 53_000_000_000
 EIP_155_TRANSACTION_BYTES = bytearray(
     b"\xf9\x01X\xf9\x01U\x82\x01&\x85\x0cW\x0b\xd2\x00\x83\x02\x88Q\x94z%\rV0\xb4\xcfS\x979\xdf"
     b",]\xac\xb4\xc6Y\xf2H\x8d\x89\x01\x15\x8eF\t\x13\xd0\x00\x00\xb8\xe4\x7f\xf3j\xb5\x00\x00\x00"
