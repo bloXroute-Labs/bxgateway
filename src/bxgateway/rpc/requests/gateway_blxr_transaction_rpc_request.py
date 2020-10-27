@@ -1,9 +1,9 @@
 from typing import TYPE_CHECKING
 import asyncio
 
-from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.exceptions import ParseError
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_blxr_transaction_rpc_request import AbstractBlxrTransactionRpcRequest
@@ -65,40 +65,40 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
 
         transaction_str: str = params[rpc_constants.TRANSACTION_PARAMS_KEY]
         network_num = self.get_network_num()
-        quota_type = QuotaType.PAID_DAILY_QUOTA
-        return await self.process_transaction(network_num, account_id, quota_type, transaction_str)
+        transaction_flag = TransactionFlag.PAID_TX
+        return await self.process_transaction(network_num, account_id, transaction_flag, transaction_str)
 
     async def process_transaction(
-        self, network_num: int, account_id: str, quota_type: QuotaType, transaction_str: str
+        self, network_num: int, account_id: str, transaction_flag: TransactionFlag, transaction_str: str
     ) -> JsonRpcResponse:
 
         if self.synchronous:
             return await self.post_process_transaction(
-                network_num, account_id, quota_type, transaction_str
+                network_num, account_id, transaction_flag, transaction_str
             )
         else:
             asyncio.create_task(
                 self.post_process_transaction(
-                    network_num, account_id, quota_type, transaction_str
+                    network_num, account_id, transaction_flag, transaction_str
                 )
             )
         return JsonRpcResponse(
             self.request_id,
             {
                 "tx_hash": "not available with async",
-                "quota_type": quota_type.name.lower(),
+                "transaction_flag": transaction_flag.name.lower(),
                 "synchronous": str(self.synchronous)
             }
         )
 
     async def post_process_transaction(
-        self, network_num: int, account_id: str, quota_type: QuotaType, transaction_str: str
+        self, network_num: int, account_id: str, transaction_flag: TransactionFlag, transaction_str: str
     ) -> JsonRpcResponse:
         try:
             message_converter = self.node.message_converter
             assert message_converter is not None, "Invalid server state!"
             transaction = message_converter.encode_raw_msg(transaction_str)
-            bx_tx = message_converter.bdn_tx_to_bx_tx(transaction, network_num, quota_type)
+            bx_tx = message_converter.bdn_tx_to_bx_tx(transaction, network_num, transaction_flag)
         except (ValueError, ParseError) as e:
             logger.error(common_log_messages.RPC_COULD_NOT_PARSE_TRANSACTION, e)
             raise RpcInvalidParams(
@@ -116,7 +116,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             )
             tx_json = {
                 "tx_hash": str(tx_hash),
-                "quota_type": quota_type.name.lower(),
+                "transaction_flag": transaction_flag.name.lower(),
                 "account_id": account_id,
             }
             return self.ok(tx_json)
@@ -146,7 +146,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
         tx_service.set_transaction_contents(tx_hash, bx_tx.tx_val())
         tx_json = {
             "tx_hash": str(tx_hash),
-            "quota_type": quota_type.name.lower(),
+            "transaction_flag": transaction_flag.name.lower(),
             "account_id": account_id
         }
         return self.ok(tx_json)
@@ -159,4 +159,5 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
 
     def get_network_protocol(self) -> BlockchainProtocol:
         blockchain_protocol = self.node.opts.blockchain_protocol
-        return blockchain_protocol
+        assert blockchain_protocol is not None
+        return BlockchainProtocol(blockchain_protocol)

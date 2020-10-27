@@ -4,7 +4,7 @@ from typing import cast
 from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.models.node_type import NodeType
-from bxcommon.models.quota_type_model import QuotaType
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.test_utils.helpers import COOKIE_FILE_PATH, get_common_opts, \
     BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
@@ -51,7 +51,7 @@ def get_gateway_opts(
     non_ssl_port: int = 9001,
     has_fully_updated_tx_service: bool = False,
     max_block_interval_s: float = 10,
-    default_tx_quota_type: QuotaType = QuotaType.FREE_DAILY_QUOTA,
+    default_tx_flag: TransactionFlag = TransactionFlag.NO_FLAGS,
     log_level_overrides=None,
     enable_network_content_logs=False,
     account_id=None,
@@ -144,7 +144,7 @@ def get_gateway_opts(
             "source_version": source_version,
             "require_blockchain_connection": True,
             "non_ssl_port": non_ssl_port,
-            "default_tx_quota_type": default_tx_quota_type,
+            "default_tx_flag": default_tx_flag,
             "should_update_source_version": False,
             "enable_network_content_logs": False,
             "enable_node_cache": True,

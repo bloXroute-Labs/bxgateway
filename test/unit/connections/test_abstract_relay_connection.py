@@ -4,6 +4,7 @@ import uuid
 from mock import patch, MagicMock
 
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxgateway.testing import gateway_helpers
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
@@ -17,7 +18,6 @@ from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.notification_message import NotificationMessage, NotificationCode
 from bxcommon.models.entity_type_model import EntityType
-from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -143,7 +143,7 @@ class AbstractRelayConnectionTest(AbstractTestCase):
 
     @patch("bxgateway.connections.abstract_relay_connection.AbstractRelayConnection.log")
     def test_msg_notification(self, log):
-        args_list = ["10", str(QuotaType.FREE_DAILY_QUOTA.value), str(EntityType.TRANSACTION.value), "100"]
+        args_list = ["10", str(TransactionFlag.NO_FLAGS.value), str(EntityType.TRANSACTION.value), "100"]
         args = ",".join(args_list)
         notification_msg = NotificationMessage(NotificationCode.QUOTA_FILL_STATUS, args)
         log.assert_not_called()

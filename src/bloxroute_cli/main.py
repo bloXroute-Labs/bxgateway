@@ -146,9 +146,13 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
             synchronous = str(True)
             if len(unrecognized_params) > 1:
                 synchronous = unrecognized_params[1]
+            status_track = str(True)
+            if len(unrecognized_params) > 1:
+                status_track = unrecognized_params[2]
             merged_opts.request_params = {
                 rpc_constants.TRANSACTION_PARAMS_KEY: transaction_payload,
                 rpc_constants.SYNCHRONOUS_PARAMS_KEY: synchronous,
+                rpc_constants.STATUS_TRACK_PARAMS_KEY: status_track,
                 rpc_constants.ACCOUNT_ID_PARAMS_KEY: opts.account_id if opts.cloud_api else opts.rpc_user,
                 rpc_constants.BLOCKCHAIN_PROTOCOL_PARAMS_KEY: opts.blockchain_protocol,
                 rpc_constants.BLOCKCHAIN_NETWORK_PARAMS_KEY: opts.blockchain_network

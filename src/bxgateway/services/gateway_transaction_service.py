@@ -89,7 +89,7 @@ class GatewayTransactionService(TransactionService):
 
         # avoid filtering low fee transactions in tx_to_bx_txs to match extensions behavior
         bx_tx_messages = message_converter.tx_to_bx_txs(
-            msg, self.network_num, self.node.default_tx_quota_type, min_tx_network_fee=0
+            msg, self.network_num, self.node.default_tx_flag, min_tx_network_fee=0
         )
 
         result = []

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.rpc import rpc_constants
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
@@ -98,7 +99,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "quota_type": "paid_daily_quota",
+                "quota_type": TransactionFlag.PAID_TX,
                 "synchronous": True
             }
         ))
@@ -106,7 +107,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertIsNone(result.error)
         self.assertEqual(TRANSACTION_HASH, result.result["tx_hash"])
         self.assertEqual(ACCOUNT_ID, result.result["account_id"])
-        self.assertEqual("paid_daily_quota", result.result["quota_type"])
+        self.assertEqual(TransactionFlag.PAID_TX.name.lower(), result.result["transaction_flag"].lower())
 
         self.assertEqual(1, len(self.gateway_node.broadcast_messages))
         self.assertEqual(
@@ -135,14 +136,14 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_JSON_PARAMS_KEY: tx_json,
-                "quota_type": "paid_daily_quota"
+                "quota_type": TransactionFlag.PAID_TX
             }
         ))
         self.assertEqual("1", result.id)
         self.assertIsNone(result.error)
         self.assertEqual("ad6f9332384194f80d8e49af8f093ad019b3f6b7173eb2956a46c9a0d8c4d03c", result.result["tx_hash"])
         self.assertEqual(ACCOUNT_ID, result.result["account_id"])
-        self.assertEqual("paid_daily_quota", result.result["quota_type"])
+        self.assertEqual(TransactionFlag.PAID_TX.name.lower(), result.result["transaction_flag"].lower())
 
         self.assertEqual(1, len(self.gateway_node.broadcast_messages))
         self.assertEqual(

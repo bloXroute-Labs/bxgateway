@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional, List, Tuple, Union
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.models.quota_type_model import QuotaType
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.utils import crypto, convert
 from bxcommon.utils.blockchain_utils.bdn_tx_to_bx_tx import bdn_tx_to_bx_tx
 from bxcommon.utils.object_hash import Sha256Hash
@@ -93,16 +93,16 @@ class AbstractOntMessageConverter(AbstractMessageConverter):
         self,
         tx_msg,
         network_num: int,
-        quota_type: Optional[QuotaType] = None,
+        transaction_flag: Optional[TransactionFlag] = None,
         min_tx_network_fee: int = 0
     ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
-        bx_tx_msg = TxMessage(tx_msg.tx_hash(), network_num, tx_val=tx_msg.tx(), quota_type=quota_type)
+        bx_tx_msg = TxMessage(tx_msg.tx_hash(), network_num, tx_val=tx_msg.tx(), transaction_flag=transaction_flag)
         return [(bx_tx_msg, tx_msg.tx_hash(), tx_msg.tx())]
 
     def bdn_tx_to_bx_tx(
-            self,
-            raw_tx: Union[bytes, bytearray, memoryview],
-            network_num: int,
-            quota_type: Optional[QuotaType] = None
+        self,
+        raw_tx: Union[bytes, bytearray, memoryview],
+        network_num: int,
+        transaction_flag: Optional[TransactionFlag] = None
     ) -> TxMessage:
-        return bdn_tx_to_bx_tx(raw_tx, network_num, quota_type)
+        return bdn_tx_to_bx_tx(raw_tx, network_num, transaction_flag)

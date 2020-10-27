@@ -4,6 +4,7 @@ import functools
 from collections import defaultdict, deque
 
 from bxgateway.services.block_queuing_service_manager import BlockQueuingServiceManager
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxgateway.feed.new_block_feed import NewBlockFeed
@@ -31,7 +32,6 @@ from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.models.node_event_model import NodeEventType
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
-from bxcommon.models.quota_type_model import QuotaType
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.network.ip_endpoint import IpEndpoint
@@ -258,10 +258,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.account_id: Optional[str] = extensions_factory.get_account_id(
             node_ssl_service.get_certificate(SSLCertificateType.PRIVATE)
         )
-        self.default_tx_quota_type: QuotaType = opts.default_tx_quota_type
-        if self.default_tx_quota_type == QuotaType.PAID_DAILY_QUOTA and self.account_id is None:
+        self.default_tx_flag: TransactionFlag = opts.default_tx_flag
+        if self.default_tx_flag & TransactionFlag.PAID_TX and self.account_id is None:
             logger.error(log_messages.INVALID_ACCOUNT_ID)
-            self.default_tx_quota_type = QuotaType.FREE_DAILY_QUOTA
+            self.default_tx_flag = TransactionFlag.NO_FLAGS
 
         self.has_feed_subscribers = False
         self.feed_manager = FeedManager(self)

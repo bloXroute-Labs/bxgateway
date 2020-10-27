@@ -1,18 +1,13 @@
 import struct
-import time
 from abc import ABCMeta, abstractmethod
-from collections import deque
-from datetime import datetime
 from typing import Tuple, Optional, List, Set, Union, NamedTuple, Deque
 
 from bxcommon import constants
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
-from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
 
 from bxcommon.messages.bloxroute.tx_message import TxMessage
-from bxcommon.models.quota_type_model import QuotaType
-from bxcommon.utils import crypto
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.utils.object_hash import Sha256Hash, convert
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
 
@@ -58,7 +53,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         self,
         tx_msg,
         network_num: int,
-        quota_type: Optional[QuotaType] = None,
+        transaction_flag: Optional[TransactionFlag] = None,
         min_tx_network_fee: int = 0
     ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         """
@@ -66,7 +61,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
 
         :param tx_msg: blockchain transactions message
         :param network_num: blockchain network number
-        :param quota_type: the quota type to assign to the BDN transaction.
+        :param transaction_flag: the transaction_flag type to assign to the BDN transaction.
         :param min_tx_network_fee: minimum transaction fee. If support by the network, transactions
                                    with fees lower than this will be excluded from the result
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
@@ -115,16 +110,16 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
 
     @abstractmethod
     def bdn_tx_to_bx_tx(
-            self,
-            raw_tx: Union[bytes, bytearray, memoryview],
-            network_num: int,
-            quota_type: Optional[QuotaType] = None
+        self,
+        raw_tx: Union[bytes, bytearray, memoryview],
+        network_num: int,
+        transaction_flag: Optional[TransactionFlag] = None
     ) -> TxMessage:
         """
         Convert a raw transaction which arrived from an RPC request into bx transaction.
         :param raw_tx: The raw transaction bytes.
         :param network_num: the network number.
-        :param quota_type: the quota type to assign to the BDN transaction.
+        :param transaction_flag: the quota type to assign to the BDN transaction.
         :return: bx transaction.
         """
         pass

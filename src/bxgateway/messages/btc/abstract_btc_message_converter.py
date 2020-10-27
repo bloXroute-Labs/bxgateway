@@ -3,7 +3,7 @@ from abc import abstractmethod
 from datetime import datetime
 import time
 
-from bxcommon.models.quota_type_model import QuotaType
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils import crypto, convert
@@ -135,20 +135,20 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
         self,
         tx_msg,
         network_num: int,
-        quota_type: Optional[QuotaType] = None,
+        transaction_flag: Optional[TransactionFlag] = None,
         min_tx_network_fee: int = 0
     ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         if not isinstance(tx_msg, TxBtcMessage):
             raise TypeError("tx_msg is expected to be of type TxBTCMessage")
 
-        bx_tx_msg = TxMessage(tx_msg.tx_hash(), network_num, tx_val=tx_msg.tx(), quota_type=quota_type)
+        bx_tx_msg = TxMessage(tx_msg.tx_hash(), network_num, tx_val=tx_msg.tx(), transaction_flag=transaction_flag)
 
         return [(bx_tx_msg, tx_msg.tx_hash(), tx_msg.tx())]
 
     def bdn_tx_to_bx_tx(
-            self,
-            raw_tx: Union[bytes, bytearray, memoryview],
-            network_num: int,
-            quota_type: Optional[QuotaType] = None
+        self,
+        raw_tx: Union[bytes, bytearray, memoryview],
+        network_num: int,
+        transaction_flag: Optional[TransactionFlag] = None
     ) -> TxMessage:
-        return bdn_tx_to_bx_tx(raw_tx, network_num, quota_type)
+        return bdn_tx_to_bx_tx(raw_tx, network_num, transaction_flag)
