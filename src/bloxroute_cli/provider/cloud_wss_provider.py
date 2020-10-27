@@ -36,22 +36,23 @@ class CloudWssProvider(WsProvider):
         ssl_key_location: Optional[str] = None,
         ca_file: Optional[str] = None,
         ca_url: str = CA_CERT_URL,
-        ws_uri: str = CLOUD_WEBSOCKETS_URL
+        ws_uri: str = CLOUD_WEBSOCKETS_URL,
+        node_type: str = DEFAULT_NODE_NAME
     ):
         if ssl_dir is None:
             ssl_dir = os.path.join(
                 _get_default_data_path(),
                 utils_constants.SSL_FOLDER,
-                DEFAULT_NODE_NAME,
+                node_type,
                 "registration_only"
             )
         if ssl_certificate_location is None:
             ssl_certificate_location = os.path.join(
-                ssl_dir, f"{DEFAULT_NODE_NAME}_cert.pem"
+                ssl_dir, f"{node_type}_cert.pem"
             )
         if ssl_key_location is None:
             ssl_key_location = os.path.join(
-                ssl_dir, f"{DEFAULT_NODE_NAME}_key.pem"
+                ssl_dir, f"{node_type}_key.pem"
             )
         if ca_file is None:
             with urllib.request.urlopen(ca_url) as cert_file:
