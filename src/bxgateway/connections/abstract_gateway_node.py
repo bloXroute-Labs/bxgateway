@@ -640,8 +640,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection) -> None:
         self.blockchain_peers.add(BlockchainPeerInfo(connection.peer_ip, connection.peer_port))
-        block_queuing_service = self.build_block_queuing_service(connection)
-        self.block_queuing_service_manager.add_block_queuing_service(connection, block_queuing_service)
+        if self.block_queuing_service_manager.get_block_queuing_service(connection) is None:
+            block_queuing_service = self.build_block_queuing_service(connection)
+            self.block_queuing_service_manager.add_block_queuing_service(connection, block_queuing_service)
         self.cancel_blockchain_liveliness_check()
         self.requester.send_threaded_request(
             sdn_http_service.submit_peer_connection_event,
@@ -671,7 +672,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         )
         self.num_active_blockchain_peers = \
             max(0, len(list(self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))) - 1)
-        self.block_queuing_service_manager.remove_block_queuing_service(connection)
+        if self.num_active_blockchain_peers > 0:
+            self.block_queuing_service_manager.remove_block_queuing_service(connection)
 
     def log_refused_connection(self, peer_info: ConnectionPeerInfo, error: str) -> None:
         if peer_info.connection_type == ConnectionType.BLOCKCHAIN_NODE:

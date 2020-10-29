@@ -134,6 +134,39 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         blockchain_conn.state |= ConnectionState.ESTABLISHED
         self.assertTrue(node.has_active_blockchain_peer())
 
+    def test_last_active_blockchain_peer_queuing_service_not_destroyed(self):
+        opts = gateway_helpers.get_gateway_opts(8000, blockchain_address=(LOCALHOST, 8001))
+        node = GatewayNode(opts)
+
+        conn = MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001)
+        node.on_connection_added(conn)
+        self.assertEqual(1, len(list(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))))
+        blockchain_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
+        node.on_blockchain_connection_ready(blockchain_conn)
+        blockchain_conn.state |= ConnectionState.ESTABLISHED
+        self.assertTrue(node.has_active_blockchain_peer())
+        self.assertIsNotNone(conn, node.block_queuing_service_manager.get_block_queuing_service(conn))
+
+        blockchain_conn2 = node.build_blockchain_connection(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
+        blockchain_conn2.CONNECTION_TYPE = ConnectionType.BLOCKCHAIN_NODE
+        node.connection_pool.add(2, LOCALHOST, 8002, blockchain_conn2)
+        self.assertEqual(2, len(list(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))))
+        blockchain_conn2 = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
+        node.on_blockchain_connection_ready(blockchain_conn2)
+        blockchain_conn2.state |= ConnectionState.ESTABLISHED
+        self.assertIsNotNone(node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn2))
+
+        node.on_blockchain_connection_destroyed(blockchain_conn2)
+        self.assertIsNone(node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn2))
+        node.connection_pool.delete(blockchain_conn2)
+
+        node.on_blockchain_connection_destroyed(blockchain_conn)
+        self.assertIsNotNone(node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn))
+
+        node.block_queuing_service_manager.add_block_queuing_service = MagicMock()
+        node.on_blockchain_connection_ready(blockchain_conn)
+        node.block_queuing_service_manager.add_block_queuing_service.assert_not_called()
+
     def test_gateway_peer_sdn_update(self):
         # handle duplicates, keeps old, self ip, and maintain peers from CLI
         peer_gateways = [
