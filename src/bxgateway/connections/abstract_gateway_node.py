@@ -376,12 +376,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         )
 
     def init_authorized_live_feeds(self) -> None:
+        new_transaction_streaming_valid = False
         account_model = self.account_model
-        if (
-            self.opts.ws
-            and account_model
-            and account_model.new_transaction_streaming.is_service_valid()
-        ):
+        if account_model:
+            new_transaction_streaming = account_model.new_transaction_streaming
+            if new_transaction_streaming:
+                new_transaction_streaming_valid = new_transaction_streaming.is_service_valid()
+        if self.opts.ws and new_transaction_streaming_valid:
             self.init_live_feeds()
         elif self.opts.ws:
             logger.warning(log_messages.TRANSACTION_FEED_NOT_ALLOWED)
