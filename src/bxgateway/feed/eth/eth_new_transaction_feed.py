@@ -6,7 +6,6 @@ from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.feed import Feed
 from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.feed.subscriber import Subscriber
-from bxgateway.feed import filter_dsl
 from bxgateway.feed.eth import eth_filter_handlers
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
@@ -64,13 +63,12 @@ class EthNewTransactionFeed(Feed[EthTransactionFeedEntry, EthRawTransaction]):
                 subscriber.subscription_id,
                 subscriber.filters,
             )
-            should_publish = filter_dsl.handle(
-                subscriber.filters,
-                eth_filter_handlers.handle_filter,
-                serialized_message,
-            )
-        logger_filters.trace("should publish: {}", should_publish)
+            contents = serialized_message.tx_contents
+            state = {
+                "value": eth_filter_handlers.reformat_tx_value(contents["value"]),
+                "to": contents["to"],
+                "from": contents["from"],
+            }
+            should_publish = subscriber.validator(state)
+            logger_filters.trace("should publish: {}", should_publish)
         return should_publish
-
-    def reformat_filters(self, filters: Dict[str, Any]) -> Dict[str, Any]:
-        return filter_dsl.reformat(filters, eth_filter_handlers.reformat_filter)

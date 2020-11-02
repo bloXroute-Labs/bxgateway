@@ -96,7 +96,7 @@ class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
         if filters:
             logger_filters.debug(filters)
             formatted_filters = self.format_filters(filters)
-            logger_filters.debug("formatted filters: {}", formatted_filters)
+            logger_filters.debug("Validated filters: {}", formatted_filters)
             options["filters"] = formatted_filters
         self.options = options
 
@@ -110,7 +110,7 @@ class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
 
         return JsonRpcResponse(self.request_id, subscriber.subscription_id)
 
-    def format_filters(self, filters: Any) -> Dict[str, Any]:
+    def format_filters(self, filters: Any) -> str:
         valid_filters = self.feed_manager.get_valid_feed_filters(self.feed_name)
         invalid_filters = RpcInvalidParams(
             self.request_id,
@@ -119,14 +119,14 @@ class SubscribeRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
             f"{valid_filters}"
             "}.",
         )
-
-        if not isinstance(filters, dict):
+        if not isinstance(filters, str):
+            logger.error("Wrong filter type")
             raise invalid_filters
         if not valid_filters:
             raise invalid_filters
-        logger_filters.debug("Formatting filters")
+        logger_filters.debug("Validating filters")
         try:
-            filters = self.feed_manager.reformat_feed_filters(self.feed_name, filters)
+            filters = self.feed_manager.validate_feed_filters(self.feed_name, filters)
         except Exception:
             raise invalid_filters
         return filters

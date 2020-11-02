@@ -1,9 +1,10 @@
 from abc import abstractmethod, ABCMeta
 from asyncio import QueueFull
-from typing import TypeVar, Generic, List, Dict, Optional, Any, Union, Set
+from typing import TypeVar, Generic, List, Dict, Optional, Any, Set
 
 from bxgateway import log_messages
 from bxgateway.feed.subscriber import Subscriber
+from bxcommon.feed import filter_parsing
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
@@ -78,5 +79,7 @@ class Feed(Generic[T, S], metaclass=ABCMeta):
     ) -> bool:
         return True
 
-    def reformat_filters(self, filters: Dict[str, Any]) -> Dict[str, Any]:
-        return {}
+    def validate_filters(self, filters: str) -> str:
+        filter_parsing.get_validator(filters)
+        logger.debug("Returning filters {}", filters)
+        return filters

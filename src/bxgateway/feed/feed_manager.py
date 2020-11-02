@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List, Any, Union, Set, TYPE_CHECKING
+from typing import Dict, Optional, List, Any, Set, TYPE_CHECKING
 
 from bxgateway.feed.feed import Feed
 from bxgateway.feed.subscriber import Subscriber
@@ -68,7 +68,5 @@ class FeedManager:
     def get_valid_feed_filters(self, feed_name: str) -> Set[str]:
         return self.feeds[feed_name].FILTERS
 
-    def reformat_feed_filters(
-        self, feed_name: str, filters: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        return self.feeds[feed_name].reformat_filters(filters)
+    def validate_feed_filters(self, feed_name: str, filters: str) -> str:
+        return self.feeds[feed_name].validate_filters(filters)
