@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 import base64
 
 from aiohttp import web
@@ -8,13 +8,16 @@ from prometheus_client import REGISTRY
 from prometheus_client import exposition as prometheus_client
 
 from bxcommon.rpc import rpc_constants
+from bxcommon.rpc.abstract_ws_rpc_handler import AbstractWsRpcHandler
 from bxcommon.rpc.https import abstract_http_rpc_server
 from bxcommon.rpc.https.abstract_http_rpc_server import AbstractHttpRpcServer
 from bxcommon.rpc.https.http_rpc_handler import HttpRpcHandler
 from bxcommon.rpc.rpc_errors import RpcAccountIdError
 from bxgateway.rpc.https.gateway_http_rpc_handler import GatewayHttpRpcHandler
+from bxgateway.rpc.https.gateway_ws_handler import GatewayWsHandler
 
 from bxutils import logging
+from bxutils.encoding.json_encoder import Case
 
 if TYPE_CHECKING:
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -48,6 +51,9 @@ class GatewayHttpRpcServer(AbstractHttpRpcServer["AbstractGatewayNode"]):
 
     def request_handler(self) -> HttpRpcHandler:
         return GatewayHttpRpcHandler(self.node)
+
+    def request_ws_handler(self) -> Optional[AbstractWsRpcHandler]:
+        return GatewayWsHandler(self.node, self.node.feed_manager, Case.CAMEL)
 
     async def handle_metrics(self, request: Request) -> Response:
         """

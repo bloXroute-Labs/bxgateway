@@ -5,7 +5,7 @@ import websockets
 from websockets import WebSocketServerProtocol
 from websockets.server import WebSocketServer
 
-from bxgateway.feed.feed_manager import FeedManager
+from bxcommon.feed.feed_manager import FeedManager
 from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
 from bxgateway.rpc.ws.ws_connection import WsConnection
 from bxutils import logging

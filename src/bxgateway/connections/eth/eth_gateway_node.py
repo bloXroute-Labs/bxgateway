@@ -14,6 +14,7 @@ from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.peer_info import ConnectionPeerInfo
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.rpc import rpc_constants
+from bxcommon.feed.feed_source import FeedSource
 from bxcommon.utils import convert
 from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants, eth_common_utils
@@ -36,7 +37,6 @@ from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
-from bxgateway.feed.feed_source import FeedSource
 from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts

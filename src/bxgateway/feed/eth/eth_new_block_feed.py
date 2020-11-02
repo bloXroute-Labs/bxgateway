@@ -2,13 +2,13 @@ from typing import Set, TYPE_CHECKING, cast
 
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.feed.feed import Feed
+from bxcommon.feed.feed_source import FeedSource
 
 from bxgateway import gateway_constants
 
-from bxgateway.feed.feed import Feed
 from bxgateway.feed.eth.eth_block_feed_entry import EthBlockFeedEntry
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
-from bxgateway.feed.feed_source import FeedSource
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxutils import logging
 

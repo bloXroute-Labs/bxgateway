@@ -9,11 +9,11 @@ from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.rpc.requests.transaction_status_rpc_request import TransactionStatusRpcRequest
 from bxcommon.rpc.rpc_request_type import RpcRequestType
-from bxcommon.models.blockchain_protocol import BlockchainProtocol
+from bxcommon.feed.feed_manager import FeedManager
+from bxcommon.feed.subscriber import Subscriber
+from bxcommon.rpc.abstract_ws_rpc_handler import Subscription
 
 from bxgateway import gateway_constants, log_messages
-from bxgateway.feed.feed_manager import FeedManager
-from bxgateway.feed.subscriber import Subscriber
 from bxgateway.rpc.requests.add_blockchain_peer_rpc_request import AddBlockchainPeerRpcRequest
 from bxgateway.rpc.requests.bdn_performance_rpc_request import BdnPerformanceRpcRequest
 from bxgateway.rpc.requests.gateway_blxr_transaction_rpc_request import \
@@ -39,12 +39,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.get_logger(__name__)
-
-
-class Subscription(NamedTuple):
-    subscriber: Subscriber
-    feed_name: str
-    task: Future
 
 
 class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[bytes, str], Union[bytes, str]]):
@@ -111,7 +105,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             )
             if self.subscribed_messages.full():
                 logger.error(
-                    log_messages.BAD_RPC_SUBSCRIBER,
+                    log_messages.GATEWAY_BAD_FEED_SUBSCRIBER,
                     self.subscribed_messages.qsize(),
                     list(self.subscriptions.keys())
                 )

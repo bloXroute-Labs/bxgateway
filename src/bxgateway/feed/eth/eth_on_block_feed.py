@@ -8,10 +8,10 @@ from dataclasses import dataclass, asdict
 from bxcommon.models.serializeable_enum import SerializeableEnum
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcError
 from bxcommon.rpc import rpc_constants
+from bxcommon.feed.feed import Feed
+from bxcommon.feed.subscriber import Subscriber
 
 from bxgateway import log_messages
-from bxgateway.feed.feed import Feed
-from bxgateway.feed.subscriber import Subscriber
 
 from bxgateway.utils.stats.eth_on_block_feed_stats_service import (
     eth_on_block_feed_stats_service,
@@ -286,7 +286,7 @@ class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
             subscriber.queue(serialized_message)
         except QueueFull:
             logger.error(
-                log_messages.BAD_FEED_SUBSCRIBER, subscriber.subscription_id, self.name
+                log_messages.GATEWAY_BAD_FEED_SUBSCRIBER, subscriber.subscription_id, self.name
             )
             self.bad_subscribers.add(subscriber.subscription_id)
 

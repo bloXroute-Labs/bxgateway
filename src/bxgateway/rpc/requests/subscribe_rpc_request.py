@@ -4,8 +4,8 @@ from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
-from bxgateway.feed.feed_manager import FeedManager
-from bxgateway.feed.subscriber import Subscriber
+from bxcommon.feed.feed_manager import FeedManager
+from bxcommon.feed.subscriber import Subscriber
 from bxutils.logging.log_record_type import LogRecordType
 
 if TYPE_CHECKING:

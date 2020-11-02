@@ -1,11 +1,11 @@
 from typing import Dict, Any
 
+from bxcommon.feed.feed import Feed
+from bxcommon.feed.subscriber import Subscriber
 from bxcommon.rpc.rpc_errors import RpcInvalidParams
 from bxgateway.feed.eth.eth_transaction_feed_entry import EthTransactionFeedEntry
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.feed import Feed
 from bxgateway.feed.new_transaction_feed import FeedSource
-from bxgateway.feed.subscriber import Subscriber
 from bxgateway.feed.eth import eth_filter_handlers
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType

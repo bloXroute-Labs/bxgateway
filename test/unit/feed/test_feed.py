@@ -1,6 +1,6 @@
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
-from bxgateway.feed.feed import Feed
+from bxcommon.feed.feed import Feed
 
 
 class TestFeed(Feed[int, int]):

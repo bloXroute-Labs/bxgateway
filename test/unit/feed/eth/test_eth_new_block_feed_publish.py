@@ -7,11 +7,11 @@ from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils.blockchain_utils.eth import crypto_utils
 from bxcommon.test_utils import helpers
+from bxcommon.feed.feed_source import FeedSource
 
 from bxgateway.feed.eth.eth_new_block_feed import EthNewBlockFeed
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
 
-from bxgateway.feed.feed_source import FeedSource
 from bxgateway.gateway_constants import LOCALHOST
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage

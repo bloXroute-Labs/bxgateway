@@ -2,14 +2,14 @@ from typing import Dict, Any
 
 from bxcommon.rpc.rpc_errors import RpcInvalidParams
 from bxcommon.rpc import rpc_constants
+from bxcommon.feed.feed import Feed
+from bxcommon.feed.subscriber import Subscriber
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.feed.eth.eth_transaction_feed_entry import EthTransactionFeedEntry
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.eth import eth_filter_handlers
-from bxgateway.feed.feed import Feed
-from bxgateway.feed.subscriber import Subscriber
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
 

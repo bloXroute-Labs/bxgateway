@@ -7,11 +7,11 @@ from bxcommon.rpc.provider.abstract_ws_provider import WsException
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.feed.feed_manager import FeedManager
+from bxcommon.feed.feed_source import FeedSource
 from bxgateway import log_messages
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxgateway.feed.new_transaction_feed import FeedSource
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 from bxutils import logging
 

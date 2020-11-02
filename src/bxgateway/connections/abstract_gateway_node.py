@@ -49,15 +49,15 @@ from bxcommon.utils.stats import hooks
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.rpc import rpc_constants
+from bxcommon.feed.feed_manager import FeedManager
+from bxcommon.feed.feed_source import FeedSource
 from bxgateway import gateway_constants
 from bxgateway import log_messages
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
-from bxgateway.feed.feed_manager import FeedManager
 from bxgateway.feed.new_transaction_feed import NewTransactionFeed
-from bxgateway.feed.feed_source import FeedSource
 from bxgateway.gateway_opts import GatewayOpts
 from bxgateway.rpc.https.gateway_http_rpc_server import GatewayHttpRpcServer
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService

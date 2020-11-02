@@ -15,7 +15,6 @@ from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactio
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
-    from bxcommon.connections.abstract_node import AbstractNode
 
 
 @dataclass

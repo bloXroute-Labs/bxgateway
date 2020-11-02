@@ -5,7 +5,7 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import FeedSource
+from bxcommon.feed.feed_source import FeedSource
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences

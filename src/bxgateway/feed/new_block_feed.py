@@ -2,7 +2,7 @@ from typing import NamedTuple
 
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway.feed.feed import Feed
+from bxcommon.feed.feed import Feed
 
 
 class RawBlockFeedEntry:

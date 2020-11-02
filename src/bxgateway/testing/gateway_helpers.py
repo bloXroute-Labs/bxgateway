@@ -64,7 +64,7 @@ def get_gateway_opts(
     request_remote_transaction_streaming: bool = False,
     enable_block_compression: bool = True,
     filter_txs_factor: float = 0,
-    blockchain_protocol: str = "Bitcoin",
+    blockchain_protocol: str = "Ethereum",
     should_restart_on_high_memory: bool = False,
     **kwargs,
 ) -> GatewayOpts:

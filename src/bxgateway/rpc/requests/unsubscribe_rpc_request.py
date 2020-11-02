@@ -4,7 +4,7 @@ from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.rpc.rpc_errors import RpcInvalidParams
-from bxgateway.feed.feed_manager import FeedManager
+from bxcommon.feed.feed_manager import FeedManager
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences

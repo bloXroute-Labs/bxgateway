@@ -17,11 +17,11 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
+from bxcommon.feed.feed_source import FeedSource
 from bxgateway import gateway_constants
 from bxgateway import log_messages
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
-from bxgateway.feed.feed_source import FeedSource
 from bxgateway.messages.gateway.block_received_message import BlockReceivedMessage
 from bxgateway.services.block_recovery_service import BlockRecoveryInfo, RecoveredTxsSource
 from bxgateway.utils.errors.message_conversion_error import MessageConversionError

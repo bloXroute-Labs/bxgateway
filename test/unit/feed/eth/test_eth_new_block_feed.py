@@ -5,16 +5,16 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
+from bxcommon.feed.feed_source import FeedSource
+from bxcommon.utils.blockchain_utils.eth import crypto_utils
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.feed.eth.eth_new_block_feed import EthNewBlockFeed
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
-from bxgateway.feed.feed_source import FeedSource
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
-from bxcommon.utils.blockchain_utils.eth import crypto_utils
 
 
 SAMPLE_TRANSACTION_FROM_WS = {

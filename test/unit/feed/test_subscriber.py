@@ -5,7 +5,7 @@ from typing import Dict
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
-from bxgateway.feed.subscriber import Subscriber
+from bxcommon.feed.subscriber import Subscriber
 
 
 class SubscriberTest(AbstractTestCase):

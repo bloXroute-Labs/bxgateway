@@ -78,6 +78,8 @@ def get_argument_parser() -> argparse.ArgumentParser:
                                          description="Command line interface for the bloXroute Gateway.",
                                          usage="bloxroute_gateway --blockchain-protocol [PROTOCOL] [additional "
                                                "arguments]")
+    cli.add_argument_parser_rpc(arg_parser)
+
     arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g BitcoinCash, Ethereum", type=str)
     arg_parser.add_argument("--blockchain-network", help="Blockchain network. e.g Mainnet, Testnet", type=str)
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)

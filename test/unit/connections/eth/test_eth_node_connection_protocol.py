@@ -48,7 +48,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
             include_default_eth_args=True,
             blockchain_protocol=BlockchainProtocol.ETHEREUM.name,
             blockchain_network_num=5,
-            pub_key=pub_key
+            pub_key=pub_key,
         )
         self.node = EthGatewayNode(opts, node_ssl_service)
         self.enqueued_messages = []
