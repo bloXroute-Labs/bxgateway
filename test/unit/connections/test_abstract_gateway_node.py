@@ -145,7 +145,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.on_blockchain_connection_ready(blockchain_conn)
         blockchain_conn.state |= ConnectionState.ESTABLISHED
         self.assertTrue(node.has_active_blockchain_peer())
-        self.assertIsNotNone(conn, node.block_queuing_service_manager.get_block_queuing_service(conn))
+        self.assertTrue(blockchain_conn in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
 
         blockchain_conn2 = node.build_blockchain_connection(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
         blockchain_conn2.CONNECTION_TYPE = ConnectionType.BLOCKCHAIN_NODE
@@ -155,13 +155,14 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.on_blockchain_connection_ready(blockchain_conn2)
         blockchain_conn2.state |= ConnectionState.ESTABLISHED
         self.assertIsNotNone(node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn2))
+        self.assertTrue(blockchain_conn2 in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
 
         node.on_blockchain_connection_destroyed(blockchain_conn2)
-        self.assertIsNone(node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn2))
+        self.assertFalse(blockchain_conn2 in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
         node.connection_pool.delete(blockchain_conn2)
 
         node.on_blockchain_connection_destroyed(blockchain_conn)
-        self.assertIsNotNone(node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn))
+        self.assertTrue(blockchain_conn in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
 
         node.block_queuing_service_manager.add_block_queuing_service = MagicMock()
         node.on_blockchain_connection_ready(blockchain_conn)

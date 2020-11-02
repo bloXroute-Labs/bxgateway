@@ -640,7 +640,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection) -> None:
         self.blockchain_peers.add(BlockchainPeerInfo(connection.peer_ip, connection.peer_port))
-        if self.block_queuing_service_manager.get_block_queuing_service(connection) is None:
+        if connection not in self.block_queuing_service_manager.blockchain_peer_to_block_queuing_service:
             block_queuing_service = self.build_block_queuing_service(connection)
             self.block_queuing_service_manager.add_block_queuing_service(connection, block_queuing_service)
         self.cancel_blockchain_liveliness_check()
