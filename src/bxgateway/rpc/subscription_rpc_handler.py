@@ -26,8 +26,8 @@ from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcReques
 from bxgateway.rpc.requests.gateway_transaction_service_rpc_request import GatewayTransactionServiceRpcRequest
 from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 from bxgateway.rpc.requests.remove_blockchain_peer_rpc_request import RemoveBlockchainPeerRpcRequest
-from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
-from bxgateway.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
+from bxcommon.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
+from bxcommon.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
 from bxgateway.rpc.requests.gateway_blxr_call_rpc_request import GatewayBlxrCallRpcRequest
 from bxutils import logging
 from bxutils.encoding.json_encoder import Case

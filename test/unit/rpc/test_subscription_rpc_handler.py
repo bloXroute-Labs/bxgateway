@@ -9,7 +9,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
 from bxcommon.feed.feed import Feed
 from bxcommon.feed.feed_manager import FeedManager
-from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
+from bxcommon.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxutils.encoding.json_encoder import Case

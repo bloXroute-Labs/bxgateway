@@ -2,8 +2,6 @@ from typing import TYPE_CHECKING, cast
 
 from bxcommon.feed.feed_manager import FeedManager
 from bxcommon.rpc.abstract_ws_rpc_handler import AbstractWsRpcHandler
-from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
-from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
 from bxcommon.rpc.requests.transaction_status_rpc_request import TransactionStatusRpcRequest
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxgateway.rpc.requests.add_blockchain_peer_rpc_request import AddBlockchainPeerRpcRequest
@@ -18,8 +16,8 @@ from bxgateway.rpc.requests.gateway_transaction_service_rpc_request import Gatew
 from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 from bxgateway.rpc.requests.gateway_blxr_call_rpc_request import GatewayBlxrCallRpcRequest
 from bxgateway.rpc.requests.remove_blockchain_peer_rpc_request import RemoveBlockchainPeerRpcRequest
-from bxgateway.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
-from bxgateway.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
+from bxcommon.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
+from bxcommon.rpc.requests.unsubscribe_rpc_request import UnsubscribeRpcRequest
 
 from bxutils import logging
 from bxutils.encoding.json_encoder import Case
@@ -54,19 +52,3 @@ class GatewayWsHandler(AbstractWsRpcHandler):
             RpcRequestType.SUBSCRIBE: SubscribeRpcRequest,
             RpcRequestType.UNSUBSCRIBE: UnsubscribeRpcRequest,
         }
-
-    def _subscribe_request_factory(
-        self, request: BxJsonRpcRequest, node: "AbstractNode"
-    ) -> AbstractRpcRequest:
-        node = cast(AbstractGatewayNode, node)
-        return SubscribeRpcRequest(
-            request, node, self.feed_manager, self._on_new_subscriber
-        )
-
-    def _unsubscribe_request_factory(
-        self, request: BxJsonRpcRequest, node: "AbstractNode"
-    ) -> AbstractRpcRequest:
-        node = cast(AbstractGatewayNode, node)
-        return UnsubscribeRpcRequest(
-            request, node, self.feed_manager, self._on_unsubscribe
-        )
