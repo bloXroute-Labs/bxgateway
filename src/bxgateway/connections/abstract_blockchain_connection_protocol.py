@@ -103,7 +103,7 @@ class AbstractBlockchainConnectionProtocol:
             if TxValidationStatus.LOW_FEE in tx_result.tx_validation_status:
                 gateway_transaction_stats_service.log_tx_validation_failed_gas_price()
                 # log low fee transaction here for bdn_performance
-                gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(True)
+                gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(self.connection.endpoint, True)
 
                 logger.trace(
                     "transaction {} has gas price lower then the setting {}",
@@ -141,6 +141,7 @@ class AbstractBlockchainConnectionProtocol:
 
             # log transactions that passed validation, according to fee
             gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(
+                self.connection.endpoint,
                 not self.node.is_gas_price_above_min_network_fee(tx_result.transaction_contents)
             )
 
@@ -226,7 +227,7 @@ class AbstractBlockchainConnectionProtocol:
                 msg.extra_stats_data()
             )
         )
-        gateway_bdn_performance_stats_service.log_block_message_from_blockchain_node(True)
+        gateway_bdn_performance_stats_service.log_block_message_from_blockchain_node(self.connection.endpoint, True)
         if block_hash in self.node.blocks_seen.contents:
             self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, block_number=block_number)
             block_stats.add_block_event_by_block_hash(
@@ -251,7 +252,7 @@ class AbstractBlockchainConnectionProtocol:
         self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, msg, block_number=block_number)
         self.node.block_processing_service.queue_block_for_processing(msg, self.connection)
         self.node.block_queuing_service_manager.push(block_hash, msg, node_received_from=self.connection)
-        gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
+        gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.connection.endpoint)
         return
 
     def msg_proxy_request(self, msg, requesting_connection: AbstractGatewayBlockchainConnection):

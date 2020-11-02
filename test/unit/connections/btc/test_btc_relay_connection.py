@@ -301,7 +301,6 @@ class BtcRelayConnectionTest(AbstractTestCase):
         broadcast_message = BroadcastMessage(Sha256Hash(block_hash), DEFAULT_NETWORK_NUM, "",
                                              BroadcastMessageType.BLOCK, True, ciphertext)
 
-
         self.sut.msg_broadcast(broadcast_message)
 
         self.gateway_node.broadcast.reset_mock()

@@ -4,7 +4,6 @@ from typing import Optional, List, Union
 from mock import MagicMock
 
 from bxcommon.connections.connection_type import ConnectionType
-from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.models.node_type import NodeType
@@ -15,15 +14,12 @@ from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
-from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
-from bxgateway.services.block_queuing_service_manager import BlockQueuingServiceManager
 from bxgateway.services.btc.abstract_btc_block_cleanup_service import AbstractBtcBlockCleanupService
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 from bxgateway.services.gateway_transaction_service import GatewayTransactionService

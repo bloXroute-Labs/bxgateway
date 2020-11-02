@@ -5,12 +5,15 @@ from abc import abstractmethod
 from unittest.mock import MagicMock
 
 from bxcommon import constants
+from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.models.transaction_flag import TransactionFlag
+from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.rpc import rpc_constants
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
+from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
 from bxutils import constants as utils_constants
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_base import BdnServiceModelBase
@@ -69,6 +72,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         )
         self.gateway_node.requester.start()
         self.gateway_node.account_id = ACCOUNT_ID
+        self.node_endpoint_1 = IpEndpoint("127.0.0.1", 7000)
 
     @abstractmethod
     def get_gateway_opts(self) -> GatewayOpts:
@@ -232,14 +236,14 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertEqual([], result.result)
 
     @async_test
-    async def test_bdn_performance(self):
+    async def test_bdn_performance_single_node(self):
         gateway_bdn_performance_stats_service.set_node(self.gateway_node)
         gateway_bdn_performance_stats_service.log_block_from_bdn()
         gateway_bdn_performance_stats_service.log_block_from_bdn()
-        gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
+        gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.node_endpoint_1)
         gateway_bdn_performance_stats_service.log_tx_from_bdn()
-        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node()
-        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node()
+        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(self.node_endpoint_1)
+        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(self.node_endpoint_1)
         gateway_bdn_performance_stats_service.close_interval_data()
 
         result = await self.request(BxJsonRpcRequest(
@@ -249,8 +253,44 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         ))
         self.assertEqual("6", result.id)
         self.assertIsNone(result.error)
-        self.assertEqual("66.67%", result.result["blocks_from_bdn_percentage"])
-        self.assertEqual("33.33%", result.result["transactions_from_bdn_percentage"])
+        node_stats = result.result[str(self.node_endpoint_1)]
+        self.assertEqual("66.67%", node_stats["blocks_from_bdn_percentage"])
+        self.assertEqual("33.33%", node_stats["transactions_from_bdn_percentage"])
+        self.assertEqual(3, node_stats["total_blocks_seen"])
+
+    @async_test
+    async def test_bdn_performance_multi_node(self):
+        blockchain_connection_2 = EthBaseConnection(
+            MockSocketConnection(node=self.gateway_node, ip_address="127.0.0.1", port=333), self.gateway_node)
+        blockchain_connection_2.state = ConnectionState.ESTABLISHED
+        self.gateway_node.mock_add_blockchain_peer(blockchain_connection_2)
+        node_endpoint_2 = IpEndpoint("127.0.0.1", 333)
+
+        gateway_bdn_performance_stats_service.set_node(self.gateway_node)
+        gateway_bdn_performance_stats_service.log_block_from_bdn()
+        gateway_bdn_performance_stats_service.log_block_from_bdn()
+        gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.node_endpoint_1)
+        gateway_bdn_performance_stats_service.log_tx_from_bdn()
+        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(self.node_endpoint_1)
+        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(self.node_endpoint_1)
+        gateway_bdn_performance_stats_service.close_interval_data()
+
+        result = await self.request(BxJsonRpcRequest(
+            "6",
+            RpcRequestType.BDN_PERFORMANCE,
+            None
+        ))
+        self.assertEqual("6", result.id)
+        self.assertIsNone(result.error)
+        node_stats = result.result[str(self.node_endpoint_1)]
+        self.assertEqual("66.67%", node_stats["blocks_from_bdn_percentage"])
+        self.assertEqual("33.33%", node_stats["transactions_from_bdn_percentage"])
+        self.assertEqual(3, node_stats["total_blocks_seen"])
+
+        node_stats_2 = result.result[str(node_endpoint_2)]
+        self.assertEqual("100.00%", node_stats_2["blocks_from_bdn_percentage"])
+        self.assertEqual("100.00%", node_stats_2["transactions_from_bdn_percentage"])
+        self.assertEqual(3, node_stats_2["total_blocks_seen"])
 
     @async_test
     async def test_transaction_status(self):

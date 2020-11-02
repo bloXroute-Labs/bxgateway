@@ -2,6 +2,8 @@ import time
 
 from mock import MagicMock
 
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
+from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
@@ -12,6 +14,7 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBl
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxcommon.utils.blockchain_utils.eth import crypto_utils
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 
 
 def _block_with_timestamp(timestamp):
@@ -41,6 +44,9 @@ class EthConnectionProtocolTest(AbstractTestCase):
         self.connection.peer_ip = LOCALHOST
         self.connection.peer_port = 8001
         self.connection.network_num = 2
+        self.connection.endpoint = IpEndpoint(self.connection.peer_ip, self.connection.peer_port)
+        self.node.blockchain_peers.add(BlockchainPeerInfo(self.connection.peer_ip, self.connection.peer_port))
+        gateway_bdn_performance_stats_service.set_node(self.node)
 
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
         dummy_public_key = crypto_utils.private_to_public_key(dummy_private_key)

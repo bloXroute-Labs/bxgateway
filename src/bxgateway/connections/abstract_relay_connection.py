@@ -339,17 +339,15 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def send_bdn_performance_stats(self, bdn_stats_interval: GatewayBdnPerformanceStatInterval):
         memory_utilization_mb = int(memory_utils.get_app_memory_usage() / constants.BYTE_TO_MB)
+        bdn_stats_per_node = bdn_stats_interval.blockchain_node_to_bdn_stats
+        if bdn_stats_per_node is None:
+            bdn_stats_per_node = {}
+
         msg_to_send = BdnPerformanceStatsMessage(
             bdn_stats_interval.start_time,
             bdn_stats_interval.end_time,
-            bdn_stats_interval.new_blocks_received_from_blockchain_node,
-            bdn_stats_interval.new_blocks_received_from_bdn,
-            bdn_stats_interval.new_tx_received_from_blockchain_node,
-            bdn_stats_interval.new_tx_received_from_bdn,
             memory_utilization_mb,
-            bdn_stats_interval.new_blocks_seen,
-            bdn_stats_interval.new_block_messages_from_blockchain_node,
-            bdn_stats_interval.new_block_announcements_from_blockchain_node
+            bdn_stats_per_node
         )
         self.enqueue_msg(msg_to_send)
 

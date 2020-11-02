@@ -2,7 +2,7 @@ import struct
 
 from bxcommon import constants
 from bxcommon.messages.bloxroute.version_message import VersionMessage
-from bxgateway.messages.gateway import gateway_message_utils
+from bxcommon.utils.stats import message_utils
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
 
@@ -25,7 +25,7 @@ class GatewayHelloMessageV1(VersionMessage):
 
             off = VersionMessage.BASE_LENGTH
 
-            gateway_message_utils.pack_ip_port(buf, off, ip, port)
+            message_utils.pack_ip_port(buf, off, ip, port)
             off += constants.IP_ADDR_SIZE_IN_BYTES + constants.UL_SHORT_SIZE_IN_BYTES
 
             struct.pack_into("<L", buf, off, ordering)
@@ -40,7 +40,7 @@ class GatewayHelloMessageV1(VersionMessage):
     def _unpack_buffer(self):
         off = VersionMessage.BASE_LENGTH
 
-        self._ip, self._port = gateway_message_utils.unpack_ip_port(self._memoryview[off:].tobytes())
+        self._ip, self._port = message_utils.unpack_ip_port(self._memoryview[off:].tobytes())
         off += constants.IP_ADDR_SIZE_IN_BYTES + constants.UL_SHORT_SIZE_IN_BYTES
 
         self._ordering, = struct.unpack_from("<L", self._memoryview, off)

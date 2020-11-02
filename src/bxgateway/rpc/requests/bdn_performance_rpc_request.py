@@ -53,43 +53,48 @@ class BdnPerformanceRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
         assert interval_data.end_time is not None
         stats[INTERVAL_END_TIME] = str(interval_data.end_time)
 
-        if (
-            interval_data.new_blocks_received_from_bdn
-            + interval_data.new_blocks_received_from_blockchain_node
-            == 0
-        ):
-            stats[BLOCKS_FROM_BDN] = float("nan")
-        if (
-            interval_data.new_tx_received_from_bdn
-            + interval_data.new_tx_received_from_blockchain_node
-            == 0
-        ):
-            stats[TX_FROM_BDN] = float("nan")
+        blockchain_node_to_bdn_stats = interval_data.blockchain_node_to_bdn_stats
+        assert blockchain_node_to_bdn_stats is not None
+        for peer_endpoint, node_stats in blockchain_node_to_bdn_stats.items():
+            peer_stats = {}
+            if (
+                node_stats.new_blocks_received_from_bdn
+                + node_stats.new_blocks_received_from_blockchain_node
+                == 0
+            ):
+                peer_stats[BLOCKS_FROM_BDN] = float("nan")
+            if (
+                node_stats.new_tx_received_from_bdn
+                + node_stats.new_tx_received_from_blockchain_node
+                == 0
+            ):
+                peer_stats[TX_FROM_BDN] = float("nan")
 
-        if BLOCKS_FROM_BDN not in stats:
-            stats[BLOCKS_FROM_BDN] = stats_format.percentage(
-                100
-                * (
-                    interval_data.new_blocks_received_from_bdn
-                    / (
-                        interval_data.new_blocks_received_from_bdn
-                        + interval_data.new_blocks_received_from_blockchain_node
+            if BLOCKS_FROM_BDN not in peer_stats:
+                peer_stats[BLOCKS_FROM_BDN] = stats_format.percentage(
+                    100
+                    * (
+                        node_stats.new_blocks_received_from_bdn
+                        / (
+                            node_stats.new_blocks_received_from_bdn
+                            + node_stats.new_blocks_received_from_blockchain_node
+                        )
                     )
                 )
-            )
-        if TX_FROM_BDN not in stats:
-            stats[TX_FROM_BDN] = stats_format.percentage(
-                100
-                * (
-                    interval_data.new_tx_received_from_bdn
-                    / (
-                        interval_data.new_tx_received_from_bdn
-                        + interval_data.new_tx_received_from_blockchain_node
+            if TX_FROM_BDN not in peer_stats:
+                peer_stats[TX_FROM_BDN] = stats_format.percentage(
+                    100
+                    * (
+                        node_stats.new_tx_received_from_bdn
+                        / (
+                            node_stats.new_tx_received_from_bdn
+                            + node_stats.new_tx_received_from_blockchain_node
+                        )
                     )
                 )
-            )
+            peer_stats.update({
+                BLOCKS_SEEN: node_stats.new_blocks_seen,
+            })
+            stats[str(peer_endpoint)] = peer_stats
 
-        stats.update({
-            BLOCKS_SEEN: interval_data.new_blocks_seen,
-        })
         return stats

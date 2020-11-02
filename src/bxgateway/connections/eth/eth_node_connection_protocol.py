@@ -153,7 +153,10 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 ),
                 block_height=block_number,
             )
-            gateway_bdn_performance_stats_service.log_block_message_from_blockchain_node(False)
+            gateway_bdn_performance_stats_service.log_block_message_from_blockchain_node(
+                self.connection.endpoint,
+                False
+            )
 
             if block_hash in self.node.blocks_seen.contents:
                 self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, block_number=block_number)

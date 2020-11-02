@@ -1,6 +1,8 @@
 import time
 from mock import MagicMock
 
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
+from bxcommon.network.ip_endpoint import IpEndpoint
 from bxgateway.testing import gateway_helpers
 from bxcommon.constants import LOCALHOST
 from bxcommon.test_utils import helpers
@@ -11,6 +13,7 @@ from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
 from bxgateway.connections.ont.ont_base_connection_protocol import OntBaseConnectionProtocol
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.testing.mocks.mock_ont_gateway_node import MockOntGatewayNode
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 
 
 class OntConnectionProtocolTest(AbstractTestCase):
@@ -30,6 +33,9 @@ class OntConnectionProtocolTest(AbstractTestCase):
         self.connection.peer_ip = LOCALHOST
         self.connection.peer_port = 8001
         self.connection.network_num = 2
+        self.connection.endpoint = IpEndpoint(self.connection.peer_ip, self.connection.peer_port)
+        self.node.blockchain_peers.add(BlockchainPeerInfo(self.connection.peer_ip, self.connection.peer_port))
+        gateway_bdn_performance_stats_service.set_node(self.node)
 
         self.sut = OntBaseConnectionProtocol(self.connection)
 
