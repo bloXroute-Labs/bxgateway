@@ -10,7 +10,7 @@ from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnectio
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import NewTransactionFeed, FeedSource
+from bxcommon.feed.new_transaction_feed import NewTransactionFeed, FeedSource
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
 from bxgateway.testing import gateway_helpers

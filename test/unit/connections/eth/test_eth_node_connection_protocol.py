@@ -12,7 +12,7 @@ from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import FeedSource
+from bxcommon.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import \
     NewBlockHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \

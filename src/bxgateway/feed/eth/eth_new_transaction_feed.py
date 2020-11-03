@@ -5,7 +5,7 @@ from bxcommon.feed.subscriber import Subscriber
 from bxcommon.rpc.rpc_errors import RpcInvalidParams
 from bxgateway.feed.eth.eth_transaction_feed_entry import EthTransactionFeedEntry
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import FeedSource
+from bxcommon.feed.new_transaction_feed import FeedSource
 from bxgateway.feed.eth import eth_filter_handlers
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType

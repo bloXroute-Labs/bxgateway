@@ -5,7 +5,6 @@ from typing import Dict, Any
 
 from bloxroute_cli.provider.ws_provider import WsProvider
 from bxcommon import constants
-from bxcommon.utils import convert
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxcommon.models.node_type import NodeType
@@ -26,7 +25,7 @@ from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
-from bxgateway.feed.new_transaction_feed import (
+from bxcommon.feed.new_transaction_feed import (
     RawTransaction,
     RawTransactionFeedEntry,
     FeedSource,

@@ -7,7 +7,7 @@ from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import FeedSource
+from bxcommon.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import \
     NewBlockEthProtocolMessage

@@ -30,7 +30,7 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import log_messages, gateway_constants
-from bxgateway.feed.new_transaction_feed import NewTransactionFeed, RawTransactionFeedEntry
+from bxcommon.feed.new_transaction_feed import NewTransactionFeed, RawTransactionFeedEntry
 from bxgateway.services.block_recovery_service import RecoveredTxsSource
 from bxgateway.services.gateway_transaction_service import MissingTransactions
 from bxgateway.utils.logging.status import status_log

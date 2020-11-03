@@ -23,7 +23,7 @@ from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigB
 
 from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxcommon.feed.subscriber import Subscriber
-from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
+from bxcommon.feed.new_transaction_feed import RawTransactionFeedEntry
 from bxgateway.rpc.external.eth_ws_proxy_publisher import EthWsProxyPublisher
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
