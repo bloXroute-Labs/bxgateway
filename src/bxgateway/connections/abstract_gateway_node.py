@@ -657,7 +657,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def on_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection) -> None:
         if BlockchainPeerInfo(connection.peer_ip, connection.peer_port) in self.blockchain_peers:
             event_type = NodeEventType.BLOCKCHAIN_NODE_CONN_ERR
-            self.time_blockchain_peer_conn_destroyed_by_ip[(connection.peer_ip, connection.peer_port)] = time.time()
+            if (connection.peer_ip, connection.peer_port) not in self.time_blockchain_peer_conn_destroyed_by_ip:
+                self.time_blockchain_peer_conn_destroyed_by_ip[(connection.peer_ip, connection.peer_port)] = time.time()
         else:
             event_type = NodeEventType.BLOCKCHAIN_NODE_CONN_REMOVED
             self.time_blockchain_peer_conn_destroyed_by_ip.pop((connection.peer_ip, connection.peer_port), None)
