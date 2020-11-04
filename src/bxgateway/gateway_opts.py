@@ -7,6 +7,7 @@ from typing import Optional, Set, Dict
 
 from bxcommon import constants
 from bxcommon.common_opts import CommonOpts
+from bxcommon.rpc import rpc_constants
 from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.utils import ip_resolver, node_cache
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
@@ -248,6 +249,8 @@ class GatewayOpts(CommonOpts):
         if self.blockchain_peers:
             for blockchain_peer in self.blockchain_peers:
                 blockchain_peer.ip = validate_blockchain_ip(blockchain_peer.ip, self.is_docker)
+        if self.rpc_host == rpc_constants.DEFAULT_RPC_HOST and self.is_docker:
+            self.rpc_host = rpc_constants.DOCKER_RPC_HOST
 
 
 def get_sdn_hostname(sdn_url: str) -> str:
