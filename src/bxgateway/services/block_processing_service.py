@@ -575,7 +575,7 @@ class BlockProcessingService:
             )
 
             self._on_block_decompressed(block_message)
-            if recovered or block_hash in self._node.block_queuing_service_manager:
+            if recovered or self._node.block_queuing_service_manager.is_in_any_queuing_service(block_hash):
                 self._node.block_queuing_service_manager.update_recovered_block(block_hash, block_message)
             else:
                 self._node.block_queuing_service_manager.push(block_hash, block_message)
@@ -587,7 +587,7 @@ class BlockProcessingService:
 
             self._node.publish_block(None, block_hash, block_message, FeedSource.BDN_SOCKET)
         else:
-            if block_hash in self._node.block_queuing_service_manager and not recovered:
+            if self._node.block_queuing_service_manager.is_in_any_queuing_service(block_hash) and not recovered:
                 connection.log_trace("Handling already queued block again. Ignoring.")
                 return
 

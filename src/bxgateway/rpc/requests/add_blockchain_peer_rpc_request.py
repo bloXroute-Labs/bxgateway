@@ -17,17 +17,18 @@ class AddBlockchainPeerRpcRequest(AbstractBlockchainPeerRpcRequest):
     async def process_request(self) -> JsonRpcResponse:
         blockchain_peer_info = self._blockchain_peer_info
         assert blockchain_peer_info is not None
+        if blockchain_peer_info not in self.node.blockchain_peers:
+            self.node.enqueue_connection(
+                blockchain_peer_info.ip, blockchain_peer_info.port, ConnectionType.BLOCKCHAIN_NODE
+            )
+            self.node.requester.send_threaded_request(
+                sdn_http_service.submit_peer_connection_event,
+                NodeEventType.BLOCKCHAIN_NODE_CONN_ADDED,
+                self.node.opts.node_id,
+                blockchain_peer_info.ip,
+                blockchain_peer_info.port,
+            )
         self.node.blockchain_peers.add(blockchain_peer_info)
-        self.node.enqueue_connection(
-            blockchain_peer_info.ip, blockchain_peer_info.port, ConnectionType.BLOCKCHAIN_NODE
-        )
-        self.node.requester.send_threaded_request(
-            sdn_http_service.submit_peer_connection_event,
-            NodeEventType.BLOCKCHAIN_NODE_CONN_ADDED,
-            self.node.opts.node_id,
-            blockchain_peer_info.ip,
-            blockchain_peer_info.port,
-        )
 
         return self.ok({
             "new_peer": f"{blockchain_peer_info.ip}:{blockchain_peer_info.port}"

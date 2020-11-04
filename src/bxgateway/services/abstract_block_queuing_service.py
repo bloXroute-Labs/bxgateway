@@ -216,12 +216,9 @@ class AbstractBlockQueuingService(
             )
 
     def try_send_header_to_node(self, block_hash: Sha256Hash) -> bool:
-        if block_hash not in self.node.block_storage:
+        if not self.node.block_queuing_service_manager.is_in_common_block_storage(block_hash):
             return False
-
         block_message = cast(TBlockMessage, self.node.block_storage[block_hash])
-        if block_message is None:
-            return False
 
         header_msg = self.build_block_header_message(block_hash, block_message)
         self.connection.enqueue_msg(header_msg)

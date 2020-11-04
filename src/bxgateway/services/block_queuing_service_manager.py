@@ -29,16 +29,26 @@ class BlockQueuingServiceManager:
         for queuing_service in self.blockchain_peer_to_block_queuing_service.values():
             yield queuing_service
 
-    def __contains__(self, block_hash: Sha256Hash):
+    def is_in_any_queuing_service(self, block_hash: Sha256Hash) -> bool:
         """
-        Indicates if block hash is in the common block storage.
         :param block_hash:
-        :return: if block hash is in queue
+        :return: if block hash is in any queuing service.
         """
         for queuing_service in self:
             if block_hash in queuing_service:
                 return True
         return False
+
+    def is_in_common_block_storage(self, block_hash: Sha256Hash) -> bool:
+        """
+        :param block_hash:
+        :return: if block message is in common block storage for block hash
+        """
+        block = self.block_storage.contents.get(block_hash)
+        if block is None:
+            return False
+        else:
+            return True
 
     def add_block_queuing_service(
         self,

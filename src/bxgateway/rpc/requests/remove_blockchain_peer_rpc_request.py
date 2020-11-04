@@ -16,7 +16,7 @@ class RemoveBlockchainPeerRpcRequest(AbstractBlockchainPeerRpcRequest):
     async def process_request(self) -> JsonRpcResponse:
         blockchain_peer_info = self._blockchain_peer_info
         assert blockchain_peer_info is not None
-        self.node.blockchain_peers.remove(blockchain_peer_info)
+        self.node.blockchain_peers.discard(blockchain_peer_info)
         if self.node.connection_pool.has_connection(blockchain_peer_info.ip, blockchain_peer_info.port):
             peer_conn_to_remove = self.node.connection_pool.get_by_ipport(
                 blockchain_peer_info.ip, blockchain_peer_info.port

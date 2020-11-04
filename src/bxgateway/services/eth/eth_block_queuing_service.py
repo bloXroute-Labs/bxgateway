@@ -289,7 +289,7 @@ class EthBlockQueuingService(
 
     def remove(self, block_hash: Sha256Hash) -> int:
         index = super().remove(block_hash)
-        if block_hash in self._block_hashes_by_height.contents:
+        if block_hash in self._height_by_block_hash:
             height = self._height_by_block_hash.contents.pop(block_hash, None)
             self.connection.log_trace(
                 "Removing block {} at height {} in queuing service",
@@ -430,13 +430,13 @@ class EthBlockQueuingService(
                 )
                 return False
 
-            block_message = cast(InternalEthBlockInfo, self.node.block_storage[block_hash])
-            if block_message is None:
+            if not self.node.block_queuing_service_manager.is_in_common_block_storage(block_hash):
                 self.connection.log_debug(
                     "{} was not in the block storage. Aborting attempt to send bodies.",
                     block_hash
                 )
                 return False
+            block_message = cast(InternalEthBlockInfo, self.node.block_storage[block_hash])
 
             if block_hash in self.node.block_parts_storage:
                 block_body_bytes = self.node.block_parts_storage[block_hash].block_body_bytes
@@ -481,13 +481,13 @@ class EthBlockQueuingService(
                 )
                 return False
 
-            block_message = cast(InternalEthBlockInfo, self.node.block_storage[block_hash])
-            if block_message is None:
+            if not self.node.block_queuing_service_manager.is_in_common_block_storage(block_hash):
                 self.connection.log_debug(
                     "{} was not in block storage. Aborting attempt to send headers",
                     block_hash
                 )
                 return False
+            block_message = cast(InternalEthBlockInfo, self.node.block_storage[block_hash])
 
             partial_headers_message = self.build_block_header_message(
                 block_hash, block_message
@@ -517,10 +517,13 @@ class EthBlockQueuingService(
 
         Returns (success, [found_hashes])
         """
-        if block_hash not in self._blocks or self.node.block_storage[block_hash] is None:
+        if block_hash not in self._blocks or block_hash not in self._height_by_block_hash:
             return False, []
 
         if block_hash in self._blocks_waiting_for_recovery and self._blocks_waiting_for_recovery[block_hash]:
+            return False, []
+
+        if not self.node.block_queuing_service_manager.is_in_common_block_storage(block_hash):
             return False, []
 
         best_height, _, _ = self.best_sent_block

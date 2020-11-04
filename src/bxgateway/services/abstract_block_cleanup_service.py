@@ -117,7 +117,7 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
             self._block_hash_marked_for_cleanup.add(block_hash)
             self.last_confirmed_block = block_hash
             block_queuing_service = None
-            if block_hash in self.node.block_queuing_service_manager:
+            if self.node.block_queuing_service_manager.is_in_common_block_storage(block_hash):
                 block_queuing_service = self.node.block_queuing_service_manager.get_designated_block_queuing_service()
             if block_queuing_service is not None:
                 self.node.alarm_queue.register_alarm(

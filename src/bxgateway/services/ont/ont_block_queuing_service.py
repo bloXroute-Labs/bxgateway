@@ -73,7 +73,9 @@ class OntBlockQueuingService(
         if self.node.opts.is_consensus and isinstance(block_msg, BlockOntMessage):
             return
         super().push(block_hash, block_msg, waiting_for_recovery)
-        self.connection.log_debug("Added block {} to queuing service", block_hash)
+        self.connection.log_debug(
+            "Added block {} to queuing service (waiting for recovery: {})", block_hash, waiting_for_recovery
+        )
         self._clean_block_queue()
 
         if block_msg is None:
