@@ -120,6 +120,40 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         )
 
     @async_test
+    async def test_blxr_tx_expired(self):
+        self.gateway_node.account_model.is_account_valid = MagicMock(return_value=False)
+        result = await self.request(BxJsonRpcRequest(
+            "2",
+            RpcRequestType.BLXR_TX,
+            {
+                rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
+                "quota_type": TransactionFlag.PAID_TX,
+                "synchronous": True
+            }
+        ))
+        self.assertEqual("2", result.id)
+        self.assertEqual("Invalid Account ID", result.error.message)
+        self.assertIsNone(result.result)
+        self.assertIsNotNone(result.error)
+
+    @async_test
+    async def test_blxr_tx_quota_exceeded(self):
+        self.gateway_node.quota_level = 100
+        result = await self.request(BxJsonRpcRequest(
+            "3",
+            RpcRequestType.BLXR_TX,
+            {
+                rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
+                "quota_type": TransactionFlag.PAID_TX,
+                "synchronous": True
+            }
+        ))
+        self.assertEqual("3", result.id)
+        self.assertEqual("Insufficient quota", result.error.message)
+        self.assertIsNone(result.result)
+        self.assertIsNotNone(result.error)
+
+    @async_test
     async def test_blxr_tx_from_json(self):
         tx_json = {
             'from': '0xc165599b5e418bb9d8a19090696ea2403b2927ed',

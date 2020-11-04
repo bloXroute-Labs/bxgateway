@@ -45,7 +45,9 @@ class MockMessageConverter(AbstractMessageConverter):
         network_num: int,
         transaction_flag: Optional[TransactionFlag] = None
     ) -> TxMessage:
-        return TxMessage(Sha256Hash(crypto.double_sha256(raw_tx)), network_num, tx_val=raw_tx)
+        return TxMessage(
+            Sha256Hash(crypto.double_sha256(raw_tx)), network_num, tx_val=raw_tx, transaction_flag=transaction_flag
+        )
 
 
 class MockBlockchainConnection(AbstractGatewayBlockchainConnection):

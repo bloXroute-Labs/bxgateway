@@ -1,13 +1,14 @@
 from typing import TYPE_CHECKING
 import asyncio
 
+from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.exceptions import ParseError
 from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_blxr_transaction_rpc_request import AbstractBlxrTransactionRpcRequest
-from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
+from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError, RpcBlocked
 from bxcommon.utils import convert
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
@@ -149,7 +150,19 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             "transaction_flag": transaction_flag.name.lower(),
             "account_id": account_id
         }
-        return self.ok(tx_json)
+        if not self.node.account_model.is_account_valid():
+            raise RpcAccountIdError(
+                self.request_id,
+                "The account associated with this gateway has expired. "
+                "Please visit https://portal.bloxroute.com to renew your subscription."
+            )
+        if self.node.quota_level == constants.FULL_QUOTA_PERCENTAGE:
+            raise RpcBlocked(
+                self.request_id,
+                "The account associated with this gateway has exceeded its daily transaction quota."
+            )
+        else:
+            return self.ok(tx_json)
 
     def get_network_num(self) -> int:
         return self.node.network_num
