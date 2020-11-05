@@ -629,21 +629,29 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.remote_node_msg_queue.append(msg)
 
     def continue_retrying_connection(self, ip: str, port: int, connection_type: ConnectionType) -> bool:
-        return (super(AbstractGatewayNode, self).continue_retrying_connection(ip, port, connection_type)
-                or OutboundPeerModel(ip, port) in self.opts.peer_gateways
-                or (connection_type == ConnectionType.BLOCKCHAIN_NODE and
-                    (self.num_active_blockchain_peers == 0 or
-                     time.time() - self.time_blockchain_peer_conn_destroyed_by_ip[(ip, port)]
-                     < gateway_constants.MULTIPLE_BLOCKCHAIN_NODE_MAX_RETRY_S))
-                or (connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE and
-                    self.num_retries_by_ip[(ip, port)] < gateway_constants.REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES))
+        if connection_type == ConnectionType.BLOCKCHAIN_NODE:
+            return self.num_active_blockchain_peers == 0 \
+                or ((ip, port) in self.time_blockchain_peer_conn_destroyed_by_ip and
+                    time.time() - self.time_blockchain_peer_conn_destroyed_by_ip[(ip, port)]
+                    < gateway_constants.MULTIPLE_BLOCKCHAIN_NODE_MAX_RETRY_S)
+        else:
+            return (super(AbstractGatewayNode, self).continue_retrying_connection(ip, port, connection_type)
+                    or OutboundPeerModel(ip, port) in self.opts.peer_gateways
+                    or (connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE and
+                        self.num_retries_by_ip[(ip, port)] < gateway_constants.REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES))
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection) -> None:
-        self.blockchain_peers.add(BlockchainPeerInfo(connection.peer_ip, connection.peer_port))
+        new_blockchain_peer = BlockchainPeerInfo(connection.peer_ip, connection.peer_port)
+        self.blockchain_peers.add(new_blockchain_peer)
         if connection not in self.block_queuing_service_manager.blockchain_peer_to_block_queuing_service:
             block_queuing_service = self.build_block_queuing_service(connection)
             self.block_queuing_service_manager.add_block_queuing_service(connection, block_queuing_service)
         self.cancel_blockchain_liveliness_check()
+        self.alarm_queue.register_alarm(
+            gateway_constants.CHECK_BLOCKCHAIN_CONNECTION_FIRMLY_ESTABLISHED,
+            self.check_blockchain_connection_firmly_established,
+            new_blockchain_peer
+        )
         self.requester.send_threaded_request(
             sdn_http_service.submit_peer_connection_event,
             NodeEventType.BLOCKCHAIN_NODE_CONN_ESTABLISHED,
@@ -908,6 +916,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if not self.has_active_blockchain_peer():
             self.should_force_exit = True
             logger.error(log_messages.NO_ACTIVE_BLOCKCHAIN_CONNECTION)
+
+    def check_blockchain_connection_firmly_established(self, blockchain_peer: BlockchainPeerInfo) -> None:
+        if self.connection_pool.has_connection(blockchain_peer.ip, blockchain_peer.port):
+            self.time_blockchain_peer_conn_destroyed_by_ip.pop((blockchain_peer.ip, blockchain_peer.port), None)
 
     def check_active_blockchain_peers(self) -> int:
         """
