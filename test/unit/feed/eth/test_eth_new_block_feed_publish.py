@@ -25,6 +25,7 @@ _recover_public_key = crypto_utils.recover_public_key
 class EthNewBlockFeedPublishTest(AbstractTestCase):
 
     def setUp(self) -> None:
+
         crypto_utils.recover_public_key = MagicMock(
             return_value=bytes(32))
 

@@ -33,9 +33,9 @@ from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.feed.eth.eth_new_block_feed import EthNewBlockFeed
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
 from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo

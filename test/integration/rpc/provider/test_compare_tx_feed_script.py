@@ -13,10 +13,10 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test, AsyncMock
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxcommon.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \

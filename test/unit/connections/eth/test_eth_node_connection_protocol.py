@@ -9,9 +9,9 @@ from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.utils.blockchain_utils import transaction_validation
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxcommon.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import \
     NewBlockHashesEthProtocolMessage

@@ -14,8 +14,8 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.feed.feed_source import FeedSource
 from bxgateway import gateway_constants
 from bxgateway import log_messages
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory

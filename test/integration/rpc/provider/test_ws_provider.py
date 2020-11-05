@@ -21,9 +21,9 @@ from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
 from bxcommon.rpc.provider.abstract_ws_provider import WsException
 
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
 from bxcommon.feed.new_transaction_feed import (
     RawTransaction,

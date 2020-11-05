@@ -7,10 +7,10 @@ from typing import Dict, Any, TYPE_CHECKING, List, Type
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
 from bxgateway import gateway_constants
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxutils import logging
 from bxutils.logging import LogRecordType
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences

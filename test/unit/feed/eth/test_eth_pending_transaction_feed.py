@@ -6,8 +6,8 @@ from bxcommon.test_utils.helpers import async_test
 from bxcommon.utils import convert
 from bxcommon.utils.alarm_queue import AlarmQueue
 from bxcommon.utils.object_hash import Sha256Hash
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxcommon.feed.new_transaction_feed import FeedSource
 from bxgateway.testing.mocks import mock_eth_messages
 from bxutils import logging
