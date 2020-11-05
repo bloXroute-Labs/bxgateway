@@ -1,6 +1,7 @@
 import asyncio
 # TODO: remove try-catch when removing py3.7 support
 import functools
+import gc
 from collections import defaultdict, deque
 
 from bxgateway.services.block_queuing_service_manager import BlockQueuingServiceManager
@@ -411,6 +412,12 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         return self.opts.config_update_interval
 
     def record_mem_stats(self):
+        total_memory = memory_utils.get_app_memory_usage()
+        if total_memory <= constants.GC_LOW_MEMORY_THRESHOLD:
+            return
+
+        gc.collect()
+
         self._tx_service.log_tx_service_mem_stats()
         block_cleanup_service_size = memory_utils.get_special_size(self.block_cleanup_service).size
         hooks.add_obj_mem_stats(
