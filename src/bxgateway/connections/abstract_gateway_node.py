@@ -1320,7 +1320,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         logger.trace("Potential relay peers: {}", [node.node_id for node in potential_relay_peers])
 
         best_relay_peers = network_latency.get_best_relays_by_ping_latency_one_per_country(
-            potential_relay_peers, gateway_constants.MAX_PEER_RELAYS_COUNT
+            potential_relay_peers, gateway_constants.MAX_PEER_RELAYS_COUNT, self.peer_relays
         )
 
         if not best_relay_peers:
