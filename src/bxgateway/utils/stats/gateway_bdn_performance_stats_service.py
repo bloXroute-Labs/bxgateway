@@ -3,6 +3,7 @@ from typing import Type, Dict, Any, Optional, TYPE_CHECKING
 
 from prometheus_client import Counter
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.bloxroute.bdn_performance_stats_message import BdnPerformanceStatsData
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
@@ -65,10 +66,19 @@ class _GatewayBdnPerformanceStatsService(
         blockchain_node_to_bdn_stats = self.interval_data.blockchain_node_to_bdn_stats
         assert blockchain_node_to_bdn_stats is not None
 
-        for blockchain_peer in node.blockchain_peers:
-            blockchain_node_to_bdn_stats[
-                IpEndpoint(blockchain_peer.ip, blockchain_peer.port)
-            ] = BdnPerformanceStatsData()
+        active_blockchain_peers = list(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))
+        for blockchain_peer in active_blockchain_peers:
+            blockchain_node_to_bdn_stats[blockchain_peer.endpoint] = BdnPerformanceStatsData()
+
+    def get_node_stats(
+        self, node_endpoint: IpEndpoint, blockchain_node_to_bdn_stats: Dict[IpEndpoint, BdnPerformanceStatsData]
+    ) -> BdnPerformanceStatsData:
+        if node_endpoint in blockchain_node_to_bdn_stats:
+            node_stats = blockchain_node_to_bdn_stats[node_endpoint]
+        else:
+            blockchain_node_to_bdn_stats[node_endpoint] = BdnPerformanceStatsData()
+            node_stats = blockchain_node_to_bdn_stats[node_endpoint]
+        return node_stats
 
     def get_interval_data_class(self) -> Type[GatewayBdnPerformanceStatInterval]:
         return GatewayBdnPerformanceStatInterval
@@ -79,12 +89,7 @@ class _GatewayBdnPerformanceStatsService(
     def log_block_from_blockchain_node(self, node_endpoint: IpEndpoint) -> None:
         blockchain_node_to_bdn_stats = self.interval_data.blockchain_node_to_bdn_stats
         assert blockchain_node_to_bdn_stats is not None
-
-        if node_endpoint in blockchain_node_to_bdn_stats:
-            node_stats = blockchain_node_to_bdn_stats[node_endpoint]
-        else:
-            blockchain_node_to_bdn_stats[node_endpoint] = BdnPerformanceStatsData()
-            node_stats = blockchain_node_to_bdn_stats[node_endpoint]
+        node_stats = self.get_node_stats(node_endpoint, blockchain_node_to_bdn_stats)
 
         node_stats.new_blocks_received_from_blockchain_node += 1
         node_stats.new_blocks_seen += 1
@@ -102,11 +107,12 @@ class _GatewayBdnPerformanceStatsService(
     def log_block_message_from_blockchain_node(self, node_endpoint: IpEndpoint, is_full_block: bool) -> None:
         blockchain_node_to_bdn_stats = self.interval_data.blockchain_node_to_bdn_stats
         assert blockchain_node_to_bdn_stats is not None
+        node_stats = self.get_node_stats(node_endpoint, blockchain_node_to_bdn_stats)
 
         if is_full_block:
-            blockchain_node_to_bdn_stats[node_endpoint].new_block_messages_from_blockchain_node += 1
+            node_stats.new_block_messages_from_blockchain_node += 1
         else:
-            blockchain_node_to_bdn_stats[node_endpoint].new_block_announcements_from_blockchain_node += 1
+            node_stats.new_block_announcements_from_blockchain_node += 1
 
     def log_block_from_bdn(self) -> None:
         blockchain_node_to_bdn_stats = self.interval_data.blockchain_node_to_bdn_stats
@@ -121,12 +127,7 @@ class _GatewayBdnPerformanceStatsService(
     def log_tx_from_blockchain_node(self, node_endpoint: IpEndpoint, low_fee: bool = False) -> None:
         blockchain_node_to_bdn_stats = self.interval_data.blockchain_node_to_bdn_stats
         assert blockchain_node_to_bdn_stats is not None
-
-        if node_endpoint in blockchain_node_to_bdn_stats:
-            node_stats = blockchain_node_to_bdn_stats[node_endpoint]
-        else:
-            blockchain_node_to_bdn_stats[node_endpoint] = BdnPerformanceStatsData()
-            node_stats = blockchain_node_to_bdn_stats[node_endpoint]
+        node_stats = self.get_node_stats(node_endpoint, blockchain_node_to_bdn_stats)
 
         transactions_from_blockchain.labels(f"{node_endpoint.ip_address}:{node_endpoint.port}").inc()
 

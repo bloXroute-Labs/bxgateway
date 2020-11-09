@@ -16,7 +16,6 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
-from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_connection_protocol import EthNodeConnectionProtocol
 import bxgateway.messages.eth.eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
@@ -53,25 +52,37 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
             1234, include_default_eth_args=True, blockchain_address=(local_ip, eth_port), pub_key=convert.bytes_to_hex(dummy_public_key)
         )
         self.eth_node = EthGatewayNode(eth_opts, node_ssl_service)
-
         self.blockchain_connection = EthBaseConnection(
-            MockSocketConnection(node=self.node, ip_address=local_ip, port=333), self.node)
+            MockSocketConnection(node=self.node, ip_address=local_ip, port=30303), self.node)
         self.blockchain_connection.state = ConnectionState.ESTABLISHED
-        self.node.mock_add_blockchain_peer(self.blockchain_connection)
+        self.node.connection_pool.add(
+            19, local_ip, eth_port, self.blockchain_connection
+        )
+
+        self.blockchain_connection_1 = EthBaseConnection(
+            MockSocketConnection(node=self.node, ip_address=local_ip, port=333), self.node)
+        self.blockchain_connection_1.state = ConnectionState.ESTABLISHED
+        self.node.mock_add_blockchain_peer(self.blockchain_connection_1)
         self.node_1_endpoint = IpEndpoint(local_ip, 333)
+        self.node.connection_pool.add(
+            20, self.node_1_endpoint.ip_address, self.node_1_endpoint.port, self.blockchain_connection_1
+        )
 
         self.blockchain_connection_2 = EthBaseConnection(
             MockSocketConnection(node=self.node, ip_address=local_ip, port=444), self.node)
         self.blockchain_connection_2.state = ConnectionState.ESTABLISHED
         self.node.mock_add_blockchain_peer(self.blockchain_connection_2)
         self.node_2_endpoint = IpEndpoint(local_ip, 444)
+        self.node.connection_pool.add(
+            21, self.node_2_endpoint.ip_address, self.node_2_endpoint.port, self.blockchain_connection_2
+        )
 
-        self.blockchain_connection.network_num = 0
+        self.blockchain_connection_1.network_num = 0
 
         self.tx_blockchain_connection_protocol = EthNodeConnectionProtocol(
-            self.blockchain_connection, True, dummy_private_key, dummy_public_key)
+            self.blockchain_connection_1, True, dummy_private_key, dummy_public_key)
         self.block_blockchain_connection_protocol = EthNodeConnectionProtocol(
-            self.blockchain_connection, True, dummy_private_key, dummy_public_key)
+            self.blockchain_connection_1, True, dummy_private_key, dummy_public_key)
         self.tx_blockchain_connection_protocol.publish_transaction = MagicMock()
         self.block_blockchain_connection_protocol.publish_transaction = MagicMock()
 

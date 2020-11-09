@@ -2,6 +2,7 @@ import datetime
 import time
 import unittest
 from abc import abstractmethod
+from typing import cast
 from unittest.mock import MagicMock
 
 from bxcommon import constants
@@ -14,6 +15,7 @@ from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
+from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxutils import constants as utils_constants
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_base import BdnServiceModelBase
@@ -73,6 +75,11 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.gateway_node.requester.start()
         self.gateway_node.account_id = ACCOUNT_ID
         self.node_endpoint_1 = IpEndpoint("127.0.0.1", 7000)
+        self.blockchain_connection_1 = EthBaseConnection(
+            MockSocketConnection(
+                node=self.gateway_node, ip_address="127.0.0.1", port=7000), cast(EthGatewayNode, self.gateway_node)
+        )
+        self.blockchain_connection_1.state = ConnectionState.ESTABLISHED
 
     @abstractmethod
     def get_gateway_opts(self) -> GatewayOpts:
@@ -271,6 +278,9 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @async_test
     async def test_bdn_performance_single_node(self):
+        self.gateway_node.connection_pool.add(
+            20, self.node_endpoint_1.ip_address, self.node_endpoint_1.port, self.blockchain_connection_1
+        )
         gateway_bdn_performance_stats_service.set_node(self.gateway_node)
         gateway_bdn_performance_stats_service.log_block_from_bdn()
         gateway_bdn_performance_stats_service.log_block_from_bdn()
@@ -294,11 +304,18 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @async_test
     async def test_bdn_performance_multi_node(self):
+        self.gateway_node.connection_pool.add(
+            20, self.node_endpoint_1.ip_address, self.node_endpoint_1.port, self.blockchain_connection_1
+        )
+
         blockchain_connection_2 = EthBaseConnection(
             MockSocketConnection(node=self.gateway_node, ip_address="127.0.0.1", port=333), self.gateway_node)
         blockchain_connection_2.state = ConnectionState.ESTABLISHED
         self.gateway_node.mock_add_blockchain_peer(blockchain_connection_2)
         node_endpoint_2 = IpEndpoint("127.0.0.1", 333)
+        self.gateway_node.connection_pool.add(
+            21, node_endpoint_2.ip_address, node_endpoint_2.port, blockchain_connection_2
+        )
 
         gateway_bdn_performance_stats_service.set_node(self.gateway_node)
         gateway_bdn_performance_stats_service.log_block_from_bdn()
