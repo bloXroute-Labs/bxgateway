@@ -110,7 +110,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "quota_type": TransactionFlag.PAID_TX,
                 "synchronous": True
             }
         ))
@@ -134,7 +133,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "quota_type": TransactionFlag.PAID_TX,
                 "synchronous": True
             }
         ))
@@ -151,7 +149,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "quota_type": TransactionFlag.PAID_TX,
                 "synchronous": True
             }
         ))
@@ -181,7 +178,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_JSON_PARAMS_KEY: tx_json,
-                "quota_type": TransactionFlag.PAID_TX
             }
         ))
         self.assertEqual("1", result.id)
