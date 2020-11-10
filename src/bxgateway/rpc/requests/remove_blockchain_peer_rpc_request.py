@@ -23,6 +23,9 @@ class RemoveBlockchainPeerRpcRequest(AbstractBlockchainPeerRpcRequest):
             )
             peer_conn_to_remove.mark_for_close(False)
         else:
+            self.node.time_blockchain_peer_conn_destroyed_by_ip.pop(
+                (blockchain_peer_info.ip, blockchain_peer_info.port), None
+            )
             self.node.alarm_queue.register_approx_alarm(
                 2 * constants.MIN_SLEEP_TIMEOUT, constants.MIN_SLEEP_TIMEOUT, status_log.update_alarm_callback,
                 self.node.connection_pool, self.node.opts.use_extensions, self.node.opts.source_version,
