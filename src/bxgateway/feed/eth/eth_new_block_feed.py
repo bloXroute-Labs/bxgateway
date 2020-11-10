@@ -93,9 +93,16 @@ class EthNewBlockFeed(Feed[EthBlockFeedEntry, EthRawBlock]):
             return
 
         if raw_message.block is None:
+            block_queuing_service = cast(
+                EthBlockQueuingService,
+                self.node.block_queuing_service_manager.get_designated_block_queuing_service()
+            )
+            best_accepted_height, _ = block_queuing_service.best_accepted_block
+
             logger.warning(
-                "{} Feed Failed to recover block for message: {}",
-                self.name, raw_message
+                "{} Feed Failed to recover block for message: {},"
+                "last_block_published {} last block in queueing service {}",
+                self.name, raw_message, self.last_block_number, best_accepted_height
             )
             return
 
