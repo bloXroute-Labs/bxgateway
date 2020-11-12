@@ -2,14 +2,18 @@ import datetime
 import time
 from typing import Iterable, Optional, TYPE_CHECKING, Union
 
+from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.feed.feed_source import FeedSource
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.bloxroute.block_holding_message import BlockHoldingMessage
 from bxcommon.messages.bloxroute.get_txs_message import GetTxsMessage
 from bxcommon.messages.eth.validation.abstract_block_validator import AbstractBlockValidator, \
     BlockValidationResult
 from bxcommon.utils import convert, crypto, block_content_debug_utils
+from bxcommon.utils.blockchain_utils.eth import eth_common_utils
 from bxcommon.utils.expiring_dict import ExpiringDict
+from bxcommon.utils.limited_size_set import LimitedSizeSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -17,7 +21,6 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.stat_block_type import StatBlockType
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
-from bxcommon.feed.feed_source import FeedSource
 from bxgateway import gateway_constants
 from bxgateway import log_messages
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
@@ -75,6 +78,8 @@ class BlockProcessingService:
         self._block_validator: Optional[AbstractBlockValidator] = None
         self._last_confirmed_block_number: Optional[int] = None
         self._last_confirmed_block_difficulty: Optional[int] = None
+        self._blocks_failed_validation_history: LimitedSizeSet[Sha256Hash] = LimitedSizeSet(
+            constants.BLOCKS_FAILED_VALIDATION_HISTORY_SIZE)
 
     def place_hold(self, block_hash, connection) -> None:
         """
@@ -461,7 +466,7 @@ class BlockProcessingService:
         assert message_converter is not None
 
         valid_block = self._validate_compressed_block_header(bx_block)
-        if not valid_block:
+        if not valid_block.is_valid:
             reason = valid_block.reason
             assert reason is not None
             block_stats.add_block_event_by_block_hash(
@@ -721,13 +726,28 @@ class BlockProcessingService:
         self, block_message: AbstractBlockMessage
     ) -> BlockValidationResult:
         block_header_bytes = self._get_block_header_bytes_from_block_message(block_message)
-        return self._validate_block_header(block_header_bytes)
+        validation_result = self._validate_block_header(block_header_bytes)
+
+        if not validation_result.is_valid and validation_result.block_hash:
+            block_hash = validation_result.block_hash
+            assert block_hash is not None
+            if block_hash in self._blocks_failed_validation_history:
+                block_number = eth_common_utils.block_header_number(block_header_bytes)
+                block_difficulty = eth_common_utils.block_header_difficulty(block_header_bytes)
+                self.set_last_confirmed_block_parameters(block_number, block_difficulty)
+
+        return validation_result
 
     def _validate_compressed_block_header(
         self, compressed_block_bytes: Union[bytearray, memoryview]
     ) -> BlockValidationResult:
         block_header_bytes = self._get_compressed_block_header_bytes(compressed_block_bytes)
-        return self._validate_block_header(block_header_bytes)
+        validation_result = self._validate_block_header(block_header_bytes)
+        if not validation_result.is_valid and validation_result.block_hash:
+            block_hash = validation_result.block_hash
+            assert block_hash is not None
+            self._blocks_failed_validation_history.add(block_hash)
+        return validation_result
 
     def _validate_block_header(self, block_header_bytes: Union[bytearray, memoryview]) -> BlockValidationResult:
         if self._block_validator and self._last_confirmed_block_number and self._last_confirmed_block_difficulty:
