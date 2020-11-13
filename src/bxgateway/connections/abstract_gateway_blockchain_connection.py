@@ -64,7 +64,9 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
     def __hash__(self):
         return hash((self.endpoint.ip_address, self.endpoint.port))
 
-    def __eq__(self, other: "AbstractGatewayBlockchainConnection") -> bool:
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, AbstractGatewayBlockchainConnection):
+            return False
         return self.endpoint.ip_address == other.endpoint.ip_address and self.endpoint.port == other.endpoint.port
 
     def advance_bytes_written_to_socket(self, bytes_sent):
