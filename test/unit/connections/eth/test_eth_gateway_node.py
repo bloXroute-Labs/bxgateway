@@ -1,22 +1,22 @@
-from bxgateway.testing import gateway_helpers
-from bxcommon.models.node_type import NodeType
-from bxcommon.network.ip_endpoint import IpEndpoint
-from bxcommon.network.socket_connection_state import SocketConnectionState
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
-from bxcommon.utils import convert
-from bxcommon.models.outbound_peer_model import OutboundPeerModel
-from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
-from bxcommon.test_utils import helpers
-from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
-
-from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
-from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
-from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
-from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from unittest import skip
 
 from mock import MagicMock
+
+from bxcommon.models.node_type import NodeType
+from bxcommon.models.outbound_peer_model import OutboundPeerModel
+from bxcommon.network.ip_endpoint import IpEndpoint
+from bxcommon.network.socket_connection_state import SocketConnectionStates
+from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
+from bxcommon.test_utils import helpers
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
+from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
+from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
+from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
+from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
+from bxgateway.testing import gateway_helpers
 
 
 class EthGatewayNodeTest(AbstractTestCase):
@@ -94,8 +94,8 @@ class EthGatewayNodeTest(AbstractTestCase):
         new_node_public_key = self._get_dummy_public_key()
         node.set_node_public_key(discovery_connection, new_node_public_key)
 
-        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in discovery_connection.socket_connection.state)
-        self.assertTrue(SocketConnectionState.DO_NOT_RETRY in discovery_connection.socket_connection.state)
+        self.assertTrue(SocketConnectionStates.MARK_FOR_CLOSE in discovery_connection.socket_connection.state)
+        self.assertTrue(SocketConnectionStates.DO_NOT_RETRY in discovery_connection.socket_connection.state)
 
         updated_node_public_key = node.get_node_public_key(self.blockchain_ip, self.blockchain_port)
         self.assertIsNotNone(updated_node_public_key)

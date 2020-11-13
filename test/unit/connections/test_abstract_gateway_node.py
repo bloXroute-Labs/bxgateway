@@ -16,7 +16,7 @@ from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
-from bxcommon.network.socket_connection_state import SocketConnectionState
+from bxcommon.network.socket_connection_state import SocketConnectionState, SocketConnectionStates
 from bxcommon.services import sdn_http_service
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -219,7 +219,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.num_retries_by_ip[(LOCALHOST, 8001)] = MAX_CONNECT_RETRIES
         cli_peer_conn.state = ConnectionState.CONNECTING
         node._connection_timeout(cli_peer_conn)
-        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in mock_socket.state)
+        self.assertTrue(SocketConnectionStates.MARK_FOR_CLOSE in mock_socket.state)
 
         node.on_connection_closed(mock_socket.fileno())
         # timeout is fib(3) == 3
@@ -339,8 +339,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         sdn_http_service.submit_peer_connection_error_event.called_once_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in relay_transaction_conn.socket_connection.state)
-        self.assertTrue(SocketConnectionState.DO_NOT_RETRY in relay_transaction_conn.socket_connection.state)
+        self.assertTrue(SocketConnectionStates.MARK_FOR_CLOSE in relay_transaction_conn.socket_connection.state)
+        self.assertTrue(SocketConnectionStates.DO_NOT_RETRY in relay_transaction_conn.socket_connection.state)
 
     @async_test
     async def test_split_relay_no_reconnect_disconnect_transaction(self):
@@ -360,8 +360,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             sdn_http_service.submit_peer_connection_error_event.assert_called_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in relay_block_conn.socket_connection.state)
-        self.assertTrue(SocketConnectionState.DO_NOT_RETRY in relay_block_conn.socket_connection.state)
+        self.assertTrue(SocketConnectionStates.MARK_FOR_CLOSE in relay_block_conn.socket_connection.state)
+        self.assertTrue(SocketConnectionStates.DO_NOT_RETRY in relay_block_conn.socket_connection.state)
 
     @async_test
     async def test_queuing_messages_no_remote_blockchain_connection(self):
