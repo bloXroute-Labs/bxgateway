@@ -797,11 +797,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         block_message: Optional[AbstractBlockMessage] = None,
         block_number: Optional[int] = None
     ) -> bool:
-        self.blocks_seen.add(block_hash)
-        recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
+        recovery_canceled = False
+        if block_message is not None:
+            self.blocks_seen.add(block_hash)
+            recovery_canceled = self.block_recovery_service.cancel_recovery_for_block(block_hash)
+
         if recovery_canceled:
-            if block_message is not None:
-                self.block_queuing_service_manager.update_recovered_block(block_hash, block_message)
+            assert block_message is not None
+            self.block_queuing_service_manager.update_recovered_block(block_hash, block_message)
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.BLOCK_RECOVERY_CANCELED,
@@ -821,6 +824,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     block_message,
                     block_number
                 )
+
         self.publish_block(
             block_number, block_hash, block_message, FeedSource.BLOCKCHAIN_SOCKET
         )

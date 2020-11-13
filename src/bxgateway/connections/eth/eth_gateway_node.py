@@ -460,7 +460,8 @@ class EthGatewayNode(AbstractGatewayNode):
                 self._get_block_message_lazy(block_message, block_hash)
             )
             self._publish_block_to_on_block_feed(raw_block)
-            self._publish_block_to_new_block_feed(raw_block)
+            if block_message is not None:
+                self._publish_block_to_new_block_feed(raw_block)
 
     async def init(self) -> None:
         await super().init()
