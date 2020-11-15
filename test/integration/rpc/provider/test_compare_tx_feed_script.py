@@ -5,6 +5,7 @@ from typing import Dict, Optional
 from asynctest import patch
 
 from bxcommon import constants
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -110,8 +111,8 @@ class CompareTxFeedScriptTest(AbstractTestCase):
                 eth_tx_message.tx_val(),
                 feed_source
             )
-            self.gateway_node.feed_manager.publish_to_feed(
-                "newTxs", eth_transaction
+            self.gateway_node.feed_manager.publish_to_feed_by_key(
+                FeedKey("newTxs"), eth_transaction
             )
             await asyncio.sleep(0.03)
 
@@ -122,8 +123,8 @@ class CompareTxFeedScriptTest(AbstractTestCase):
             eth_transaction = EthRawTransaction(
                 eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
             )
-            self.gateway_node.feed_manager.publish_to_feed(
-                "pendingTxs", eth_transaction
+            self.gateway_node.feed_manager.publish_to_feed_by_key(
+                FeedKey("pendingTxs"), eth_transaction
             )
             await asyncio.sleep(0.03)
 
@@ -134,8 +135,8 @@ class CompareTxFeedScriptTest(AbstractTestCase):
         )
         await asyncio.sleep(1)
         for _ in range(20):
-            self.gateway_node.feed_manager.publish_to_feed(
-                "pendingTxs", eth_transaction
+            self.gateway_node.feed_manager.publish_to_feed_by_key(
+                FeedKey("pendingTxs"), eth_transaction
             )
             await asyncio.sleep(0.03)
 

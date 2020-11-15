@@ -2,6 +2,7 @@ import time
 from collections import deque
 from typing import List, Deque, cast
 
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.blockchain_utils.eth import eth_common_utils, eth_common_constants
@@ -397,12 +398,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self, tx_hash: Sha256Hash, tx_contents: memoryview
     ) -> None:
         transaction_feed_stats_service.log_new_transaction(tx_hash)
-        self.node.feed_manager.publish_to_feed(
-            EthNewTransactionFeed.NAME,
+        self.node.feed_manager.publish_to_feed_by_key(
+            FeedKey(EthNewTransactionFeed.NAME),
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
-        self.node.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME,
+        self.node.feed_manager.publish_to_feed_by_key(
+            FeedKey(EthPendingTransactionFeed.NAME),
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )

@@ -325,12 +325,12 @@ class GatewayConnectionTest(AbstractTestCase):
         )
 
     def test_msg_confirmed_tx(self):
-        self.node.feed_manager.publish_to_feed = MagicMock()
+        self.node.feed_manager.publish_to_feed_by_key = MagicMock()
 
         tx_hash = helpers.generate_object_hash()
         message = ConfirmedTxMessage(tx_hash)
         self.connection.msg_confirmed_tx(message)
-        self.node.feed_manager.publish_to_feed.assert_not_called()
+        self.node.feed_manager.publish_to_feed_by_key.assert_not_called()
 
         tx_hash = helpers.generate_object_hash()
         message = ConfirmedTxMessage(
@@ -338,4 +338,4 @@ class GatewayConnectionTest(AbstractTestCase):
             rlp.encode(mock_eth_messages.get_dummy_transaction(1))
         )
         self.connection.msg_confirmed_tx(message)
-        self.node.feed_manager.publish_to_feed.assert_called_once()
+        self.node.feed_manager.publish_to_feed_by_key.assert_called_once()

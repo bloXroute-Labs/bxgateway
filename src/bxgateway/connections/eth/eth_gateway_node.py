@@ -6,6 +6,7 @@ from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.eth.serializers.transaction import Transaction
@@ -521,15 +522,15 @@ class EthGatewayNode(AbstractGatewayNode):
         self,
         raw_block: EthRawBlock,
     ) -> None:
-        self.feed_manager.publish_to_feed(EthNewBlockFeed.NAME, raw_block)
+        self.feed_manager.publish_to_feed_by_key(FeedKey(EthNewBlockFeed.NAME), raw_block)
 
     def _publish_block_to_on_block_feed(
         self,
         raw_block: EthRawBlock,
     ) -> None:
         if raw_block.source in {FeedSource.BLOCKCHAIN_RPC}:
-            self.feed_manager.publish_to_feed(
-                EthOnBlockFeed.NAME, EventNotification(raw_block.block_number)
+            self.feed_manager.publish_to_feed_by_key(
+                FeedKey(EthOnBlockFeed.NAME), EventNotification(raw_block.block_number)
             )
 
     def is_gas_price_above_min_network_fee(self, transaction_contents: Union[memoryview, bytearray]) -> bool:

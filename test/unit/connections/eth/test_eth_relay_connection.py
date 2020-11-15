@@ -2,6 +2,7 @@ from asynctest import MagicMock
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import LOCALHOST
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -34,26 +35,26 @@ class EthRelayConnectionTest(AbstractTestCase):
     def test_publish_new_transaction(self):
         bx_tx_message = self._convert_to_bx_message(mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE)
 
-        self.node.feed_manager.publish_to_feed = MagicMock()
+        self.node.feed_manager.publish_to_feed_by_key = MagicMock()
         self.connection.msg_tx(bx_tx_message)
 
         expected_publication = EthRawTransaction(
             bx_tx_message.tx_hash(), bx_tx_message.tx_val(), FeedSource.BDN_SOCKET
         )
-        self.node.feed_manager.publish_to_feed.assert_called_once_with(
-            NewTransactionFeed.NAME, expected_publication
+        self.node.feed_manager.publish_to_feed_by_key.assert_called_once_with(
+            FeedKey(NewTransactionFeed.NAME), expected_publication
         )
 
     def test_publish_new_transaction_low_gas(self):
         bx_tx_message = self._convert_to_bx_message(mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE)
 
-        self.node.feed_manager.publish_to_feed = MagicMock()
+        self.node.feed_manager.publish_to_feed_by_key = MagicMock()
         self.node.get_blockchain_network().min_tx_network_fee = (
             mock_eth_messages.EIP_155_TRANSACTION_GAS_PRICE + 10
         )
         self.connection.msg_tx(bx_tx_message)
 
-        self.node.feed_manager.publish_to_feed.assert_not_called()
+        self.node.feed_manager.publish_to_feed_by_key.assert_not_called()
 
     def test_transaction_updates_filters_based_on_factor(self):
         self.node.opts.filter_txs_factor = 1

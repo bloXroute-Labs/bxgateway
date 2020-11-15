@@ -7,7 +7,7 @@ from bxcommon.rpc.rpc_errors import RpcInvalidParams
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
-from bxcommon.feed.feed import Feed
+from bxcommon.feed.feed import Feed, FeedKey
 from bxcommon.feed.feed_manager import FeedManager
 from bxcommon.rpc.requests.subscribe_rpc_request import SubscribeRpcRequest
 from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
@@ -47,7 +47,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         self.assertIsNone(result.error)
         subscriber_id = result.result
 
-        self.assertEqual(1, self.feed_manager.feeds["foo"].subscriber_count())
+        self.assertEqual(1, self.feed_manager.get_feed_by_key(FeedKey("foo")).subscriber_count())
         self.assertEqual(1, len(self.rpc.subscriptions))
         self.assertIn(subscriber_id, self.rpc.subscriptions)
 
@@ -206,7 +206,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         self.assertFalse(next_message_task.done())  # no message
 
         self.assertEqual(0, len(self.rpc.subscriptions))
-        self.assertEqual(0, self.feed_manager.feeds["foo"].subscriber_count())
+        self.assertEqual(0, self.feed_manager.get_feed_by_key(FeedKey("foo")).subscriber_count())
 
     @async_test
     async def test_close_bad_subscribers(self):

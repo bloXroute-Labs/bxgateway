@@ -3,6 +3,7 @@ import struct
 from mock import MagicMock, call
 
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.feed.feed import FeedKey
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
@@ -446,7 +447,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
             )
 
     def test_msg_tx(self):
-        self.node.feed_manager.publish_to_feed = MagicMock()
+        self.node.feed_manager.publish_to_feed_by_key = MagicMock()
         self.node.opts.ws = True
 
         transaction = mock_eth_messages.get_dummy_transaction(1)
@@ -457,14 +458,14 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.sut.msg_tx(messages)
 
         # published to both feeds
-        self.node.feed_manager.publish_to_feed.assert_has_calls(
+        self.node.feed_manager.publish_to_feed_by_key.assert_has_calls(
             [
                 call(
-                    EthNewTransactionFeed.NAME,
+                    FeedKey(EthNewTransactionFeed.NAME),
                     EthRawTransaction(transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET)
                 ),
                 call(
-                    EthPendingTransactionFeed.NAME,
+                    FeedKey(EthPendingTransactionFeed.NAME),
                     EthRawTransaction(transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET)
                 ),
             ]
@@ -511,7 +512,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.assertEqual(TxValidationStatus.INVALID_FORMAT, result)
 
     def test_handle_tx_with_low_fee(self):
-        self.node.feed_manager.publish_to_feed = MagicMock()
+        self.node.feed_manager.publish_to_feed_by_key = MagicMock()
         self.node.opts.ws = False
 
         tx_bytes = \

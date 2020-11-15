@@ -5,6 +5,7 @@ from typing import Dict, Any, TYPE_CHECKING, Union, List, Optional
 from asyncio import QueueFull, Task
 from dataclasses import dataclass, asdict
 
+from bxcommon import constants
 from bxcommon.models.serializeable_enum import SerializeableEnum
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcError
 from bxcommon.rpc import rpc_constants
@@ -166,11 +167,11 @@ class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
     FIELDS = ["name", "response", "block_height", "tag"]
     last_block_height: int
 
-    def __init__(self, node: "EthGatewayNode") -> None:
+    def __init__(self, node: "EthGatewayNode", network_num: int = constants.ALL_NETWORK_NUM,) -> None:
         self.node = node
         self.bad_subscribers = set()
         self.last_block_height = 0
-        super().__init__(self.NAME)
+        super().__init__(self.NAME, network_num)
 
     def subscribe(self, options: Dict[str, Any]) -> Subscriber[OnBlockFeedEntry]:
         call_params = options.get("call_params", [])

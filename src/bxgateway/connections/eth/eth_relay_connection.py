@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from bxcommon.feed.feed import FeedKey
 from bxcommon.utils.blockchain_utils.eth import eth_common_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
@@ -20,7 +21,7 @@ class EthRelayConnection(AbstractRelayConnection):
     ) -> None:
         gas_price = eth_common_utils.raw_tx_gas_price(tx_contents, 0)
         if gas_price >= self.node.get_network_min_transaction_fee():
-            self.node.feed_manager.publish_to_feed(
-                EthNewTransactionFeed.NAME,
+            self.node.feed_manager.publish_to_feed_by_key(
+                FeedKey(EthNewTransactionFeed.NAME),
                 EthRawTransaction(tx_hash, tx_contents, FeedSource.BDN_SOCKET)
             )

@@ -1,5 +1,6 @@
 from typing import Set, TYPE_CHECKING, cast
 
+from bxcommon import constants
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.feed.feed import Feed
@@ -31,8 +32,8 @@ class EthNewBlockFeed(Feed[EthBlockFeedEntry, EthRawBlock]):
     published_blocks: ExpiringSet[Sha256Hash]
     published_blocks_height: ExpiringSet[int]
 
-    def __init__(self, node: "EthGatewayNode") -> None:
-        super().__init__(self.NAME)
+    def __init__(self, node: "EthGatewayNode", network_num: int = constants.ALL_NETWORK_NUM,) -> None:
+        super().__init__(self.NAME, network_num=network_num)
         self.last_block_number = 0
         self.hash_for_last_block_number = set()
         self.node = node

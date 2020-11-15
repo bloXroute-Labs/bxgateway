@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Set
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bdn_performance_stats_message import BdnPerformanceStatsMessage
 from bxcommon.messages.bloxroute.blockchain_network_message import RefreshBlockchainNetworkMessage
@@ -404,8 +405,8 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         )
 
     def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:
-        self.node.feed_manager.publish_to_feed(
-            NewTransactionFeed.NAME,
+        self.node.feed_manager.publish_to_feed_by_key(
+            FeedKey(NewTransactionFeed.NAME),
             RawTransactionFeedEntry(tx_hash, tx_contents)
         )
 

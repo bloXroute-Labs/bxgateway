@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, cast, Optional
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
@@ -207,8 +208,8 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 transaction_feed_stats_service.log_pending_transaction_missing_contents()
                 return
 
-        self.node.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME,
+        self.node.feed_manager.publish_to_feed_by_key(
+            FeedKey(EthPendingTransactionFeed.NAME),
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BDN_SOCKET)
         )
 

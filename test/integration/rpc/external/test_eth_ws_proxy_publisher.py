@@ -8,6 +8,7 @@ from unittest.mock import patch
 from mock import MagicMock
 
 from bxcommon import constants
+from bxcommon.feed.feed import FeedKey
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.rpc.json_rpc_request import JsonRpcRequest
@@ -72,7 +73,8 @@ class EthWsProxyPublisherTest(AbstractTestCase):
         )
         self.subscriber: Subscriber[
             RawTransactionFeedEntry
-        ] = self.gateway_node.feed_manager.subscribe_to_feed(EthPendingTransactionFeed.NAME, {})
+        ] = self.gateway_node.feed_manager.subscribe_to_feed_by_key(
+            FeedKey(EthPendingTransactionFeed.NAME), {})
         self.assertIsNotNone(self.subscriber)
 
         await self.eth_ws_proxy_publisher.start()

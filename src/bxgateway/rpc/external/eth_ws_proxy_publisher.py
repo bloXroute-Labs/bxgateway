@@ -2,6 +2,7 @@ import asyncio
 from asyncio import Future
 from typing import Optional, cast, List, Dict, Any, TYPE_CHECKING
 
+from bxcommon.feed.feed import FeedKey
 from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxcommon.rpc.provider.abstract_ws_provider import WsException
 from bxcommon.services.transaction_service import TransactionService
@@ -132,8 +133,8 @@ class EthWsProxyPublisher(EthWsSubscriber):
     ) -> None:
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
 
-        self.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME,
+        self.feed_manager.publish_to_feed_by_key(
+            FeedKey(EthPendingTransactionFeed.NAME),
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_RPC)
         )
 
@@ -164,8 +165,8 @@ class EthWsProxyPublisher(EthWsSubscriber):
         else:
             gas_price = int(parsed_tx["gasPrice"], 16)
             if gas_price >= self.node.get_network_min_transaction_fee():
-                self.feed_manager.publish_to_feed(
-                    EthPendingTransactionFeed.NAME,
+                self.feed_manager.publish_to_feed_by_key(
+                    FeedKey(EthPendingTransactionFeed.NAME),
                     EthRawTransaction(tx_hash, parsed_tx, FeedSource.BLOCKCHAIN_RPC)
                 )
 

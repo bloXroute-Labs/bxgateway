@@ -4,6 +4,7 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Dict, Any, TYPE_CHECKING, List, Type
 
+from bxcommon.feed.feed import FeedKey
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
 from bxgateway import gateway_constants
@@ -82,12 +83,15 @@ class TransactionFeedStatsService(
         node = self.node
         assert node is not None
         feeds = node.feed_manager.feeds
-        if EthPendingTransactionFeed.NAME in feeds:
-            pending_transaction_feed_subscribers = len(feeds[EthPendingTransactionFeed.NAME].subscribers)
+
+        pending_transaction_feed = node.feed_manager.get_feed_by_key(FeedKey(EthPendingTransactionFeed.NAME))
+        if pending_transaction_feed:
+            pending_transaction_feed_subscribers = len(pending_transaction_feed.subscribers)
         else:
             pending_transaction_feed_subscribers = None
-        if EthNewTransactionFeed.NAME in feeds:
-            new_transaction_feed_subscribers = len(feeds[EthNewTransactionFeed.NAME].subscribers)
+        new_transaction_feed = node.feed_manager.get_feed_by_key(FeedKey(EthNewTransactionFeed.NAME))
+        if new_transaction_feed:
+            new_transaction_feed_subscribers = len(new_transaction_feed.subscribers)
         else:
             new_transaction_feed_subscribers = None
 
