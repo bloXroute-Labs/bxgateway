@@ -496,11 +496,13 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[1]])
 
+        node.requester.send_threaded_request.reset_mock()
         node._register_potential_relay_peers(
             node._find_best_relay_peers(
                 network_latency.get_best_relays_by_ping_latency_one_per_country()
             )
         )
+        node.requester.send_threaded_request.assert_called()
         self.assertEqual(1, len(node.peer_relays))
         self.assertEqual(1, len(node.peer_transaction_relays))
         self.assertEqual(9001, next(iter(node.peer_relays)).port)

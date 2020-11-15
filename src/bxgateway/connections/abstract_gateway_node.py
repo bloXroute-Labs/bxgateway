@@ -1352,6 +1352,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         to_disconnect = self.peer_relays - best_relay_set
         to_connect = best_relay_set - self.peer_relays
 
+        if len(to_disconnect) > 0 and len(to_connect) > 0:
+            self.requester.send_threaded_request(
+                sdn_http_service.submit_gateway_switching_relays_event,
+                NodeEventType.SWITCHING_RELAYS,
+                self.opts.node_id
+            )
+
         for peer_to_remove in to_disconnect:
             logger.info("Disconnecting from current relay {}", peer_to_remove)
             self.peer_relays.remove(peer_to_remove)
