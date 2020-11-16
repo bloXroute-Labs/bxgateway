@@ -413,10 +413,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def record_mem_stats(self):
         total_memory = memory_utils.get_app_memory_usage()
-        if total_memory <= constants.GC_LOW_MEMORY_THRESHOLD:
-            return
-
-        gc.collect()
+        if total_memory > constants.GC_LOW_MEMORY_THRESHOLD:
+            gc.collect()
 
         self._tx_service.log_tx_service_mem_stats()
         block_cleanup_service_size = memory_utils.get_special_size(self.block_cleanup_service).size
