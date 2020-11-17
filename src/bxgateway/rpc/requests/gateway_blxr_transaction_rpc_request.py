@@ -26,7 +26,6 @@ logger = logging.get_logger(__name__)
 
 
 class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["AbstractGatewayNode"]):
-    QUOTA_TYPE = "quota_type"
     SYNCHRONOUS = rpc_constants.SYNCHRONOUS_PARAMS_KEY
 
     synchronous: bool = True
@@ -66,28 +65,28 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
 
         transaction_str: str = params[rpc_constants.TRANSACTION_PARAMS_KEY]
         network_num = self.get_network_num()
-        transaction_flag = TransactionFlag.PAID_TX
-        return await self.process_transaction(network_num, account_id, transaction_flag, transaction_str)
+        self.track_flag = TransactionFlag.PAID_TX
+        return await self.process_transaction(network_num, account_id, transaction_str)
 
     async def process_transaction(
-        self, network_num: int, account_id: str, transaction_flag: TransactionFlag, transaction_str: str
+        self, network_num: int, account_id: str, transaction_str: str
     ) -> JsonRpcResponse:
 
         if self.synchronous:
             return await self.post_process_transaction(
-                network_num, account_id, transaction_flag, transaction_str
+                network_num, account_id, self.track_flag, transaction_str
             )
         else:
             asyncio.create_task(
                 self.post_process_transaction(
-                    network_num, account_id, transaction_flag, transaction_str
+                    network_num, account_id, self.track_flag, transaction_str
                 )
             )
         return JsonRpcResponse(
             self.request_id,
             {
                 "tx_hash": "not available with async",
-                "transaction_flag": transaction_flag.name.lower(),
+                "transaction_flag": self.track_flag.name.lower(),
                 "synchronous": str(self.synchronous)
             }
         )
