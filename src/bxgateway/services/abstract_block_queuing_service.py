@@ -182,6 +182,7 @@ class AbstractBlockQueuingService(
         if block_hash in self.node.block_storage:
             del self.node.block_storage[block_hash]
         self.node.block_storage[block_hash] = block_msg
+        self.node.log_blocks_network_content(self.connection.network_num, block_msg)
 
     def send_block_to_node(
         self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None
