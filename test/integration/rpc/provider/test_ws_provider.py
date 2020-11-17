@@ -123,7 +123,7 @@ class WsProviderTest(AbstractTestCase):
                 "newTxs", options={"filters": f"to = {to} or to = aaaa"}
             )
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(FeedKey("newTxs"), eth_transaction)
+            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction)
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
@@ -156,7 +156,7 @@ class WsProviderTest(AbstractTestCase):
                 "newTxs", {"include_from_blockchain": True}
             )
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(FeedKey("newTxs"), eth_transaction)
+            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction)
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
@@ -194,7 +194,7 @@ class WsProviderTest(AbstractTestCase):
                 "newTxs", {"include_from_blockchain": False}
             )
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(FeedKey("newTxs"), eth_transaction)
+            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction)
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
             )
@@ -203,7 +203,7 @@ class WsProviderTest(AbstractTestCase):
                 expected_tx_hash, subscription_message.notification["txHash"]
             )
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("newTxs"), eth_transaction_blockchain
             )
             with self.assertRaises(asyncio.TimeoutError):
@@ -225,7 +225,7 @@ class WsProviderTest(AbstractTestCase):
         async with WsProvider(self.ws_uri) as ws:
             subscription_id = await ws.subscribe("pendingTxs")
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("pendingTxs"), eth_transaction
             )
 
@@ -252,7 +252,7 @@ class WsProviderTest(AbstractTestCase):
         async with WsProvider(self.ws_uri) as ws:
             subscription_id = await ws.subscribe("pendingTxs", {"duplicates": False})
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("pendingTxs"), eth_transaction
             )
 
@@ -265,7 +265,7 @@ class WsProviderTest(AbstractTestCase):
             )
 
             # will not publish twice
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("pendingTxs"), eth_transaction
             )
             with self.assertRaises(asyncio.TimeoutError):
@@ -288,7 +288,7 @@ class WsProviderTest(AbstractTestCase):
         async with WsProvider(self.ws_uri) as ws:
             subscription_id = await ws.subscribe("pendingTxs", {"duplicates": True})
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("pendingTxs"), eth_transaction
             )
 
@@ -301,7 +301,7 @@ class WsProviderTest(AbstractTestCase):
             )
 
             # will publish twice
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("pendingTxs"), eth_transaction
             )
             subscription_message = await ws.get_next_subscription_notification_by_id(
@@ -331,7 +331,7 @@ class WsProviderTest(AbstractTestCase):
                 {"call_params": [{"data": "0x", "name": name}]},
             )
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey(rpc_constants.ETH_ON_BLOCK_FEED_NAME),
                 EventNotification(block_height=block_height),
             )
@@ -385,7 +385,7 @@ class WsProviderTest(AbstractTestCase):
             serialized_published_message = RawTransactionFeedEntry(
                 raw_published_message.tx_hash, raw_published_message.tx_contents
             )
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("newTxs"), raw_published_message
             )
 
@@ -475,7 +475,7 @@ class WsProviderTest(AbstractTestCase):
                 "newTxs", options={"filters": f"to = {to} or to = aaaa"}
             )
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(FeedKey("newTxs"), eth_transaction)
+            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction)
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
@@ -519,8 +519,8 @@ class WsProviderTest(AbstractTestCase):
                 },
             )
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(FeedKey("newTxs"), eth_transaction)
-            self.gateway_node.feed_manager.publish_to_feed_by_key(FeedKey("newTxs"), eth_transaction2)
+            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction)
+            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction2)
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
@@ -566,10 +566,10 @@ class WsProviderTest(AbstractTestCase):
                 },
             )
 
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("pendingTxs"), eth_transaction
             )
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("pendingTxs"), eth_transaction2
             )
 

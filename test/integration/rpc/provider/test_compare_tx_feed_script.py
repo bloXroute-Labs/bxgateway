@@ -111,7 +111,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
                 eth_tx_message.tx_val(),
                 feed_source
             )
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("newTxs"), eth_transaction
             )
             await asyncio.sleep(0.03)
@@ -123,7 +123,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
             eth_transaction = EthRawTransaction(
                 eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
             )
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("pendingTxs"), eth_transaction
             )
             await asyncio.sleep(0.03)
@@ -135,7 +135,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
         )
         await asyncio.sleep(1)
         for _ in range(20):
-            self.gateway_node.feed_manager.publish_to_feed_by_key(
+            self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("pendingTxs"), eth_transaction
             )
             await asyncio.sleep(0.03)

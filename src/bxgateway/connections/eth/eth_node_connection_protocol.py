@@ -398,12 +398,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         self, tx_hash: Sha256Hash, tx_contents: memoryview
     ) -> None:
         transaction_feed_stats_service.log_new_transaction(tx_hash)
-        self.node.feed_manager.publish_to_feed_by_key(
+        self.node.feed_manager.publish_to_feed(
             FeedKey(EthNewTransactionFeed.NAME),
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
-        self.node.feed_manager.publish_to_feed_by_key(
+        self.node.feed_manager.publish_to_feed(
             FeedKey(EthPendingTransactionFeed.NAME),
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )

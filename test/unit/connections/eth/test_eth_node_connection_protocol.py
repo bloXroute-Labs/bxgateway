@@ -447,7 +447,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
             )
 
     def test_msg_tx(self):
-        self.node.feed_manager.publish_to_feed_by_key = MagicMock()
+        self.node.feed_manager.publish_to_feed = MagicMock()
         self.node.opts.ws = True
 
         transaction = mock_eth_messages.get_dummy_transaction(1)
@@ -458,7 +458,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.sut.msg_tx(messages)
 
         # published to both feeds
-        self.node.feed_manager.publish_to_feed_by_key.assert_has_calls(
+        self.node.feed_manager.publish_to_feed.assert_has_calls(
             [
                 call(
                     FeedKey(EthNewTransactionFeed.NAME),
@@ -512,7 +512,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.assertEqual(TxValidationStatus.INVALID_FORMAT, result)
 
     def test_handle_tx_with_low_fee(self):
-        self.node.feed_manager.publish_to_feed_by_key = MagicMock()
+        self.node.feed_manager.publish_to_feed = MagicMock()
         self.node.opts.ws = False
 
         tx_bytes = \

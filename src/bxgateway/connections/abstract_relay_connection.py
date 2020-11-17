@@ -405,7 +405,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         )
 
     def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:
-        self.node.feed_manager.publish_to_feed_by_key(
+        self.node.feed_manager.publish_to_feed(
             FeedKey(NewTransactionFeed.NAME),
             RawTransactionFeedEntry(tx_hash, tx_contents)
         )

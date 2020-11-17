@@ -73,7 +73,7 @@ class EthWsProxyPublisherTest(AbstractTestCase):
         )
         self.subscriber: Subscriber[
             RawTransactionFeedEntry
-        ] = self.gateway_node.feed_manager.subscribe_to_feed_by_key(
+        ] = self.gateway_node.feed_manager.subscribe_to_feed(
             FeedKey(EthPendingTransactionFeed.NAME), {})
         self.assertIsNotNone(self.subscriber)
 

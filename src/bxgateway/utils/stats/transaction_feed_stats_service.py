@@ -84,12 +84,12 @@ class TransactionFeedStatsService(
         assert node is not None
         feeds = node.feed_manager.feeds
 
-        pending_transaction_feed = node.feed_manager.get_feed_by_key(FeedKey(EthPendingTransactionFeed.NAME))
+        pending_transaction_feed = node.feed_manager.get_feed(FeedKey(EthPendingTransactionFeed.NAME))
         if pending_transaction_feed:
             pending_transaction_feed_subscribers = len(pending_transaction_feed.subscribers)
         else:
             pending_transaction_feed_subscribers = None
-        new_transaction_feed = node.feed_manager.get_feed_by_key(FeedKey(EthNewTransactionFeed.NAME))
+        new_transaction_feed = node.feed_manager.get_feed(FeedKey(EthNewTransactionFeed.NAME))
         if new_transaction_feed:
             new_transaction_feed_subscribers = len(new_transaction_feed.subscribers)
         else:

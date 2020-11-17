@@ -208,7 +208,7 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 transaction_feed_stats_service.log_pending_transaction_missing_contents()
                 return
 
-        self.node.feed_manager.publish_to_feed_by_key(
+        self.node.feed_manager.publish_to_feed(
             FeedKey(EthPendingTransactionFeed.NAME),
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BDN_SOCKET)
         )

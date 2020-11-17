@@ -21,7 +21,7 @@ class EthRelayConnection(AbstractRelayConnection):
     ) -> None:
         gas_price = eth_common_utils.raw_tx_gas_price(tx_contents, 0)
         if gas_price >= self.node.get_network_min_transaction_fee():
-            self.node.feed_manager.publish_to_feed_by_key(
+            self.node.feed_manager.publish_to_feed(
                 FeedKey(EthNewTransactionFeed.NAME),
                 EthRawTransaction(tx_hash, tx_contents, FeedSource.BDN_SOCKET)
             )
