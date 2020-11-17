@@ -415,7 +415,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         total_memory = memory_utils.get_app_memory_usage()
         if total_memory > constants.GC_LOW_MEMORY_THRESHOLD:
             gc.collect()
+            self._record_mem_stats()
 
+        return super(AbstractGatewayNode, self).record_mem_stats()
+
+    def _record_mem_stats(self):
         self._tx_service.log_tx_service_mem_stats()
         block_cleanup_service_size = memory_utils.get_special_size(self.block_cleanup_service).size
         hooks.add_obj_mem_stats(
@@ -432,8 +436,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         )
         for block_queuing_service in self.block_queuing_service_manager:
             block_queuing_service.log_memory_stats()
-
-        return super(AbstractGatewayNode, self).record_mem_stats()
+        return super(AbstractGatewayNode, self)._record_mem_stats()
 
     def get_tx_service(self, network_num=None) -> GatewayTransactionService:
         if network_num is not None and network_num != self.opts.blockchain_network_num:
