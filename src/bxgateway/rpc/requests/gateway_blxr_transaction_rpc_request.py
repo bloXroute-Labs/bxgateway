@@ -86,7 +86,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             self.request_id,
             {
                 "tx_hash": "not available with async",
-                "transaction_flag": self.track_flag.name.lower(),
+                "transaction_flag": str(self.track_flag),
                 "synchronous": str(self.synchronous)
             }
         )
@@ -116,7 +116,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             )
             tx_json = {
                 "tx_hash": str(tx_hash),
-                "transaction_flag": transaction_flag.name.lower(),
+                "transaction_flag": str(transaction_flag),
                 "account_id": account_id,
             }
             return self.ok(tx_json)
@@ -146,7 +146,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
         tx_service.set_transaction_contents(tx_hash, bx_tx.tx_val())
         tx_json = {
             "tx_hash": str(tx_hash),
-            "transaction_flag": transaction_flag.name.lower(),
+            "transaction_flag": str(transaction_flag),
             "account_id": account_id
         }
         if not self.node.account_model.is_account_valid():
