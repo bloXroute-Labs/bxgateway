@@ -152,6 +152,21 @@ class _GatewayBdnPerformanceStatsService(
             else:
                 stats.new_tx_received_from_bdn += 1
 
+    def log_tx_sent_to_nodes(self, broadcasting_endpoint: Optional[IpEndpoint] = None):
+        blockchain_node_to_bdn_stats = self.interval_data.blockchain_node_to_bdn_stats
+        assert blockchain_node_to_bdn_stats is not None
+
+        for endpoint, stats in blockchain_node_to_bdn_stats.items():
+            if broadcasting_endpoint is not None and endpoint == broadcasting_endpoint:
+                continue
+            stats.tx_sent_to_node += 1
+
+    def log_duplicate_tx_from_node(self, node_endpoint: IpEndpoint):
+        blockchain_node_to_bdn_stats = self.interval_data.blockchain_node_to_bdn_stats
+        assert blockchain_node_to_bdn_stats is not None
+        node_stats = self.get_node_stats(node_endpoint, blockchain_node_to_bdn_stats)
+        node_stats.duplicate_tx_from_node += 1
+
     def get_most_recent_stats(self) -> Optional[GatewayBdnPerformanceStatInterval]:
         if self.history:
             interval_data = self.history[0]

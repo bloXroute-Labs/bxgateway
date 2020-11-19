@@ -219,6 +219,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                         network_num,
                         short_id
                     )
+                    gateway_bdn_performance_stats_service.log_tx_sent_to_nodes()
                 else:
                     gateway_transaction_stats_service.log_dropped_transaction_from_relay()
 

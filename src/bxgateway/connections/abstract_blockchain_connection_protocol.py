@@ -127,6 +127,7 @@ class AbstractBlockchainConnectionProtocol:
                     peers=[self.connection]
                 )
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
+                gateway_bdn_performance_stats_service.log_duplicate_tx_from_node(self.connection.endpoint)
                 continue
 
             broadcast_txs_count += 1
@@ -152,6 +153,7 @@ class AbstractBlockchainConnectionProtocol:
                 connection_types=[ConnectionType.RELAY_TRANSACTION]
             )
             self.node.broadcast(msg, self.connection, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+            gateway_bdn_performance_stats_service.log_tx_sent_to_nodes(broadcasting_endpoint=self.connection.endpoint)
 
             if self.node.opts.ws:
                 self.publish_transaction(
