@@ -39,6 +39,3 @@ class PongOntMessage(OntMessage):
         height = self._height
         assert isinstance(height, int)
         return height
-
-    def log_level(self) -> LogLevel:
-        return LogLevel.DEBUG

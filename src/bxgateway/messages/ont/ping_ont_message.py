@@ -36,6 +36,3 @@ class PingOntMessage(OntMessage):
                 self._height, = struct.unpack_from("<Q", self.buf, ont_constants.ONT_HDR_COMMON_OFF)
 
         return self._height
-
-    def log_level(self) -> LogLevel:
-        return LogLevel.DEBUG
