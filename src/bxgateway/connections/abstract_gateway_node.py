@@ -798,6 +798,15 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         block_message: Optional[AbstractBlockMessage] = None,
         block_number: Optional[int] = None
     ) -> bool:
+        if connection:
+            block_queuing_service = self.block_queuing_service_manager.get_block_queuing_service(connection)
+            if block_queuing_service is not None:
+                block_queuing_service.mark_block_seen_by_blockchain_node(
+                    block_hash,
+                    block_message,
+                    block_number
+                )
+
         recovery_canceled = False
         if block_message is not None:
             self.blocks_seen.add(block_hash)
@@ -817,14 +826,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 "Block recovery was cancelled by gateway. Reason - {}.",
                 block_hash, RecoveredTxsSource.BLOCK_RECEIVED_FROM_NODE
             )
-        if connection:
-            block_queuing_service = self.block_queuing_service_manager.get_block_queuing_service(connection)
-            if block_queuing_service is not None:
-                block_queuing_service.mark_block_seen_by_blockchain_node(
-                    block_hash,
-                    block_message,
-                    block_number
-                )
 
         self.publish_block(
             block_number, block_hash, block_message, FeedSource.BLOCKCHAIN_SOCKET

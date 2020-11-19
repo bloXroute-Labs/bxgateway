@@ -173,11 +173,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 )
                 continue
 
-            recovery_cancelled = self.node.on_block_seen_by_blockchain_node(
-                block_hash, self.connection, block_number=block_number
-            )
-            if recovery_cancelled:
-                continue
+            self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, block_number=block_number)
 
             self.node.track_block_from_node_handling_started(block_hash)
             block_hash_number_pairs.append((block_hash, block_number))
@@ -352,13 +348,11 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     ),
                     block_height=new_block_msg.block_number(),
                 )
-                block_queuing_service = self.node.block_queuing_service_manager.get_block_queuing_service(
-                    self.connection
+
+                self.node.block_queuing_service_manager.push(
+                    ready_block_hash, new_block_msg, node_received_from=self.connection
                 )
-                if block_queuing_service is not None:
-                    block_queuing_service.mark_block_seen_by_blockchain_node(
-                        ready_block_hash, new_block_msg
-                    )
+                self.node.on_block_seen_by_blockchain_node(ready_block_hash, self.connection, new_block_msg)
                 self.node.block_processing_service.queue_block_for_processing(
                     new_block_msg, self.connection
                 )

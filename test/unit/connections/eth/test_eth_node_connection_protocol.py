@@ -534,6 +534,8 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
 
     def test_complete_header_body_fetch(self):
         self.node.block_processing_service.queue_block_for_processing = MagicMock()
+        self.node.block_queuing_service_manager.push = MagicMock()
+        self.node.on_block_seen_by_blockchain_node = MagicMock()
         self.sut.is_valid_block_timestamp = MagicMock(return_value=True)
 
         header = mock_eth_messages.get_dummy_block_header(1)
@@ -546,12 +548,17 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         bodies_message = BlockBodiesEthProtocolMessage(None, [TransientBlockBody(block.transactions, block.uncles)])
 
         self.sut.msg_new_block_hashes(new_block_hashes_message)
+        self.node.on_block_seen_by_blockchain_node.assert_called_once()
+
         self.assertEqual(1, len(self.sut.pending_new_block_parts.contents))
         self.assertEqual(2, len(self.enqueued_messages))
 
+        self.node.on_block_seen_by_blockchain_node.reset_mock()
         self.sut.msg_block_headers(header_message)
         self.sut.msg_block_bodies(bodies_message)
 
+        self.node.block_queuing_service_manager.push.assert_called_once()
+        self.node.on_block_seen_by_blockchain_node.assert_called_once()
         self.node.block_processing_service.queue_block_for_processing.assert_called_once()
 
     def test_header_body_fetch_abort_from_bdn(self):
