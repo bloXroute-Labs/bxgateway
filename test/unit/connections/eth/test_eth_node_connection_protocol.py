@@ -449,6 +449,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
     def test_msg_tx(self):
         self.node.feed_manager.publish_to_feed = MagicMock()
         self.node.opts.ws = True
+        self.node.opts.transaction_validation = False
 
         transaction = mock_eth_messages.get_dummy_transaction(1)
         transaction_hash = transaction.hash()
