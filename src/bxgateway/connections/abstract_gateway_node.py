@@ -1357,7 +1357,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if len(to_disconnect) > 0 and len(to_connect) > 0:
             self.requester.send_threaded_request(
                 sdn_http_service.submit_gateway_switching_relays_event,
-                NodeEventType.SWITCHING_RELAYS,
                 self.opts.node_id
             )
 
