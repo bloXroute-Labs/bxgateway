@@ -106,8 +106,12 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             )
         tx_service = self.node.get_tx_service()
         tx_hash = bx_tx.tx_hash()
-        if tx_service.has_transaction_contents(tx_hash) or tx_service.removed_transaction(tx_hash):
-            short_id = tx_service.get_short_id(tx_hash)
+        transaction_key = tx_service.get_transaction_key(tx_hash)
+        if (
+            tx_service.has_transaction_contents_by_key(transaction_key) or
+            tx_service.removed_transaction_by_key(transaction_key)
+        ):
+            short_id = tx_service.get_short_id_by_key(transaction_key)
             tx_stats.add_tx_by_hash_event(
                 tx_hash,
                 TransactionStatEventType.TX_RECEIVED_FROM_RPC_REQUEST_IGNORE_SEEN,
@@ -143,7 +147,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             TransactionStatEventType.TX_GATEWAY_RPC_RESPONSE_SENT,
             network_num
         )
-        tx_service.set_transaction_contents(tx_hash, bx_tx.tx_val())
+        tx_service.set_transaction_contents_by_key(transaction_key, bx_tx.tx_val())
         tx_json = {
             "tx_hash": str(tx_hash),
             "transaction_flag": str(transaction_flag),

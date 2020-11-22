@@ -3,6 +3,7 @@ from typing import Union, cast, List, NamedTuple, Set, Optional, TYPE_CHECKING
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
+from bxcommon.models.transaction_key import TransactionKey
 from bxcommon.models.tx_validation_status import TxValidationStatus
 from bxcommon.services.transaction_service import TransactionService, TransactionCacheKeyType, wrap_sha256, \
     TransactionFromBdnGatewayProcessingResult
@@ -55,8 +56,9 @@ class GatewayTransactionService(TransactionService):
         ):
             return TransactionFromBdnGatewayProcessingResult(ignore_seen=True)
 
-        existing_short_ids = self.get_short_ids(transaction_hash)
-        if (self.has_transaction_contents(transaction_hash) or is_compact) \
+        transaction_key = self.get_transaction_key(transaction_hash)
+        existing_short_ids = self.get_short_ids_by_key(transaction_key)
+        if (self.has_transaction_contents_by_key(transaction_key) or is_compact) \
             and short_id and short_id in existing_short_ids:
             return TransactionFromBdnGatewayProcessingResult(existing_short_id=True)
 
@@ -64,13 +66,13 @@ class GatewayTransactionService(TransactionService):
         set_content = False
 
         if short_id and short_id not in existing_short_ids:
-            self.assign_short_id(transaction_hash, short_id)
+            self.assign_short_id_by_key(transaction_key, short_id)
             assigned_short_id = True
 
-        existing_contents = self.has_transaction_contents(transaction_hash)
+        existing_contents = self.has_transaction_contents_by_key(transaction_key)
 
         if not is_compact and not existing_contents:
-            self.set_transaction_contents(transaction_hash, transaction_contents)
+            self.set_transaction_contents_by_key(transaction_key, transaction_contents)
             set_content = True
 
         return TransactionFromBdnGatewayProcessingResult(
@@ -96,6 +98,7 @@ class GatewayTransactionService(TransactionService):
         blockchain_protocol = BlockchainProtocol(self.network.protocol.lower())
 
         for bx_tx_message, tx_hash, tx_bytes in bx_tx_messages:
+            transaction_key = self.get_transaction_key(tx_hash)
             tx_cache_key = self._tx_hash_to_cache_key(tx_hash)
             tx_seen_flag = (
                 self.has_transaction_contents_by_cache_key(tx_cache_key)
@@ -103,7 +106,7 @@ class GatewayTransactionService(TransactionService):
             )
 
             if not tx_seen_flag:
-                self.set_transaction_contents(tx_hash, tx_bytes)
+                self.set_transaction_contents_by_key(transaction_key, tx_bytes)
 
             tx_validation_status = TxValidationStatus.VALID_TX
             if enable_transaction_validation:
@@ -133,13 +136,15 @@ class GatewayTransactionService(TransactionService):
             assert transaction_hash is not None
             assert short_id is not None
 
+            transaction_key = self.get_transaction_key(transaction_hash)
+
             if not self.has_short_id(short_id):
-                self.assign_short_id(transaction_hash, short_id)
+                self.assign_short_id_by_key(transaction_key, short_id)
                 missing = True
 
-            if not self.has_transaction_contents(transaction_hash):
+            if not self.has_transaction_contents_by_key(transaction_key):
                 assert transaction_contents is not None
-                self.set_transaction_contents(transaction_hash, transaction_contents)
+                self.set_transaction_contents_by_key(transaction_key, transaction_contents)
 
                 missing = True
 
@@ -148,10 +153,9 @@ class GatewayTransactionService(TransactionService):
 
         return missing_transactions
 
-    def set_transaction_contents_base(
+    def set_transaction_contents_base_by_key(
         self,
-        transaction_hash: Sha256Hash,
-        transaction_cache_key: TransactionCacheKeyType,
+        transaction_key: TransactionKey,
         has_short_id: bool,
         previous_size: int,
         call_set_contents: bool,
@@ -161,17 +165,15 @@ class GatewayTransactionService(TransactionService):
         """
         Adds transaction contents to transaction service cache with lookup key by transaction hash
 
-        :param transaction_hash: transaction hash
-        :param transaction_cache_key: transaction cache key
+        :param transaction_key: transaction key
         :param has_short_id: flag indicating if cache already has short id for given transaction
         :param previous_size: previous size of transaction contents if already exists
         :param call_set_contents: flag indicating if method should make a call to set content form Python code
         :param transaction_contents: transaction contents bytes
         :param transaction_contents_length: if the transaction contents bytes not available, just send the length
         """
-        super(GatewayTransactionService, self).set_transaction_contents_base(
-            transaction_hash,
-            transaction_cache_key,
+        super(GatewayTransactionService, self).set_transaction_contents_base_by_key(
+            transaction_key,
             has_short_id,
             previous_size,
             call_set_contents,
@@ -179,8 +181,8 @@ class GatewayTransactionService(TransactionService):
             transaction_contents_length
         )
         if transaction_contents is not None:
-            self.node.log_txs_network_content(self.network_num, wrap_sha256(transaction_hash), transaction_contents)
+            self.node.log_txs_network_content(self.network_num, transaction_key.transaction_hash, transaction_contents)
             if call_set_contents:
                 self.node.block_recovery_service.check_missing_tx_hash(
-                    transaction_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_NODE
+                    transaction_key.transaction_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_NODE
                 )

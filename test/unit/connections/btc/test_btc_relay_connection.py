@@ -226,9 +226,10 @@ class BtcRelayConnectionTest(AbstractTestCase):
 
         for i, transaction in enumerate(transactions):
             transaction_hash = transaction.tx_hash()
-            self.assertTrue(self.gateway_node.get_tx_service().has_transaction_contents(transaction_hash))
-            self.assertTrue(self.gateway_node.get_tx_service().has_transaction_short_id(transaction_hash))
-            self.assertEqual(i + 1, self.gateway_node.get_tx_service().get_short_id(transaction_hash))
+            transaction_key = self.gateway_node.get_tx_service().get_transaction_key(transaction_hash)
+            self.assertTrue(self.gateway_node.get_tx_service().has_transaction_contents_by_key(transaction_key))
+            self.assertTrue(self.gateway_node.get_tx_service().has_transaction_short_id_by_key(transaction_key))
+            self.assertEqual(i + 1, self.gateway_node.get_tx_service().get_short_id_by_key(transaction_key))
 
             stored_hash, stored_content, _ = self.gateway_node.get_tx_service().get_transaction(i + 1)
             self.assertEqual(transaction_hash, stored_hash)
@@ -341,7 +342,8 @@ class BtcRelayConnectionTest(AbstractTestCase):
         self.sut.msg_txs(txs_message_1)
 
         for transaction_hash, tx_info in short_id_mapping1.items():
-            self.assertEqual(tx_info.short_id, self.gateway_node.get_tx_service().get_short_id(transaction_hash))
+            transaction_key = self.gateway_node.get_tx_service().get_transaction_key(transaction_hash)
+            self.assertEqual(tx_info.short_id, self.gateway_node.get_tx_service().get_short_id_by_key(transaction_key))
             stored_hash, stored_content, _ = self.gateway_node.get_tx_service().get_transaction(tx_info.short_id)
             self.assertEqual(transaction_hash, stored_hash)
             self.assertEqual(tx_info.contents, stored_content)

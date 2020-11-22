@@ -640,7 +640,8 @@ class BlockProcessingService:
 
         # retrieving sids of txs with unknown contents
         for tx_hash in unknown_hashes:
-            tx_sid = tx_service.get_short_id(tx_hash)
+            transaction_key = tx_service.get_transaction_key(tx_hash)
+            tx_sid = tx_service.get_short_id_by_key(transaction_key)
             all_unknown_sids.append(tx_sid)
 
         if not self._node.opts.request_recovery:

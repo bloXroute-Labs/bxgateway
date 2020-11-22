@@ -349,8 +349,9 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         transaction_contents = helpers.generate_bytearray(250)
 
         tx_service = self.gateway_node.get_tx_service()
-        tx_service.set_transaction_contents(transaction_hash, transaction_contents)
-        tx_service.assign_short_id(transaction_hash, short_id)
+        transaction_key = tx_service.get_transaction_key(transaction_hash)
+        tx_service.set_transaction_contents_by_key(transaction_key, transaction_contents)
+        tx_service.assign_short_id_by_key(transaction_key, short_id)
 
         result = await self.request(BxJsonRpcRequest(
             "7",

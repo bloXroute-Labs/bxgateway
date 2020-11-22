@@ -27,10 +27,11 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
         is_compact: bool
     ) -> TransactionFromBdnGatewayProcessingResult:
 
-        transaction_cache_key = self._tx_hash_to_cache_key(transaction_hash)
+        transaction_key = self.get_transaction_key(transaction_hash)
 
         ext_result = self.proxy.process_gateway_transaction_from_bdn(
-            transaction_cache_key,
+            # pyre-fixme[6]: Expected `bxcommon.models.transaction_key.TransactionKey`
+            transaction_key.transaction_cache_key,
             tpe.InputBytes(transaction_contents),
             short_id,
             is_compact
@@ -46,9 +47,8 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
 
         if result.set_content:
             has_short_id, previous_size = ext_result.get_set_contents_result()
-            self.set_transaction_contents_base(
-                transaction_hash,
-                transaction_cache_key,
+            self.set_transaction_contents_base_by_key(
+                transaction_key,
                 has_short_id,
                 previous_size,
                 False,
@@ -58,9 +58,8 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
 
         if result.assigned_short_id:
             has_contents = result.existing_contents or result.set_content
-            self.assign_short_id_base(
-                transaction_hash,
-                transaction_cache_key,
+            self.assign_short_id_base_by_key(
+                transaction_key,
                 short_id,
                 has_contents,
                 False
@@ -122,8 +121,8 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
             )
 
             if not seen:
-                transaction_cache_key = self._tx_hash_to_cache_key(tx_hash)
-                self.set_transaction_contents_base(tx_hash, transaction_cache_key, False, 0, False, tx_contents, tx_len)
+                transaction_key = self.get_transaction_key(tx_hash)
+                self.set_transaction_contents_base_by_key(transaction_key, False, 0, False, tx_contents, tx_len)
 
         assert txs_count == len(result)
 
@@ -153,14 +152,14 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
             offset += constants.SID_LEN
 
             transaction_hash = Sha256Hash(result_buffer[offset:offset + crypto.SHA256_HASH_LEN])
+            transaction_key = self.get_transaction_key(transaction_hash)
             offset += crypto.SHA256_HASH_LEN
 
             content_length, = struct.unpack_from("<L", result_buffer, offset)
             offset += constants.UL_INT_SIZE_IN_BYTES
             if content_length > 0:
-                self.set_transaction_contents_base(
-                    transaction_hash,
-                    transaction_hash,
+                self.set_transaction_contents_base_by_key(
+                    transaction_key,
                     True,
                     0,
                     False,

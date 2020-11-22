@@ -74,28 +74,30 @@ class ExtensionGatewayTransactionServiceTest(AbstractTransactionServiceTestCase)
         self.transaction_service.assign_short_id(transaction_hash, short_id2)
         self.assertTrue(self.transaction_service.has_short_id(short_id2))
 
-        short_ids = self.transaction_service.get_short_ids(transaction_hash)
+        transaction_key = self.transaction_service.get_transaction_key(transaction_hash)
+        short_ids = self.transaction_service.get_short_ids_by_key(transaction_key)
         self.assertEqual(2, len(short_ids))
         self.assertTrue(short_id1 in short_ids)
         self.assertTrue(short_id2 in short_ids)
 
     def test_set_contents(self):
         transaction_hash = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
+        transaction_key = self.transaction_service.get_transaction_key(transaction_hash)
         tx_contents = memoryview(helpers.generate_bytearray(500))
 
-        self.assertFalse(self.transaction_service.has_transaction_contents(transaction_hash))
+        self.assertFalse(self.transaction_service.has_transaction_contents_by_key(transaction_key))
 
-        self.transaction_service.set_transaction_contents(transaction_hash, tx_contents)
+        self.transaction_service.set_transaction_contents_by_key(transaction_key, tx_contents)
 
-        self.assertTrue(self.transaction_service.has_transaction_contents(transaction_hash))
+        self.assertTrue(self.transaction_service.has_transaction_contents_by_key(transaction_key))
 
-        saved_contents = self.transaction_service.get_transaction_by_hash(transaction_hash)
+        saved_contents = self.transaction_service.get_transaction_by_key(transaction_key)
         self.assertEqual(convert.bytes_to_hex(tx_contents), convert.bytes_to_hex(saved_contents.tobytes()))
         self.assertEqual(len(tx_contents), self.transaction_service._total_tx_contents_size)
 
         new_content = memoryview(helpers.generate_bytearray(750))
-        self.transaction_service.set_transaction_contents(transaction_hash, new_content)
-        saved_contents = self.transaction_service.get_transaction_by_hash(transaction_hash)
+        self.transaction_service.set_transaction_contents_by_key(transaction_key, new_content)
+        saved_contents = self.transaction_service.get_transaction_by_key(transaction_key)
         self.assertEqual(convert.bytes_to_hex(tx_contents), convert.bytes_to_hex(saved_contents.tobytes()))
         self.assertEqual(len(new_content), self.transaction_service._total_tx_contents_size)
 

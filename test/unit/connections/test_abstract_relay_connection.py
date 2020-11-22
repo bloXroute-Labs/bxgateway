@@ -84,17 +84,19 @@ class AbstractRelayConnectionTest(AbstractTestCase):
         tx_content = helpers.generate_bytearray(250)
 
         full_message = TxMessage(message_hash=tx_hash, network_num=1, short_id=short_id, tx_val=tx_content)
+        transaction_key = tx_service.get_transaction_key(tx_hash)
 
         self.connection.msg_tx(full_message)
 
-        self.assertEqual(short_id, tx_service.get_short_id(tx_hash))
-        self.assertEqual(tx_content, tx_service.get_transaction_by_hash(tx_hash))
+        self.assertEqual(short_id, tx_service.get_short_id_by_key(transaction_key))
+        self.assertEqual(tx_content, tx_service.get_transaction_by_key(transaction_key))
 
     def test_msg_tx__compact_then_full(self):
         tx_service = self.connection.node.get_tx_service()
         short_id = 1
         tx_hash = helpers.generate_object_hash()
         tx_content = helpers.generate_bytearray(250)
+        transaction_key = tx_service.get_transaction_key(tx_hash)
 
         compact_tx_msg = TxMessage(message_hash=tx_hash, network_num=1, short_id=short_id)
         no_short_id_tx_msg = TxMessage(message_hash=tx_hash, network_num=1, tx_val=tx_content)
@@ -102,8 +104,8 @@ class AbstractRelayConnectionTest(AbstractTestCase):
         self.connection.msg_tx(compact_tx_msg)
         self.connection.msg_tx(no_short_id_tx_msg)
 
-        self.assertEqual(short_id, tx_service.get_short_id(tx_hash))
-        self.assertEqual(tx_content, tx_service.get_transaction_by_hash(tx_hash))
+        self.assertEqual(short_id, tx_service.get_short_id_by_key(transaction_key))
+        self.assertEqual(tx_content, tx_service.get_transaction_by_key(transaction_key))
 
     def test_ping_pong(self):
         hello_msg = HelloMessage(protocol_version=protocol_version.PROTOCOL_VERSION, network_num=1)

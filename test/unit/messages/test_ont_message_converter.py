@@ -83,8 +83,9 @@ class OntMessageConverterTests(AbstractTestCase):
         transactions_short = transactions_short[:int(len(transactions_short) * 0.9)]
         for short_id, txn in enumerate(transactions_short):
             bx_tx_hash, _ = ont_messages_util.get_txid(txn)
-            self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
-            self.tx_service.set_transaction_contents(bx_tx_hash, txn)
+            transaction_key = self.tx_service.get_transaction_key(bx_tx_hash)
+            self.tx_service.assign_short_id_by_key(transaction_key, short_id + 1)
+            self.tx_service.set_transaction_contents_by_key(transaction_key, txn)
         bx_block, block_info = self.ont_message_converter.block_to_bx_block(parsed_block, self.tx_service, True, 0)
         ref_block, _, unknown_tx_sids, unknown_tx_hashes = self.ont_message_converter.bx_block_to_block(
             bx_block, self.tx_service
@@ -102,8 +103,9 @@ class OntMessageConverterTests(AbstractTestCase):
         random.shuffle(transactions)
         for short_id, txn in enumerate(transactions):
             bx_tx_hash, _ = ont_messages_util.get_txid(txn)
-            self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
-            self.tx_service.set_transaction_contents(bx_tx_hash, txn)
+            transaction_key = self.tx_service.get_transaction_key(bx_tx_hash)
+            self.tx_service.assign_short_id_by_key(transaction_key, short_id + 1)
+            self.tx_service.set_transaction_contents_by_key(transaction_key, txn)
         bx_block, block_info = self.ont_message_converter.block_to_bx_block(parsed_block, self.tx_service, True, 0)
         ref_block, ref_lock_info, unknown_tx_sids, unknown_tx_hashes = self.ont_message_converter.bx_block_to_block(
             bx_block, self.tx_service

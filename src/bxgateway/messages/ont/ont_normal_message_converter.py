@@ -117,7 +117,8 @@ class OntNormalMessageConverter(AbstractOntMessageConverter):
 
         for tx in block_msg.txns():
             tx_hash, _ = ont_messages_util.get_txid(tx)
-            short_id = tx_service.get_short_id(tx_hash)
+            transaction_key = tx_service.get_transaction_key(tx_hash)
+            short_id = tx_service.get_short_id_by_key(transaction_key)
             short_id_assign_time = 0
 
             if short_id != constants.NULL_TX_SID:

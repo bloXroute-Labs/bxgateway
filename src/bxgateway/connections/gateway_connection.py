@@ -196,13 +196,14 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_confirmed_tx(self, msg: ConfirmedTxMessage) -> None:
         tx_hash = msg.tx_hash()
+        transaction_key = self.node.get_tx_service().get_transaction_key(tx_hash)
         tx_contents = msg.tx_val()
 
         # shouldn't ever happen, but just in case
         if tx_contents == ConfirmedTxMessage.EMPTY_TX_VAL:
             tx_contents = cast(
                 Optional[memoryview],
-                self.node.get_tx_service().get_transaction_by_hash(tx_hash)
+                self.node.get_tx_service().get_transaction_by_key(transaction_key)
             )
             if tx_contents is None:
                 transaction_feed_stats_service.log_pending_transaction_missing_contents()
