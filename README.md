@@ -90,11 +90,6 @@ git clone --recursive https://github.com/bloXroute-Labs/bxextensions.git
 
 Refer to [bxextensions] for information on building the C++ extensions.
 
-### Branches
-By default you will clone the `develop` branch. This branch refers to the most recent code that is usually running
-on the bloXroute Testnet. If you are looking for the production code that is definitely supported in our Mainnet,
-use the `master` branch.
-
 ## Documentation
 
 You can find our full technical documentation and architecture [on our website][documentation].
@@ -109,6 +104,5 @@ Contact us at support@bloxroute.com for further questions.
 [docker]: https://www.docker.com
 [bxextensions]: https://github.com/bloXroute-Labs/bxextensions
 [virtual environment]: https://virtualenv.pypa.io/en/latest/
-[install]: https://bloxroute.com/docs/bloxroute-documentation/installation/installation/
-[args]: https://bloxroute.com/docs/bloxroute-documentation/installation/running/
-[documentation]: https://bloxroute.com/docs/bloxroute-documentation/
+[install]: https://docs.bloxroute.com/gateway
+[documentation]: https://docs.bloxroute.com/

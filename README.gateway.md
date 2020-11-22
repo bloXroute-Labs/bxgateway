@@ -12,5 +12,5 @@ You can find our full documentation, including requirements and installation ins
 
 Contact us at support@bloxroute.com for further questions.
 
-[documentation]: https://bloxroute.com/docs/bloxroute-documentation/
+[documentation]: https://docs.bloxroute.com/
 [bloxroute-cli]: https://pypi.org/project/bloxroute-cli/
