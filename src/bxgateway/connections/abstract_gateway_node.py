@@ -193,6 +193,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         self.send_request_for_relay_peers_num_of_calls = 0
         self.check_relay_alarm_id: Optional[AlarmId] = None
+        self.transaction_sync_start_alarm_id: Optional[AlarmId] = None
+
         if not self.opts.peer_relays:
             self._schedule_fetch_relays_from_sdn()
         else:
@@ -739,7 +741,12 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             # set sync to false and updating sdn
             self.opts.has_fully_updated_tx_service = False
             self.requester.send_threaded_request(sdn_http_service.submit_tx_not_synced_event, self.opts.node_id)
-            self.alarm_queue.register_alarm(constants.FIRST_TX_SERVICE_SYNC_PROGRESS_S, self.sync_tx_services)
+
+            alarm_id = self.transaction_sync_start_alarm_id
+            if alarm_id:
+                self.alarm_queue.unregister_alarm(alarm_id)
+            self.transaction_sync_start_alarm_id = \
+                self.alarm_queue.register_alarm(constants.FIRST_TX_SERVICE_SYNC_PROGRESS_S, self.sync_tx_services)
 
         self.cancel_relay_liveliness_check()
 
