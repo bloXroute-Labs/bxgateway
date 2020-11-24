@@ -417,28 +417,31 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         total_memory = memory_utils.get_app_memory_usage()
         if total_memory > constants.GC_LOW_MEMORY_THRESHOLD:
             gc.collect()
-            self._record_mem_stats()
+
+        total_memory = memory_utils.get_app_memory_usage()
+        self._record_mem_stats(total_memory > constants.GC_MEDIUM_MEMORY_THRESHOLD)
 
         return super(AbstractGatewayNode, self).record_mem_stats()
 
-    def _record_mem_stats(self):
-        self._tx_service.log_tx_service_mem_stats()
-        block_cleanup_service_size = memory_utils.get_special_size(self.block_cleanup_service).size
-        hooks.add_obj_mem_stats(
-            self.__class__.__name__,
-            0,
-            self.block_cleanup_service,
-            "block_cleanup_service",
-            memory_utils.ObjectSize(
-                size=block_cleanup_service_size,
-                flat_size=0,
-                is_actual_size=True),
-            object_type=memory_utils.ObjectType.META,
-            size_type=memory_utils.SizeType.SPECIAL
-        )
-        for block_queuing_service in self.block_queuing_service_manager:
-            block_queuing_service.log_memory_stats()
-        return super(AbstractGatewayNode, self)._record_mem_stats()
+    def _record_mem_stats(self, include_data_structure_memory: bool = False):
+        self._tx_service.log_tx_service_mem_stats(include_data_structure_memory)
+        if include_data_structure_memory:
+            block_cleanup_service_size = memory_utils.get_special_size(self.block_cleanup_service).size
+            hooks.add_obj_mem_stats(
+                self.__class__.__name__,
+                0,
+                self.block_cleanup_service,
+                "block_cleanup_service",
+                memory_utils.ObjectSize(
+                    size=block_cleanup_service_size,
+                    flat_size=0,
+                    is_actual_size=True),
+                object_type=memory_utils.ObjectType.META,
+                size_type=memory_utils.SizeType.SPECIAL
+            )
+            for block_queuing_service in self.block_queuing_service_manager:
+                block_queuing_service.log_memory_stats()
+        super(AbstractGatewayNode, self)._record_mem_stats(include_data_structure_memory)
 
     def get_tx_service(self, network_num=None) -> GatewayTransactionService:
         if network_num is not None and network_num != self.opts.blockchain_network_num:
