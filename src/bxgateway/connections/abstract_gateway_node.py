@@ -4,6 +4,7 @@ import functools
 import gc
 from collections import defaultdict, deque
 
+from bxcommon.utils.stats.memory_statistics_service import memory_statistics
 from bxgateway.services.block_queuing_service_manager import BlockQueuingServiceManager
 from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.connections.connection_state import ConnectionState
@@ -413,17 +414,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         configuration_utils.update_node_config(self)
         return self.opts.config_update_interval
 
-    def record_mem_stats(self):
-        total_memory = memory_utils.get_app_memory_usage()
-        if total_memory > constants.GC_LOW_MEMORY_THRESHOLD:
-            gc.collect()
-
-        total_memory = memory_utils.get_app_memory_usage()
-        self._record_mem_stats(total_memory > constants.GC_MEDIUM_MEMORY_THRESHOLD)
-
-        return super(AbstractGatewayNode, self).record_mem_stats()
-
     def _record_mem_stats(self, include_data_structure_memory: bool = False):
+        super(AbstractGatewayNode, self)._record_mem_stats(include_data_structure_memory)
         self._tx_service.log_tx_service_mem_stats(include_data_structure_memory)
         if include_data_structure_memory:
             block_cleanup_service_size = memory_utils.get_special_size(self.block_cleanup_service).size
@@ -441,7 +433,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             )
             for block_queuing_service in self.block_queuing_service_manager:
                 block_queuing_service.log_memory_stats()
-        super(AbstractGatewayNode, self)._record_mem_stats(include_data_structure_memory)
 
     def get_tx_service(self, network_num=None) -> GatewayTransactionService:
         if network_num is not None and network_num != self.opts.blockchain_network_num:
@@ -1164,6 +1155,17 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def on_new_subscriber_request(self) -> None:
         pass
+
+    def init_memory_stats_logging(self):
+        memory_statistics.set_node(self)
+        memory_statistics.start_recording(
+            functools.partial(
+                self.record_mem_stats,
+                constants.GC_LOW_MEMORY_THRESHOLD,
+                constants.GC_MEDIUM_MEMORY_THRESHOLD,
+                constants.GC_HIGH_MEMORY_THRESHOLD
+            )
+        )
 
     def _set_transaction_streamer_peer(self) -> None:
         if self.transaction_streamer_peer is not None or self.NODE_TYPE is not NodeType.EXTERNAL_GATEWAY:
