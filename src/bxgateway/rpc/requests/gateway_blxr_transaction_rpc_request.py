@@ -27,7 +27,6 @@ logger = logging.get_logger(__name__)
 
 class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["AbstractGatewayNode"]):
     SYNCHRONOUS = rpc_constants.SYNCHRONOUS_PARAMS_KEY
-
     synchronous: bool = True
 
     def validate_params(self) -> None:
@@ -50,6 +49,8 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
         if self.SYNCHRONOUS in params:
             synchronous = params[rpc_constants.SYNCHRONOUS_PARAMS_KEY]
             self.synchronous = convert.str_to_bool(str(synchronous).lower(), default=True)
+        else:
+            self.synchronous = GatewayBlxrTransactionRpcRequest.synchronous
 
     async def process_request(self) -> JsonRpcResponse:
         params = self.params
@@ -65,7 +66,8 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
 
         transaction_str: str = params[rpc_constants.TRANSACTION_PARAMS_KEY]
         network_num = self.get_network_num()
-        self.track_flag = TransactionFlag.PAID_TX
+        if not self.track_flag:
+            self.track_flag = TransactionFlag.PAID_TX
         return await self.process_transaction(network_num, account_id, transaction_str)
 
     async def process_transaction(

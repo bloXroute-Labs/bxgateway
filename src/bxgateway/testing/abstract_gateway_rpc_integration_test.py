@@ -110,7 +110,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "synchronous": True
+                rpc_constants.STATUS_TRACK_PARAMS_KEY: "True"
             }
         ))
         self.assertEqual("1", result.id)
@@ -133,7 +133,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "synchronous": True
             }
         ))
         self.assertEqual("2", result.id)
@@ -149,7 +148,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "synchronous": True
             }
         ))
         self.assertEqual("3", result.id)
@@ -180,6 +178,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
                 rpc_constants.TRANSACTION_JSON_PARAMS_KEY: tx_json,
             }
         ))
+
         self.assertEqual("1", result.id)
         self.assertIsNone(result.error)
         self.assertEqual("ad6f9332384194f80d8e49af8f093ad019b3f6b7173eb2956a46c9a0d8c4d03c", result.result["tx_hash"])
