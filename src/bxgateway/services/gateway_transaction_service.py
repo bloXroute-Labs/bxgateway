@@ -47,19 +47,19 @@ class GatewayTransactionService(TransactionService):
         is_compact: bool
     ) -> TransactionFromBdnGatewayProcessingResult:
 
-        # don't check removed_contents for messages from BDN
+        transaction_key = self.get_transaction_key(transaction_hash)
         if (
-            not short_id
-            and self.has_transaction_short_id(transaction_hash)
-            and self.has_transaction_contents(transaction_hash)
-            or self.removed_transaction(transaction_hash)
+            (not short_id or self.has_transaction_short_id_by_key(transaction_key))
+            and self.has_transaction_contents_by_key(transaction_key)
+            or self.removed_transaction_by_key(transaction_key)
         ):
             return TransactionFromBdnGatewayProcessingResult(ignore_seen=True)
 
-        transaction_key = self.get_transaction_key(transaction_hash)
         existing_short_ids = self.get_short_ids_by_key(transaction_key)
-        if (self.has_transaction_contents_by_key(transaction_key) or is_compact) \
-            and short_id and short_id in existing_short_ids:
+        if (
+            (self.has_transaction_contents_by_key(transaction_key) or is_compact)
+            and short_id and short_id in existing_short_ids
+        ):
             return TransactionFromBdnGatewayProcessingResult(existing_short_id=True)
 
         assigned_short_id = False
