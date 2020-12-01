@@ -104,8 +104,9 @@ Use the `--use-cloud-api` flag to indicate if you would like to use the bloXrout
 specifying a bloXroute Gateway endpoint. If set to True, you must also use the --ssl-dir argument, and you do not
 need to use the --gateway argument.
 
-Use `--ssl-dir` to specify the path to your bloXroute certificates if using the `--use-cloud-api` flag. 
-Example: --ssl-dir /home/user/ssl/external_gateway/registration_only
+Use `--auth-header` to specify an authorization header created with rpc username and rpc password if using the 
+`--use-cloud-api` flag. See `https://docs.bloxroute.com/apis/constructing-api-headers#request` for instructions on
+how to generate an authorization header using your rpc username and rpc password.
 
 Use the `--verbose` flag to print extra statistics.
 
