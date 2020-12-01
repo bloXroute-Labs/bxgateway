@@ -120,9 +120,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.relay_connection.msg_tx(compact_message)
 
         self.assertEqual(1, gateway_transaction_stats_service.interval_data.new_full_transactions_received_from_relays)
-        self.assertEqual(0, gateway_transaction_stats_service.interval_data.duplicate_full_transactions_received_from_relays)
+        self.assertEqual(1, gateway_transaction_stats_service.interval_data.duplicate_full_transactions_received_from_relays)
         self.assertEqual(0, gateway_transaction_stats_service.interval_data.new_compact_transactions_received_from_relays)
-        self.assertEqual(1, gateway_transaction_stats_service.interval_data.duplicate_compact_transactions_received_from_relays)
+        self.assertEqual(0, gateway_transaction_stats_service.interval_data.duplicate_compact_transactions_received_from_relays)
         self.assertEqual(1, gateway_transaction_stats_service.interval_data.short_id_assignments_processed)
         self.assertEqual(0, gateway_transaction_stats_service.interval_data.redundant_transaction_content_messages)
 
