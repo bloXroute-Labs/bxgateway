@@ -65,8 +65,12 @@ class WsProvider(AbstractWsProvider):
         skip_ssl_cert_verify: bool = False
     ):
         super(WsProvider, self).__init__(uri, retry_connection, queue_limit, headers)
-        if skip_ssl_cert_verify:
-            self.ssl_context = ssl.SSLContext()
+        if uri.startswith("wss"):
+            ssl_context = ssl.SSLContext()
+            assert ssl_context is not None
+            if skip_ssl_cert_verify:
+                ssl_context.check_hostname = False
+            self.ssl_context = ssl_context
         else:
             self.ssl_context = None
 
