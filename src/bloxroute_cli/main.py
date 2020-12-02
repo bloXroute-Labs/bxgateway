@@ -98,7 +98,7 @@ class RpcClient:
         }
         synchronous = True
         if request_params:
-            synchronous = request_params[rpc_constants.SYNCHRONOUS_PARAMS_KEY]
+            synchronous = request_params.get(rpc_constants.SYNCHRONOUS_PARAMS_KEY, True)
 
         if not synchronous and self.interactive:
             asyncio.create_task(
