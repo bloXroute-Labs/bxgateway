@@ -88,8 +88,6 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             self.request_id,
             {
                 "tx_hash": "not available with async",
-                "transaction_flag": str(self.track_flag),
-                "synchronous": str(self.synchronous)
             }
         )
 
@@ -122,8 +120,6 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             )
             tx_json = {
                 "tx_hash": str(tx_hash),
-                "transaction_flag": str(transaction_flag),
-                "account_id": account_id,
             }
             return self.ok(tx_json)
         tx_stats.add_tx_by_hash_event(
