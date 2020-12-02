@@ -81,6 +81,7 @@ async def main() -> None:
 
     if args.use_cloud_api:
         asyncio.create_task(process_new_txs_cloud_api(
+            args.cloud_api_ws_uri,
             args.auth_header,
             args.feed_name,
             args.exclude_tx_contents,
@@ -168,10 +169,9 @@ async def process_new_txs_bdn(
 
 
 async def process_new_txs_cloud_api(
-    auth_header: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, exclude_from_blockchain: bool,
-    min_gas: Optional[int], addresses: List[str]
+    ws_uri: str, auth_header: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool,
+    exclude_from_blockchain: bool, min_gas: Optional[int], addresses: List[str]
 ) -> None:
-    ws_uri = f"wss://api.testnet.blxrbdn.com/ws"
     print(f"Initiating connection to: {ws_uri}")
     async with WsProvider(
         uri=ws_uri,
@@ -380,6 +380,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--use-cloud-api", action="store_true")
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument("--exclude-from-blockchain", action="store_true")
+    parser.add_argument("--cloud-api-ws-uri", type=str, default="wss://api.blxrbdn.com/ws")
     parser.add_argument("--auth-header", type=str, help="Authorization header created with account id and password")
     return parser
 

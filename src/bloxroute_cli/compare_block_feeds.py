@@ -72,6 +72,7 @@ async def main() -> None:
 
     if args.use_cloud_api:
         asyncio.create_task(process_new_blocks_cloud_api(
+            args.cloud_api_ws_uri,
             args.auth_header,
             args.feed_name,
             args.exclude_block_contents
@@ -133,8 +134,9 @@ async def process_new_blocks_bdn(feed_name: str, exclude_block_contents: bool):
             trail_new_hashes.add(block_hash)
 
 
-async def process_new_blocks_cloud_api(auth_header: str, feed_name: str, exclude_block_contents: bool) -> None:
-    ws_uri = f"wss://api.testnet.blxrbdn.com/ws"
+async def process_new_blocks_cloud_api(
+    ws_uri: str, auth_header: str, feed_name: str, exclude_block_contents: bool
+) -> None:
     print(f"Initiating connection to: {ws_uri}")
     async with WsProvider(
         uri=ws_uri,
@@ -311,6 +313,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ignore-delta", type=int, default=5, help="Ignore block with delta above this amount (seconds)")
     parser.add_argument("--use-cloud-api", action="store_true")
     parser.add_argument("--auth-header", type=str, help="Authorization header created with account id and password")
+    parser.add_argument("--cloud-api-ws-uri", type=str, default="wss://api.blxrbdn.com/ws")
     parser.add_argument("--verbose", action="store_true")
     return parser
 
