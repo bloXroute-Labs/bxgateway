@@ -38,8 +38,10 @@ class AbstractBtcGatewayIntegrationTest(AbstractTestCase):
         node_ssl_service = MockNodeSSLService(BtcGatewayNode.NODE_TYPE, MagicMock())
         self.node1 = BtcGatewayNode(opts1, node_ssl_service)
         self.node1.opts.has_fully_updated_tx_service = True
+        self.node1.requester.send_threaded_request = MagicMock()
         self.node2 = BtcGatewayNode(opts2, node_ssl_service)
         self.node2.opts.has_fully_updated_tx_service = True
+        self.node2.requester.send_threaded_request = MagicMock()
 
         self.node1.peer_gateways = {OutboundPeerModel(LOCALHOST, 7002)}
         self.node1.peer_relays = {OutboundPeerModel(LOCALHOST, 7001)}
