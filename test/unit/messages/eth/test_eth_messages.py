@@ -1,7 +1,7 @@
 import collections
 import time
 
-import rlp
+import blxr_rlp as rlp
 
 from bxcommon.messages.eth.serializers.block_header import BlockHeader
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase

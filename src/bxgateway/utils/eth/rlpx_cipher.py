@@ -3,9 +3,9 @@ import random
 import struct
 import sys
 import pyelliptic
-import rlp
 from Crypto.Cipher import AES
-from rlp import sedes
+import blxr_rlp as rlp
+from blxr_rlp import sedes
 
 from bxutils import logging
 

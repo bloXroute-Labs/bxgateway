@@ -1,7 +1,5 @@
 import ipaddress
-import rlp
-
-
+import blxr_rlp as rlp
 class Endpoint(object):
     def serialize(self, obj):
         if not isinstance(obj, tuple):

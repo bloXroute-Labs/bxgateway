@@ -1,5 +1,4 @@
-import rlp
-
+import blxr_rlp as rlp
 from bxcommon.messages.eth.serializers.block_header import BlockHeader
 from bxgateway.messages.eth.serializers.short_transaction import ShortTransaction
 

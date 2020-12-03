@@ -1,7 +1,6 @@
 from typing import List
 
-import rlp
-
+import blxr_rlp as rlp
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 from bxutils.logging.log_level import LogLevel

@@ -1,5 +1,5 @@
 import asyncio
-import rlp
+import blxr_rlp as rlp
 import websockets
 
 from typing import Dict, Any

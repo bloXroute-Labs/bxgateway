@@ -1,4 +1,4 @@
-import rlp
+import blxr_rlp as rlp
 from typing import List, Tuple
 
 from bxutils.logging.log_level import LogLevel

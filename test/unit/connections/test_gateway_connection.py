@@ -1,4 +1,4 @@
-import rlp
+import blxr_rlp as rlp
 from mock import MagicMock
 
 from bxcommon.connections.connection_state import ConnectionState

@@ -4,7 +4,7 @@ import hashlib
 import struct
 from argparse import Namespace
 
-import rlp
+import blxr_rlp as rlp
 
 import bxgateway.messages.eth.eth_message_converter_factory as converter_factory
 from bxcommon import constants

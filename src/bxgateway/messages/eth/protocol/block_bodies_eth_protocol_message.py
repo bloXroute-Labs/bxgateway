@@ -1,7 +1,6 @@
 from typing import List
 
-import rlp
-
+import blxr_rlp as rlp
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
