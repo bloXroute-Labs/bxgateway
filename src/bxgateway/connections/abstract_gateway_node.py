@@ -1367,6 +1367,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         to_connect = best_relay_set - self.peer_relays
 
         if len(to_disconnect) > 0 and len(to_connect) > 0:
+            logger.debug("Sending relay switch notification to SDN.")
             self.requester.send_threaded_request(
                 sdn_http_service.submit_gateway_switching_relays_event,
                 self.opts.node_id
