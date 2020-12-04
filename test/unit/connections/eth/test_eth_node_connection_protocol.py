@@ -562,6 +562,36 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.node.on_block_seen_by_blockchain_node.assert_called_once()
         self.node.block_processing_service.queue_block_for_processing.assert_called_once()
 
+    def test_complete_header_body_fetch_already_seen(self):
+        self.node.block_processing_service.queue_block_for_processing = MagicMock()
+        self.node.block_queuing_service_manager.push = MagicMock()
+        self.node.on_block_seen_by_blockchain_node = MagicMock()
+        self.sut.is_valid_block_timestamp = MagicMock(return_value=True)
+
+        header = mock_eth_messages.get_dummy_block_header(1)
+        block = mock_eth_messages.get_dummy_block(1, header)
+        block_hash = header.hash_object()
+        new_block_hashes_message = NewBlockHashesEthProtocolMessage.from_block_hash_number_pair(
+            block_hash, 1
+        )
+        header_message = BlockHeadersEthProtocolMessage(None, [header])
+        bodies_message = BlockBodiesEthProtocolMessage(None, [TransientBlockBody(block.transactions, block.uncles)])
+
+        self.sut.msg_new_block_hashes(new_block_hashes_message)
+        self.node.on_block_seen_by_blockchain_node.assert_called_once()
+
+        self.assertEqual(1, len(self.sut.pending_new_block_parts.contents))
+        self.assertEqual(2, len(self.enqueued_messages))
+
+        self.node.on_block_seen_by_blockchain_node.reset_mock()
+        self.node.blocks_seen.add(block_hash)
+        self.sut.msg_block_headers(header_message)
+        self.sut.msg_block_bodies(bodies_message)
+
+        self.node.block_queuing_service_manager.push.assert_not_called()
+        self.node.on_block_seen_by_blockchain_node.assert_called_once()
+        self.node.block_processing_service.queue_block_for_processing.assert_not_called()
+
     def test_header_body_fetch_abort_from_bdn(self):
         self.node.block_processing_service.queue_block_for_processing = MagicMock()
         self.sut.is_valid_block_timestamp = MagicMock(return_value=True)

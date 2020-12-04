@@ -326,6 +326,16 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         while self._ready_new_blocks:
             ready_block_hash = self._ready_new_blocks.pop()
             pending_new_block = self.pending_new_block_parts.contents[ready_block_hash]
+            self.pending_new_block_parts.remove_item(ready_block_hash)
+
+            if ready_block_hash in self.node.blocks_seen.contents:
+                self.node.on_block_seen_by_blockchain_node(ready_block_hash, self.connection)
+                self.connection.log_info(
+                    "Discarding already seen block {} received in block bodies msg from local blockchain node.",
+                    ready_block_hash
+                )
+                return
+
             last_known_total_difficulty = self.node.try_calculate_total_difficulty(
                 ready_block_hash,
                 pending_new_block
@@ -334,7 +344,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 pending_new_block,
                 last_known_total_difficulty
             )
-            self.pending_new_block_parts.remove_item(ready_block_hash)
 
             if self.is_valid_block_timestamp(new_block_msg):
                 block_stats.add_block_event_by_block_hash(
@@ -349,6 +358,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     block_height=new_block_msg.block_number(),
                 )
 
+                gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.connection.endpoint)
                 self.node.block_queuing_service_manager.push(
                     ready_block_hash, new_block_msg, node_received_from=self.connection
                 )
