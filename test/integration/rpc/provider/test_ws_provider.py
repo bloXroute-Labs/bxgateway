@@ -70,6 +70,7 @@ def get_expected_eth_tx_contents(eth_tx_message: TxMessage) -> Dict[str, Any]:
     expected_tx_contents = transaction.to_json()
     expected_tx_contents["gasPrice"] = expected_tx_contents["gas_price"]
     del expected_tx_contents["gas_price"]
+    del expected_tx_contents["hash"]
     return expected_tx_contents
 
 
@@ -80,6 +81,7 @@ class WsProviderTest(AbstractTestCase):
             "account_id",
             "account_name",
             "fake_certificate",
+            tier_name="Enterprise",
             new_transaction_streaming=BdnServiceModelConfigBase(
                 expire_date=date(2999, 1, 1).isoformat()
             ),
@@ -134,7 +136,7 @@ class WsProviderTest(AbstractTestCase):
             )
 
             expected_tx_contents = get_expected_eth_tx_contents(eth_tx_message)
-            self.assertEqual(
+            self.assertDictEqual(
                 expected_tx_contents, subscription_message.notification["txContents"]
             )
 
