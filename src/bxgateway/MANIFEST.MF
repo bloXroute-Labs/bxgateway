@@ -1,1 +1,1 @@
-{"source_version": "v1.77.23.0"}
+{"source_version": "v1.77.24.0"}
