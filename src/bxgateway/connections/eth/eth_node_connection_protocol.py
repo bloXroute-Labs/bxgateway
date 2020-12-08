@@ -362,7 +362,9 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 self.node.block_queuing_service_manager.push(
                     ready_block_hash, new_block_msg, node_received_from=self.connection
                 )
-                self.node.on_block_seen_by_blockchain_node(ready_block_hash, self.connection, new_block_msg)
+                self.node.on_block_seen_by_blockchain_node(
+                    ready_block_hash, self.connection, new_block_msg, pending_new_block.block_number
+                )
                 self.node.block_processing_service.queue_block_for_processing(
                     new_block_msg, self.connection
                 )
