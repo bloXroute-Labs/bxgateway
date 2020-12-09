@@ -329,7 +329,9 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             self.pending_new_block_parts.remove_item(ready_block_hash)
 
             if ready_block_hash in self.node.blocks_seen.contents:
-                self.node.on_block_seen_by_blockchain_node(ready_block_hash, self.connection)
+                self.node.on_block_seen_by_blockchain_node(
+                    ready_block_hash, self.connection, block_number=pending_new_block.block_number
+                )
                 self.connection.log_info(
                     "Discarding already seen block {} received in block bodies msg from local blockchain node.",
                     ready_block_hash
