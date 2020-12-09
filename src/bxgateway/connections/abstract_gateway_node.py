@@ -650,6 +650,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if connection not in self.block_queuing_service_manager.blockchain_peer_to_block_queuing_service:
             block_queuing_service = self.build_block_queuing_service(connection)
             self.block_queuing_service_manager.add_block_queuing_service(connection, block_queuing_service)
+        else:
+            queuing_service = self.block_queuing_service_manager.blockchain_peer_to_block_queuing_service[connection]
+            queuing_service.update_connection(connection)
+
         self.cancel_blockchain_liveliness_check()
         self.alarm_queue.register_alarm(
             gateway_constants.CHECK_BLOCKCHAIN_CONNECTION_FIRMLY_ESTABLISHED,

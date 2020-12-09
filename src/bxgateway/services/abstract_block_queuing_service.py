@@ -272,3 +272,7 @@ class AbstractBlockQueuingService(
 
     def log_memory_stats(self):
         pass
+
+    def update_connection(self, connection: AbstractGatewayBlockchainConnection):
+        self._block_queue.clear()
+        self.connection = connection
