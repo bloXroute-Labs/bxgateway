@@ -359,13 +359,16 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     ),
                     block_height=new_block_msg.block_number(),
                 )
-
                 gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.connection.endpoint)
+
+                canceled_recovery = self.node.on_block_seen_by_blockchain_node(
+                    ready_block_hash, self.connection, new_block_msg, pending_new_block.block_number
+                )
+                if canceled_recovery:
+                    return
+
                 self.node.block_queuing_service_manager.push(
                     ready_block_hash, new_block_msg, node_received_from=self.connection
-                )
-                self.node.on_block_seen_by_blockchain_node(
-                    ready_block_hash, self.connection, new_block_msg, pending_new_block.block_number
                 )
                 self.node.block_processing_service.queue_block_for_processing(
                     new_block_msg, self.connection

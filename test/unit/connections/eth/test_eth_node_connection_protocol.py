@@ -2,6 +2,7 @@ import struct
 
 from mock import MagicMock, call
 
+from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.feed.feed import FeedKey
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
@@ -36,6 +37,7 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import (
     NewBlockEthProtocolMessage,
 )
 from bxgateway.testing.mocks import mock_eth_messages
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 
 NETWORK_NUM = 1
 
@@ -61,11 +63,13 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.connection = helpers.create_connection(
             EthNodeConnection, self.node, opts, port=opts.blockchain_port
         )
+
         gateway_helpers.add_blockchain_peer(self.node, self.connection)
         self.block_queuing_service = self.node.block_queuing_service_manager.get_designated_block_queuing_service()
 
         self.connection.on_connection_established()
         self.node.node_conn = self.connection
+        gateway_bdn_performance_stats_service.set_node(self.node)
 
         def mocked_enqueue_msg(msg, prepend=False):
             self.enqueued_messages.append(msg)
@@ -536,7 +540,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
     def test_complete_header_body_fetch(self):
         self.node.block_processing_service.queue_block_for_processing = MagicMock()
         self.node.block_queuing_service_manager.push = MagicMock()
-        self.node.on_block_seen_by_blockchain_node = MagicMock()
+        self.node.on_block_seen_by_blockchain_node = MagicMock(return_value=False)
         self.sut.is_valid_block_timestamp = MagicMock(return_value=True)
 
         header = mock_eth_messages.get_dummy_block_header(1)
@@ -590,6 +594,41 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
 
         self.node.block_queuing_service_manager.push.assert_not_called()
         self.node.on_block_seen_by_blockchain_node.assert_called_once()
+        self.node.block_processing_service.queue_block_for_processing.assert_not_called()
+
+    def test_complete_header_body_recovery(self):
+        self.node.block_processing_service.queue_block_for_processing = MagicMock()
+        self.node.block_queuing_service_manager.push = MagicMock()
+        self.node.on_block_seen_by_blockchain_node = MagicMock(return_value=False)
+        self.sut.is_valid_block_timestamp = MagicMock(return_value=True)
+
+        header = mock_eth_messages.get_dummy_block_header(1)
+        block = mock_eth_messages.get_dummy_block(1, header)
+        block_hash = header.hash_object()
+        new_block_hashes_message = NewBlockHashesEthProtocolMessage.from_block_hash_number_pair(
+            block_hash, 1
+        )
+        header_message = BlockHeadersEthProtocolMessage(None, [header])
+        bodies_message = BlockBodiesEthProtocolMessage(None, [TransientBlockBody(block.transactions, block.uncles)])
+
+        self.sut.msg_new_block_hashes(new_block_hashes_message)
+        self.node.on_block_seen_by_blockchain_node.assert_called_once()
+
+        self.assertEqual(1, len(self.sut.pending_new_block_parts.contents))
+        self.assertEqual(2, len(self.enqueued_messages))
+
+        self.node.on_block_seen_by_blockchain_node.reset_mock()
+        self.node.on_block_seen_by_blockchain_node = MagicMock(return_value=True)
+        self.sut.msg_block_headers(header_message)
+        self.sut.msg_block_bodies(bodies_message)
+
+        self.assertEqual(1, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        for stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.values():
+            self.assertEqual(1, stats.new_blocks_received_from_blockchain_node)
+            self.assertEqual(0, stats.new_blocks_received_from_bdn)
+
+        self.node.on_block_seen_by_blockchain_node.assert_called_once()
+        self.node.block_queuing_service_manager.push.assert_not_called()
         self.node.block_processing_service.queue_block_for_processing.assert_not_called()
 
     def test_header_body_fetch_abort_from_bdn(self):

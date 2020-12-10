@@ -246,6 +246,8 @@ class AbstractBlockchainConnectionProtocol:
         if not self.is_valid_block_timestamp(msg):
             return
 
+        gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.connection.endpoint)
+
         canceled_recovery = self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, msg)
         if canceled_recovery:
             return
@@ -254,7 +256,6 @@ class AbstractBlockchainConnectionProtocol:
         self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, msg, block_number=block_number)
         self.node.block_processing_service.queue_block_for_processing(msg, self.connection)
         self.node.block_queuing_service_manager.push(block_hash, msg, node_received_from=self.connection)
-        gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.connection.endpoint)
         return
 
     def msg_proxy_request(self, msg, requesting_connection: AbstractGatewayBlockchainConnection):
