@@ -26,6 +26,7 @@ logger = logging.get_logger(__name__)
 class EthNewBlockFeed(Feed[EthBlockFeedEntry, EthRawBlock]):
     NAME = "newBlocks"
     FIELDS = ["hash", "header", "transactions", "uncles"]
+    ALL_FIELDS = FIELDS
     VALID_SOURCES = {
         FeedSource.BLOCKCHAIN_SOCKET, FeedSource.BLOCKCHAIN_RPC, FeedSource.BDN_SOCKET, FeedSource.BDN_INTERNAL
     }

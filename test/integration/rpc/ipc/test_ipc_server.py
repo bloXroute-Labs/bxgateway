@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any
+from typing import Any, List, Set
 # TODO: remove try-catch when removing py3.7 support
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
