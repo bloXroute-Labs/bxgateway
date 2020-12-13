@@ -250,7 +250,11 @@ class GatewayOpts(CommonOpts):
             for blockchain_peer in self.blockchain_peers:
                 blockchain_peer.ip = validate_blockchain_ip(blockchain_peer.ip, self.is_docker)
         if self.rpc_host == rpc_constants.DEFAULT_RPC_HOST and self.is_docker:
-            self.rpc_host = rpc_constants.DOCKER_RPC_HOST
+            docker_host = get_docker_host()
+            if docker_host:
+                self.rpc_host = docker_host
+            else:
+                self.rpc_host = rpc_constants.DEFAULT_RPC_HOST
 
 
 def get_sdn_hostname(sdn_url: str) -> str:
@@ -259,6 +263,18 @@ def get_sdn_hostname(sdn_url: str) -> str:
         new_sdn_url = sdn_url.split("://")[1]
 
     return new_sdn_url
+
+
+def get_docker_host() -> Optional[str]:
+    with open('/etc/hosts', "r") as f:
+        host_list = f.readlines()
+        for host in host_list:
+            if "172" in host:
+                end_idx = 0
+                for char in host:
+                    if not char.isnumeric() and char != '.':
+                        return host[:end_idx]
+                    end_idx += 1
 
 
 def validate_pub_key(key) -> None:
