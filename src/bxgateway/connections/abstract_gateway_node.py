@@ -819,7 +819,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         if recovery_canceled:
             assert block_message is not None
-            self.block_queuing_service_manager.update_recovered_block(block_hash, block_message)
+            self.block_queuing_service_manager.update_recovered_block(block_hash, block_message, connection)
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.BLOCK_RECOVERY_CANCELED,

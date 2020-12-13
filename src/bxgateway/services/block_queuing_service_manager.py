@@ -121,10 +121,15 @@ class BlockQueuingServiceManager:
             del self.block_storage[block_hash]
 
     def update_recovered_block(
-        self, block_hash: Sha256Hash, block_message: AbstractBlockMessage
+        self,
+        block_hash: Sha256Hash,
+        block_message: AbstractBlockMessage,
+        node_received_from: Optional[AbstractGatewayBlockchainConnection] = None
     ) -> None:
         self.store_block_data(block_hash, block_message)
-        for queuing_service in self:
+        for node_conn, queuing_service in self.blockchain_peer_to_block_queuing_service.items():
+            if node_received_from and node_conn == node_received_from:
+                continue
             queuing_service.update_recovered_block(block_hash, block_message)
 
     def get_length_of_each_queuing_service_stats_format(self) -> str:

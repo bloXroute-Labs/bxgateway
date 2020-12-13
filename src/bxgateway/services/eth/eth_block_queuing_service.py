@@ -196,7 +196,7 @@ class EthBlockQueuingService(
     def update_recovered_block(
         self, block_hash: Sha256Hash, block_msg: InternalEthBlockInfo
     ) -> None:
-        if block_hash not in self._blocks:
+        if block_hash not in self._blocks or block_hash in self._blocks_seen_by_blockchain_node:
             return
 
         self.remove_from_queue(block_hash)
