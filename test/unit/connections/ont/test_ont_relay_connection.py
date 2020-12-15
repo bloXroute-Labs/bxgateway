@@ -12,7 +12,6 @@ from bxcommon.models.transaction_info import TransactionInfo
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import DEFAULT_NETWORK_NUM, LOCALHOST
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
@@ -58,17 +57,29 @@ class OntRelayConnectionTest(AbstractTestCase):
         self.sut = OntRelayConnection(MockSocketConnection(
             node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
         )
-        node_conn = MockConnection(MockSocketConnection(
+
+        self.node_conn = MockConnection(MockSocketConnection(
             1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
         )
-        self.gateway_node.connection_pool.add(1, LOCALHOST, 8002, node_conn)
-        self.gateway_node_sut = OntNodeConnectionProtocol(cast(OntNodeConnection, node_conn))
+        self.gateway_node.connection_pool.add(1, LOCALHOST, 8002, self.node_conn)
+        gateway_helpers.add_blockchain_peer(self.gateway_node, self.node_conn)
+
+        self.node_conn_2 = MockConnection(MockSocketConnection(
+            1, self.gateway_node, ip_address=LOCALHOST, port=8003), self.gateway_node
+        )
+        self.gateway_node.connection_pool.add(1, LOCALHOST, 8003, self.node_conn_2)
+        gateway_helpers.add_blockchain_peer(self.gateway_node, self.node_conn_2)
+        self.blockchain_connections = [self.node_conn, self.node_conn_2]
+
+        self.gateway_node_sut = OntNodeConnectionProtocol(cast(OntNodeConnection, self.node_conn))
         self.gateway_node.message_converter = converter_factory.create_ont_message_converter(
             12345, self.gateway_node.opts
         )
         self.gateway_node.has_active_blockchain_peer = MagicMock(return_value=True)
 
         self.gateway_node.broadcast = MagicMock()
+        self.node_conn.enqueue_msg = MagicMock()
+        self.node_conn_2.enqueue_msg = MagicMock()
         self.sut.enqueue_msg = MagicMock()
         gateway_transaction_stats_service.set_node(self.gateway_node)
 
@@ -141,8 +152,9 @@ class OntRelayConnectionTest(AbstractTestCase):
         unknown_sid_transaction_service = ExtensionTransactionService(MockNode(
             gateway_helpers.get_gateway_opts(8999)), 0)
         for i, transaction in enumerate(transactions):
-            unknown_sid_transaction_service.assign_short_id(transaction.tx_hash(), i)
-            unknown_sid_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx_val())
+            transaction_key = unknown_sid_transaction_service.get_transaction_key(transaction.tx_hash())
+            unknown_sid_transaction_service.assign_short_id_by_key(transaction_key, i)
+            unknown_sid_transaction_service.set_transaction_contents_by_key(transaction_key, transaction.tx_val())
 
         unknown_short_id_block = bytes(
             self.gateway_node.message_converter.block_to_bx_block(
@@ -157,8 +169,9 @@ class OntRelayConnectionTest(AbstractTestCase):
 
         local_transaction_service = self.gateway_node.get_tx_service()
         for i, transaction in enumerate(transactions):
-            local_transaction_service.assign_short_id(transaction.tx_hash(), i + 20)
-            local_transaction_service.set_transaction_contents(transaction.tx_hash(), transaction.tx_val())
+            transaction_key = local_transaction_service.get_transaction_key(transaction.tx_hash())
+            local_transaction_service.assign_short_id_by_key(transaction_key, i + 20)
+            local_transaction_service.set_transaction_contents_by_key(transaction_key, transaction.tx_val())
 
         known_short_id_block = bytes(
             self.gateway_node.message_converter.block_to_bx_block(
@@ -174,8 +187,9 @@ class OntRelayConnectionTest(AbstractTestCase):
         self.sut.msg_broadcast(unknown_message)
         self.sut.msg_key(unknown_key_message)
 
-        self.assertEqual(1, len(self.gateway_node.block_queuing_service))
-        self.assertEqual(True, self.gateway_node.block_queuing_service._blocks_waiting_for_recovery[block_hash])
+        block_queuing_service = self.gateway_node.block_queuing_service_manager.get_block_queuing_service(self.node_conn)
+        self.assertEqual(1, len(block_queuing_service))
+        self.assertEqual(True, block_queuing_service._blocks_waiting_for_recovery[block_hash])
         self.assertEqual(1, len(self.gateway_node.block_recovery_service._block_hash_to_bx_block_hashes))
         self.assertNotIn(block_hash, self.gateway_node.blocks_seen.contents)
 
@@ -184,7 +198,7 @@ class OntRelayConnectionTest(AbstractTestCase):
         self.gateway_node_sut.msg_get_data(GetDataOntMessage(self.magic, InventoryOntType.MSG_BLOCK.value, block_hash))
 
         self.gateway_node.broadcast.assert_called()
-        self.assertEqual(0, len(self.gateway_node.block_queuing_service))
+        self.assertEqual(0, len(block_queuing_service))
         self.assertEqual(0, len(self.gateway_node.block_recovery_service._block_hash_to_bx_block_hashes))
         self.assertIn(block_hash, self.gateway_node.blocks_seen.contents)
 
@@ -220,9 +234,10 @@ class OntRelayConnectionTest(AbstractTestCase):
 
         for i, transaction in enumerate(transactions):
             transaction_hash = transaction.tx_hash()
-            self.assertTrue(self.gateway_node.get_tx_service().has_transaction_contents(transaction_hash))
-            self.assertTrue(self.gateway_node.get_tx_service().has_transaction_short_id(transaction_hash))
-            self.assertEqual(i + 1, self.gateway_node.get_tx_service().get_short_id(transaction_hash))
+            transaction_key = self.gateway_node.get_tx_service().get_transaction_key(transaction_hash)
+            self.assertTrue(self.gateway_node.get_tx_service().has_transaction_contents_by_key(transaction_key))
+            self.assertTrue(self.gateway_node.get_tx_service().has_transaction_short_id_by_key(transaction_key))
+            self.assertEqual(i + 1, self.gateway_node.get_tx_service().get_short_id_by_key(transaction_key))
 
             stored_hash, stored_content, _ = self.gateway_node.get_tx_service().get_transaction(i + 1)
             self.assertEqual(transaction_hash, stored_hash)
@@ -277,9 +292,10 @@ class OntRelayConnectionTest(AbstractTestCase):
         short_id_mapping = {}
         for i, transaction in enumerate(transactions):
             tx_hash = transaction.tx_hash()
+            transaction_key = remote_transaction_service.get_transaction_key(tx_hash)
 
-            remote_transaction_service.assign_short_id(tx_hash, i + 1)
-            remote_transaction_service.set_transaction_contents(tx_hash, transaction.rawbytes())
+            remote_transaction_service.assign_short_id_by_key(transaction_key, i + 1)
+            remote_transaction_service.set_transaction_contents_by_key(transaction_key, transaction.rawbytes())
             short_id_mapping[tx_hash] = TransactionInfo(tx_hash, transaction.rawbytes(), i + 1)
 
         bx_block = bytes(
@@ -383,7 +399,8 @@ class OntRelayConnectionTest(AbstractTestCase):
         self.sut.msg_txs(txs_message_1)
 
         for transaction_hash, tx_info in short_id_mapping1.items():
-            self.assertEqual(tx_info.short_id, self.gateway_node.get_tx_service().get_short_id(transaction_hash))
+            transaction_key = self.gateway_node.get_tx_service().get_transaction_key(transaction_hash)
+            self.assertEqual(tx_info.short_id, self.gateway_node.get_tx_service().get_short_id_by_key(transaction_key))
             stored_hash, stored_content, _ = self.gateway_node.get_tx_service().get_transaction(tx_info.short_id)
             self.assertEqual(transaction_hash, stored_hash)
             self.assertEqual(tx_info.contents, stored_content)
@@ -405,22 +422,22 @@ class OntRelayConnectionTest(AbstractTestCase):
             self.assertEqual(tx_info.contents, stored_content)
 
     def _assert_block_sent(self, ont_block):
-        self.gateway_node.broadcast.assert_called()
-        calls = self.gateway_node.broadcast.call_args_list
+        for node_conn in self.blockchain_connections:
+            node_conn.enqueue_msg.assert_called()
+            calls = node_conn.enqueue_msg.call_args_list
 
-        broadcast_to_blockchain_calls = []
-        for call, conn_type in calls:
-            if conn_type["connection_types"][0] == ConnectionType.BLOCKCHAIN_NODE:
-                broadcast_to_blockchain_calls.append((call, conn_type))
-        self.assertEqual(1, len(broadcast_to_blockchain_calls))
+            sent_to_blockchain_calls = []
+            for call in calls:
+                sent_to_blockchain_calls.append(call)
+            self.assertEqual(1, len(sent_to_blockchain_calls))
 
-        ((sent_inv_msg,), _) = broadcast_to_blockchain_calls[0]
-        self.assertIsInstance(sent_inv_msg, InvOntMessage)
-        sent_inv_msg = cast(InvOntMessage, sent_inv_msg)
+            ((sent_inv_msg,), _) = sent_to_blockchain_calls[0]
+            self.assertIsInstance(sent_inv_msg, InvOntMessage)
+            sent_inv_msg = cast(InvOntMessage, sent_inv_msg)
 
-        sent_inv_type, sent_inv_hash = sent_inv_msg.inv_type()
-        self.assertEqual(InventoryOntType.MSG_BLOCK.value, sent_inv_type)
-        self.assertEqual(ont_block.block_hash(), sent_inv_hash[0])
+            sent_inv_type, sent_inv_hash = sent_inv_msg.inv_type()
+            self.assertEqual(InventoryOntType.MSG_BLOCK.value, sent_inv_type)
+            self.assertEqual(ont_block.block_hash(), sent_inv_hash[0])
 
     def _get_sample_block(self):
         root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

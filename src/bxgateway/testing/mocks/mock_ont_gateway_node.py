@@ -51,7 +51,6 @@ class MockOntGatewayNode(OntGatewayNode):
         self.broadcast_to_nodes_messages = []
         self._tx_service = TransactionService(self, 0)
         self.block_cleanup_service = self._get_cleanup_service()
-        self.block_queuing_service = OntBlockQueuingService(self)
         self.message_converter = MockMessageConverter()
         if opts.use_extensions:
             from bxcommon.services.extension_transaction_service import ExtensionTransactionService
@@ -90,8 +89,10 @@ class MockOntGatewayNode(OntGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         pass
 
-    def build_block_queuing_service(self) -> AbstractBlockQueuingService:
-        pass
+    def build_block_queuing_service(
+        self, connection: AbstractGatewayBlockchainConnection
+    ) -> AbstractBlockQueuingService:
+        return OntBlockQueuingService(self, connection)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         pass

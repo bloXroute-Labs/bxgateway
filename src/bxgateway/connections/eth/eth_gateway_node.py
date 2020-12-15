@@ -6,6 +6,7 @@ from bxcommon import constants
 from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.eth.serializers.transaction import Transaction
@@ -14,7 +15,9 @@ from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.peer_info import ConnectionPeerInfo
 from bxcommon.network.transport_layer_protocol import TransportLayerProtocol
 from bxcommon.rpc import rpc_constants
+from bxcommon.feed.feed_source import FeedSource
 from bxcommon.utils import convert
+from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants, eth_common_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -31,11 +34,10 @@ from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
 from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.connections.gateway_connection import GatewayConnection
 from bxgateway.feed.eth.eth_new_block_feed import EthNewBlockFeed
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
-from bxgateway.feed.feed_source import FeedSource
 from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
@@ -101,7 +103,11 @@ class EthGatewayNode(AbstractGatewayNode):
                 self._remote_public_key = convert.hex_to_bytes(opts.remote_public_key)
 
         self.block_processing_service: EthBlockProcessingService = EthBlockProcessingService(self)
-        self.block_queuing_service: EthBlockQueuingService = EthBlockQueuingService(self)
+        self.block_parts_storage: ExpiringDict[Sha256Hash, NewBlockParts] = ExpiringDict(
+            self.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            "eth_block_queue_parts",
+        )
 
         # List of know total difficulties, tuples of values (block hash, total difficulty)
         self._last_known_difficulties = deque(maxlen=eth_common_constants.LAST_KNOWN_TOTAL_DIFFICULTIES_MAX_COUNT)
@@ -147,8 +153,11 @@ class EthGatewayNode(AbstractGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         return EthRemoteConnection(socket_connection, self)
 
-    def build_block_queuing_service(self) -> EthBlockQueuingService:
-        return EthBlockQueuingService(self)
+    def build_block_queuing_service(
+        self,
+        connection: AbstractGatewayBlockchainConnection
+    ) -> EthBlockQueuingService:
+        return EthBlockQueuingService(self, connection)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         if self.opts.use_extensions:
@@ -376,7 +385,7 @@ class EthGatewayNode(AbstractGatewayNode):
         for transaction in transactions:
             self.average_block_gas_price.add_value(transaction.gas_price)
 
-    def broadcast_transactions_to_node(
+    def broadcast_transactions_to_nodes(
         self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
     ) -> bool:
         msg = cast(TransactionsEthProtocolMessage, msg)
@@ -413,7 +422,7 @@ class EthGatewayNode(AbstractGatewayNode):
                 )
                 return False
 
-        return super().broadcast_transactions_to_node(msg, broadcasting_conn)
+        return super().broadcast_transactions_to_nodes(msg, broadcasting_conn)
 
     def get_enode(self) -> str:
         return \
@@ -452,7 +461,8 @@ class EthGatewayNode(AbstractGatewayNode):
                 self._get_block_message_lazy(block_message, block_hash)
             )
             self._publish_block_to_on_block_feed(raw_block)
-            self._publish_block_to_new_block_feed(raw_block)
+            if block_message is not None:
+                self._publish_block_to_new_block_feed(raw_block)
 
     async def init(self) -> None:
         await super().init()
@@ -498,17 +508,21 @@ class EthGatewayNode(AbstractGatewayNode):
         if block_message:
             yield block_message
         else:
-            block_parts = self.block_queuing_service.get_block_parts(block_hash)
-            if block_parts:
-                block_message = InternalEthBlockInfo.from_new_block_parts(block_parts)
-                assert block_message is not None
-                yield block_message
+            block_queuing_service = cast(
+                EthBlockQueuingService,
+                self.block_queuing_service_manager.get_designated_block_queuing_service()
+            )
+            if block_queuing_service is not None:
+                block_parts = block_queuing_service.get_block_parts(block_hash)
+                if block_parts:
+                    block_message = InternalEthBlockInfo.from_new_block_parts(block_parts)
+                    yield block_message
 
     def _publish_block_to_new_block_feed(
         self,
         raw_block: EthRawBlock,
     ) -> None:
-        self.feed_manager.publish_to_feed(EthNewBlockFeed.NAME, raw_block)
+        self.feed_manager.publish_to_feed(FeedKey(EthNewBlockFeed.NAME), raw_block)
 
     def _publish_block_to_on_block_feed(
         self,
@@ -516,7 +530,7 @@ class EthGatewayNode(AbstractGatewayNode):
     ) -> None:
         if raw_block.source in {FeedSource.BLOCKCHAIN_RPC}:
             self.feed_manager.publish_to_feed(
-                EthOnBlockFeed.NAME, EventNotification(raw_block.block_number)
+                FeedKey(EthOnBlockFeed.NAME), EventNotification(raw_block.block_number)
             )
 
     def is_gas_price_above_min_network_fee(self, transaction_contents: Union[memoryview, bytearray]) -> bool:

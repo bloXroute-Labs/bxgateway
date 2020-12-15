@@ -61,6 +61,14 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
         self.can_send_pings = True
         self.pong_timeout_enabled = True
 
+    def __hash__(self):
+        return hash((self.endpoint.ip_address, self.endpoint.port))
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, AbstractGatewayBlockchainConnection):
+            return False
+        return self.endpoint.ip_address == other.endpoint.ip_address and self.endpoint.port == other.endpoint.port
+
     def advance_bytes_written_to_socket(self, bytes_sent):
         if self.message_tracker and self.message_tracker.is_sending_block_message():
             assert self.node.opts.track_detailed_sent_messages
@@ -129,7 +137,7 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
         if self.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
             self.node.on_blockchain_connection_destroyed(self)
         elif self.CONNECTION_TYPE == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
-            if self.node.remote_node_conn == self or self.node.remote_node_conn is None:
+            if self.node.remote_node_conn is None or self.node.remote_node_conn == self:
                 self.node.on_remote_blockchain_connection_destroyed(self)
             else:
                 logger.warning(log_messages.CLOSE_CONNECTION_ATTEMPT,

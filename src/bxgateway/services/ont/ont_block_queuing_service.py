@@ -1,6 +1,5 @@
 from typing import List, Union, Optional, cast, TYPE_CHECKING, Iterator
 
-from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.exceptions import ChecksumError
 from bxcommon.models.broadcast_message_type import BroadcastMessageType
 from bxcommon.utils.blockchain_utils.ont.ont_object_hash import OntObjectHash
@@ -10,6 +9,7 @@ from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import ont_constants, gateway_constants
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.messages.ont.consensus_ont_message import OntConsensusMessage
 from bxgateway.messages.ont.headers_ont_message import HeadersOntMessage
@@ -37,8 +37,12 @@ class OntBlockQueuingService(
     _block_hashes_by_height: ExpiringDict[int, Sha256Hash]
     _highest_block_number: int = 0
 
-    def __init__(self, node: "AbstractGatewayNode"):
-        super().__init__(node)
+    def __init__(
+        self,
+        node: "AbstractGatewayNode",
+        connection: AbstractGatewayBlockchainConnection
+    ):
+        super().__init__(node, connection)
         self.node: "OntGatewayNode" = cast("OntGatewayNode", node)
         self._block_hashes_by_height = ExpiringDict(
             node.alarm_queue,
@@ -69,7 +73,9 @@ class OntBlockQueuingService(
         if self.node.opts.is_consensus and isinstance(block_msg, BlockOntMessage):
             return
         super().push(block_hash, block_msg, waiting_for_recovery)
-        logger.debug("Added block {} to queuing service", block_hash)
+        self.connection.log_debug(
+            "Added block {} to queuing service (waiting for recovery: {})", block_hash, waiting_for_recovery
+        )
         self._clean_block_queue()
 
         if block_msg is None:
@@ -93,16 +99,17 @@ class OntBlockQueuingService(
                     inv_type=InventoryOntType.MSG_BLOCK,
                     blocks=[block_hash],
                 )
-                self.node.broadcast(inv_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+                self.connection.enqueue_msg(inv_msg)
         # pyre-fixme[25]: `block_msg` has type `OntConsensusMessage`,
         #  assertion `not isinstance(block_msg, bxgateway.messages.ont.consensus_ont_message.OntConsensusMessage)`
         #  will always fail.
         elif isinstance(block_msg, OntConsensusMessage):
             if block_hash in self._blocks and not waiting_for_recovery:
-                logger.info("Sending consensus message with block hash {} to blockchain node", block_hash)
-                # self.node.block_queuing_service.send_block_to_node(block_hash)
-                # the above one line is good, except for the wrong broadcast type in BLOCK_SENT_TO_BLOCKCHAIN_NODE
-                self.node.broadcast(block_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+                self.connection.log_info(
+                    "Sending consensus message with block hash {} to blockchain node",
+                    block_hash,
+                )
+                self.connection.enqueue_msg(block_msg)
                 handling_time, relay_desc = self.node.track_block_from_bdn_handling_ended(block_hash)
                 if not self.node.opts.track_detailed_sent_messages:
                     block_stats.add_block_event_by_block_hash(
@@ -123,7 +130,7 @@ class OntBlockQueuingService(
     #  type `Optional[Union[BlockOntMessage, OntConsensusMessage]]` is not a supertype of the overridden parameter
     #  `Optional[Variable[bxgateway.services.abstract_block_queuing_service.TBlockMessage
     #  (bound to bxcommon.messages.abstract_block_message.AbstractBlockMessage)]]`.
-    def send_block_to_nodes(
+    def send_block_to_node(
         self,
         block_hash: Sha256Hash,
         block_msg: Optional[Union[BlockOntMessage, OntConsensusMessage]] = None,
@@ -134,13 +141,11 @@ class OntBlockQueuingService(
         waiting_for_recovery = self._blocks_waiting_for_recovery[block_hash]
         if waiting_for_recovery:
             raise Exception(
-                "Block {} is waiting for recovery".format(block_hash)
+                "Block {} is waiting for recovery in queuing service for {}".format(block_hash, self.connection.peer_desc)
             )
 
-        block_msg = self._blocks[block_hash]
-        # pyre-fixme[25]: `block_msg` has type `None`, assertion `block_msg` will always fail.
-        assert block_msg is not None
-        super(OntBlockQueuingService, self).send_block_to_nodes(
+        block_msg = cast(Union[BlockOntMessage, OntConsensusMessage], self.node.block_storage[block_hash])
+        super(OntBlockQueuingService, self).send_block_to_node(
             block_hash, block_msg
         )
         # TODO test remove_from_queue and EncBlockReceivedByGatewayFromNetwork stat event
@@ -163,12 +168,12 @@ class OntBlockQueuingService(
                 inv_type=InventoryOntType.MSG_BLOCK,
                 blocks=[block_hash],
             )
-            self.node.broadcast(inv_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+            self.connection.enqueue_msg(inv_msg)
         # pyre-fixme[25]: `block_msg` has type `OntConsensusMessage`,
         #  assertion `not isinstance(block_msg, bxgateway.messages.ont.consensus_ont_message.OntConsensusMessage)`
         #  will always fail.
         elif isinstance(block_msg, OntConsensusMessage):
-            self.node.broadcast(block_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+            self.connection.enqueue_msg(block_msg)
 
     def mark_blocks_seen_by_blockchain_node(
         self, block_hashes: List[Sha256Hash]
@@ -199,13 +204,12 @@ class OntBlockQueuingService(
         """
         this is similar to the one in abstract_block_queuing_service, with `if block_hash not in self._blocks` removed
         """
-        logger.trace("Removing block {} from queue.", block_hash)
+        self.connection.log_trace("Removing block {} from queue.", block_hash)
 
         for index in range(len(self._block_queue)):
             if self._block_queue[index][0] == block_hash:
                 del self._block_queue[index]
                 del self._blocks_waiting_for_recovery[block_hash]
-
                 return index
 
         return -1
@@ -236,7 +240,7 @@ class OntBlockQueuingService(
         for _ in range(max_count):
             if block_hash_ and block_hash_ in self._blocks:
                 yield block_hash_
-                block_msg = self._blocks[block_hash_]
+                block_msg = self.node.block_storage[block_hash_]
                 assert block_msg is not None
                 block_hash_ = block_msg.prev_block_hash()
             else:

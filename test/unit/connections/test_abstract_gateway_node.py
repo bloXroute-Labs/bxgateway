@@ -1,9 +1,12 @@
 import time
 from asyncio import Future
-from typing import Optional
+from typing import Optional, List
 from unittest import skip
 from mock import MagicMock, call
 
+from bxcommon.messages.abstract_block_message import AbstractBlockMessage
+from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.testing import gateway_helpers
 from bxcommon import constants
 from bxcommon.connections.connection_state import ConnectionState
@@ -13,7 +16,7 @@ from bxcommon.messages.bloxroute.ping_message import PingMessage
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
-from bxcommon.network.socket_connection_state import SocketConnectionState
+from bxcommon.network.socket_connection_state import SocketConnectionState, SocketConnectionStates
 from bxcommon.services import sdn_http_service
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -36,6 +39,29 @@ from bxgateway.gateway_opts import GatewayOpts
 from bxutils.services.node_ssl_service import NodeSSLService
 
 
+class MockPushBlockQueuingService(
+    PushBlockQueuingService[AbstractBlockMessage, AbstractMessage]
+):
+    def __init__(self, node, node_conn):
+        super().__init__(node, node_conn)
+        self.blocks_sent: List[Sha256Hash] = []
+
+    def build_block_header_message(
+        self, block_hash: Sha256Hash, _block_message: AbstractBlockMessage
+    ) -> AbstractMessage:
+        return AbstractMessage()
+
+    def get_previous_block_hash_from_message(
+        self, block_message: AbstractBlockMessage
+    ) -> Sha256Hash:
+        pass
+
+    def on_block_sent(
+        self, block_hash: Sha256Hash, _block_message: AbstractBlockMessage
+    ):
+        pass
+
+
 class GatewayNode(AbstractGatewayNode):
 
     def __init__(self, opts: GatewayOpts, node_ssl_service: Optional[NodeSSLService] = None):
@@ -44,8 +70,8 @@ class GatewayNode(AbstractGatewayNode):
         super().__init__(opts, node_ssl_service)
         self.requester = MagicMock()
 
-    def build_block_queuing_service(self) -> PushBlockQueuingService:
-        pass
+    def build_block_queuing_service(self, connection: AbstractGatewayBlockchainConnection) -> PushBlockQueuingService:
+        return MockPushBlockQueuingService(self, connection)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         pass
@@ -108,6 +134,40 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         blockchain_conn.state |= ConnectionState.ESTABLISHED
         self.assertTrue(node.has_active_blockchain_peer())
 
+    def test_last_active_blockchain_peer_queuing_service_not_destroyed(self):
+        opts = gateway_helpers.get_gateway_opts(8000, blockchain_address=(LOCALHOST, 8001))
+        node = GatewayNode(opts)
+
+        conn = MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001)
+        node.on_connection_added(conn)
+        self.assertEqual(1, len(list(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))))
+        blockchain_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
+        node.on_blockchain_connection_ready(blockchain_conn)
+        blockchain_conn.state |= ConnectionState.ESTABLISHED
+        self.assertTrue(node.has_active_blockchain_peer())
+        self.assertTrue(blockchain_conn in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
+
+        blockchain_conn2 = node.build_blockchain_connection(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
+        blockchain_conn2.CONNECTION_TYPE = ConnectionType.BLOCKCHAIN_NODE
+        node.connection_pool.add(2, LOCALHOST, 8002, blockchain_conn2)
+        self.assertEqual(2, len(list(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))))
+        blockchain_conn2 = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
+        node.on_blockchain_connection_ready(blockchain_conn2)
+        blockchain_conn2.state |= ConnectionState.ESTABLISHED
+        self.assertIsNotNone(node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn2))
+        self.assertTrue(blockchain_conn2 in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
+
+        node.on_blockchain_connection_destroyed(blockchain_conn2)
+        self.assertFalse(blockchain_conn2 in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
+        node.connection_pool.delete(blockchain_conn2)
+
+        node.on_blockchain_connection_destroyed(blockchain_conn)
+        self.assertTrue(blockchain_conn in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
+
+        node.block_queuing_service_manager.add_block_queuing_service = MagicMock()
+        node.on_blockchain_connection_ready(blockchain_conn)
+        node.block_queuing_service_manager.add_block_queuing_service.assert_not_called()
+
     def test_gateway_peer_sdn_update(self):
         # handle duplicates, keeps old, self ip, and maintain peers from CLI
         peer_gateways = [
@@ -159,7 +219,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.num_retries_by_ip[(LOCALHOST, 8001)] = MAX_CONNECT_RETRIES
         cli_peer_conn.state = ConnectionState.CONNECTING
         node._connection_timeout(cli_peer_conn)
-        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in mock_socket.state)
+        self.assertTrue(SocketConnectionStates.MARK_FOR_CLOSE in mock_socket.state)
 
         node.on_connection_closed(mock_socket.fileno())
         # timeout is fib(3) == 3
@@ -279,8 +339,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         sdn_http_service.submit_peer_connection_error_event.called_once_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in relay_transaction_conn.socket_connection.state)
-        self.assertTrue(SocketConnectionState.DO_NOT_RETRY in relay_transaction_conn.socket_connection.state)
+        self.assertTrue(SocketConnectionStates.MARK_FOR_CLOSE in relay_transaction_conn.socket_connection.state)
+        self.assertTrue(SocketConnectionStates.DO_NOT_RETRY in relay_transaction_conn.socket_connection.state)
 
     @async_test
     async def test_split_relay_no_reconnect_disconnect_transaction(self):
@@ -300,8 +360,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             sdn_http_service.submit_peer_connection_error_event.assert_called_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertTrue(SocketConnectionState.MARK_FOR_CLOSE in relay_block_conn.socket_connection.state)
-        self.assertTrue(SocketConnectionState.DO_NOT_RETRY in relay_block_conn.socket_connection.state)
+        self.assertTrue(SocketConnectionStates.MARK_FOR_CLOSE in relay_block_conn.socket_connection.state)
+        self.assertTrue(SocketConnectionStates.DO_NOT_RETRY in relay_block_conn.socket_connection.state)
 
     @async_test
     async def test_queuing_messages_no_remote_blockchain_connection(self):
@@ -436,11 +496,13 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[1]])
 
+        node.requester.send_threaded_request.reset_mock()
         node._register_potential_relay_peers(
             node._find_best_relay_peers(
                 network_latency.get_best_relays_by_ping_latency_one_per_country()
             )
         )
+        node.requester.send_threaded_request.assert_called()
         self.assertEqual(1, len(node.peer_relays))
         self.assertEqual(1, len(node.peer_transaction_relays))
         self.assertEqual(9001, next(iter(node.peer_relays)).port)
@@ -614,6 +676,12 @@ class AbstractGatewayNodeTest(AbstractTestCase):
 
             node.on_blockchain_connection_ready(blockchain_conn)
             self.assertIsNone(node._blockchain_liveliness_alarm)
+            block_queuing_service = node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn)
+            self.assertIsNotNone(block_queuing_service)
+            self.assertEqual(
+                block_queuing_service,
+                node.block_queuing_service_manager.get_designated_block_queuing_service()
+            )
 
         if initialize_relay_conn:
             node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))

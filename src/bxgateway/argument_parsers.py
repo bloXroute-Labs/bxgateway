@@ -2,10 +2,10 @@ import argparse
 import sys
 from typing import Tuple
 
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway import log_messages
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxutils import logging
 
 

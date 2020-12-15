@@ -1,7 +1,6 @@
 from typing import Optional
 
-import rlp
-
+import blxr_rlp as rlp
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxutils.logging.log_level import LogLevel

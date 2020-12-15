@@ -1,16 +1,22 @@
 from argparse import Namespace
-from unittest.mock import MagicMock
+from typing import cast
 
 from bxcommon import constants
+from bxcommon.connections.abstract_connection import AbstractConnection
 from bxcommon.models.node_type import NodeType
-from bxcommon.models.quota_type_model import QuotaType
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.test_utils.helpers import COOKIE_FILE_PATH, get_common_opts, \
     BTC_COMPACT_BLOCK_DECOMPRESS_MIN_TX_COUNT
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
+from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway import argument_parsers
 from bxgateway.gateway_opts import GatewayOpts
 
 
 # pylint: disable=unused-argument,too-many-branches
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
+
+
 def get_gateway_opts(
     port,
     node_id=None,
@@ -45,7 +51,7 @@ def get_gateway_opts(
     non_ssl_port: int = 9001,
     has_fully_updated_tx_service: bool = False,
     max_block_interval_s: float = 10,
-    default_tx_quota_type: QuotaType = QuotaType.FREE_DAILY_QUOTA,
+    default_tx_flag: TransactionFlag = TransactionFlag.NO_FLAGS,
     log_level_overrides=None,
     enable_network_content_logs=False,
     account_id=None,
@@ -58,7 +64,7 @@ def get_gateway_opts(
     request_remote_transaction_streaming: bool = False,
     enable_block_compression: bool = True,
     filter_txs_factor: float = 0,
-    blockchain_protocol: str = "Bitcoin",
+    blockchain_protocol: str = "Ethereum",
     should_restart_on_high_memory: bool = False,
     **kwargs,
 ) -> GatewayOpts:
@@ -138,7 +144,7 @@ def get_gateway_opts(
             "source_version": source_version,
             "require_blockchain_connection": True,
             "non_ssl_port": non_ssl_port,
-            "default_tx_quota_type": default_tx_quota_type,
+            "default_tx_flag": default_tx_flag,
             "should_update_source_version": False,
             "enable_network_content_logs": False,
             "enable_node_cache": True,
@@ -221,3 +227,10 @@ def get_gateway_opts(
         "blockchain_block_hold_timeout_s": blockchain_block_hold_timeout_s,
     })
     return gateway_opts
+
+
+def add_blockchain_peer(node: AbstractGatewayNode, connection: AbstractConnection):
+    node_conn = cast(AbstractGatewayBlockchainConnection, connection)
+    node.blockchain_peers.add(BlockchainPeerInfo(node_conn.peer_ip, node_conn.peer_port))
+    block_queuing_service = node.build_block_queuing_service(node_conn)
+    node.block_queuing_service_manager.add_block_queuing_service(node_conn, block_queuing_service)

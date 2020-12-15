@@ -5,13 +5,14 @@ from typing import Dict, Any, TYPE_CHECKING, Union, List, Optional
 from asyncio import QueueFull, Task
 from dataclasses import dataclass, asdict
 
+from bxcommon import constants
 from bxcommon.models.serializeable_enum import SerializeableEnum
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcError
 from bxcommon.rpc import rpc_constants
+from bxcommon.feed.feed import Feed
+from bxcommon.feed.subscriber import Subscriber
 
 from bxgateway import log_messages
-from bxgateway.feed.feed import Feed
-from bxgateway.feed.subscriber import Subscriber
 
 from bxgateway.utils.stats.eth_on_block_feed_stats_service import (
     eth_on_block_feed_stats_service,
@@ -166,11 +167,11 @@ class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
     FIELDS = ["name", "response", "block_height", "tag"]
     last_block_height: int
 
-    def __init__(self, node: "EthGatewayNode") -> None:
+    def __init__(self, node: "EthGatewayNode", network_num: int = constants.ALL_NETWORK_NUM,) -> None:
         self.node = node
         self.bad_subscribers = set()
         self.last_block_height = 0
-        super().__init__(self.NAME)
+        super().__init__(self.NAME, network_num)
 
     def subscribe(self, options: Dict[str, Any]) -> Subscriber[OnBlockFeedEntry]:
         call_params = options.get("call_params", [])
@@ -286,7 +287,7 @@ class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
             subscriber.queue(serialized_message)
         except QueueFull:
             logger.error(
-                log_messages.BAD_FEED_SUBSCRIBER, subscriber.subscription_id, self.name
+                log_messages.GATEWAY_BAD_FEED_SUBSCRIBER, subscriber.subscription_id, self.name
             )
             self.bad_subscribers.add(subscriber.subscription_id)
 

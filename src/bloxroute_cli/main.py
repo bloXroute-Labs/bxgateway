@@ -97,10 +97,8 @@ class RpcClient:
             "params": request_params
         }
         synchronous = True
-        lowercase_true = str(True).lower()
         if request_params:
-            synchronous = \
-                request_params.get(rpc_constants.SYNCHRONOUS_PARAMS_KEY, lowercase_true).lower() == lowercase_true
+            synchronous = request_params.get(rpc_constants.SYNCHRONOUS_PARAMS_KEY, True)
 
         if not synchronous and self.interactive:
             asyncio.create_task(
@@ -143,12 +141,11 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
     if merged_opts.command == RpcRequestType.BLXR_TX:
         if merged_opts.request_params is None and unrecognized_params:
             transaction_payload = unrecognized_params[0]
-            synchronous = str(True)
-            if len(unrecognized_params) > 1:
-                synchronous = unrecognized_params[1]
             merged_opts.request_params = {
                 rpc_constants.TRANSACTION_PARAMS_KEY: transaction_payload,
-                rpc_constants.SYNCHRONOUS_PARAMS_KEY: synchronous,
+                rpc_constants.SYNCHRONOUS_PARAMS_KEY: True,
+                rpc_constants.STATUS_TRACK_PARAMS_KEY: rpc_constants.STATUS_TRACK_PARAMS_KEY in unrecognized_params,
+                rpc_constants.NONCE_MONITORING_PARAMS_KEY: rpc_constants.NONCE_MONITORING_PARAMS_KEY in unrecognized_params,
                 rpc_constants.ACCOUNT_ID_PARAMS_KEY: opts.account_id if opts.cloud_api else opts.rpc_user,
                 rpc_constants.BLOCKCHAIN_PROTOCOL_PARAMS_KEY: opts.blockchain_protocol,
                 rpc_constants.BLOCKCHAIN_NETWORK_PARAMS_KEY: opts.blockchain_network
@@ -164,9 +161,10 @@ def merge_params(opts: Namespace, unrecognized_params: List[str]) -> Namespace:
     elif merged_opts.command == RpcRequestType.TX_SERVICE:
         if merged_opts.request_params is None and unrecognized_params:
             merged_opts.request_params = {rpc_constants.TX_SERVICE_FILE_NAME_PARAMS_KEY: unrecognized_params[0]}
-    elif merged_opts.command == RpcRequestType.ADD_BLOCKCHAIN_PEER:
+    elif merged_opts.command == RpcRequestType.ADD_BLOCKCHAIN_PEER or \
+            merged_opts.command == RpcRequestType.REMOVE_BLOCKCHAIN_PEER:
         if merged_opts.request_params is None and unrecognized_params:
-            merged_opts.request_params = {rpc_constants.ADD_BLOCKCHAIN_PEER_PARAMS_KEY: unrecognized_params[0]}
+            merged_opts.request_params = {rpc_constants.BLOCKCHAIN_PEER_PARAMS_KEY: unrecognized_params[0]}
 
     return merged_opts
 

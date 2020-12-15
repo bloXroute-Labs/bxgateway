@@ -1,36 +1,40 @@
-from typing import Set, TYPE_CHECKING
+from typing import Set, TYPE_CHECKING, cast
 
+from bxcommon import constants
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon.feed.feed import Feed
+from bxcommon.feed.feed_source import FeedSource
 
 from bxgateway import gateway_constants
 
-from bxgateway.feed.feed import Feed
 from bxgateway.feed.eth.eth_block_feed_entry import EthBlockFeedEntry
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
-from bxgateway.feed.feed_source import FeedSource
+from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
+from bxutils import logging
 
 if TYPE_CHECKING:
     from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 
-from bxutils import logging
-
 MAX_BLOCK_BACKLOG_TO_PUBLISH = 10
-
 logger = logging.get_logger(__name__)
+
+# Note: Block feed normal use case is only supported for gateways with a single blockchain connection
+# i.e. Multi-node gateway users cannot assume the block has been accepted to their Ethereum instance
 
 
 class EthNewBlockFeed(Feed[EthBlockFeedEntry, EthRawBlock]):
     NAME = "newBlocks"
     FIELDS = ["hash", "header", "transactions", "uncles"]
+    ALL_FIELDS = FIELDS
     VALID_SOURCES = {
         FeedSource.BLOCKCHAIN_SOCKET, FeedSource.BLOCKCHAIN_RPC, FeedSource.BDN_SOCKET, FeedSource.BDN_INTERNAL
     }
     published_blocks: ExpiringSet[Sha256Hash]
     published_blocks_height: ExpiringSet[int]
 
-    def __init__(self, node: "EthGatewayNode") -> None:
-        super().__init__(self.NAME)
+    def __init__(self, node: "EthGatewayNode", network_num: int = constants.ALL_NETWORK_NUM,) -> None:
+        super().__init__(self.NAME, network_num=network_num)
         self.last_block_number = 0
         self.hash_for_last_block_number = set()
         self.node = node
@@ -48,8 +52,15 @@ class EthNewBlockFeed(Feed[EthBlockFeedEntry, EthRawBlock]):
 
     def publish_blocks_from_queue(self, start_block_height, end_block_height) -> Set[int]:
         missing_blocks = set()
+        block_queuing_service = cast(
+            EthBlockQueuingService,
+            self.node.block_queuing_service_manager.get_designated_block_queuing_service()
+        )
+        if block_queuing_service is None:
+            return missing_blocks
+
         for block_number in range(start_block_height, end_block_height):
-            block_hash = self.node.block_queuing_service.accepted_block_hash_at_height.contents.get(block_number)
+            block_hash = block_queuing_service.accepted_block_hash_at_height.contents.get(block_number)
             if block_hash:
                 self.publish(
                     EthRawBlock(
@@ -84,9 +95,16 @@ class EthNewBlockFeed(Feed[EthBlockFeedEntry, EthRawBlock]):
             return
 
         if raw_message.block is None:
+            block_queuing_service = cast(
+                EthBlockQueuingService,
+                self.node.block_queuing_service_manager.get_designated_block_queuing_service()
+            )
+            best_accepted_height, _ = block_queuing_service.best_accepted_block
+
             logger.warning(
-                "{} Feed Failed to recover block for message: {}",
-                self.name, raw_message
+                "{} Feed Failed to recover block for message: {},"
+                "last_block_published {} last block in queueing service {}",
+                self.name, raw_message, self.last_block_number, best_accepted_height
             )
             return
 

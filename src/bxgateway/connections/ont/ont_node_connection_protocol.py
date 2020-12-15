@@ -92,7 +92,9 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
             )
             self.connection.enqueue_msg(get_data, prepend=contains_block)
 
-        self.node.block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
+        block_queuing_service = self.node.block_queuing_service_manager.get_block_queuing_service(self.connection)
+        if block_queuing_service is not None:
+            block_queuing_service.mark_blocks_seen_by_blockchain_node(block_hashes)
 
     def msg_get_data(self, msg: GetDataOntMessage) -> None:
         inventory_type, item_hash = msg.inv_type()
@@ -106,10 +108,15 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                     self.node.opts.blockchain_network
                 )
             )
-        self.node.block_queuing_service.send_block_to_nodes(item_hash)
+        block_queuing_service = self.node.block_queuing_service_manager.get_block_queuing_service(self.connection)
+        if block_queuing_service is not None:
+            block_queuing_service.send_block_to_node(item_hash)
 
     def msg_get_headers(self, msg: GetHeadersOntMessage):
-        send_successful = self.node.block_queuing_service.try_send_header_to_node(msg.hash_stop())
+        block_queuing_service = self.node.block_queueing_service_manager.get_block_queuing_service(self.connection)
+        send_successful = False
+        if block_queuing_service is not None:
+            send_successful = block_queuing_service.try_send_header_to_node(msg.hash_stop())
         if not send_successful:
             self.msg_proxy_request(msg, self.connection)
 
@@ -152,6 +159,7 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
                                                   )
 
         if block_hash in self.connection.node.blocks_seen.contents:
+            self.node.on_block_seen_by_blockchain_node(block_hash, self.connection)
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
                                                       network_num=self.connection.network_num,

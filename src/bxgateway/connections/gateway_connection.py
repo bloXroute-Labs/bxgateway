@@ -4,19 +4,19 @@ from typing import TYPE_CHECKING, cast, Optional
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.services import sdn_http_service
 from bxcommon.utils import crypto
-from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxcommon.feed.feed_source import FeedSource
 from bxgateway import gateway_constants
 from bxgateway import log_messages
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import FeedSource
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
@@ -196,20 +196,21 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def msg_confirmed_tx(self, msg: ConfirmedTxMessage) -> None:
         tx_hash = msg.tx_hash()
+        transaction_key = self.node.get_tx_service().get_transaction_key(tx_hash)
         tx_contents = msg.tx_val()
 
         # shouldn't ever happen, but just in case
         if tx_contents == ConfirmedTxMessage.EMPTY_TX_VAL:
             tx_contents = cast(
                 Optional[memoryview],
-                self.node.get_tx_service().get_transaction_by_hash(tx_hash)
+                self.node.get_tx_service().get_transaction_by_key(transaction_key)
             )
             if tx_contents is None:
                 transaction_feed_stats_service.log_pending_transaction_missing_contents()
                 return
 
         self.node.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME,
+            FeedKey(EthPendingTransactionFeed.NAME),
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BDN_SOCKET)
         )
 

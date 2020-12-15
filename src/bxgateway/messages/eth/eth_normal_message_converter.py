@@ -65,7 +65,8 @@ class EthNormalMessageConverter(EthAbstractMessageConverter):
             tx_bytes = txs_bytes[tx_start_index:tx_item_start + tx_item_length]
             tx_hash_bytes = eth_common_utils.keccak_hash(tx_bytes)
             tx_hash = Sha256Hash(tx_hash_bytes)
-            short_id = tx_service.get_short_id(tx_hash)
+            tx_key = tx_service.get_transaction_key(tx_hash)
+            short_id = tx_service.get_short_id_by_key(tx_key)
             short_id_assign_time = 0
 
             if short_id != constants.NULL_TX_SID:

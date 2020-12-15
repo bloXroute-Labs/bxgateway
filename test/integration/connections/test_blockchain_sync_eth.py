@@ -11,7 +11,7 @@ from bxgateway.connections.eth.eth_remote_connection import EthRemoteConnection
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_factory import EthProtocolMessageFactory
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
-from bxgateway.testing import spies
+from bxgateway.testing import spies, gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.utils.eth import frame_utils
 
@@ -40,8 +40,10 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
 
         self.gateway_node._node_public_key = eth_node_public_key
         self.gateway_node._remote_public_key = eth_node_public_key
+
         self.eth_node_connection = spies.make_spy_connection(EthNodeConnection, self.local_node_fileno,
                                                              self.local_blockchain_port, self.gateway_node)
+
         self.eth_node_connection_2 = spies.make_spy_connection(EthNodeConnection, self.local_node_fileno_2,
                                                                self.local_blockchain_port_2, self.gateway_node)
         self.eth_remote_node_connection = spies.make_spy_connection(EthRemoteConnection, self.remote_node_fileno, 8003,

@@ -5,6 +5,7 @@ from typing import Dict, Optional
 from asynctest import patch
 
 from bxcommon import constants
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -13,11 +14,11 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test, AsyncMock
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import FeedSource
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxcommon.feed.new_transaction_feed import FeedSource
 from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
@@ -66,7 +67,7 @@ def verify_compare_tx_feed_script_results_exclude_duplicates(
     reset_compare_tx_feed_script_global_state()
 
 
-def verify_compare_tx_feed_script_results_not_include_from_blockchain(
+def verify_compare_tx_feed_script_results_exclude_from_blockchain(
     seen_hashes: Dict[str, compare_tx_feeds.HashEntry], ignore_delta: int, verbose: bool
 ) -> None:
     assert (len(seen_hashes) == 0)
@@ -111,7 +112,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
                 feed_source
             )
             self.gateway_node.feed_manager.publish_to_feed(
-                "newTxs", eth_transaction
+                FeedKey("newTxs"), eth_transaction
             )
             await asyncio.sleep(0.03)
 
@@ -123,7 +124,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
                 eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
             )
             self.gateway_node.feed_manager.publish_to_feed(
-                "pendingTxs", eth_transaction
+                FeedKey("pendingTxs"), eth_transaction
             )
             await asyncio.sleep(0.03)
 
@@ -135,7 +136,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
         await asyncio.sleep(1)
         for _ in range(20):
             self.gateway_node.feed_manager.publish_to_feed(
-                "pendingTxs", eth_transaction
+                FeedKey("pendingTxs"), eth_transaction
             )
             await asyncio.sleep(0.03)
 
@@ -243,7 +244,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
 
     @async_test(3)
     @patch("bloxroute_cli.compare_tx_feeds.stats", verify_compare_tx_feed_script_results)
-    async def test_compare_tx_feeds_script_new_txs_include_from_blockchain(self):
+    async def test_compare_tx_feeds_script_new_txs_include_from_blockchain_default(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
             EthNewTransactionFeed()
@@ -255,8 +256,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
             "--num-intervals", "1",
             "--interval", "2",
             "--lead-time", "0",
-            "--trail-time", "0",
-            "--include-from-blockchain"
+            "--trail-time", "0"
         ]
         compare_tx_feeds.process_new_txs_eth = AsyncMock()
         asyncio.create_task(self.send_tx_to_new_txs_feed(FeedSource.BLOCKCHAIN_SOCKET))
@@ -266,8 +266,8 @@ class CompareTxFeedScriptTest(AbstractTestCase):
             pass
 
     @async_test(3)
-    @patch("bloxroute_cli.compare_tx_feeds.stats", verify_compare_tx_feed_script_results_not_include_from_blockchain)
-    async def test_compare_tx_feeds_script_new_txs_not_include_from_blockchain(self):
+    @patch("bloxroute_cli.compare_tx_feeds.stats", verify_compare_tx_feed_script_results_exclude_from_blockchain)
+    async def test_compare_tx_feeds_script_new_txs_exclude_from_blockchain(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
             EthNewTransactionFeed()
@@ -280,6 +280,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
             "--interval", "2",
             "--lead-time", "0",
             "--trail-time", "0",
+            "--exclude-from-blockchain"
         ]
         compare_tx_feeds.process_new_txs_eth = AsyncMock()
         asyncio.create_task(self.send_tx_to_new_txs_feed(FeedSource.BLOCKCHAIN_SOCKET))

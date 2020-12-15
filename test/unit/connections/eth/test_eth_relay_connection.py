@@ -2,6 +2,7 @@ from asynctest import MagicMock
 
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import LOCALHOST
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
@@ -9,8 +10,8 @@ from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
-from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import NewTransactionFeed, FeedSource
+from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxcommon.feed.new_transaction_feed import NewTransactionFeed, FeedSource
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
 from bxgateway.testing import gateway_helpers
@@ -41,7 +42,7 @@ class EthRelayConnectionTest(AbstractTestCase):
             bx_tx_message.tx_hash(), bx_tx_message.tx_val(), FeedSource.BDN_SOCKET
         )
         self.node.feed_manager.publish_to_feed.assert_called_once_with(
-            NewTransactionFeed.NAME, expected_publication
+            FeedKey(NewTransactionFeed.NAME), expected_publication
         )
 
     def test_publish_new_transaction_low_gas(self):
@@ -74,7 +75,7 @@ class EthRelayConnectionTest(AbstractTestCase):
             TransactionsEthProtocolMessage(None, [mock_eth_messages.get_dummy_transaction(1, 15)])
         )
         self.connection.msg_tx(expensive_tx)
-        self.node.broadcast.assert_called_once()
+        self._assert_tx_sent()
 
     def _convert_to_bx_message(self, transactions_eth_msg: TransactionsEthProtocolMessage) -> TxMessage:
         bx_tx_message, _, _ = self.node.message_converter.tx_to_bx_txs(
@@ -90,3 +91,14 @@ class EthRelayConnectionTest(AbstractTestCase):
         self.node.requester.send_threaded_request = MagicMock()
         self.node.on_blockchain_connection_ready(blockchain_conn)
         self.assertIsNone(self.node._blockchain_liveliness_alarm)
+
+    def _assert_tx_sent(self):
+        self.node.broadcast.assert_called_once()
+        calls = self.node.broadcast.call_args_list
+
+        ((sent_tx_msg,), connection_info) = calls[0]
+        self.assertIsInstance(sent_tx_msg, TransactionsEthProtocolMessage)
+        connection_types = connection_info["connection_types"]
+        self.assertEqual(len(connection_types), 1)
+        connection_type = connection_types[0]
+        self.assertEqual(connection_type, ConnectionType.BLOCKCHAIN_NODE)

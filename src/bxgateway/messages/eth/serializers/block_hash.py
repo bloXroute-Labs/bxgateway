@@ -1,5 +1,4 @@
-import rlp
-
+import blxr_rlp as rlp
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 
 

@@ -31,13 +31,14 @@ class OntBlockPropagationTest(AbstractGatewayIntegrationTest):
             12345, 123, helpers.generate_bytearray(250)
         )
         transaction_hash = initial_message.tx_hash()
+        transaction_key = self.gateway_1._tx_service.get_transaction_key(transaction_hash)
         self.gateway_1_receive_message_from_blockchain(initial_message)
 
         time.time = MagicMock(return_value=time.time() + 1)
         self.gateway_1.alarm_queue.fire_alarms()
 
-        self.assertTrue(self.gateway_1._tx_service.has_transaction_contents(transaction_hash))
-        self.assertFalse(self.gateway_1._tx_service.has_transaction_short_id(transaction_hash))
+        self.assertTrue(self.gateway_1._tx_service.has_transaction_contents_by_key(transaction_key))
+        self.assertFalse(self.gateway_1._tx_service.has_transaction_short_id_by_key(transaction_key))
 
         messages_for_relay = self.gateway_1_get_queued_messages_for_relay()
         self.assertEqual(1, len(messages_for_relay))
@@ -50,9 +51,9 @@ class OntBlockPropagationTest(AbstractGatewayIntegrationTest):
                                              tx_val=tx_message.tx_val())
         self.gateway_2_receive_message_from_relay(tx_message_with_short_id)
 
-        self.assertTrue(self.gateway_2._tx_service.has_transaction_contents(transaction_hash))
-        self.assertTrue(self.gateway_2._tx_service.has_transaction_short_id(transaction_hash))
-        self.assertEqual(10, self.gateway_2._tx_service.get_short_id(transaction_hash))
+        self.assertTrue(self.gateway_2._tx_service.has_transaction_contents_by_key(transaction_key))
+        self.assertTrue(self.gateway_2._tx_service.has_transaction_short_id_by_key(transaction_key))
+        self.assertEqual(10, self.gateway_2._tx_service.get_short_id_by_key(transaction_key))
 
         messages_for_blockchain = self.gateway_2_get_queued_messages_for_blockchain()
         self.assertEqual(1, len(messages_for_blockchain))

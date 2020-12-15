@@ -4,18 +4,18 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Dict, Any, TYPE_CHECKING, List, Type
 
+from bxcommon.feed.feed import FeedKey
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.statistics_service import StatisticsService, StatsIntervalData
 from bxgateway import gateway_constants
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxutils import logging
 from bxutils.logging import LogRecordType
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
-    from bxcommon.connections.abstract_node import AbstractNode
 
 
 @dataclass
@@ -83,12 +83,15 @@ class TransactionFeedStatsService(
         node = self.node
         assert node is not None
         feeds = node.feed_manager.feeds
-        if EthPendingTransactionFeed.NAME in feeds:
-            pending_transaction_feed_subscribers = len(feeds[EthPendingTransactionFeed.NAME].subscribers)
+
+        pending_transaction_feed = node.feed_manager.get_feed(FeedKey(EthPendingTransactionFeed.NAME))
+        if pending_transaction_feed:
+            pending_transaction_feed_subscribers = len(pending_transaction_feed.subscribers)
         else:
             pending_transaction_feed_subscribers = None
-        if EthNewTransactionFeed.NAME in feeds:
-            new_transaction_feed_subscribers = len(feeds[EthNewTransactionFeed.NAME].subscribers)
+        new_transaction_feed = node.feed_manager.get_feed(FeedKey(EthNewTransactionFeed.NAME))
+        if new_transaction_feed:
+            new_transaction_feed_subscribers = len(new_transaction_feed.subscribers)
         else:
             new_transaction_feed_subscribers = None
 

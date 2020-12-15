@@ -10,6 +10,7 @@ from bxgateway.messages.ont.block_ont_message import BlockOntMessage
 from bxgateway.messages.ont.get_data_ont_message import GetDataOntMessage
 from bxgateway.messages.ont.inventory_ont_message import InventoryOntType
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+from bxgateway.services.ont.ont_block_queuing_service import OntBlockQueuingService
 
 if TYPE_CHECKING:
     from bxgateway.connections.ont.ont_gateway_node import OntGatewayNode
@@ -43,10 +44,11 @@ class AbstractOntBlockCleanupService(AbstractBlockCleanupService):
 
     def clean_block_transactions_from_block_queue(
             self,
-            block_hash: Sha256Hash
+            block_hash: Sha256Hash,
+            block_queuing_service: OntBlockQueuingService
     ) -> None:
-        if block_hash in self.node.block_queuing_service._blocks:
-            block_msg = self.node.block_queuing_service._blocks[block_hash]
+        if block_hash in block_queuing_service:
+            block_msg = self.node.block_queuing_service_manager.get_block_data(block_hash)
             self.node.block_cleanup_service.clean_block_transactions(
                 transaction_service=self.node.get_tx_service(),
                 block_msg=block_msg

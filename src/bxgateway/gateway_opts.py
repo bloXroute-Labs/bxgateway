@@ -7,18 +7,19 @@ from typing import Optional, Set, Dict
 
 from bxcommon import constants
 from bxcommon.common_opts import CommonOpts
+from bxcommon.rpc import rpc_constants
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.utils import ip_resolver, node_cache
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxcommon.utils.convert import hex_to_bytes
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.blockchain_network_model import BlockchainNetworkModel
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
-from bxcommon.models.quota_type_model import QuotaType
 from bxgateway import argument_parsers
 from bxgateway import gateway_constants
 from bxgateway import log_messages
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
 from bxgateway.utils.eth.eccx import ECCx
 from bxutils import logging
 
@@ -75,7 +76,7 @@ class GatewayOpts(CommonOpts):
     initial_liveliness_check: int
     config_update_interval: int
     require_blockchain_connection: bool
-    default_tx_quota_type: QuotaType
+    default_tx_flag: TransactionFlag
     should_update_source_version: bool
     account_model: Optional[BdnAccountModelBase]
     process_node_txs_in_extension: bool
@@ -248,6 +249,12 @@ class GatewayOpts(CommonOpts):
         if self.blockchain_peers:
             for blockchain_peer in self.blockchain_peers:
                 blockchain_peer.ip = validate_blockchain_ip(blockchain_peer.ip, self.is_docker)
+        if self.rpc_host == rpc_constants.DEFAULT_RPC_HOST and self.is_docker:
+            docker_host = get_docker_host()
+            if docker_host:
+                self.rpc_host = docker_host
+            else:
+                self.rpc_host = rpc_constants.DEFAULT_RPC_HOST
 
 
 def get_sdn_hostname(sdn_url: str) -> str:
@@ -256,6 +263,18 @@ def get_sdn_hostname(sdn_url: str) -> str:
         new_sdn_url = sdn_url.split("://")[1]
 
     return new_sdn_url
+
+
+def get_docker_host() -> Optional[str]:
+    with open('/etc/hosts', "r") as f:
+        host_list = f.readlines()
+        for host in host_list:
+            if "172" in host:
+                end_idx = 0
+                for char in host:
+                    if not char.isnumeric() and char != '.':
+                        return host[:end_idx]
+                    end_idx += 1
 
 
 def validate_pub_key(key) -> None:

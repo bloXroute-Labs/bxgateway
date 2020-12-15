@@ -1,6 +1,7 @@
 import time
 from mock import MagicMock
 
+from bxcommon.network.ip_endpoint import IpEndpoint
 from bxgateway.testing import gateway_helpers
 from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.messages.bloxroute.broadcast_message import BroadcastMessage
@@ -15,7 +16,6 @@ from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
-from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_connection_protocol import EthNodeConnectionProtocol
 import bxgateway.messages.eth.eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
@@ -35,10 +35,9 @@ def _block_with_timestamp(timestamp):
     return block
 
 
-class GatewayTransactionStatsServiceTest(AbstractTestCase):
+class GatewayBdnPerformanceStatsTest(AbstractTestCase):
     def setUp(self):
         self.node = MockGatewayNode(
-
             gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True, use_extensions=True),
             block_queueing_cls=MagicMock())
         self.node.message_converter = converter_factory.create_eth_message_converter(self.node.opts)
@@ -53,22 +52,46 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             1234, include_default_eth_args=True, blockchain_address=(local_ip, eth_port), pub_key=convert.bytes_to_hex(dummy_public_key)
         )
         self.eth_node = EthGatewayNode(eth_opts, node_ssl_service)
-        self.node.node_conn = EthNodeConnection(
-            MockSocketConnection(node=self.node, ip_address=local_ip, port=eth_port), self.eth_node)
-
         self.blockchain_connection = EthBaseConnection(
-            MockSocketConnection(node=self.node, ip_address=local_ip, port=333), self.node)
+            MockSocketConnection(node=self.node, ip_address=local_ip, port=30303), self.node)
         self.blockchain_connection.state = ConnectionState.ESTABLISHED
-        self.node.node_conn = self.blockchain_connection
+        self.node.connection_pool.add(
+            19, local_ip, eth_port, self.blockchain_connection
+        )
 
-        self.blockchain_connection.network_num = 0
+        self.blockchain_connection_1 = EthBaseConnection(
+            MockSocketConnection(node=self.node, ip_address=local_ip, port=333), self.node)
+        self.blockchain_connection_1.state = ConnectionState.ESTABLISHED
+        self.node.mock_add_blockchain_peer(self.blockchain_connection_1)
+        self.node_1_endpoint = IpEndpoint(local_ip, 333)
+        self.node.connection_pool.add(
+            20, self.node_1_endpoint.ip_address, self.node_1_endpoint.port, self.blockchain_connection_1
+        )
+
+        self.blockchain_connection_2 = EthBaseConnection(
+            MockSocketConnection(node=self.node, ip_address=local_ip, port=444), self.node)
+        self.blockchain_connection_2.state = ConnectionState.ESTABLISHED
+        self.node.mock_add_blockchain_peer(self.blockchain_connection_2)
+        self.node_2_endpoint = IpEndpoint(local_ip, 444)
+        self.node.connection_pool.add(
+            21, self.node_2_endpoint.ip_address, self.node_2_endpoint.port, self.blockchain_connection_2
+        )
+
+        self.blockchain_connection_1.network_num = 0
 
         self.tx_blockchain_connection_protocol = EthNodeConnectionProtocol(
-            self.blockchain_connection, True, dummy_private_key, dummy_public_key)
+            self.blockchain_connection_1, True, dummy_private_key, dummy_public_key)
         self.block_blockchain_connection_protocol = EthNodeConnectionProtocol(
-            self.blockchain_connection, True, dummy_private_key, dummy_public_key)
+            self.blockchain_connection_1, True, dummy_private_key, dummy_public_key)
         self.tx_blockchain_connection_protocol.publish_transaction = MagicMock()
         self.block_blockchain_connection_protocol.publish_transaction = MagicMock()
+
+        self.tx_blockchain_connection_protocol_2 = EthNodeConnectionProtocol(
+            self.blockchain_connection_2, True, dummy_private_key, dummy_public_key)
+        self.block_blockchain_connection_protocol_2 = EthNodeConnectionProtocol(
+            self.blockchain_connection_2, True, dummy_private_key, dummy_public_key)
+        self.tx_blockchain_connection_protocol_2.publish_transaction = MagicMock()
+        self.block_blockchain_connection_protocol_2.publish_transaction = MagicMock()
 
         self.relay_connection = AbstractRelayConnection(
             MockSocketConnection(node=self.node, ip_address=local_ip, port=12345), self.node
@@ -86,7 +109,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
         self.relay_connection.msg_tx(full_message)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_bdn)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        for stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.values():
+            self.assertEqual(1, stats.new_tx_received_from_bdn)
 
     def test_bdn_stats_tx_new_full_from_bdn_ignore_duplicate(self):
         short_id = 1
@@ -98,7 +123,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.relay_connection.msg_tx(full_message)
         self.relay_connection.msg_tx(full_message)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_bdn)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        for stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.values():
+            self.assertEqual(1, stats.new_tx_received_from_bdn)
 
     def test_bdn_stats_tx_new_from_node_low_fee(self):
         self.node.opts.blockchain_networks[self.node.network_num].min_tx_network_fee = 500
@@ -112,9 +139,19 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         tx_msg = TransactionsEthProtocolMessage(None, txs)
         self.assertEqual(1, len(tx_msg.get_transactions()))
         self.tx_blockchain_connection_protocol.msg_tx(tx_msg)
-        self.assertEqual(0, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node)
+
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        node_1_stats = gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats[
+            self.node_1_endpoint
+        ]
+        for endpoint, stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.items():
+            if endpoint == self.node_1_endpoint:
+                continue
+            self.assertEqual(0, stats.new_tx_received_from_bdn)
+
+        self.assertEqual(0, node_1_stats.new_tx_received_from_blockchain_node)
         self.assertEqual(
-            1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node_low_fee
+            1, node_1_stats.new_tx_received_from_blockchain_node_low_fee
         )
 
     def test_bdn_stats_tx_new_from_node(self):
@@ -125,7 +162,16 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
         self.tx_blockchain_connection_protocol.msg_tx(tx_msg)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        node_1_stats = gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats[
+            self.node_1_endpoint
+        ]
+        for endpoint, stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.items():
+            if endpoint == self.node_1_endpoint:
+                continue
+            self.assertEqual(1, stats.new_tx_received_from_bdn)
+
+        self.assertEqual(1, node_1_stats.new_tx_received_from_blockchain_node)
 
     def test_bdn_stats_tx_new_from_node_ignore_duplicate(self):
         txs = [
@@ -136,7 +182,36 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.tx_blockchain_connection_protocol.msg_tx(tx_msg)
         self.tx_blockchain_connection_protocol.msg_tx(tx_msg)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        node_1_stats = gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats[
+            self.node_1_endpoint
+        ]
+        for endpoint, stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.items():
+            if endpoint == self.node_1_endpoint:
+                continue
+            self.assertEqual(1, stats.new_tx_received_from_bdn)
+
+        self.assertEqual(1, node_1_stats.new_tx_received_from_blockchain_node)
+
+    def test_bdn_stats_tx_new_from_node_ignore_duplicate_from_second_node(self):
+        txs = [
+            mock_eth_messages.get_dummy_transaction(1),
+        ]
+        tx_msg = TransactionsEthProtocolMessage(None, txs)
+
+        self.tx_blockchain_connection_protocol.msg_tx(tx_msg)
+        self.tx_blockchain_connection_protocol_2.msg_tx(tx_msg)
+
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        node_1_stats = gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats[
+            self.node_1_endpoint
+        ]
+        for endpoint, stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.items():
+            if endpoint == self.node_1_endpoint:
+                continue
+            self.assertEqual(1, stats.new_tx_received_from_bdn)
+
+        self.assertEqual(1, node_1_stats.new_tx_received_from_blockchain_node)
 
     def test_bdn_stats_tx_new_full_from_bdn_ignore_from_node(self):
         blockchain_node_txs = [
@@ -150,8 +225,10 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
         self.tx_blockchain_connection_protocol.msg_tx(blockchain_node_tx_msg)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_bdn)
-        self.assertEqual(0, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        for stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.values():
+            self.assertEqual(1, stats.new_tx_received_from_bdn)
+            self.assertEqual(0, stats.new_tx_received_from_blockchain_node)
 
     def test_bdn_stats_tx_new_from_node_ignore_from_bdn(self):
         blockchain_node_txs = [
@@ -167,8 +244,17 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             relay_full_message = TxMessage(message_hash=tx_hash, network_num=1, short_id=1, tx_val=tx_bytes)
             self.relay_connection.msg_tx(relay_full_message)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node)
-        self.assertEqual(0, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_bdn)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        node_1_stats = gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats[
+            self.node_1_endpoint
+        ]
+        for endpoint, stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.items():
+            if endpoint == self.node_1_endpoint:
+                continue
+            self.assertEqual(1, stats.new_tx_received_from_bdn)
+            self.assertEqual(0, stats.new_tx_received_from_blockchain_node)
+        self.assertEqual(1, node_1_stats.new_tx_received_from_blockchain_node)
+        self.assertEqual(0, node_1_stats.new_tx_received_from_bdn)
 
     def test_bdn_stats_tx_ignore_new_compact_from_bdn_log_new_from_node(self):
         blockchain_node_txs = [
@@ -182,8 +268,17 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
         self.tx_blockchain_connection_protocol.msg_tx(blockchain_node_tx_msg)
 
-        self.assertEqual(0, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_bdn)
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_tx_received_from_blockchain_node)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        node_1_stats = gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats[
+            self.node_1_endpoint
+        ]
+        for endpoint, stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.items():
+            if endpoint == self.node_1_endpoint:
+                continue
+            self.assertEqual(1, stats.new_tx_received_from_bdn)
+
+        self.assertEqual(1, node_1_stats.new_tx_received_from_blockchain_node)
+        self.assertEqual(0, node_1_stats.new_tx_received_from_bdn)
 
     def test_bdn_stats_block_new_from_node(self):
         block_msg = NewBlockEthProtocolMessage(
@@ -196,7 +291,16 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         block_msg.serialize()
         self.block_blockchain_connection_protocol.msg_block(block_msg)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_blocks_received_from_blockchain_node)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        node_1_stats = gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats[
+            self.node_1_endpoint
+        ]
+        for endpoint, stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.items():
+            if endpoint == self.node_1_endpoint:
+                continue
+            self.assertEqual(1, stats.new_blocks_received_from_bdn)
+
+        self.assertEqual(1, node_1_stats.new_blocks_received_from_blockchain_node)
 
     def test_bdn_stats_block_new_from_node_ignore_duplicate(self):
         block_msg = NewBlockEthProtocolMessage(
@@ -210,7 +314,16 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.block_blockchain_connection_protocol.msg_block(block_msg)
         self.block_blockchain_connection_protocol.msg_block(block_msg)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_blocks_received_from_blockchain_node)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        node_1_stats = gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats[
+            self.node_1_endpoint
+        ]
+        for endpoint, stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.items():
+            if endpoint == self.node_1_endpoint:
+                continue
+            self.assertEqual(1, stats.new_blocks_received_from_bdn)
+
+        self.assertEqual(1, node_1_stats.new_blocks_received_from_blockchain_node)
 
     def test_bdn_stats_block_new_from_bdn(self):
         block_msg = mock_eth_messages.new_block_eth_protocol_message(21, 1017)
@@ -223,7 +336,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
         self.relay_connection.msg_broadcast(broadcast_msg)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_blocks_received_from_bdn)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        for stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.values():
+            self.assertEqual(1, stats.new_blocks_received_from_bdn)
 
     def test_bdn_stats_block_new_from_bdn_ignore_duplicate(self):
         block_msg = mock_eth_messages.new_block_eth_protocol_message(21, 1017)
@@ -237,7 +352,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.relay_connection.msg_broadcast(broadcast_msg)
         self.relay_connection.msg_broadcast(broadcast_msg)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_blocks_received_from_bdn)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        for stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.values():
+            self.assertEqual(1, stats.new_blocks_received_from_bdn)
 
     def test_bdn_stats_block_new_from_bdn_ignore_from_node(self):
         block_msg = NewBlockEthProtocolMessage(
@@ -261,8 +378,10 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         block_msg.serialize()
         self.block_blockchain_connection_protocol.msg_block(block_msg)
 
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_blocks_received_from_bdn)
-        self.assertEqual(0, gateway_bdn_performance_stats_service.interval_data.new_blocks_received_from_blockchain_node)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        for stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.values():
+            self.assertEqual(1, stats.new_blocks_received_from_bdn)
+            self.assertEqual(0, stats.new_blocks_received_from_blockchain_node)
 
     def test_bdn_stats_block_new_from_node_ignore_from_bdn(self):
         block_msg = NewBlockEthProtocolMessage(
@@ -284,5 +403,14 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
         self.relay_connection.msg_broadcast(broadcast_msg)
 
-        self.assertEqual(0, gateway_bdn_performance_stats_service.interval_data.new_blocks_received_from_bdn)
-        self.assertEqual(1, gateway_bdn_performance_stats_service.interval_data.new_blocks_received_from_blockchain_node)
+        self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
+        node_1_stats = gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats[
+            self.node_1_endpoint
+        ]
+        for endpoint, stats in gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats.items():
+            if endpoint == self.node_1_endpoint:
+                continue
+            self.assertEqual(1, stats.new_blocks_received_from_bdn)
+
+        self.assertEqual(1, node_1_stats.new_blocks_received_from_blockchain_node)
+        self.assertEqual(0, node_1_stats.new_blocks_received_from_bdn)

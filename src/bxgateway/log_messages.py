@@ -364,13 +364,13 @@ ETH_WS_SUBSCRIBER_NOT_STARTED = LogMessage(
     "Ethereum node, which may provide better performance. Considering starting your gateway with "
     "--eth-ws-uri ws://[ip_address]:[port] for faster transaction streaming."
 )
-BAD_FEED_SUBSCRIBER = LogMessage(
+GATEWAY_BAD_FEED_SUBSCRIBER = LogMessage(
     "G-000068",
     GENERAL_CATEGORY,
     "Subscriber {} was not receiving messages and emptying its queue from "
     "{}. Disconnecting.",
 )
-BAD_RPC_SUBSCRIBER = LogMessage(
+_BAD_RPC_SUBSCRIBER = LogMessage(
     "G-000069",
     RPC_ERROR,
     "Subscription message queue was completed filled up (size {}). "
@@ -425,7 +425,7 @@ BLOCKCHAIN_IP_RESOLVE_ERROR = LogMessage(
     GENERAL_CATEGORY,
     "Blockchain IP could not be resolved, exiting. Blockchain IP: {}"
 )
-COULD_NOT_SERIALIZE_FEED_ENTRY = LogMessage(
+_COULD_NOT_SERIALIZE_FEED_ENTRY = LogMessage(
     "G-000079",
     PROCESSING_FAILED_CATEGORY,
     "Could not serialize feed entry. Skipping."
@@ -491,4 +491,9 @@ NODE_EXCEEDS_MEMORY = LogMessage(
     "G-000091",
     MEMORY_CATEGORY,
     "Gateway exceeded allowed memory, restarting"
+)
+ATTEMPTED_FETCH_FOR_NONEXISTENT_QUEUING_SERVICE = LogMessage(
+    "G-000092",
+    GENERAL_CATEGORY,
+    "Attmepted to fetch queuing service for blockchain node {}, but it was not found."
 )

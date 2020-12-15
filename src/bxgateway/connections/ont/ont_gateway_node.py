@@ -52,8 +52,11 @@ class OntGatewayNode(AbstractGatewayNode):
     ) -> AbstractGatewayBlockchainConnection:
         return OntRemoteConnection(socket_connection, self)
 
-    def build_block_queuing_service(self) -> AbstractBlockQueuingService:
-        return OntBlockQueuingService(self)
+    def build_block_queuing_service(
+        self,
+        connection: AbstractGatewayBlockchainConnection
+    ) -> AbstractBlockQueuingService:
+        return OntBlockQueuingService(self, connection)
 
     def build_block_cleanup_service(self) -> AbstractBlockCleanupService:
         if self.opts.use_extensions:

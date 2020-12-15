@@ -1,7 +1,8 @@
 import time
 from collections import deque
-from typing import List, Deque
+from typing import List, Deque, cast
 
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.blockchain_utils.eth import eth_common_utils, eth_common_constants
@@ -9,13 +10,13 @@ from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.object_hash import Sha256Hash, NULL_SHA256_HASH
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
+from bxcommon.feed.feed_source import FeedSource
 from bxgateway import log_messages
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
 from bxgateway.eth_exceptions import CipherNotInitializedError
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxgateway.feed.eth.eth_raw_transaction import EthRawTransaction
-from bxgateway.feed.new_transaction_feed import FeedSource
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
@@ -29,8 +30,8 @@ from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message impor
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
+from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxgateway.services.gateway_transaction_service import ProcessTransactionMessageFromNodeResult
-from bxgateway.utils.eth import eth_utils
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import \
     gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
@@ -153,10 +154,13 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 ),
                 block_height=block_number,
             )
-            gateway_bdn_performance_stats_service.log_block_message_from_blockchain_node(False)
+            gateway_bdn_performance_stats_service.log_block_message_from_blockchain_node(
+                self.connection.endpoint,
+                False
+            )
 
             if block_hash in self.node.blocks_seen.contents:
-                self.node.on_block_seen_by_blockchain_node(block_hash, block_number=block_number)
+                self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, block_number=block_number)
                 block_stats.add_block_event_by_block_hash(
                     block_hash,
                     BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
@@ -169,11 +173,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 )
                 continue
 
-            recovery_cancelled = self.node.on_block_seen_by_blockchain_node(
-                block_hash, block_number=block_number
-            )
-            if recovery_cancelled:
-                continue
+            self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, block_number=block_number)
 
             self.node.track_block_from_node_handling_started(block_hash)
             block_hash_number_pairs.append((block_hash, block_number))
@@ -205,14 +205,23 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         if self._waiting_checkpoint_headers_request:
             super(EthNodeConnectionProtocol, self).msg_get_block_headers(msg)
         else:
+            block_queuing_service = cast(
+                EthBlockQueuingService,
+                self.node.block_queuing_service_manager.get_block_queuing_service(self.connection)
+            )
             processed = self.node.block_processing_service.try_process_get_block_headers_request(
-                msg
+                msg,
+                block_queuing_service
             )
             if not processed:
                 self.msg_proxy_request(msg, self.connection)
 
     def msg_get_block_bodies(self, msg: GetBlockBodiesEthProtocolMessage):
-        processed = self.node.block_processing_service.try_process_get_block_bodies_request(msg)
+        block_queuing_service = cast(
+            EthBlockQueuingService,
+            self.node.block_queuing_service_manager.get_block_queuing_service(self.connection)
+        )
+        processed = self.node.block_processing_service.try_process_get_block_bodies_request(msg, block_queuing_service)
 
         if not processed:
             self.node.log_requested_remote_blocks(msg.get_block_hashes())
@@ -244,14 +253,16 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         latest_block_number = 0
         latest_block_difficulty = 0
 
-        for block_header in block_headers:
-            self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
-                block_header.hash_object(), None, block_header.number
-            )
+        block_queuing_service = self.node.block_queuing_service_manager.get_block_queuing_service(self.connection)
+        if block_queuing_service is not None:
+            for block_header in block_headers:
+                block_queuing_service.mark_block_seen_by_blockchain_node(
+                    block_header.hash_object(), None, block_header.number
+                )
 
-            if block_header.number > latest_block_number:
-                latest_block_number = block_header.number
-                latest_block_difficulty = block_header.difficulty
+                if block_header.number > latest_block_number:
+                    latest_block_number = block_header.number
+                    latest_block_difficulty = block_header.difficulty
 
         self.node.block_processing_service.set_last_confirmed_block_parameters(
             latest_block_number, latest_block_difficulty
@@ -315,6 +326,18 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         while self._ready_new_blocks:
             ready_block_hash = self._ready_new_blocks.pop()
             pending_new_block = self.pending_new_block_parts.contents[ready_block_hash]
+            self.pending_new_block_parts.remove_item(ready_block_hash)
+
+            if ready_block_hash in self.node.blocks_seen.contents:
+                self.node.on_block_seen_by_blockchain_node(
+                    ready_block_hash, self.connection, block_number=pending_new_block.block_number
+                )
+                self.connection.log_info(
+                    "Discarding already seen block {} received in block bodies msg from local blockchain node.",
+                    ready_block_hash
+                )
+                return
+
             last_known_total_difficulty = self.node.try_calculate_total_difficulty(
                 ready_block_hash,
                 pending_new_block
@@ -323,7 +346,6 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 pending_new_block,
                 last_known_total_difficulty
             )
-            self.pending_new_block_parts.remove_item(ready_block_hash)
 
             if self.is_valid_block_timestamp(new_block_msg):
                 block_stats.add_block_event_by_block_hash(
@@ -337,8 +359,16 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     ),
                     block_height=new_block_msg.block_number(),
                 )
-                self.node.block_queuing_service.mark_block_seen_by_blockchain_node(
-                    ready_block_hash, new_block_msg
+                gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.connection.endpoint)
+
+                canceled_recovery = self.node.on_block_seen_by_blockchain_node(
+                    ready_block_hash, self.connection, new_block_msg, pending_new_block.block_number
+                )
+                if canceled_recovery:
+                    return
+
+                self.node.block_queuing_service_manager.push(
+                    ready_block_hash, new_block_msg, node_received_from=self.connection
                 )
                 self.node.block_processing_service.queue_block_for_processing(
                     new_block_msg, self.connection
@@ -380,11 +410,11 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
     ) -> None:
         transaction_feed_stats_service.log_new_transaction(tx_hash)
         self.node.feed_manager.publish_to_feed(
-            EthNewTransactionFeed.NAME,
+            FeedKey(EthNewTransactionFeed.NAME),
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
         self.node.feed_manager.publish_to_feed(
-            EthPendingTransactionFeed.NAME,
+            FeedKey(EthPendingTransactionFeed.NAME),
             EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
         )

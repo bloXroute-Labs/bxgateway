@@ -1,6 +1,9 @@
 from typing import Optional, List, Union, Any, Dict, Tuple
 
+import websockets
+import ssl
 
+from bxcommon import constants
 from bxcommon.rpc.provider.abstract_ws_provider import AbstractWsProvider
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
@@ -52,11 +55,33 @@ class WsProvider(AbstractWsProvider):
         await asyncio.sleep(0)  # otherwise program would exit
     ```
     """
+
+    def __init__(
+        self,
+        uri: str,
+        retry_connection: bool = False,
+        queue_limit: int = constants.WS_PROVIDER_MAX_QUEUE_SIZE,
+        headers: Optional[Dict] = None,
+        skip_ssl_cert_verify: bool = False
+    ):
+        super(WsProvider, self).__init__(uri, retry_connection, queue_limit, headers)
+        if uri.startswith("wss"):
+            ssl_context = ssl.SSLContext()
+            assert ssl_context is not None
+            if skip_ssl_cert_verify:
+                ssl_context.check_hostname = False
+            self.ssl_context = ssl_context
+        else:
+            self.ssl_context = None
+
+    async def connect_websocket(self) -> websockets.WebSocketClientProtocol:
+        return await websockets.connect(self.uri, extra_headers=self.headers, ssl=self.ssl_context)
+
     async def call_bx(
         self,
         method: RpcRequestType,
         params: Union[List[Any], Dict[Any, Any], None],
-        request_id: Optional[str] = None
+        request_id: Optional[str] = None,
     ) -> JsonRpcResponse:
         if request_id is None:
             request_id = str(self.current_request_id)

@@ -72,7 +72,8 @@ async def main() -> None:
 
     if args.use_cloud_api:
         asyncio.create_task(process_new_blocks_cloud_api(
-            args.ssl_dir,
+            args.cloud_api_ws_uri,
+            args.auth_header,
             args.feed_name,
             args.exclude_block_contents
         ))
@@ -133,10 +134,14 @@ async def process_new_blocks_bdn(feed_name: str, exclude_block_contents: bool):
             trail_new_hashes.add(block_hash)
 
 
-async def process_new_blocks_cloud_api(ssl_dir: str, feed_name: str, exclude_block_contents: bool) -> None:
-    ws_uri = f"wss://eth.feed.blxrbdn.com:28333"
+async def process_new_blocks_cloud_api(
+    ws_uri: str, auth_header: str, feed_name: str, exclude_block_contents: bool
+) -> None:
     print(f"Initiating connection to: {ws_uri}")
-    async with CloudWssProvider(ws_uri=ws_uri, ssl_dir=ssl_dir) as ws:
+    async with WsProvider(
+        uri=ws_uri,
+        headers={"Authorization": auth_header}
+    ) as ws:
         print(f"websockets endpoint: {ws_uri} established")
         global ws_provider
         ws_provider = cast(CloudWssProvider, ws)
@@ -307,7 +312,8 @@ def get_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dump", type=str, default="", choices=["ALL", "MISSING", "ALL,MISSING"])
     parser.add_argument("--ignore-delta", type=int, default=5, help="Ignore block with delta above this amount (seconds)")
     parser.add_argument("--use-cloud-api", action="store_true")
-    parser.add_argument("--ssl-dir", type=str, help="Example: /home/user/ssl/external_gateway/registration_only")
+    parser.add_argument("--auth-header", type=str, help="Authorization header created with account id and password")
+    parser.add_argument("--cloud-api-ws-uri", type=str, default="wss://api.blxrbdn.com/ws")
     parser.add_argument("--verbose", action="store_true")
     return parser
 

@@ -1,9 +1,9 @@
 import asyncio
 import os
 from typing import Optional, List, TYPE_CHECKING
-from bxgateway.feed.feed_manager import FeedManager
-from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
+from bxcommon.feed.feed_manager import FeedManager
 from bxgateway.rpc.ws.ws_connection import WsConnection
+from bxgateway.rpc.subscription_rpc_handler import SubscriptionRpcHandler
 from bxutils import logging
 from bxcommon.utils import config
 

@@ -157,7 +157,8 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
 
         for tx in block_msg.txns():
             tx_hash = btc_common_utils.get_txid(tx)
-            short_id = tx_service.get_short_id(tx_hash)
+            transaction_key = tx_service.get_transaction_key(tx_hash)
+            short_id = tx_service.get_short_id_by_key(transaction_key)
 
             short_id_assign_time = 0
             if short_id != constants.NULL_TX_SID:
@@ -275,10 +276,11 @@ class BtcNormalMessageConverter(AbstractBtcMessageConverter):
         short_id_to_tx_contents = {}
 
         for tx_hash in transaction_service.iter_transaction_hashes():
+            transaction_key = transaction_service.get_transaction_key(tx_hash)
             tx_hash_binary = tx_hash.binary[::-1]
             tx_short_id = compute_short_id(key, tx_hash_binary)
             if tx_short_id in short_ids:
-                tx_content = transaction_service.get_transaction_by_hash(tx_hash)
+                tx_content = transaction_service.get_transaction_by_key(transaction_key)
                 if tx_content is None:
                     logger.debug("Hash {} is known by transactions service but content is missing.", tx_hash)
                 else:

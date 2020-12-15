@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Dict
 
 from bxgateway.utils.logging.status.connection_state import ConnectionState
 from bxgateway.utils.logging.status.gateway_status import GatewayStatus
@@ -11,7 +11,7 @@ class Summary:
     account_info: Optional[str] = None
     block_relay_connection_state: Optional[ConnectionState] = None
     transaction_relay_connection_state: Optional[ConnectionState] = None
-    blockchain_node_connection_state: Optional[ConnectionState] = None
+    blockchain_node_connection_states: Optional[Dict[str, ConnectionState]] = None
     remote_blockchain_node_connection_state: Optional[ConnectionState] = None
     ip_address: Optional[str] = None
     continent: Optional[str] = None

@@ -1,4 +1,3 @@
-from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.inventory_btc_message import (
@@ -33,4 +32,4 @@ class BtcBlockQueuingService(
             magic=block_message.magic(),
             inv_vects=[(InventoryType.MSG_BLOCK, block_hash)],
         )
-        self.node.broadcast(inv_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+        self.connection.enqueue_msg(inv_msg)

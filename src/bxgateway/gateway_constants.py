@@ -1,6 +1,5 @@
 from collections import defaultdict
 
-from bxcommon import constants
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 
@@ -70,6 +69,9 @@ BLOCK_HANDLING_TIME_EXPIRATION_TIME_S = 300
 
 INITIAL_LIVELINESS_CHECK_S = 100
 DEFAULT_STAY_ALIVE_DURATION_S = 30 * 60
+CHECK_BLOCKCHAIN_CONNECTION_FIRMLY_ESTABLISHED = 5 * 60
+
+ACTIVE_BLOCKCHAIN_PEERS_LIVELINESS_CHECK_S = 30 * 60
 
 DEFAULT_BLOCKCHAIN_MESSAGE_TTL_S = 10
 DEFAULT_REMOTE_BLOCKCHAIN_MESSAGE_TTL_S = 10

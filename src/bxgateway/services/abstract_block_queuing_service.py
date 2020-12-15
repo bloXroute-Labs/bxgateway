@@ -10,18 +10,17 @@ from typing import (
     TYPE_CHECKING,
     List,
     NamedTuple,
-    Iterator)
+    Iterator, cast)
 
-from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
-from bxcommon.utils.expiring_dict import ExpiringDict
 from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxgateway import gateway_constants
+from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxutils import logging
 
 if TYPE_CHECKING:
@@ -46,8 +45,19 @@ class AbstractBlockQueuingService(
     Service managing storage of blocks that are available for sending to blockchain node
     """
 
-    def __init__(self, node: "AbstractGatewayNode"):
+    def __init__(
+        self,
+        node: "AbstractGatewayNode",
+        connection: AbstractGatewayBlockchainConnection
+    ):
         self.node = node
+        self.connection = connection
+
+        self._blocks: ExpiringSet[Sha256Hash] = ExpiringSet(
+            node.alarm_queue,
+            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
+            f"block_queuing_service_hashes_{self.connection.endpoint}"
+        )
 
         # queue of tuple (block hash, timestamp) for blocks that need to be
         # sent to blockchain node
@@ -55,20 +65,13 @@ class AbstractBlockQueuingService(
             maxlen=gateway_constants.BLOCK_QUEUE_LENGTH_LIMIT
         )
         self._blocks_waiting_for_recovery: Dict[Sha256Hash, bool] = {}
-        self._blocks: ExpiringDict[
-            Sha256Hash, Optional[TBlockMessage]
-        ] = ExpiringDict(
-            node.alarm_queue,
-            gateway_constants.MAX_BLOCK_CACHE_TIME_S,
-            "block_queuing_service_blocks"
-        )
 
         self._blocks_seen_by_blockchain_node: ExpiringSet[
             Sha256Hash
         ] = ExpiringSet(
             node.alarm_queue,
             gateway_constants.GATEWAY_BLOCKS_SEEN_EXPIRATION_TIME_S,
-            "block_queuing_service_blocks_seen",
+            f"block_queuing_service_blocks_seen_{self.connection.endpoint}",
         )
 
     def __len__(self):
@@ -111,14 +114,6 @@ class AbstractBlockQueuingService(
     ):
         pass
 
-    def block_body_exists(self, block_hash: Sha256Hash) -> bool:
-        """
-        Returns if the block body exists in _blocks
-        :param block_hash: block hash
-        :return: if block body exists in _block
-        """
-        return block_hash in self._blocks
-
     def mark_block_seen_by_blockchain_node(
         self,
         block_hash: Sha256Hash,
@@ -134,9 +129,7 @@ class AbstractBlockQueuingService(
             self.store_block_data(block_hash, block_message)
 
         self._blocks_seen_by_blockchain_node.add(block_hash)
-        logger.debug(
-            "Blockchain node confirmed receipt of block {}", block_hash
-        )
+        self.connection.log_debug("Confirmed receipt of block {}", block_hash)
 
     def push(
         self,
@@ -158,17 +151,16 @@ class AbstractBlockQueuingService(
 
         if block_hash in self._blocks:
             raise ValueError(
-                "Block with hash {} already exists in the queue.".format(
-                    block_hash
+                "Block with hash {} already exists in the queue for {}.".format(
+                    block_hash, self.connection.peer_desc
                 )
             )
 
         if self.can_add_block_to_queuing_service(block_hash):
             self._block_queue.append(BlockQueueEntry(block_hash, time.time()))
+            self._blocks.add(block_hash)
             self._blocks_waiting_for_recovery[block_hash] = waiting_for_recovery
-            if block_msg is None:
-                self._blocks[block_hash] = None
-            else:
+            if block_msg is not None:
                 self.store_block_data(block_hash, block_msg)
 
     def can_add_block_to_queuing_service(self, block_hash: Sha256Hash) -> bool:
@@ -186,26 +178,28 @@ class AbstractBlockQueuingService(
         block_hash: Sha256Hash,
         block_msg: TBlockMessage
     ) -> None:
-        self._blocks[block_hash] = block_msg
+        self._blocks.add(block_hash)
+        if block_hash in self.node.block_storage:
+            del self.node.block_storage[block_hash]
+        self.node.block_storage[block_hash] = block_msg
+        self.node.log_blocks_network_content(self.connection.network_num, block_msg)
 
-    def send_block_to_nodes(
+    def send_block_to_node(
         self, block_hash: Sha256Hash, block_msg: Optional[TBlockMessage] = None
     ) -> None:
         if not self.node.should_process_block_hash(block_hash):
             return
 
         if block_msg is None:
-            block_msg = self._blocks[block_hash]
+            block_msg = self.node.block_storage[block_hash]
 
-        logger.info("Forwarding block {} to blockchain node.", block_hash)
+        self.connection.log_info("Forwarding block {} to node", block_hash)
 
         assert block_msg is not None
-        # TODO add queueing service per node (https://bloxroute.atlassian.net/browse/BX-1922)
-        self.node.broadcast(block_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
-        (
-            handling_time,
-            relay_desc,
-        ) = self.node.track_block_from_bdn_handling_ended(block_hash)
+        self.connection.enqueue_msg(block_msg)
+
+        # TODO: revisit this metric for multi-node gateway
+        (handling_time, relay_desc) = self.node.track_block_from_bdn_handling_ended(block_hash)
 
         # if tracking detailed send info, log this event only after all
         # bytes written to sockets
@@ -223,15 +217,12 @@ class AbstractBlockQueuingService(
             )
 
     def try_send_header_to_node(self, block_hash: Sha256Hash) -> bool:
-        if block_hash not in self._blocks:
+        if not self.node.block_queuing_service_manager.is_in_common_block_storage(block_hash):
             return False
-
-        block_message = self._blocks[block_hash]
-        if block_message is None:
-            return False
+        block_message = cast(TBlockMessage, self.node.block_storage[block_hash])
 
         header_msg = self.build_block_header_message(block_hash, block_message)
-        self.node.broadcast(header_msg, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+        self.connection.enqueue_msg(header_msg)
         block_stats.add_block_event_by_block_hash(
             block_hash,
             BlockStatEventType.BLOCK_HEADER_SENT_TO_BLOCKCHAIN_NODE,
@@ -248,7 +239,7 @@ class AbstractBlockQueuingService(
         if block_hash not in self._blocks:
             return -1
 
-        logger.trace("Removing block {} from queue.", block_hash)
+        self.connection.log_trace("Removing block {} from queue.", block_hash)
 
         for index in range(len(self._block_queue)):
             if self._block_queue[index][0] == block_hash:
@@ -266,11 +257,11 @@ class AbstractBlockQueuingService(
         :return: index of block in queue when removed (-1 if doesn't exist)
         """
 
-        logger.trace("Purging block {} from queuing service.", block_hash)
+        self.connection.log_trace("Purging block {} from queuing service.", block_hash)
 
         index = self.remove_from_queue(block_hash)
         if block_hash in self._blocks:
-            del self._blocks[block_hash]
+            self._blocks.remove(block_hash)
         return index
 
     def iterate_recent_block_hashes(
@@ -281,3 +272,7 @@ class AbstractBlockQueuingService(
 
     def log_memory_stats(self):
         pass
+
+    def update_connection(self, connection: AbstractGatewayBlockchainConnection):
+        self._block_queue.clear()
+        self.connection = connection

@@ -85,7 +85,7 @@ class OntBlockProcessingService(BlockProcessingService):
     ):
         transaction_service = self._node.get_tx_service()
 
-        if self._node.node_conn or self._node.remote_node_conn:
+        if self._node.has_active_blockchain_peer() or self._node.remote_node_conn:
             try:
                 block_message, block_info, unknown_sids, unknown_hashes = \
                     self._node.consensus_message_converter.bx_block_to_block(bx_block, transaction_service)
@@ -166,22 +166,23 @@ class OntBlockProcessingService(BlockProcessingService):
                                                       blockchain_protocol=self._node.opts.blockchain_network,
                                                       matching_block_hash=block_info.compressed_block_hash,
                                                       matching_block_type=StatBlockType.COMPRESSED.value,
+                                                      peer=connection.peer_desc,
                                                       more_info="Consensus compression rate {}, Decompression time {}, "
                                                                 "Queued behind {} blocks".format(
                                                           stats_format.percentage(block_info.compression_rate),
                                                           stats_format.duration(block_info.duration_ms),
-                                                          len(self._node.block_queuing_service)))
+                                                          self._node.block_queueing_service_manager.get_length_of_each_queuing_service_stats_format()))
 
-            if recovered or block_hash in self._node.block_queuing_service:
-                self._node.block_queuing_service.update_recovered_block(block_hash, block_message)
+            if recovered or block_hash in self._node.block_queueing_service_manager:
+                self._node.block_queueing_service_manager.update_recovered_block(block_hash, block_message)
             else:
-                self._node.block_queuing_service.push(block_hash, block_message)
+                self._node.block_queueing_service_manager.push(block_hash, block_message)
 
             self._node.block_recovery_service.cancel_recovery_for_block(block_hash)
             # self._node.blocks_seen.add(block_hash)
             transaction_service.track_seen_short_ids(block_hash, all_sids)
         else:
-            if block_hash in self._node.block_queuing_service and not recovered:
+            if block_hash in self._node.block_queueing_service_manager and not recovered:
                 connection.log_trace("Handling already queued consensus block again. Ignoring.")
                 return
 
@@ -211,4 +212,4 @@ class OntBlockProcessingService(BlockProcessingService):
                 connection.log_error(log_messages.BLOCK_DECOMPRESSION_FAILURE_ONT_CONSENSUS,
                                      block_hash)
             else:
-                self._node.block_queuing_service.push(block_hash, waiting_for_recovery=True)
+                self._node.block_queueing_service_manager.push(block_hash, waiting_for_recovery=True)

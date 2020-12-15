@@ -5,6 +5,3 @@ from bxutils.logging import LogLevel
 
 class PongEthProtocolMessage(EthProtocolMessage):
     msg_type = EthProtocolMessageType.PONG
-
-    def log_level(self) -> LogLevel:
-        return LogLevel.DEBUG

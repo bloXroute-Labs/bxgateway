@@ -14,9 +14,9 @@ from typing import Optional, List
 
 from bxcommon import node_runner, constants
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.utils import cli, convert, config, ip_resolver
 from bxcommon.models.node_type import NodeType
-from bxcommon.models.quota_type_model import QuotaType
 
 from bxutils import logging_messages_utils
 
@@ -78,6 +78,8 @@ def get_argument_parser() -> argparse.ArgumentParser:
                                          description="Command line interface for the bloXroute Gateway.",
                                          usage="bloxroute_gateway --blockchain-protocol [PROTOCOL] [additional "
                                                "arguments]")
+    cli.add_argument_parser_rpc(arg_parser)
+
     arg_parser.add_argument("--blockchain-protocol", help="Blockchain protocol. e.g BitcoinCash, Ethereum", type=str)
     arg_parser.add_argument("--blockchain-network", help="Blockchain network. e.g Mainnet, Testnet", type=str)
     arg_parser.add_argument("--blockchain-port", help="Blockchain node port", type=int)
@@ -146,6 +148,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
                             action=argument_parsers.ParseEnode,
                             type=str,
                             default=None)
+
     # Blockchain peers specified by --blockchain-peers and --blockchain-peers-file would be aggregated together
     arg_parser.add_argument("--blockchain-peers",
                             help="A comma separated list of node peer info. "
@@ -260,15 +263,15 @@ def get_argument_parser() -> argparse.ArgumentParser:
         type=convert.str_to_bool,
         default=True,
     )
-    default_tx_quota_type = config.get_env_default(
-        GatewayStartArgs.DEFAULT_TX_QUOTA_TYPE
+    default_tx_flag = config.get_env_default(
+        GatewayStartArgs.DEFAULT_TX_FLAG
     )
     arg_parser.add_argument(
-        "--default-tx-quota-type",
-        help=f"quota type to use when distributing transactions to the Bdn network (default: {default_tx_quota_type})",
-        type=QuotaType.from_string,
-        choices=list(QuotaType),
-        default=default_tx_quota_type,
+        "--default-tx-flag",
+        help=f"transaction flag to use when distributing transactions to the Bdn network (default: {default_tx_flag})",
+        type=TransactionFlag.from_string,
+        choices=list(TransactionFlag),
+        default=default_tx_flag,
     )
     arg_parser.add_argument(
         "--ws",

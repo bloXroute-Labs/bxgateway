@@ -271,8 +271,9 @@ class BtcMessageConverterTests(AbstractTestCase):
         for short_id, txn in enumerate(recovered_block.txns()):
             bx_tx_hash = BtcObjectHash(buf=crypto.double_sha256(txn),
                                        length=BTC_SHA_HASH_LEN)
-            self.tx_service.set_transaction_contents(bx_tx_hash, txn)
-            self.tx_service.assign_short_id(bx_tx_hash, short_id + 1)
+            transaction_key = self.tx_service.get_transaction_key(bx_tx_hash)
+            self.tx_service.set_transaction_contents_by_key(transaction_key, txn)
+            self.tx_service.assign_short_id_by_key(transaction_key, short_id + 1)
 
         result = self.btc_message_converter.compact_block_to_bx_block(
             compact_block, self.tx_service

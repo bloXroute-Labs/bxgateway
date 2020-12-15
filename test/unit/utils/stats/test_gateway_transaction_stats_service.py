@@ -30,7 +30,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
         )
         self.blockchain_connection = EthBaseConnection(
-            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node)
+            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=1234), self.node)
+        self.blockchain_connection2 = EthBaseConnection(
+            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=4321), self.node)
         self.node.message_converter = converter_factory.create_eth_message_converter(self.node.opts)
 
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
@@ -39,6 +41,11 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
             self.blockchain_connection, True, dummy_private_key, dummy_public_key)
         self.blockchain_connection.network_num = 0
         self.blockchain_connection_protocol.publish_transaction = MagicMock()
+
+        self.blockchain_connection_protocol2 = EthNodeConnectionProtocol(
+            self.blockchain_connection2, True, dummy_private_key, dummy_public_key)
+        self.blockchain_connection2.network_num = 0
+        self.blockchain_connection_protocol2.publish_transaction = MagicMock()
 
         self.relay_connection.state = ConnectionState.INITIALIZED
         gateway_transaction_stats_service.set_node(self.node)
@@ -113,9 +120,9 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         self.relay_connection.msg_tx(compact_message)
 
         self.assertEqual(1, gateway_transaction_stats_service.interval_data.new_full_transactions_received_from_relays)
-        self.assertEqual(0, gateway_transaction_stats_service.interval_data.duplicate_full_transactions_received_from_relays)
+        self.assertEqual(1, gateway_transaction_stats_service.interval_data.duplicate_full_transactions_received_from_relays)
         self.assertEqual(0, gateway_transaction_stats_service.interval_data.new_compact_transactions_received_from_relays)
-        self.assertEqual(1, gateway_transaction_stats_service.interval_data.duplicate_compact_transactions_received_from_relays)
+        self.assertEqual(0, gateway_transaction_stats_service.interval_data.duplicate_compact_transactions_received_from_relays)
         self.assertEqual(1, gateway_transaction_stats_service.interval_data.short_id_assignments_processed)
         self.assertEqual(0, gateway_transaction_stats_service.interval_data.redundant_transaction_content_messages)
 
@@ -193,6 +200,18 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
         self.blockchain_connection_protocol.msg_tx(tx_msg)
         self.blockchain_connection_protocol.msg_tx(tx_msg)
+
+        self.assertEqual(1, gateway_transaction_stats_service.interval_data.new_transactions_received_from_blockchain)
+        self.assertEqual(1, gateway_transaction_stats_service.interval_data.duplicate_transactions_received_from_blockchain)
+
+    def test_tx_stats_duplicate_from_different_blockchain_node(self):
+        txs = [
+            mock_eth_messages.get_dummy_transaction(7),
+        ]
+        tx_msg = TransactionsEthProtocolMessage(None, txs)
+
+        self.blockchain_connection_protocol.msg_tx(tx_msg)
+        self.blockchain_connection_protocol2.msg_tx(tx_msg)
 
         self.assertEqual(1, gateway_transaction_stats_service.interval_data.new_transactions_received_from_blockchain)
         self.assertEqual(1, gateway_transaction_stats_service.interval_data.duplicate_transactions_received_from_blockchain)

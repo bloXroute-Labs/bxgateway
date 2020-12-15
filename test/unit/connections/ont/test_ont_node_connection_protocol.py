@@ -27,6 +27,7 @@ class OntNodeConnectionProtocolTest(AbstractTestCase):
         self.node.neutrality_service = MagicMock()
 
         self.connection = OntNodeConnection(MockSocketConnection(node=self.node, ip_address=LOCALHOST, port=123), self.node)
+        gateway_helpers.add_blockchain_peer(self.node, self.connection)
 
         self.tx_hash = OntObjectHash(buf=helpers.generate_bytearray(32), length=ONT_HASH_LEN)
         self.block_hash = OntObjectHash(buf=helpers.generate_bytearray(32), length=ONT_HASH_LEN)

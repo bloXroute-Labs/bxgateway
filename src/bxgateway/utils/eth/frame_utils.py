@@ -1,7 +1,6 @@
 import struct
 
-import rlp
-
+import blxr_rlp as rlp
 from bxcommon.exceptions import ParseError
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxcommon.utils.blockchain_utils.eth.crypto_utils import get_padded_len_16

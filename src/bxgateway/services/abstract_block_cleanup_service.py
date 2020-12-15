@@ -7,6 +7,7 @@ from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import Sha256Hash
 from bxcommon.utils.memory_utils import SpecialMemoryProperties, SpecialTuple
 from bxcommon import constants
+from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService
 
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
@@ -58,6 +59,7 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
         blocks marked for full cleanup = [b1, b2, b3, b4]
         blocks removed from tracking = [b2.1]
         :param block_hashes: a list of block hashes from a standard inventory message
+        :param block_queuing_service: block queuing service for node that triggered cleanup
         """
         skip_block_count = self.node.network.block_confirmations_count
         if len(block_hashes) >= skip_block_count:
@@ -76,7 +78,7 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
                             cross_match_idx = tracked_idx
                         logger.trace("Block cleanup flow requested block: {}", block_hash)
                         self.block_cleanup_request(block_hash)
-                        self.node.block_queuing_service.remove(block_hash)
+                        self.node.block_queuing_service_manager.remove(block_hash)
                         del tracked_blocks[block_hash]
                     else:
                         logger.trace("Block cleanup flow confirmed block is not tracked: {}", block_hash)
@@ -114,18 +116,25 @@ class AbstractBlockCleanupService(SpecialMemoryProperties, metaclass=ABCMeta):
         if not self.is_marked_for_cleanup(block_hash):
             self._block_hash_marked_for_cleanup.add(block_hash)
             self.last_confirmed_block = block_hash
-            if block_hash in self.node.block_queuing_service._blocks:
+            block_queuing_service = None
+            if self.node.block_queuing_service_manager.is_in_common_block_storage(block_hash):
+                block_queuing_service = self.node.block_queuing_service_manager.get_designated_block_queuing_service()
+            if block_queuing_service is not None:
                 self.node.alarm_queue.register_alarm(
                     constants.MIN_SLEEP_TIMEOUT,
                     self.clean_block_transactions_from_block_queue,
-                    block_hash)
+                    block_hash,
+                    block_queuing_service
+                )
             elif self.node.has_active_blockchain_peer():
                 self._request_block(block_hash)
             else:
                 logger.debug("Block cleanup for '{}' failed. No connection to node.", repr(block_hash))
 
     @abstractmethod
-    def clean_block_transactions_from_block_queue(self, block_hash: Sha256Hash):
+    def clean_block_transactions_from_block_queue(
+        self, block_hash: Sha256Hash, block_queuing_service
+    ):
         pass
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:

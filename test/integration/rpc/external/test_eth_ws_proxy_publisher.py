@@ -1,5 +1,5 @@
 import asyncio
-import rlp
+import blxr_rlp as rlp
 import websockets
 
 from typing import Dict, Any
@@ -8,6 +8,7 @@ from unittest.mock import patch
 from mock import MagicMock
 
 from bxcommon import constants
+from bxcommon.feed.feed import FeedKey
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.rpc.json_rpc_request import JsonRpcRequest
@@ -21,9 +22,9 @@ from bxcommon.messages.eth.serializers.transaction import Transaction
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
 
-from bxgateway.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxgateway.feed.subscriber import Subscriber
-from bxgateway.feed.new_transaction_feed import RawTransactionFeedEntry
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.subscriber import Subscriber
+from bxcommon.feed.new_transaction_feed import RawTransactionFeedEntry
 from bxgateway.rpc.external.eth_ws_proxy_publisher import EthWsProxyPublisher
 from bxgateway.testing import gateway_helpers
 from bxgateway.testing.mocks import mock_eth_messages
@@ -72,7 +73,8 @@ class EthWsProxyPublisherTest(AbstractTestCase):
         )
         self.subscriber: Subscriber[
             RawTransactionFeedEntry
-        ] = self.gateway_node.feed_manager.subscribe_to_feed(EthPendingTransactionFeed.NAME, {})
+        ] = self.gateway_node.feed_manager.subscribe_to_feed(
+            FeedKey(EthPendingTransactionFeed.NAME), {})
         self.assertIsNotNone(self.subscriber)
 
         await self.eth_ws_proxy_publisher.start()
@@ -138,15 +140,17 @@ class EthWsProxyPublisherTest(AbstractTestCase):
     async def test_subscription(self):
         tx_hash = helpers.generate_object_hash()
         tx_contents = mock_eth_messages.get_dummy_transaction(1)
-        self.gateway_node.get_tx_service().set_transaction_contents(
-            tx_hash,
+        transaction_key = self.gateway_node.get_tx_service().get_transaction_key(tx_hash)
+        self.gateway_node.get_tx_service().set_transaction_contents_by_key(
+            transaction_key,
             rlp.encode(tx_contents)
         )
 
         tx_hash_2 = helpers.generate_object_hash()
         tx_contents_2 = mock_eth_messages.get_dummy_transaction(2)
-        self.gateway_node.get_tx_service().set_transaction_contents(
-            tx_hash_2,
+        transaction_key_2 = self.gateway_node.get_tx_service().get_transaction_key(tx_hash_2)
+        self.gateway_node.get_tx_service().set_transaction_contents_by_key(
+            transaction_key_2,
             rlp.encode(tx_contents_2)
         )
 
@@ -185,8 +189,9 @@ class EthWsProxyPublisherTest(AbstractTestCase):
     async def test_disconnect_server(self):
         tx_hash = helpers.generate_object_hash()
         tx_contents = mock_eth_messages.get_dummy_transaction(1)
-        self.gateway_node.get_tx_service().set_transaction_contents(
-            tx_hash,
+        transaction_key = self.gateway_node.get_tx_service().get_transaction_key(tx_hash)
+        self.gateway_node.get_tx_service().set_transaction_contents_by_key(
+            transaction_key,
             rlp.encode(tx_contents)
         )
 
@@ -205,8 +210,9 @@ class EthWsProxyPublisherTest(AbstractTestCase):
     async def test_disconnect_server_reconnect(self):
         tx_hash = helpers.generate_object_hash()
         tx_contents = mock_eth_messages.get_dummy_transaction(1)
-        self.gateway_node.get_tx_service().set_transaction_contents(
-            tx_hash,
+        transaction_key = self.gateway_node.get_tx_service().get_transaction_key(tx_hash)
+        self.gateway_node.get_tx_service().set_transaction_contents_by_key(
+            transaction_key,
             rlp.encode(tx_contents)
         )
 
@@ -236,8 +242,9 @@ class EthWsProxyPublisherTest(AbstractTestCase):
     async def test_disconnect_server_revive(self):
         tx_hash = helpers.generate_object_hash()
         tx_contents = mock_eth_messages.get_dummy_transaction(1)
-        self.gateway_node.get_tx_service().set_transaction_contents(
-            tx_hash,
+        transaction_key = self.gateway_node.get_tx_service().get_transaction_key(tx_hash)
+        self.gateway_node.get_tx_service().set_transaction_contents_by_key(
+            transaction_key,
             rlp.encode(tx_contents)
         )
 

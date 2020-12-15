@@ -4,8 +4,8 @@ from mock import MagicMock
 
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
-from bxgateway.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
-from bxgateway.feed.new_transaction_feed import FeedSource
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.new_transaction_feed import FeedSource
 from bxgateway.testing.mocks import mock_eth_messages
 
 

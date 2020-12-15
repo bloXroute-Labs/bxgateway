@@ -66,22 +66,24 @@ class AbstractOntBlockCleanupServiceTest(AbstractBlockCleanupServiceTest):
         short_len = int(len(transactions) * 0.9)
         transactions_short = transactions[:short_len]
         unknown_transactions = transactions[short_len:]
-        transaction_hashes = []
+        transaction_keys = []
         for idx, tx in enumerate(transactions_short):
             tx_hash, _ = ont_messages_util.get_txid(tx)
-            transaction_hashes.append(tx_hash)
-            self.transaction_service.set_transaction_contents(tx_hash, tx)
-            self.transaction_service.assign_short_id(tx_hash, idx + 1)
+            transaction_key = self.transaction_service.get_transaction_key(tx_hash)
+            transaction_keys.append(transaction_key)
+            self.transaction_service.set_transaction_contents_by_key(transaction_key, tx)
+            self.transaction_service.assign_short_id_by_key(transaction_key, idx + 1)
         for idx, tx in enumerate(unknown_transactions):
             tx_hash, _= ont_messages_util.get_txid(tx)
-            transaction_hashes.append(tx_hash)
+            transaction_key = self.transaction_service.get_transaction_key(tx_hash)
+            transaction_keys.append(transaction_key)
             if idx % 2 == 0:
-                self.transaction_service.set_transaction_contents(tx_hash, tx)
+                self.transaction_service.set_transaction_contents_by_key(transaction_key, tx)
         self.cleanup_service._block_hash_marked_for_cleanup.add(block_hash)
         self.cleanup_service.clean_block_transactions(block_msg, self.transaction_service)
         self.assertEqual(0, self.transaction_service._total_tx_contents_size)
-        for tx_hash in transaction_hashes:
-            self.assertFalse(self.transaction_service.has_transaction_contents(tx_hash))
+        for transaction_key in transaction_keys:
+            self.assertFalse(self.transaction_service.has_transaction_contents_by_key(transaction_key))
 
     @abstractmethod
     def _get_transaction_service(self) -> TransactionService:

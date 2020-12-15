@@ -1,5 +1,5 @@
-import rlp
-from rlp.sedes import CountableList
+import blxr_rlp as rlp
+from blxr_rlp.sedes import CountableList
 
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType

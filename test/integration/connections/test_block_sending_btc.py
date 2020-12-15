@@ -110,7 +110,7 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         self.assertEqual(send_block.nonce(), received_block.nonce())
 
     def test_send_receive_block_and_key_real_block_1(self):
-        self.node1.opts.blockchain_ignore_block_interval_count = 99999
+        self.node1.opts.blockchain_ignore_block_interval_count = 999999
 
         send_block = btc_block(real_block=RealBtcBlocks.BLOCK1)
         block_hash = "000000000000d76febe49ae1033fa22afebe6ac46ea255640268d7ede1084e6f"
@@ -130,7 +130,7 @@ class BlockSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         self.assertIn(block_hash_object, self.node2.blocks_seen.contents)
 
     def test_send_receive_block_and_key_real_block_2(self):
-        self.node1.opts.blockchain_ignore_block_interval_count = 99999
+        self.node1.opts.blockchain_ignore_block_interval_count = 999999
 
         received_block = self.send_received_block_and_key(
             block=btc_block(real_block=RealBtcBlocks.BLOCK_WITNESS_REJECT))

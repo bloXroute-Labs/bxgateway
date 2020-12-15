@@ -1,5 +1,4 @@
 import asyncio
-import json
 from dataclasses import dataclass
 from typing import Any
 # TODO: remove try-catch when removing py3.7 support
@@ -19,11 +18,11 @@ from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.test_utils.helpers import async_test
-from bxgateway.feed.feed import Feed, S, T
-from bxgateway.feed.feed_manager import FeedManager
+from bxcommon.feed.feed import Feed
+from bxcommon.feed.feed_manager import FeedManager
+from bxgateway.rpc.ws.ws_server import WsServer
 from bxgateway.testing.abstract_gateway_rpc_integration_test import \
     AbstractGatewayRpcIntegrationTest
-from bxgateway.rpc.ws.ws_server import WsServer
 
 
 class TestFeed(Feed[int, int]):

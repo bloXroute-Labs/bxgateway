@@ -7,7 +7,6 @@ from typing import Optional, Dict, Set, List, Any, cast
 
 from typing import IO
 
-from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
 from bloxroute_cli.provider.ws_provider import WsProvider
 from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
 
@@ -82,11 +81,12 @@ async def main() -> None:
 
     if args.use_cloud_api:
         asyncio.create_task(process_new_txs_cloud_api(
-            args.ssl_dir,
+            args.cloud_api_ws_uri,
+            args.auth_header,
             args.feed_name,
             args.exclude_tx_contents,
             args.exclude_duplicates,
-            args.include_from_blockchain,
+            args.exclude_from_blockchain,
             min_gas,
             addresses
         ))
@@ -96,7 +96,7 @@ async def main() -> None:
             args.feed_name,
             args.exclude_tx_contents,
             args.exclude_duplicates,
-            args.include_from_blockchain,
+            args.exclude_from_blockchain,
             min_gas,
             addresses
         ))
@@ -130,10 +130,13 @@ async def main() -> None:
 
 
 async def process_new_txs_bdn(
-    feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, include_from_blockchain: bool,
+    feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, exclude_from_blockchain: bool,
     min_gas: Optional[int], addresses: List[str]
 ) -> None:
-    options: Dict[str, Any] = {"duplicates": not exclude_duplicates, "include_from_blockchain": include_from_blockchain}
+    options: Dict[str, Any] = {
+        "duplicates": not exclude_duplicates,
+        "include_from_blockchain": not exclude_from_blockchain
+    }
     if exclude_tx_contents:
         options["include"] = ["tx_hash"]
     subscription_id = await ws_provider.subscribe(feed_name, options)
@@ -166,21 +169,23 @@ async def process_new_txs_bdn(
 
 
 async def process_new_txs_cloud_api(
-    ssl_dir: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, include_from_blockchain: bool,
-    min_gas: Optional[int], addresses: List[str]
+    ws_uri: str, auth_header: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool,
+    exclude_from_blockchain: bool, min_gas: Optional[int], addresses: List[str]
 ) -> None:
-    ws_uri = f"wss://eth.feed.blxrbdn.com:28333"
     print(f"Initiating connection to: {ws_uri}")
-    async with CloudWssProvider(ws_uri=ws_uri, ssl_dir=ssl_dir) as ws:
+    async with WsProvider(
+        uri=ws_uri,
+        headers={"Authorization": auth_header}
+    ) as ws:
         print(f"websockets endpoint: {ws_uri} established")
         global ws_provider
-        ws_provider = cast(CloudWssProvider, ws)
+        ws_provider = cast(WsProvider, ws)
 
-        await process_new_txs_bdn(feed_name, exclude_tx_contents, exclude_duplicates, include_from_blockchain, min_gas, addresses)
+        await process_new_txs_bdn(feed_name, exclude_tx_contents, exclude_duplicates, exclude_from_blockchain, min_gas, addresses)
 
 
 async def process_new_txs_gateway(
-    gateway_url: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, include_from_blockchain: bool,
+    gateway_url: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, exclude_from_blockchain: bool,
     min_gas: Optional[int], addresses: List[str]
 ) -> None:
     print(f"Initiating connection to: {gateway_url}")
@@ -189,7 +194,7 @@ async def process_new_txs_gateway(
         global ws_provider
         ws_provider = cast(WsProvider, ws)
 
-        await process_new_txs_bdn(feed_name, exclude_tx_contents, exclude_duplicates, include_from_blockchain, min_gas, addresses)
+        await process_new_txs_bdn(feed_name, exclude_tx_contents, exclude_duplicates, exclude_from_blockchain, min_gas, addresses)
 
 
 async def process_new_txs_eth(
@@ -361,7 +366,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--gateway", type=str, default="ws://127.0.0.1:28333")
     parser.add_argument("--eth", type=str, default="ws://127.0.0.1:8546")
-    parser.add_argument("--feed-name", type=str, default="newTxs", choices=["newTxs", "pendingTxs"])
+    parser.add_argument("--feed-name", type=str, default="newTxs", choices=["newTxs", "pendingTxs", "transactionStatus"])
     parser.add_argument("--min-gas-price", type=float, default=None, help="Gas price in gigawei")
     parser.add_argument("--addresses", type=str, default=None, help="Comma separated list of Ethereum addresses")
     parser.add_argument("--exclude-tx-contents", action="store_true")
@@ -373,9 +378,10 @@ def get_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--exclude-duplicates", action="store_true", default=True, help="For pendingTxs only")
     parser.add_argument("--ignore-delta", type=int, default=5, help="Ignore tx with delta above this amount (seconds)")
     parser.add_argument("--use-cloud-api", action="store_true")
-    parser.add_argument("--ssl-dir", type=str, help="Example: /home/user/ssl/external_gateway/registration_only")
     parser.add_argument("--verbose", action="store_true")
-    parser.add_argument("--include-from-blockchain", action="store_true")
+    parser.add_argument("--exclude-from-blockchain", action="store_true")
+    parser.add_argument("--cloud-api-ws-uri", type=str, default="wss://api.blxrbdn.com/ws")
+    parser.add_argument("--auth-header", type=str, help="Authorization header created with account id and password")
     return parser
 
 

@@ -1,7 +1,6 @@
 from typing import List
 
-import rlp
-
+import blxr_rlp as rlp
 from bxutils.logging.log_level import LogLevel
 
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage

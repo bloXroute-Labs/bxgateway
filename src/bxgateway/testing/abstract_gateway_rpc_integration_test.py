@@ -2,18 +2,26 @@ import datetime
 import time
 import unittest
 from abc import abstractmethod
+from typing import cast
 from unittest.mock import MagicMock
 
 from bxcommon import constants
+from bxcommon.connections.connection_state import ConnectionState
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.models.transaction_flag import TransactionFlag
+from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.rpc import rpc_constants
 from bxcommon.test_utils import helpers
-from bxgateway.utils.blockchain_peer_info import BlockchainPeerInfo
+from bxcommon.test_utils.mocks.mock_connection import MockConnection
+from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
+from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
+from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxutils import constants as utils_constants
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_base import BdnServiceModelBase
 from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
 from bxcommon.models.bdn_service_type import BdnServiceType
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType
@@ -66,6 +74,12 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         )
         self.gateway_node.requester.start()
         self.gateway_node.account_id = ACCOUNT_ID
+        self.node_endpoint_1 = IpEndpoint("127.0.0.1", 7000)
+        self.blockchain_connection_1 = EthBaseConnection(
+            MockSocketConnection(
+                node=self.gateway_node, ip_address="127.0.0.1", port=7000), cast(EthGatewayNode, self.gateway_node)
+        )
+        self.blockchain_connection_1.state = ConnectionState.ESTABLISHED
 
     @abstractmethod
     def get_gateway_opts(self) -> GatewayOpts:
@@ -96,21 +110,50 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
-                "quota_type": "paid_daily_quota",
-                "synchronous": True
+                rpc_constants.STATUS_TRACK_PARAMS_KEY: "True"
             }
         ))
         self.assertEqual("1", result.id)
         self.assertIsNone(result.error)
         self.assertEqual(TRANSACTION_HASH, result.result["tx_hash"])
         self.assertEqual(ACCOUNT_ID, result.result["account_id"])
-        self.assertEqual("paid_daily_quota", result.result["quota_type"])
+        self.assertEqual(TransactionFlag.PAID_TX.name.lower(), result.result["transaction_flag"].lower())
 
         self.assertEqual(1, len(self.gateway_node.broadcast_messages))
         self.assertEqual(
             Sha256Hash(convert.hex_to_bytes(TRANSACTION_HASH)),
             self.gateway_node.broadcast_messages[0][0].tx_hash()
         )
+
+    @async_test
+    async def test_blxr_tx_expired(self):
+        self.gateway_node.account_model.is_account_valid = MagicMock(return_value=False)
+        result = await self.request(BxJsonRpcRequest(
+            "2",
+            RpcRequestType.BLXR_TX,
+            {
+                rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
+            }
+        ))
+        self.assertEqual("2", result.id)
+        self.assertEqual("Invalid Account ID", result.error.message)
+        self.assertIsNone(result.result)
+        self.assertIsNotNone(result.error)
+
+    @async_test
+    async def test_blxr_tx_quota_exceeded(self):
+        self.gateway_node.quota_level = 100
+        result = await self.request(BxJsonRpcRequest(
+            "3",
+            RpcRequestType.BLXR_TX,
+            {
+                rpc_constants.TRANSACTION_PARAMS_KEY: RAW_TRANSACTION_HEX,
+            }
+        ))
+        self.assertEqual("3", result.id)
+        self.assertEqual("Insufficient quota", result.error.message)
+        self.assertIsNone(result.result)
+        self.assertIsNotNone(result.error)
 
     @async_test
     async def test_blxr_tx_from_json(self):
@@ -133,14 +176,14 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_JSON_PARAMS_KEY: tx_json,
-                "quota_type": "paid_daily_quota"
             }
         ))
+
         self.assertEqual("1", result.id)
         self.assertIsNone(result.error)
         self.assertEqual("ad6f9332384194f80d8e49af8f093ad019b3f6b7173eb2956a46c9a0d8c4d03c", result.result["tx_hash"])
         self.assertEqual(ACCOUNT_ID, result.result["account_id"])
-        self.assertEqual("paid_daily_quota", result.result["quota_type"])
+        self.assertEqual(TransactionFlag.PAID_TX.name.lower(), result.result["transaction_flag"].lower())
 
         self.assertEqual(1, len(self.gateway_node.broadcast_messages))
         self.assertEqual(
@@ -229,14 +272,17 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertEqual([], result.result)
 
     @async_test
-    async def test_bdn_performance(self):
+    async def test_bdn_performance_single_node(self):
+        self.gateway_node.connection_pool.add(
+            20, self.node_endpoint_1.ip_address, self.node_endpoint_1.port, self.blockchain_connection_1
+        )
         gateway_bdn_performance_stats_service.set_node(self.gateway_node)
         gateway_bdn_performance_stats_service.log_block_from_bdn()
         gateway_bdn_performance_stats_service.log_block_from_bdn()
-        gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
+        gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.node_endpoint_1)
         gateway_bdn_performance_stats_service.log_tx_from_bdn()
-        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node()
-        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node()
+        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(self.node_endpoint_1)
+        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(self.node_endpoint_1)
         gateway_bdn_performance_stats_service.close_interval_data()
 
         result = await self.request(BxJsonRpcRequest(
@@ -246,8 +292,51 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         ))
         self.assertEqual("6", result.id)
         self.assertIsNone(result.error)
-        self.assertEqual("66.67%", result.result["blocks_from_bdn_percentage"])
-        self.assertEqual("33.33%", result.result["transactions_from_bdn_percentage"])
+        node_stats = result.result[str(self.node_endpoint_1)]
+        self.assertEqual("66.67%", node_stats["blocks_from_bdn_percentage"])
+        self.assertEqual("33.33%", node_stats["transactions_from_bdn_percentage"])
+        self.assertEqual(3, node_stats["total_blocks_seen"])
+
+    @async_test
+    async def test_bdn_performance_multi_node(self):
+        self.gateway_node.connection_pool.add(
+            20, self.node_endpoint_1.ip_address, self.node_endpoint_1.port, self.blockchain_connection_1
+        )
+
+        blockchain_connection_2 = EthBaseConnection(
+            MockSocketConnection(node=self.gateway_node, ip_address="127.0.0.1", port=333), self.gateway_node)
+        blockchain_connection_2.state = ConnectionState.ESTABLISHED
+        self.gateway_node.mock_add_blockchain_peer(blockchain_connection_2)
+        node_endpoint_2 = IpEndpoint("127.0.0.1", 333)
+        self.gateway_node.connection_pool.add(
+            21, node_endpoint_2.ip_address, node_endpoint_2.port, blockchain_connection_2
+        )
+
+        gateway_bdn_performance_stats_service.set_node(self.gateway_node)
+        gateway_bdn_performance_stats_service.log_block_from_bdn()
+        gateway_bdn_performance_stats_service.log_block_from_bdn()
+        gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.node_endpoint_1)
+        gateway_bdn_performance_stats_service.log_tx_from_bdn()
+        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(self.node_endpoint_1)
+        gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(self.node_endpoint_1)
+        gateway_bdn_performance_stats_service.close_interval_data()
+
+        result = await self.request(BxJsonRpcRequest(
+            "6",
+            RpcRequestType.BDN_PERFORMANCE,
+            None
+        ))
+        self.assertEqual("6", result.id)
+        self.assertIsNone(result.error)
+        node_stats = result.result[str(self.node_endpoint_1)]
+        self.assertEqual("66.67%", node_stats["blocks_from_bdn_percentage"])
+        self.assertEqual("33.33%", node_stats["transactions_from_bdn_percentage"])
+        self.assertEqual(3, node_stats["total_blocks_seen"])
+
+        node_stats_2 = result.result[str(node_endpoint_2)]
+        self.assertEqual("100.00%", node_stats_2["blocks_from_bdn_percentage"])
+        self.assertEqual("100.00%", node_stats_2["transactions_from_bdn_percentage"])
+        self.assertEqual(3, node_stats_2["total_blocks_seen"])
 
     @async_test
     async def test_transaction_status(self):
@@ -259,8 +348,9 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         transaction_contents = helpers.generate_bytearray(250)
 
         tx_service = self.gateway_node.get_tx_service()
-        tx_service.set_transaction_contents(transaction_hash, transaction_contents)
-        tx_service.assign_short_id(transaction_hash, short_id)
+        transaction_key = tx_service.get_transaction_key(transaction_hash)
+        tx_service.set_transaction_contents_by_key(transaction_key, transaction_contents)
+        tx_service.assign_short_id_by_key(transaction_key, short_id)
 
         result = await self.request(BxJsonRpcRequest(
             "7",
@@ -293,6 +383,48 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertEqual(
             {
                 "new_peer": "127.0.0.1:30302"
+            },
+            result.result
+        )
+
+    @async_test
+    async def test_remove_blockchain_peer(self):
+        conn = MockConnection(MockSocketConnection(9, ip_address="127.0.0.1", port=30302), self.gateway_node)
+        conn.mark_for_close = MagicMock()
+        self.gateway_node.connection_pool.add(9, "127.0.0.1", 30302, conn)
+        self.gateway_node.blockchain_peers.add(BlockchainPeerInfo("127.0.0.1", 30302, "d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396"))
+        result = await self.request(BxJsonRpcRequest(
+            "9",
+            RpcRequestType.REMOVE_BLOCKCHAIN_PEER,
+            {"peer": "enode://d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396@127.0.0.1:30302"}
+        ))
+        self.assertNotIn(BlockchainPeerInfo("127.0.0.1", 30302), self.gateway_node.blockchain_peers)
+        conn.mark_for_close.assert_called_once_with(False)
+        self.assertEqual("9", result.id)
+        self.assertIsNone(result.error)
+        self.assertEqual(
+            {
+                "removed_peer": "127.0.0.1:30302"
+            },
+            result.result
+        )
+
+    @async_test
+    async def test_remove_blockchain_peer_not_in_pool(self):
+        self.gateway_node.alarm_queue.register_alarm = MagicMock()
+        self.gateway_node.blockchain_peers.add(BlockchainPeerInfo("127.0.0.1", 30302, "d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396"))
+        result = await self.request(BxJsonRpcRequest(
+            "9",
+            RpcRequestType.REMOVE_BLOCKCHAIN_PEER,
+            {"peer": "enode://d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396@127.0.0.1:30302"}
+        ))
+        self.assertNotIn(BlockchainPeerInfo("127.0.0.1", 30302), self.gateway_node.blockchain_peers)
+        self.gateway_node.alarm_queue.register_alarm.assert_called()
+        self.assertEqual("9", result.id)
+        self.assertIsNone(result.error)
+        self.assertEqual(
+            {
+                "removed_peer": "127.0.0.1:30302"
             },
             result.result
         )

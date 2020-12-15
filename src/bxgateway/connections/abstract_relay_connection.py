@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Set
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
+from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bdn_performance_stats_message import BdnPerformanceStatsMessage
 from bxcommon.messages.bloxroute.blockchain_network_message import RefreshBlockchainNetworkMessage
@@ -30,7 +31,7 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
 from bxgateway import log_messages, gateway_constants
-from bxgateway.feed.new_transaction_feed import NewTransactionFeed, RawTransactionFeedEntry
+from bxcommon.feed.new_transaction_feed import NewTransactionFeed, RawTransactionFeedEntry
 from bxgateway.services.block_recovery_service import RecoveredTxsSource
 from bxgateway.services.gateway_transaction_service import MissingTransactions
 from bxgateway.utils.logging.status import status_log
@@ -210,7 +211,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 blockchain_tx_message = self.node.message_converter.bx_tx_to_tx(msg)
                 transaction_feed_stats_service.log_new_transaction(tx_hash)
 
-                sent = self.node.broadcast_transactions_to_node(blockchain_tx_message, self)
+                sent = self.node.broadcast_transactions_to_nodes(blockchain_tx_message, self)
                 if sent:
                     tx_stats.add_tx_by_hash_event(
                         tx_hash,
@@ -218,6 +219,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                         network_num,
                         short_id
                     )
+                    gateway_bdn_performance_stats_service.log_tx_sent_to_nodes()
                 else:
                     gateway_transaction_stats_service.log_dropped_transaction_from_relay()
 
@@ -339,17 +341,15 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def send_bdn_performance_stats(self, bdn_stats_interval: GatewayBdnPerformanceStatInterval):
         memory_utilization_mb = int(memory_utils.get_app_memory_usage() / constants.BYTE_TO_MB)
+        bdn_stats_per_node = bdn_stats_interval.blockchain_node_to_bdn_stats
+        if bdn_stats_per_node is None:
+            bdn_stats_per_node = {}
+
         msg_to_send = BdnPerformanceStatsMessage(
             bdn_stats_interval.start_time,
             bdn_stats_interval.end_time,
-            bdn_stats_interval.new_blocks_received_from_blockchain_node,
-            bdn_stats_interval.new_blocks_received_from_bdn,
-            bdn_stats_interval.new_tx_received_from_blockchain_node,
-            bdn_stats_interval.new_tx_received_from_bdn,
             memory_utilization_mb,
-            bdn_stats_interval.new_blocks_seen,
-            bdn_stats_interval.new_block_messages_from_blockchain_node,
-            bdn_stats_interval.new_block_announcements_from_blockchain_node
+            bdn_stats_per_node
         )
         self.enqueue_msg(msg_to_send)
 
@@ -367,7 +367,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                     2 * constants.MIN_SLEEP_TIMEOUT, constants.MIN_SLEEP_TIMEOUT, status_log.update_alarm_callback,
                     self.node.connection_pool, self.node.opts.use_extensions, self.node.opts.source_version,
                     self.node.opts.external_ip, self.node.opts.continent, self.node.opts.country,
-                    self.node.opts.should_update_source_version, self.node.account_id,
+                    self.node.opts.should_update_source_version, self.node.blockchain_peers, self.node.account_id,
                     self.node.quota_level
                 )
         elif (
@@ -407,7 +407,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
     def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:
         self.node.feed_manager.publish_to_feed(
-            NewTransactionFeed.NAME,
+            FeedKey(NewTransactionFeed.NAME),
             RawTransactionFeedEntry(tx_hash, tx_contents)
         )
 

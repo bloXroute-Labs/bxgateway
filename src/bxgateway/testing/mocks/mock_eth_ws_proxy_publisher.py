@@ -6,7 +6,7 @@ from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.provider.abstract_ws_provider import AbstractWsProvider
-from bxgateway.feed.feed_manager import FeedManager
+from bxcommon.feed.feed_manager import FeedManager
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxutils import logging
 

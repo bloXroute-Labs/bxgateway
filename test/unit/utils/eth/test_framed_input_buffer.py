@@ -1,4 +1,4 @@
-from rlp import utils as rlp_utils
+from blxr_rlp import utils as rlp_utils
 
 from bxcommon.test_utils import helpers
 from bxcommon.utils.buffers.input_buffer import InputBuffer

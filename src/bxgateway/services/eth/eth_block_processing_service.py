@@ -1,4 +1,4 @@
-from typing import Union, cast
+from typing import Union, cast, Optional
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
@@ -12,6 +12,7 @@ from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message impo
     GetBlockHeadersEthProtocolMessage,
 )
 from bxgateway.services.block_processing_service import BlockProcessingService
+from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
@@ -26,10 +27,11 @@ class EthBlockProcessingService(BlockProcessingService):
         self._block_validator = EthBlockValidator()
 
     def try_process_get_block_headers_request(
-        self, msg: GetBlockHeadersEthProtocolMessage
+        self, msg: GetBlockHeadersEthProtocolMessage, block_queuing_service: Optional[EthBlockQueuingService]
     ) -> bool:
+        if block_queuing_service is None:
+            return False
 
-        block_queuing_service = self._node.block_queuing_service
         block_hash = msg.get_block_hash()
 
         if block_hash is not None:
@@ -80,12 +82,15 @@ class EthBlockProcessingService(BlockProcessingService):
             return False
 
     def try_process_get_block_bodies_request(
-        self, msg: GetBlockBodiesEthProtocolMessage
+        self, msg: GetBlockBodiesEthProtocolMessage, block_queuing_service: Optional[EthBlockQueuingService]
     ) -> bool:
+        if block_queuing_service is None:
+            return False
+
         block_hashes = msg.get_block_hashes()
         logger.trace("Checking for bodies in local block cache...")
 
-        return self._node.block_queuing_service.try_send_bodies_to_node(
+        return block_queuing_service.try_send_bodies_to_node(
             block_hashes
         )
 

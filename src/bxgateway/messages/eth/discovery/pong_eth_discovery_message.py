@@ -1,5 +1,4 @@
-import rlp
-
+import blxr_rlp as rlp
 from bxgateway.messages.eth.discovery.eth_discovery_message import EthDiscoveryMessage
 from bxgateway.messages.eth.discovery.eth_discovery_message_type import EthDiscoveryMessageType
 from bxgateway.messages.eth.serializers.endpoint import Endpoint

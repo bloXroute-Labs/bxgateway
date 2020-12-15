@@ -98,6 +98,7 @@ class EthOnBlockFeedTest(AbstractTestCase):
         calls = self.node.eth_ws_proxy_publisher.call_rpc.mock.call_args_list
         self.assertEqual(len(calls), 10)
         for subscriber in subscribers:
+            await asyncio.sleep(0)
             self.assertEqual(subscriber.messages.qsize(), 2)
             msg = subscriber.messages.get_nowait()
             self.assertIn(msg["name"], subscriber.options["calls"].keys())

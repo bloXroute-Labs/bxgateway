@@ -2,6 +2,8 @@ import time
 
 from mock import MagicMock
 
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
+from bxcommon.network.ip_endpoint import IpEndpoint
 from bxgateway.testing import gateway_helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.constants import LOCALHOST
@@ -14,6 +16,7 @@ from bxgateway.connections.btc.btc_base_connection_protocol import BtcBaseConnec
 from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
+from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 
 
 class BtcConnectionProtocolTest(AbstractTestCase):
@@ -27,10 +30,14 @@ class BtcConnectionProtocolTest(AbstractTestCase):
         self.node.block_processing_service = MagicMock()
 
         self.connection = MagicMock()
+        gateway_helpers.add_blockchain_peer(self.node, self.connection)
         self.connection.node = self.node
         self.connection.peer_ip = LOCALHOST
         self.connection.peer_port = 8001
         self.connection.network_num = 2
+        self.connection.endpoint = IpEndpoint(self.connection.peer_ip, self.connection.peer_port)
+        self.node.blockchain_peers.add(BlockchainPeerInfo(self.connection.peer_ip, self.connection.peer_port))
+        gateway_bdn_performance_stats_service.set_node(self.node)
 
         self.sut = BtcBaseConnectionProtocol(self.connection)
 

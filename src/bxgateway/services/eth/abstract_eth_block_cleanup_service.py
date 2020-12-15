@@ -2,13 +2,13 @@ import typing
 from abc import abstractmethod
 from typing import Iterable, TYPE_CHECKING
 
-from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.services.transaction_service import TransactionService
 from bxcommon.utils import convert
 from bxcommon.utils.object_hash import Sha256Hash
 
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.services.abstract_block_cleanup_service import AbstractBlockCleanupService
+from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 
 from bxutils import logging
 from bxutils.logging.log_record_type import LogRecordType
@@ -49,11 +49,9 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
 
     def clean_block_transactions_from_block_queue(
         self,
-        block_hash: Sha256Hash
+        block_hash: Sha256Hash,
+        block_queuing_service: EthBlockQueuingService
     ) -> None:
-        block_queuing_service = typing.cast(
-            "bxgateway.services.eth.eth_block_queuing_service.EthBlockQueuingService", self.node.block_queuing_service
-        )
         try:
             block_body = block_queuing_service.get_block_body_from_message(block_hash)
             assert block_body is not None

@@ -103,7 +103,7 @@ class AbstractBlockchainConnectionProtocol:
             if TxValidationStatus.LOW_FEE in tx_result.tx_validation_status:
                 gateway_transaction_stats_service.log_tx_validation_failed_gas_price()
                 # log low fee transaction here for bdn_performance
-                gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(True)
+                gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(self.connection.endpoint, True)
 
                 logger.trace(
                     "transaction {} has gas price lower then the setting {}",
@@ -127,6 +127,7 @@ class AbstractBlockchainConnectionProtocol:
                     peers=[self.connection]
                 )
                 gateway_transaction_stats_service.log_duplicate_transaction_from_blockchain()
+                gateway_bdn_performance_stats_service.log_duplicate_tx_from_node(self.connection.endpoint)
                 continue
 
             broadcast_txs_count += 1
@@ -141,6 +142,7 @@ class AbstractBlockchainConnectionProtocol:
 
             # log transactions that passed validation, according to fee
             gateway_bdn_performance_stats_service.log_tx_from_blockchain_node(
+                self.connection.endpoint,
                 not self.node.is_gas_price_above_min_network_fee(tx_result.transaction_contents)
             )
 
@@ -151,6 +153,7 @@ class AbstractBlockchainConnectionProtocol:
                 connection_types=[ConnectionType.RELAY_TRANSACTION]
             )
             self.node.broadcast(msg, self.connection, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+            gateway_bdn_performance_stats_service.log_tx_sent_to_nodes(broadcasting_endpoint=self.connection.endpoint)
 
             if self.node.opts.ws:
                 self.publish_transaction(
@@ -226,9 +229,9 @@ class AbstractBlockchainConnectionProtocol:
                 msg.extra_stats_data()
             )
         )
-        gateway_bdn_performance_stats_service.log_block_message_from_blockchain_node(True)
+        gateway_bdn_performance_stats_service.log_block_message_from_blockchain_node(self.connection.endpoint, True)
         if block_hash in self.node.blocks_seen.contents:
-            self.node.on_block_seen_by_blockchain_node(block_hash, block_number=block_number)
+            self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, block_number=block_number)
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.BLOCK_RECEIVED_FROM_BLOCKCHAIN_NODE_IGNORE_SEEN,
@@ -243,15 +246,16 @@ class AbstractBlockchainConnectionProtocol:
         if not self.is_valid_block_timestamp(msg):
             return
 
-        canceled_recovery = self.node.on_block_seen_by_blockchain_node(block_hash, msg)
+        gateway_bdn_performance_stats_service.log_block_from_blockchain_node(self.connection.endpoint)
+
+        canceled_recovery = self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, msg)
         if canceled_recovery:
             return
 
         self.node.track_block_from_node_handling_started(block_hash)
-        self.node.on_block_seen_by_blockchain_node(block_hash, msg, block_number=block_number)
+        self.node.on_block_seen_by_blockchain_node(block_hash, self.connection, msg, block_number=block_number)
         self.node.block_processing_service.queue_block_for_processing(msg, self.connection)
-        gateway_bdn_performance_stats_service.log_block_from_blockchain_node()
-        self.node.block_queuing_service.store_block_data(block_hash, msg)
+        self.node.block_queuing_service_manager.push(block_hash, msg, node_received_from=self.connection)
         return
 
     def msg_proxy_request(self, msg, requesting_connection: AbstractGatewayBlockchainConnection):

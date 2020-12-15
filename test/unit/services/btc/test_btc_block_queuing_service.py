@@ -8,7 +8,6 @@ from bxgateway.messages.btc.block_btc_message import BlockBtcMessage
 from bxgateway.services.btc.btc_block_queuing_service import BtcBlockQueuingService
 from mock import MagicMock, Mock
 
-from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxgateway.services.btc.btc_normal_block_cleanup_service import BtcNormalBlockCleanupService
@@ -25,10 +24,13 @@ class BtcBlockQueuingServiceTest(AbstractTestCase):
         self.node_connection.is_active = MagicMock(return_value=True)
         self.node.set_known_total_difficulty = MagicMock()
 
-        self.node.node_conn = self.node_connection
+        self.node_conn = self.node_connection
 
-        self.block_queuing_service = BtcBlockQueuingService(self.node)
-        self.node.block_queuing_service = self.block_queuing_service
+        self.block_queuing_service = BtcBlockQueuingService(self.node, self.node_conn)
+        self.node.block_queuing_service_manager.add_block_queuing_service(
+            self.node_conn, self.block_queuing_service
+        )
+
         self.node.block_cleanup_service = BtcNormalBlockCleanupService(self.node, 1)
         self.block_hashes = []
         self.block_msg = self._get_sample_block()

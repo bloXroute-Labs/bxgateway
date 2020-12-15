@@ -1,8 +1,7 @@
 from abc import ABC
 from typing import Optional, List
 
-import rlp
-
+import blxr_rlp as rlp
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.messages.eth.abstract_eth_message import AbstractEthMessage

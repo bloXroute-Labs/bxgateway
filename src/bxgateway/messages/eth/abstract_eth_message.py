@@ -1,7 +1,7 @@
 from abc import ABC
 
-import rlp
-from rlp.sedes import List
+import blxr_rlp as rlp
+from blxr_rlp.sedes import List
 
 from bxcommon.messages.abstract_message import AbstractMessage
 
