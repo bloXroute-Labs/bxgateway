@@ -23,6 +23,7 @@ from bxgateway.rpc.requests.gateway_memory_usage_report_rpc_request import Gatew
 from bxgateway.rpc.requests.gateway_peers_rpc_request import GatewayPeersRpcRequest
 from bxgateway.rpc.requests.gateway_status_rpc_request import GatewayStatusRpcRequest
 from bxgateway.rpc.requests.gateway_stop_rpc_request import GatewayStopRpcRequest
+from bxgateway.rpc.requests.gateway_subscribe_rpc_request import GatewaySubscribeRpcRequest
 from bxgateway.rpc.requests.gateway_transaction_service_rpc_request import GatewayTransactionServiceRpcRequest
 from bxgateway.rpc.requests.quota_usage_rpc_request import QuotaUsageRpcRequest
 from bxgateway.rpc.requests.remove_blockchain_peer_rpc_request import RemoveBlockchainPeerRpcRequest
@@ -56,7 +57,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             RpcRequestType.MEMORY: GatewayMemoryRpcRequest,
             RpcRequestType.PEERS: GatewayPeersRpcRequest,
             RpcRequestType.BDN_PERFORMANCE: BdnPerformanceRpcRequest,
-            RpcRequestType.SUBSCRIBE: SubscribeRpcRequest,
+            RpcRequestType.SUBSCRIBE: GatewaySubscribeRpcRequest,
             RpcRequestType.UNSUBSCRIBE: UnsubscribeRpcRequest,
             RpcRequestType.QUOTA_USAGE: QuotaUsageRpcRequest,
             RpcRequestType.MEMORY_USAGE: GatewayMemoryUsageRpcRequest,

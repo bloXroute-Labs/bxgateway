@@ -1,5 +1,10 @@
+from mock import MagicMock
+
+from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
+from bxcommon.models.bdn_service_model_base import FeedServiceModelBase
+from bxcommon.models.bdn_service_model_config_base import BdnFeedServiceModelConfigBase
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
-from bxcommon.rpc.rpc_errors import RpcInvalidParams
+from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
@@ -27,8 +32,26 @@ class FilterParsingTest(AbstractTestCase):
         self.feed_manager = FeedManager(self.gateway)
         self.rpc = SubscriptionRpcHandler(self.gateway, self.feed_manager, Case.SNAKE)
 
+        self.feed_service_model = FeedServiceModelBase(
+            allow_filtering=True,
+            available_fields=["all"]
+        )
+        self.base_feed_service_model = BdnFeedServiceModelConfigBase(
+            expire_date="2999-01-01",
+            feed=self.feed_service_model
+        )
+        self.gateway.account_model = BdnAccountModelBase(
+            account_id="account_id",
+            certificate="",
+            logical_account_name="test",
+            new_transaction_streaming=self.base_feed_service_model,
+        )
+        self.gateway.account_model.get_feed_service_config_by_name = MagicMock(
+            return_value=self.gateway.account_model.new_transaction_streaming
+        )
+
     @async_test
-    async def test_subscribe_to_feed_with_filters(self):
+    async def test_subscribe_to_feed_with_filters_all(self):
         feed = TestFeed("bar")
         feed.FILTERS = ["field1", "field2"]
 
@@ -40,7 +63,6 @@ class FilterParsingTest(AbstractTestCase):
         rpc_handler = self.rpc.get_request_handler(subscribe_request1)
         result = await rpc_handler.process_request()
         self.assertTrue(result)
-
 
     @async_test
     async def test_subscribe_to_feed_with_filters2(self):
@@ -55,7 +77,6 @@ class FilterParsingTest(AbstractTestCase):
         rpc_handler = self.rpc.get_request_handler(subscribe_request1)
         result = await rpc_handler.process_request()
         self.assertTrue(result)
-
 
     @async_test
     async def test_subscribe_to_feed_with_invalid_filters(self):
@@ -90,6 +111,34 @@ class FilterParsingTest(AbstractTestCase):
         )
         with self.assertRaises(RpcInvalidParams):
             rpc_handler = self.rpc.get_request_handler(subscribe_request4)
+            await rpc_handler.process_request()
+
+    @async_test
+    async def test_subscribe_to_feed_with_filtering_not_allowed(self):
+        feed_service_model = FeedServiceModelBase(
+            allow_filtering=False,
+            available_fields=["all"]
+        )
+        base_feed_service_model = BdnFeedServiceModelConfigBase(
+            expire_date="2999-01-01",
+            feed=feed_service_model
+        )
+        self.gateway.account_model.new_transaction_streaming = base_feed_service_model
+
+        self.gateway.account_model.get_feed_service_config_by_name = MagicMock(
+            return_value=self.gateway.account_model.new_transaction_streaming
+        )
+
+        feed = TestFeed("bar")
+        feed.FILTERS = ["to", "field2"]
+
+        self.feed_manager.register_feed(feed)
+        subscribe_request1 = BxJsonRpcRequest(
+            "1", RpcRequestType.SUBSCRIBE, ["bar", {"filters": "to = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"}],
+        )
+
+        with self.assertRaises(RpcAccountIdError):
+            rpc_handler = self.rpc.get_request_handler(subscribe_request1)
             await rpc_handler.process_request()
 
     @async_test

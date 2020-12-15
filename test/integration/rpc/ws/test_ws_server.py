@@ -1,7 +1,12 @@
 import asyncio
 from dataclasses import dataclass
 from typing import Any
+from mock import MagicMock
+
 # TODO: remove try-catch when removing py3.7 support
+from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
+from bxcommon.models.bdn_service_model_base import FeedServiceModelBase
+from bxcommon.models.bdn_service_model_config_base import BdnFeedServiceModelConfigBase
 from bxutils.encoding.json_encoder import Case
 
 try:
@@ -67,6 +72,9 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
 
     @async_test
     async def test_subscribe_and_unsubscribe(self):
+        self.gateway_node.account_model.get_feed_service_config_by_name = MagicMock(
+            return_value=self.gateway_node.account_model.new_transaction_streaming
+        )
         feed = TestFeed("foo")
         self.feed_manager.register_feed(feed)
 
@@ -111,6 +119,9 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
 
     @async_test
     async def test_camel_case(self):
+        self.gateway_node.account_model.get_feed_service_config_by_name = MagicMock(
+            return_value=self.gateway_node.account_model.new_transaction_streaming
+        )
         await self.server.stop()
 
         self.server = WsServer(
