@@ -241,6 +241,7 @@ class AbstractBlockchainConnectionProtocol:
                 "Discarding duplicate block {} from local blockchain node.",
                 block_hash
             )
+            self.node.log_blocks_network_content(self.node.network_num, msg)
             return
 
         if not self.is_valid_block_timestamp(msg):
