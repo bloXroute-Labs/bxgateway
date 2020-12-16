@@ -550,6 +550,7 @@ class WsProviderTest(AbstractTestCase):
             FeedSource.BLOCKCHAIN_SOCKET,
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
+        logger.error(expected_tx_hash)
         to2 = "0x1111111111111111111111111111111111111111"
         eth_tx_message2 = generate_new_eth_with_to_transaction(to2[2:])
         eth_transaction2 = EthRawTransaction(
@@ -585,6 +586,60 @@ class WsProviderTest(AbstractTestCase):
             expected_tx_contents = get_expected_eth_tx_contents(eth_tx_message2)
             self.assertEqual(
                 expected_tx_contents, subscription_message.notification["txContents"]
+            )
+
+    @async_test
+    async def test_eth_pending_transactions_feed_subscribe_filters4(self):
+        self.gateway_node.feed_manager.feeds.clear()
+        self.gateway_node.feed_manager.register_feed(
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+        )
+        to = "0x"
+        eth_tx_message = generate_new_eth_with_to_transaction(to[2:])
+        eth_transaction = EthRawTransaction(
+            eth_tx_message.tx_hash(),
+            eth_tx_message.tx_val(),
+            FeedSource.BLOCKCHAIN_SOCKET,
+        )
+        expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
+        logger.error(expected_tx_hash)
+        to2 = "0x0000000000000000000000000000000000000000"
+        eth_tx_message2 = generate_new_eth_with_to_transaction(to2[2:])
+        eth_transaction2 = EthRawTransaction(
+            eth_tx_message2.tx_hash(),
+            eth_tx_message2.tx_val(),
+            FeedSource.BLOCKCHAIN_SOCKET,
+        )
+        expected_tx_hash2 = f"0x{str(eth_transaction2.tx_hash)}"
+        logger.error(expected_tx_hash2)
+        async with WsProvider(self.ws_uri) as ws:
+            subscription_id = await ws.subscribe(
+                "pendingTxs",
+                options={
+                    "filters": f"to in [0x0000000000000000000000000000000000000000]"
+                },
+            )
+
+            self.gateway_node.feed_manager.publish_to_feed(
+                FeedKey("pendingTxs"), eth_transaction
+            )
+            self.gateway_node.feed_manager.publish_to_feed(
+                FeedKey("pendingTxs"), eth_transaction2
+            )
+
+            subscription_message = await ws.get_next_subscription_notification_by_id(
+                subscription_id
+            )
+            self.assertEqual(subscription_id, subscription_message.subscription_id)
+            self.assertEqual(
+                expected_tx_hash, subscription_message.notification["txHash"]
+            )
+            subscription_message = await ws.get_next_subscription_notification_by_id(
+                subscription_id
+            )
+            self.assertEqual(subscription_id, subscription_message.subscription_id)
+            self.assertEqual(
+                expected_tx_hash2, subscription_message.notification["txHash"]
             )
 
     @async_test
