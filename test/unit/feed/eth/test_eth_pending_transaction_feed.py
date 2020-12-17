@@ -10,6 +10,7 @@ from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransaction
 from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxcommon.feed.new_transaction_feed import FeedSource
 from bxgateway.testing.mocks import mock_eth_messages
+from bxcommon.feed.eth import eth_filter_handlers
 from bxutils import logging
 
 logger = logging.get_logger()
@@ -226,3 +227,19 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
         )
         subscriber.queue.assert_called_once()
 
+    @async_test
+    async def test_validate_and_handle_filters4(self):
+        t3 = "to in [0x0000000000000000000000000000000000000001]"
+
+        valid = self.sut.validate_filters(t3)
+        self.assertTrue(valid)
+        subscriber = self.sut.subscribe({"filters": t3})
+        subscriber.queue = MagicMock(wraps=subscriber.queue)
+        valid = subscriber.validator({"value": 10, "to": eth_filter_handlers.reformat_address("0x")})
+        self.assertFalse(valid)
+        valid = subscriber.validator({"value": 10, "to": "0x"})
+        self.assertTrue(valid)
+        t4 = "to in [0x0000000000000000000000000000000000000000]"
+        subscriber = self.sut.subscribe({"filters": t4})
+        valid = subscriber.validator({"value": 10, "to": eth_filter_handlers.reformat_address("0x")})
+        self.assertTrue(valid)
