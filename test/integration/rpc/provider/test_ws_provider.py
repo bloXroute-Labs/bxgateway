@@ -1,6 +1,5 @@
 import asyncio
 import blxr_rlp as rlp
-from datetime import date
 from typing import Dict, Any
 
 from bloxroute_cli.provider.ws_provider import WsProvider
@@ -8,6 +7,7 @@ from bxcommon import constants
 from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.messages.eth.serializers.transaction import Transaction
+from bxcommon.models.bdn_service_model_base import FeedServiceModelBase
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
@@ -19,7 +19,7 @@ from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test, AsyncMock
 from bxcommon.rpc.rpc_errors import RpcError
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
-from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
+from bxcommon.models.bdn_service_model_config_base import BdnFeedServiceModelConfigBase
 from bxcommon.rpc.provider.abstract_ws_provider import WsException
 
 from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
@@ -76,14 +76,22 @@ def get_expected_eth_tx_contents(eth_tx_message: TxMessage) -> Dict[str, Any]:
 class WsProviderTest(AbstractTestCase):
     @async_test
     async def setUp(self) -> None:
+        self.feed_service_model = FeedServiceModelBase(
+            allow_filtering=True,
+            available_fields=["all"]
+        )
+        self.base_feed_service_model = BdnFeedServiceModelConfigBase(
+            expire_date="2999-01-01",
+            feed=self.feed_service_model
+        )
         account_model = BdnAccountModelBase(
             "account_id",
             "account_name",
             "fake_certificate",
             tier_name="Developer",
-            new_transaction_streaming=BdnServiceModelConfigBase(
-                expire_date=date(2999, 1, 1).isoformat()
-            ),
+            new_transaction_streaming=self.base_feed_service_model,
+            new_pending_transaction_streaming=self.base_feed_service_model,
+            on_block_feed=self.base_feed_service_model
         )
         gateway_opts = gateway_helpers.get_gateway_opts(8000, ws=True)
         gateway_opts.set_account_options(account_model)

@@ -81,6 +81,9 @@ class CompareTxFeedScriptTest(AbstractTestCase):
             "account_id", "account_name", "fake_certificate",
             new_transaction_streaming=BdnServiceModelConfigBase(
                 expire_date=date(2999, 1, 1).isoformat()
+            ),
+            new_pending_transaction_streaming=BdnServiceModelConfigBase(
+                expire_date=date(2999, 1, 1).isoformat()
             )
         )
         gateway_opts = gateway_helpers.get_gateway_opts(8000, ws=True)

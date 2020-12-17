@@ -18,8 +18,8 @@ from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxutils import constants as utils_constants
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
-from bxcommon.models.bdn_service_model_base import BdnServiceModelBase
-from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase
+from bxcommon.models.bdn_service_model_base import BdnServiceModelBase, FeedServiceModelBase
+from bxcommon.models.bdn_service_model_config_base import BdnServiceModelConfigBase, BdnFeedServiceModelConfigBase
 from bxcommon.models.bdn_service_type import BdnServiceType
 from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
@@ -83,6 +83,14 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @abstractmethod
     def get_gateway_opts(self) -> GatewayOpts:
+        feed_service_model = FeedServiceModelBase(
+            allow_filtering=True,
+            available_fields=["all"]
+        )
+        base_feed_service_model = BdnFeedServiceModelConfigBase(
+            expire_date="2999-01-01",
+            feed=feed_service_model
+        )
         self._account_model = BdnAccountModelBase(
             account_id="",
             logical_account_name="",
@@ -95,6 +103,11 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
                 ),
                 expire_date=utils_constants.DEFAULT_EXPIRATION_DATE.isoformat()
             ),
+            new_transaction_streaming=base_feed_service_model,
+            new_pending_transaction_streaming=base_feed_service_model,
+            on_block_feed=base_feed_service_model,
+            new_block_streaming=base_feed_service_model,
+            transaction_state_feed=base_feed_service_model,
             blockchain_protocol="Ethereum",
             blockchain_network="Mainnet",
         )

@@ -1,5 +1,7 @@
 import asyncio
-from typing import Any, List, Set
+from typing import Any
+from mock import MagicMock
+
 # TODO: remove try-catch when removing py3.7 support
 from bxcommon.models.node_type import NodeType
 from bxcommon.models.outbound_peer_model import OutboundPeerModel
@@ -68,6 +70,9 @@ class IpcServerTest(AbstractGatewayRpcIntegrationTest):
 
     @async_test
     async def test_subscribe_and_unsubscribe(self):
+        self.gateway_node.account_model.get_feed_service_config_by_name = MagicMock(
+            return_value=self.gateway_node.account_model.new_transaction_streaming
+        )
         feed = TestFeed("foo")
         self.feed_manager.register_feed(feed)
 
