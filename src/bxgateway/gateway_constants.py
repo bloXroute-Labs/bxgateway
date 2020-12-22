@@ -17,7 +17,7 @@ BLOCK_RECOVERY_RECOVERY_INTERVAL_S = [0.1, 0.5, 1, 2, 5]
 BLOCK_RECOVERY_MAX_RETRY_ATTEMPTS = 1  # for now, since longer retries aren't really worth it
 BLOCK_RECOVERY_MAX_QUEUE_TIME = 15  # slightly more than sum(BLOCK_RECOVERY_RECOVERY_INTERVAL_S)
 CHECK_MEMORY_THRESHOLD_INTERVAL_S = 60 * 60
-CHECK_MEMORY_THRESHOLD_LIMIT = 2 * 1024 * 1024 * 1024
+CHECK_MEMORY_THRESHOLD_LIMIT = 4 * 1024 * 1024 * 1024
 
 # enum for setting Gateway neutrality assertion policy for releasing encryption keys
 class NeutralityPolicy:
