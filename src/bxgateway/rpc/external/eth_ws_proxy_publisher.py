@@ -116,10 +116,15 @@ class EthWsProxyPublisher(EthWsSubscriber):
             block_header = next_notification.notification
             block_hash = Sha256Hash(convert.hex_to_bytes(block_header["hash"][2:]))
             block_number = int(block_header["number"], 16)
+            block_difficulty = int(block_header["difficulty"], 16)
 
             self.node.publish_block(
                 block_number, block_hash, None, FeedSource.BLOCKCHAIN_RPC
             )
+            self.node.block_processing_service.set_last_confirmed_block_parameters(
+                block_number, block_difficulty
+            )
+
 
     def process_received_transaction(self, transaction_key: TransactionKey) -> None:
         tx_contents = cast(
