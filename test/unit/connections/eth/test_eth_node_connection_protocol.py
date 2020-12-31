@@ -467,11 +467,15 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
             [
                 call(
                     FeedKey(EthNewTransactionFeed.NAME),
-                    EthRawTransaction(transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET)
+                    EthRawTransaction(
+                        transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET, local_region=True
+                    )
                 ),
                 call(
                     FeedKey(EthPendingTransactionFeed.NAME),
-                    EthRawTransaction(transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET)
+                    EthRawTransaction(
+                        transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET, local_region=True
+                    )
                 ),
             ]
         )

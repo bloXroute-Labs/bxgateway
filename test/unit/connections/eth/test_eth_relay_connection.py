@@ -4,8 +4,10 @@ from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.constants import LOCALHOST
 from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils.mocks.mock_node import MockNode
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
@@ -25,21 +27,52 @@ class EthRelayConnectionTest(AbstractTestCase):
 
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
         self.node = EthGatewayNode(opts, node_ssl_service)
-        self.connection = helpers.create_connection(
+        self.relay_1 = MockNode(
+            helpers.get_common_opts(8000, region="us-east-1")
+        )
+        self.relay_connection_1 = helpers.create_connection(
             EthRelayConnection,
-            self.node
+            self.node,
+            node_opts=self.relay_1.opts,
+            file_no=1,
+            ip="1.2.3.4"
+        )
+
+        self.relay_2 = MockNode(
+            helpers.get_common_opts(8001, region="eu-west-1")
+        )
+        self.relay_connection_2 = helpers.create_connection(
+            EthRelayConnection,
+            self.node,
+            node_opts=self.relay_2.opts,
+            file_no=1,
+            ip="1.2.3.5"
         )
         self.node.broadcast = MagicMock()
         self.node.has_active_blockchain_peer = MagicMock(return_value=True)
 
     def test_publish_new_transaction(self):
         bx_tx_message = self._convert_to_bx_message(mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE)
+        bx_tx_message.set_transaction_flag(TransactionFlag.LOCAL_REGION)
 
         self.node.feed_manager.publish_to_feed = MagicMock()
-        self.connection.msg_tx(bx_tx_message)
+        self.relay_connection_1.msg_tx(bx_tx_message)
 
         expected_publication = EthRawTransaction(
-            bx_tx_message.tx_hash(), bx_tx_message.tx_val(), FeedSource.BDN_SOCKET
+            bx_tx_message.tx_hash(), bx_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
+        )
+        self.node.feed_manager.publish_to_feed.assert_called_once_with(
+            FeedKey(NewTransactionFeed.NAME), expected_publication
+        )
+
+    def test_publish_new_tx_from_different_location(self):
+        # relay from different region
+        bx_tx_message_2 = self._convert_to_bx_message(mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE)
+        self.node.feed_manager.publish_to_feed = MagicMock()
+        self.relay_connection_2.msg_tx(bx_tx_message_2)
+
+        expected_publication = EthRawTransaction(
+            bx_tx_message_2.tx_hash(), bx_tx_message_2.tx_val(), FeedSource.BDN_SOCKET, local_region=False
         )
         self.node.feed_manager.publish_to_feed.assert_called_once_with(
             FeedKey(NewTransactionFeed.NAME), expected_publication
@@ -52,7 +85,7 @@ class EthRelayConnectionTest(AbstractTestCase):
         self.node.get_blockchain_network().min_tx_network_fee = (
             mock_eth_messages.EIP_155_TRANSACTION_GAS_PRICE + 10
         )
-        self.connection.msg_tx(bx_tx_message)
+        self.relay_connection_1.msg_tx(bx_tx_message)
 
         self.node.feed_manager.publish_to_feed.assert_not_called()
 
@@ -68,13 +101,13 @@ class EthRelayConnectionTest(AbstractTestCase):
         cheap_tx = self._convert_to_bx_message(
             TransactionsEthProtocolMessage(None, [mock_eth_messages.get_dummy_transaction(1, 5)])
         )
-        self.connection.msg_tx(cheap_tx)
+        self.relay_connection_1.msg_tx(cheap_tx)
         self.node.broadcast.assert_not_called()
 
         expensive_tx = self._convert_to_bx_message(
             TransactionsEthProtocolMessage(None, [mock_eth_messages.get_dummy_transaction(1, 15)])
         )
-        self.connection.msg_tx(expensive_tx)
+        self.relay_connection_1.msg_tx(expensive_tx)
         self._assert_tx_sent()
 
     def _convert_to_bx_message(self, transactions_eth_msg: TransactionsEthProtocolMessage) -> TxMessage:

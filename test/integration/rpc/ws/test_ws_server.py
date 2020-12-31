@@ -4,9 +4,6 @@ from typing import Any
 from mock import MagicMock
 
 # TODO: remove try-catch when removing py3.7 support
-from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
-from bxcommon.models.bdn_service_model_base import FeedServiceModelBase
-from bxcommon.models.bdn_service_model_config_base import BdnFeedServiceModelConfigBase
 from bxutils.encoding.json_encoder import Case
 
 try:

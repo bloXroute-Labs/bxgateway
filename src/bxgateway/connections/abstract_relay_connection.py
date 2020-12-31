@@ -20,6 +20,7 @@ from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.messages.validation.message_size_validation_settings import MessageSizeValidationSettings
 from bxcommon.models.entity_type_model import EntityType
 from bxcommon.models.notification_code import NotificationCode
+from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.services import sdn_http_service
 from bxcommon.utils import convert, performance_utils
@@ -180,8 +181,9 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         )
 
         if processing_result.assigned_short_id:
-            was_missing = self.node.block_recovery_service.check_missing_sid(short_id,
-                                                                             RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
+            was_missing = self.node.block_recovery_service.check_missing_sid(
+                short_id, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN
+            )
             attempt_recovery |= was_missing
             tx_stats.add_tx_by_hash_event(
                 tx_hash,
@@ -200,11 +202,12 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             gateway_bdn_performance_stats_service.log_tx_from_bdn(
                 not self.node.is_gas_price_above_min_network_fee(tx_contents)
             )
-            attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(tx_hash,
-                                                                                       RecoveredTxsSource.TXS_RECEIVED_FROM_BDN)
+            attempt_recovery |= self.node.block_recovery_service.check_missing_tx_hash(
+                tx_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_BDN
+            )
 
             self.publish_new_transaction(
-                tx_hash, tx_contents
+                tx_hash, tx_contents, TransactionFlag.LOCAL_REGION in msg.transaction_flag()
             )
 
             if self.node.has_active_blockchain_peer():
@@ -405,10 +408,12 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             done_callback=self._process_blockchain_network_from_sdn
         )
 
-    def publish_new_transaction(self, tx_hash: Sha256Hash, tx_contents: memoryview) -> None:
+    def publish_new_transaction(
+        self, tx_hash: Sha256Hash, tx_contents: memoryview, local_region: bool
+    ) -> None:
         self.node.feed_manager.publish_to_feed(
             FeedKey(NewTransactionFeed.NAME),
-            RawTransactionFeedEntry(tx_hash, tx_contents)
+            RawTransactionFeedEntry(tx_hash, tx_contents, local_region=local_region)
         )
 
     def on_connection_established(self):

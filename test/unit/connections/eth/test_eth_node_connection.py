@@ -29,8 +29,12 @@ class EthNodeConnectionTest(AbstractTestCase):
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
         self.node = EthGatewayNode(opts, node_ssl_service)
         self.connection_fileno = 1
-        self.connection = helpers.create_connection(EthNodeConnection, node=self.node, file_no=self.connection_fileno,
-                                                    port=opts.blockchain_port)
+        self.connection = helpers.create_connection(
+            EthNodeConnection,
+            node=self.node,
+            file_no=self.connection_fileno,
+            port=opts.blockchain_port
+        )
 
         cipher1, cipher2 = AbstractRLPxCipherTest().setup_ciphers()
         self.connection.connection_protocol.rlpx_cipher = cipher1

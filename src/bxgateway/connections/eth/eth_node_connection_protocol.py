@@ -406,15 +406,25 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         )
 
     def publish_transaction(
-        self, tx_hash: Sha256Hash, tx_contents: memoryview
+        self, tx_hash: Sha256Hash, tx_contents: memoryview, local_region: bool = True
     ) -> None:
         transaction_feed_stats_service.log_new_transaction(tx_hash)
         self.node.feed_manager.publish_to_feed(
             FeedKey(EthNewTransactionFeed.NAME),
-            EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
+            EthRawTransaction(
+                tx_hash,
+                tx_contents,
+                FeedSource.BLOCKCHAIN_SOCKET,
+                local_region=local_region
+            )
         )
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
         self.node.feed_manager.publish_to_feed(
             FeedKey(EthPendingTransactionFeed.NAME),
-            EthRawTransaction(tx_hash, tx_contents, FeedSource.BLOCKCHAIN_SOCKET)
+            EthRawTransaction(
+                tx_hash,
+                tx_contents,
+                FeedSource.BLOCKCHAIN_SOCKET,
+                local_region=local_region
+            )
         )

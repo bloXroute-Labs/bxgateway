@@ -17,11 +17,13 @@ class EthRelayConnection(AbstractRelayConnection):
     node: "EthGatewayNode"
 
     def publish_new_transaction(
-        self, tx_hash: Sha256Hash, tx_contents: memoryview
+        self, tx_hash: Sha256Hash, tx_contents: memoryview, local_region: bool
     ) -> None:
         gas_price = eth_common_utils.raw_tx_gas_price(tx_contents, 0)
         if gas_price >= self.node.get_network_min_transaction_fee():
             self.node.feed_manager.publish_to_feed(
                 FeedKey(EthNewTransactionFeed.NAME),
-                EthRawTransaction(tx_hash, tx_contents, FeedSource.BDN_SOCKET)
+                EthRawTransaction(
+                    tx_hash, tx_contents, FeedSource.BDN_SOCKET, local_region=local_region
+                )
             )

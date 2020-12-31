@@ -124,6 +124,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
         logger.error(expected_tx_hash)
@@ -147,6 +148,8 @@ class WsProviderTest(AbstractTestCase):
                 expected_tx_contents, subscription_message.notification["txContents"]
             )
 
+            self.assertTrue(subscription_message.notification["localRegion"])
+
     @async_test
     async def test_eth_new_tx_feed_subscribe_include_from_blockchain(self):
         self.gateway_node.feed_manager.feeds.clear()
@@ -157,6 +160,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -179,6 +183,7 @@ class WsProviderTest(AbstractTestCase):
             self.assertEqual(
                 expected_tx_contents, subscription_message.notification["txContents"]
             )
+            self.assertTrue(subscription_message.notification["localRegion"])
 
     @async_test
     async def test_eth_new_tx_feed_subscribe_not_include_from_blockchain(self):
@@ -187,7 +192,7 @@ class WsProviderTest(AbstractTestCase):
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -196,6 +201,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message_blockchain.tx_hash(),
             eth_tx_message_blockchain.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
 
         async with WsProvider(self.ws_uri) as ws:
@@ -227,7 +233,7 @@ class WsProviderTest(AbstractTestCase):
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -254,7 +260,7 @@ class WsProviderTest(AbstractTestCase):
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -290,7 +296,7 @@ class WsProviderTest(AbstractTestCase):
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -390,9 +396,10 @@ class WsProviderTest(AbstractTestCase):
                 helpers.generate_object_hash(),
                 memoryview(tx_contents),
                 FeedSource.BDN_SOCKET,
+                False
             )
             serialized_published_message = RawTransactionFeedEntry(
-                raw_published_message.tx_hash, raw_published_message.tx_contents
+                raw_published_message.tx_hash, raw_published_message.tx_contents, raw_published_message.local_region
             )
             self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("newTxs"), raw_published_message
@@ -410,6 +417,10 @@ class WsProviderTest(AbstractTestCase):
             self.assertEqual(
                 serialized_published_message.tx_contents,
                 subscription_message.notification["txContents"],
+            )
+
+            self.assertFalse(
+                subscription_message.notification["localRegion"],
             )
 
             task = asyncio.create_task(
@@ -476,6 +487,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
         logger.error(expected_tx_hash)
@@ -509,6 +521,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
         to2 = "0x1111111111111111111111111111111111111111"
@@ -517,6 +530,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message2.tx_hash(),
             eth_tx_message2.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash2 = f"0x{str(eth_transaction2.tx_hash)}"
         logger.error(expected_tx_hash2)
@@ -556,6 +570,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
         to2 = "0x1111111111111111111111111111111111111111"
@@ -564,6 +579,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message2.tx_hash(),
             eth_tx_message2.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash2 = f"0x{str(eth_transaction2.tx_hash)}"
         logger.error(expected_tx_hash2)
@@ -607,6 +623,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
         logger.error(expected_tx_hash)
@@ -616,6 +633,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message2.tx_hash(),
             eth_tx_message2.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash2 = f"0x{str(eth_transaction2.tx_hash)}"
         logger.error(expected_tx_hash2)

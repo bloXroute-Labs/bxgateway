@@ -44,7 +44,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
 
         self.sut.publish(
             EthRawTransaction(
-                tx_message.tx_hash(), tx_message.tx_val(), FeedSource.BDN_SOCKET
+                tx_message.tx_hash(), tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
             )
         )
 
@@ -71,7 +71,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
 
         self.sut.publish(
             EthRawTransaction(
-                transaction_hash, SAMPLE_TRANSACTION_FROM_WS, FeedSource.BLOCKCHAIN_RPC
+                transaction_hash, SAMPLE_TRANSACTION_FROM_WS, FeedSource.BLOCKCHAIN_RPC, local_region=True
             )
         )
 
@@ -136,7 +136,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
 
         self.sut.publish(
             EthRawTransaction(
-                transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET
+                transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET, local_region=True
             )
         )
 
@@ -186,7 +186,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
 
         self.sut.publish(
             EthRawTransaction(
-                transaction_hash, SAMPLE_TRANSACTION_FROM_WS, FeedSource.BLOCKCHAIN_RPC
+                transaction_hash, SAMPLE_TRANSACTION_FROM_WS, FeedSource.BLOCKCHAIN_RPC, local_region=True
             )
         )
         subscriber.queue.assert_not_called()

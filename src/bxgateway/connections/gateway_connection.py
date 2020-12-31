@@ -211,7 +211,9 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         self.node.feed_manager.publish_to_feed(
             FeedKey(EthPendingTransactionFeed.NAME),
-            EthRawTransaction(tx_hash, tx_contents, FeedSource.BDN_SOCKET)
+            EthRawTransaction(
+                tx_hash, tx_contents, FeedSource.BDN_SOCKET, local_region=True
+            )
         )
 
         transaction_feed_stats_service.log_pending_transaction_from_internal(tx_hash)

@@ -112,7 +112,8 @@ class CompareTxFeedScriptTest(AbstractTestCase):
             eth_transaction = EthRawTransaction(
                 eth_tx_message.tx_hash(),
                 eth_tx_message.tx_val(),
-                feed_source
+                feed_source,
+                local_region=True
             )
             self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("newTxs"), eth_transaction
@@ -124,7 +125,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
         for _ in range(20):
             eth_tx_message = generate_new_eth_transaction()
             eth_transaction = EthRawTransaction(
-                eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
+                eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
             )
             self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("pendingTxs"), eth_transaction
@@ -134,7 +135,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
     async def send_duplicate_tx_to_pending_txs_feed(self):
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
         )
         await asyncio.sleep(1)
         for _ in range(20):
