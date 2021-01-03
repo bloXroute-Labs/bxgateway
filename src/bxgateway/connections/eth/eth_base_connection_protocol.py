@@ -1,8 +1,10 @@
 import time
 from abc import ABCMeta
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast, Optional
+from typing import TYPE_CHECKING, cast, Optional, Union
 
+from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.utils import convert
 from bxgateway import gateway_constants
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
@@ -12,10 +14,10 @@ from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import Disc
 from bxgateway.messages.eth.protocol.eth_protocol_message_factory import EthProtocolMessageFactory
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.protocol.hello_eth_protocol_message import HelloEthProtocolMessage
-from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
 from bxgateway.messages.eth.protocol.pong_eth_protocol_message import PongEthProtocolMessage
 from bxgateway.messages.eth.protocol.raw_eth_protocol_message import RawEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
+from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
 from bxgateway.utils.eth import frame_utils
 from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
@@ -132,14 +134,20 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
                                  client_version_string, version)
         self.connection_status.hello_message_received = True
 
-    def msg_status(self, msg: StatusEthProtocolMessage):
+    def msg_status(self, msg: Union[StatusEthProtocolMessage, StatusEthProtocolMessageV63]):
         self.connection.log_trace("Status message received.")
         self.connection_status.status_message_received = True
+
+        for peer in self.node.blockchain_peers:
+            if self.node.is_blockchain_peer(self.connection.peer_ip, self.connection.peer_port):
+                peer.connection_established = True
+
         chain_difficulty_from_status_msg = msg.get_chain_difficulty()
         chain_difficulty = int(self.node.opts.chain_difficulty, 16)
+        fork_id = msg.get_fork_id()
         if isinstance(chain_difficulty_from_status_msg, int) and chain_difficulty_from_status_msg > chain_difficulty:
             chain_difficulty = chain_difficulty_from_status_msg
-        self._enqueue_status_message(chain_difficulty)
+        self._enqueue_status_message(chain_difficulty, fork_id)
 
     def msg_disconnect(self, msg):
         self.connection_status.disconnect_message_received = True
@@ -186,29 +194,56 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
         self.connection.enqueue_msg_bytes(auth_ack_msg_bytes)
         self.connection_status.auth_ack_message_sent = True
 
+    def _get_eth_protocol_version(self) -> int:
+        for peer in self.node.blockchain_peers:
+            if self.node.is_blockchain_peer(self.connection.peer_ip, self.connection.peer_port):
+                return peer.blockchain_protocol_version
+        return eth_common_constants.ETH_PROTOCOL_VERSION
+
     def _enqueue_hello_message(self):
         public_key = self.node.get_public_key()
+        eth_protocol_version = eth_common_constants.ETH_PROTOCOL_VERSION
+        if self.connection.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
+            eth_protocol_version = self._get_eth_protocol_version()
+        elif self.connection.CONNECTION_TYPE == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
+            eth_protocol_version = self.node.remote_blockchain_protocol_version
 
-        hello_msg = HelloEthProtocolMessage(None,
-                                            eth_common_constants.P2P_PROTOCOL_VERSION,
-                                            f"{gateway_constants.GATEWAY_PEER_NAME} {self.node.opts.source_version}",
-                                            eth_common_constants.CAPABILITIES,
-                                            self.connection.external_port,
-                                            public_key)
+        hello_msg = HelloEthProtocolMessage(
+            None,
+            eth_common_constants.P2P_PROTOCOL_VERSION,
+            f"{gateway_constants.GATEWAY_PEER_NAME} {self.node.opts.source_version}".encode("utf-8"),
+            ((b"eth", eth_protocol_version),),
+            self.connection.external_port,
+            public_key
+        )
         self.connection.enqueue_msg(hello_msg)
         self.connection_status.hello_message_sent = True
 
-    def _enqueue_status_message(self, chain_difficulty: int):
+    def _enqueue_status_message(self, chain_difficulty: int, fork_id):
         network_id = self.node.opts.network_id
         chain_head_hash = convert.hex_to_bytes(self.node.opts.genesis_hash)
         genesis_hash = convert.hex_to_bytes(self.node.opts.genesis_hash)
+        eth_protocol_version = self._get_eth_protocol_version()
 
-        status_msg = StatusEthProtocolMessage(None,
-                                              eth_common_constants.ETH_PROTOCOL_VERSION,
-                                              network_id,
-                                              chain_difficulty,
-                                              chain_head_hash,
-                                              genesis_hash)
+        if eth_common_constants.ETH_PROTOCOL_VERSION == gateway_constants.ETH_PROTOCOL_VERSION_63:
+            status_msg = StatusEthProtocolMessageV63(
+                None,
+                eth_protocol_version,
+                network_id,
+                chain_difficulty,
+                chain_head_hash,
+                genesis_hash,
+            )
+        else:
+            status_msg = StatusEthProtocolMessage(
+                None,
+                eth_protocol_version,
+                network_id,
+                chain_difficulty,
+                chain_head_hash,
+                genesis_hash,
+                fork_id
+            )
 
         self.connection.enqueue_msg(status_msg)
         self.connection_status.status_message_sent = True

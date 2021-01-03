@@ -4,15 +4,14 @@ from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMess
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 
 
-class StatusEthProtocolMessage(EthProtocolMessage):
+class StatusEthProtocolMessageV63(EthProtocolMessage):
     msg_type = EthProtocolMessageType.STATUS
 
     fields = [("eth_version", rlp.sedes.big_endian_int),
               ("network_id", rlp.sedes.big_endian_int),
               ("chain_difficulty", rlp.sedes.big_endian_int),
               ("chain_head_hash", rlp.sedes.binary),
-              ("genesis_hash", rlp.sedes.binary),
-              ("fork_id", rlp.sedes.List([rlp.sedes.binary, rlp.sedes.big_endian_int], strict=False))]
+              ("genesis_hash", rlp.sedes.binary)]
 
     def get_eth_version(self):
         return self.get_field_value("eth_version")
@@ -30,4 +29,4 @@ class StatusEthProtocolMessage(EthProtocolMessage):
         return self.get_field_value("genesis_hash")
 
     def get_fork_id(self):
-        return self.get_field_value("fork_id")
+        return None

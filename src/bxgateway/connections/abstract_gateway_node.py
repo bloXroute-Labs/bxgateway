@@ -96,6 +96,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     remote_blockchain_ip: Optional[str] = None
     remote_blockchain_port: Optional[int] = None
     remote_node_conn: Optional[AbstractGatewayBlockchainConnection] = None
+    remote_blockchain_protocol_version: Optional[int] = None
+    remote_blockchain_connection_established: bool = False
     transaction_streamer_peer: Optional[OutboundPeerModel] = None
 
     _blockchain_liveliness_alarm: Optional[AlarmId] = None

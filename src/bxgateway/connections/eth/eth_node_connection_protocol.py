@@ -1,6 +1,6 @@
 import time
 from collections import deque
-from typing import List, Deque, cast
+from typing import List, Deque, cast, Union
 
 from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -28,6 +28,7 @@ from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import Ge
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
+from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
@@ -91,7 +92,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         )
         self._connection_established_time = 0.0
 
-    def msg_status(self, msg: StatusEthProtocolMessage):
+    def msg_status(self, msg: Union[StatusEthProtocolMessage, StatusEthProtocolMessageV63]):
         super(EthNodeConnectionProtocol, self).msg_status(msg)
 
         self.connection.on_connection_established()
@@ -189,7 +190,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         for block_hash, block_number in block_hash_number_pairs:
             # pyre-fixme[6]: Expected `memoryview` for 1st param but got `None`.
             self.pending_new_block_parts.add(block_hash, NewBlockParts(None, None, block_number))
-            self.connection.enqueue_msg(GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, False))
+            self.connection.enqueue_msg(GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, 0))
 
         self.request_block_body([block_hash for block_hash, _ in block_hash_number_pairs])
 
