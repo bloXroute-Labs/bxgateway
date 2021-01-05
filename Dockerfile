@@ -15,6 +15,12 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY bxgateway/requirements.txt ./bxgateway_requirements.txt
 COPY bxcommon/requirements.txt ./bxcommon_requirements.txt
 
+# most recent version of pip doesn't seem to detect manylinux wheel correctly
+# orjson cannot be installed normally due to alpine linux using musl-dev
+RUN echo 'manylinux2014_compatible = True' > /usr/local/lib/python3.8/_manylinux.py
+RUN pip install -U pip==20.2.2
+RUN pip install orjson==3.4.6
+
 RUN pip install -U pip wheel \
  && pip install -r ./bxgateway_requirements.txt \
                 -r ./bxcommon_requirements.txt
@@ -37,6 +43,7 @@ RUN apk update \
         bash \
         gcc \
         openssl-dev \
+        gcompat \
  && pip install --upgrade pip
 
 COPY --from=builder /opt/venv /opt/venv
