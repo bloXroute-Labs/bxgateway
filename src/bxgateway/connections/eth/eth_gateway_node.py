@@ -40,6 +40,7 @@ from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
 from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
+from bxgateway.feed.eth.eth_transaction_receipts_feed import EthTransactionReceiptsFeed
 from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
@@ -447,6 +448,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self.feed_manager.register_feed(EthPendingTransactionFeed(self.alarm_queue))
         self.feed_manager.register_feed(EthOnBlockFeed(self))
         self.feed_manager.register_feed(EthNewBlockFeed(self))
+        self.feed_manager.register_feed(EthTransactionReceiptsFeed(self))
 
     def on_new_subscriber_request(self) -> None:
         if self.opts.eth_ws_uri and not self.eth_ws_proxy_publisher.running:
@@ -534,6 +536,7 @@ class EthGatewayNode(AbstractGatewayNode):
             self._publish_block_to_on_block_feed(raw_block)
             if block_message is not None:
                 self._publish_block_to_new_block_feed(raw_block)
+                self._publish_block_to_transaction_receipts_feed(raw_block)
 
     async def init(self) -> None:
         await super().init()
@@ -603,6 +606,14 @@ class EthGatewayNode(AbstractGatewayNode):
             self.feed_manager.publish_to_feed(
                 FeedKey(EthOnBlockFeed.NAME), EventNotification(raw_block.block_number)
             )
+
+    def _publish_block_to_transaction_receipts_feed(
+        self,
+        raw_block: EthRawBlock
+    ):
+        self.feed_manager.publish_to_feed(
+            FeedKey(EthTransactionReceiptsFeed.NAME), raw_block
+        )
 
     def is_gas_price_above_min_network_fee(self, transaction_contents: Union[memoryview, bytearray]) -> bool:
         gas_price = eth_common_utils.raw_tx_gas_price(memoryview(transaction_contents), 0)

@@ -125,7 +125,6 @@ class EthWsProxyPublisher(EthWsSubscriber):
                 block_number, block_difficulty
             )
 
-
     def process_received_transaction(self, transaction_key: TransactionKey) -> None:
         tx_contents = cast(
             Optional[memoryview],
