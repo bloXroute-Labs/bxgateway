@@ -1173,6 +1173,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             )
         )
 
+    def get_ws_server_status(self) -> bool:
+        return self._ws_server.status()
+
     def _set_transaction_streamer_peer(self) -> None:
         if self.transaction_streamer_peer is not None or self.NODE_TYPE is not NodeType.EXTERNAL_GATEWAY:
             return

@@ -55,7 +55,7 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
     ]
     ALL_FIELDS = ["receipt"]
     VALID_SOURCES = {
-        FeedSource.BLOCKCHAIN_SOCKET, FeedSource.BLOCKCHAIN_RPC
+        FeedSource.BLOCKCHAIN_SOCKET, FeedSource.BLOCKCHAIN_RPC, FeedSource.BDN_SOCKET
     }
 
     def __init__(self, node: "EthGatewayNode", network_num: int = constants.ALL_NETWORK_NUM, ) -> None:
@@ -67,6 +67,9 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
         )
         self.published_blocks_height = ExpiringSet(
             node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S, name="receipts_feed_published_blocks_height"
+        )
+        self.blocks_confirmed_by_new_heads_notification = ExpiringSet(
+            node.alarm_queue, gateway_constants.MAX_BLOCK_CACHE_TIME_S, name="receipts_feed_newHeads_confirmed_blocks"
         )
 
     def serialize(self, raw_message: Union[EthRawBlock, Dict]) -> TransactionReceiptsFeedEntry:
@@ -80,16 +83,19 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
         logger.trace(
             "attempting to publish message: {} for feed {}", raw_message, self.name
         )
+        if raw_message.source not in self.VALID_SOURCES or self.subscriber_count() == 0:
+            return
         if isinstance(raw_message, Dict):
             # transaction receipts published via parent publish method
             raise NotImplementedError
-        if raw_message.source not in self.VALID_SOURCES or raw_message.block is None or self.subscriber_count() == 0:
-            return
 
         block_hash = raw_message.block_hash
         block_number = raw_message.block_number
         block = raw_message.block
-        assert block is not None
+
+        # receipts won't be available until NewHeads feed notification
+        if raw_message.source == FeedSource.BLOCKCHAIN_RPC:
+            self.blocks_confirmed_by_new_heads_notification.add(block_hash)
 
         if block_number < self.last_block_number - gateway_constants.MAX_BLOCK_BACKLOG_TO_PUBLISH:
             # published block is too far behind, ignore
@@ -97,6 +103,16 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
 
         if block_hash in self.published_blocks:
             # already published ignore
+            return
+
+        if block is None:
+            block = self.node.block_queuing_service_manager.get_block_data(block_hash)
+            if block is None:
+                return
+
+        assert block is not None
+
+        if block_hash not in self.blocks_confirmed_by_new_heads_notification:
             return
 
         self.published_blocks.add(block_hash)
@@ -112,7 +128,7 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
 
         logger.debug("{} Attempting to fetch transaction receipts for block {}", self.name, block_hash)
         for tx in block.txns():
-            asyncio.create_task(self._publish(tx.hash()))
+            asyncio.create_task(self._publish(tx.hash(), block_hash))
 
         if block_number in self.published_blocks_height and block_number <= self.last_block_number:
             # possible fork, try to republish all later blocks
@@ -123,18 +139,31 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
 
     async def _publish(
         self,
-        transaction_hash: Sha256Hash
+        transaction_hash: Sha256Hash,
+        block_hash: Sha256Hash,
+        retry_count: int = 0
     ) -> None:
         response = None
         try:
             response = await self.node.eth_ws_proxy_publisher.call_rpc(
-                rpc_constants.ETH_GET_TRANSACTION_RECEIPT_RPC_METHOD, [transaction_hash],
+                rpc_constants.ETH_GET_TRANSACTION_RECEIPT_RPC_METHOD, [transaction_hash.to_string(True)],
             )
         except RpcError as e:
             error_response = e.to_json()
-            logger.debug("Failed to fetch transaction receipt for {}: {}", transaction_hash, error_response)
-        if not response:
-            logger.debug("Failed to fetch transaction receipt for {}: transaction was not found.", transaction_hash)
+            logger.warning(
+                "Failed to fetch transaction receipt for {} in block {}: {}. Ceasing attempts.",
+                transaction_hash, block_hash, error_response
+            )
+
+        assert response is not None
+
+        if response.result is None:
+            logger.debug(
+                "Failed to fetch transaction receipt for tx {} in block {}: not found. Attempt: {}. Retrying.",
+                transaction_hash, block_hash, retry_count + 1
+            )
+            await asyncio.sleep(0.1)
+            asyncio.create_task(self._publish(transaction_hash, block_hash, retry_count + 1))
             return
 
         response.result = humps.decamelize(response.result)
@@ -155,7 +184,7 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
                 block = self.node.block_queuing_service_manager.get_block_data(block_hash)
                 if block is not None:
                     for tx in block.txns():
-                        asyncio.create_task(self._publish(tx.hash()))
+                        asyncio.create_task(self._publish(tx.hash(), block_hash))
             else:
                 missing_blocks.add(block_number)
         return missing_blocks
