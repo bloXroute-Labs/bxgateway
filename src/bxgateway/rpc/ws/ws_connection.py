@@ -52,7 +52,9 @@ class WsConnection:
     async def handle_publications(self, websocket: WebSocketServerProtocol, _path: str) -> None:
         while True:
             message = await self.rpc_handler.get_next_subscribed_message()
-            await websocket.send(message.to_jsons(self.rpc_handler.case))
+            await websocket.send(
+                self.rpc_handler.serialize_cached_subscription_message(message)
+            )
 
     async def close(self) -> None:
         self.rpc_handler.close()

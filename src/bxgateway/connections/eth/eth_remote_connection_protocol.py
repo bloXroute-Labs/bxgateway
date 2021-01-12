@@ -11,6 +11,7 @@ from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtoco
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
+from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
@@ -29,9 +30,10 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
             EthProtocolMessageType.RECEIPTS: self.msg_block_receipts
         })
 
-    def msg_status(self, msg: StatusEthProtocolMessage):
+    def msg_status(self, msg: Union[StatusEthProtocolMessage, StatusEthProtocolMessageV63]):
         super(EthRemoteConnectionProtocol, self).msg_status(msg)
         self.connection.on_connection_established()
+        self.node.remote_blockchain_connection_established = True
         self.node.on_remote_blockchain_connection_ready(self.connection)
 
         self.connection.schedule_pings()

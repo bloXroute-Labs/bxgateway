@@ -6,6 +6,7 @@ from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.abstract_message_factory import AbstractMessageFactory, MessagePreview
 from bxcommon.utils.buffers.input_buffer import InputBuffer
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
+from bxgateway import gateway_constants
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
 from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import DisconnectEthProtocolMessage
@@ -24,6 +25,7 @@ from bxgateway.messages.eth.protocol.pong_eth_protocol_message import PongEthPro
 from bxgateway.messages.eth.protocol.raw_eth_protocol_message import RawEthProtocolMessage
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
+from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.eth.framed_input_buffer import FramedInputBuffer
 from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
@@ -36,7 +38,6 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
         EthProtocolMessageType.DISCONNECT: DisconnectEthProtocolMessage,
         EthProtocolMessageType.PING: PingEthProtocolMessage,
         EthProtocolMessageType.PONG: PongEthProtocolMessage,
-        EthProtocolMessageType.STATUS: StatusEthProtocolMessage,
         EthProtocolMessageType.TRANSACTIONS: TransactionsEthProtocolMessage,
         EthProtocolMessageType.NEW_BLOCK_HASHES: NewBlockHashesEthProtocolMessage,
         EthProtocolMessageType.GET_BLOCK_HEADERS: GetBlockHeadersEthProtocolMessage,
@@ -49,6 +50,11 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
         EthProtocolMessageType.GET_RECEIPTS: GetReceiptsEthProtocolMessage,
         EthProtocolMessageType.RECEIPTS: ReceiptsEthProtocolMessage,
     }
+
+    if gateway_constants.ETH_PROTOCOL_VERSION_63 == eth_common_constants.ETH_PROTOCOL_VERSION:
+        _MESSAGE_TYPE_MAPPING.update({EthProtocolMessageType.STATUS: StatusEthProtocolMessageV63})
+    else:
+        _MESSAGE_TYPE_MAPPING.update({EthProtocolMessageType.STATUS: StatusEthProtocolMessage})
 
     def __init__(self, rlpx_cipher):
         if not isinstance(rlpx_cipher, RLPxCipher):

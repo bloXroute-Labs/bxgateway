@@ -125,7 +125,6 @@ class EthWsProxyPublisher(EthWsSubscriber):
                 block_number, block_difficulty
             )
 
-
     def process_received_transaction(self, transaction_key: TransactionKey) -> None:
         tx_contents = cast(
             Optional[memoryview],
@@ -143,7 +142,12 @@ class EthWsProxyPublisher(EthWsSubscriber):
 
         self.feed_manager.publish_to_feed(
             FeedKey(EthPendingTransactionFeed.NAME),
-            EthRawTransaction(transaction_key.transaction_hash, tx_contents, FeedSource.BLOCKCHAIN_RPC)
+            EthRawTransaction(
+                transaction_key.transaction_hash,
+                tx_contents,
+                FeedSource.BLOCKCHAIN_RPC,
+                local_region=True
+            )
         )
 
     async def fetch_missing_transaction(self, transaction_key: TransactionKey) -> None:
@@ -175,7 +179,12 @@ class EthWsProxyPublisher(EthWsSubscriber):
             if gas_price >= self.node.get_network_min_transaction_fee():
                 self.feed_manager.publish_to_feed(
                     FeedKey(EthPendingTransactionFeed.NAME),
-                    EthRawTransaction(transaction_key.transaction_hash, parsed_tx, FeedSource.BLOCKCHAIN_RPC)
+                    EthRawTransaction(
+                        transaction_key.transaction_hash,
+                        parsed_tx,
+                        FeedSource.BLOCKCHAIN_RPC,
+                        local_region=True
+                    )
                 )
 
     async def stop(self) -> None:

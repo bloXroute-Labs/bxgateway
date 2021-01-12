@@ -591,6 +591,7 @@ class BlockProcessingService:
             transaction_service.track_seen_short_ids(block_hash, all_sids)
 
             self._node.publish_block(None, block_hash, block_message, FeedSource.BDN_SOCKET)
+            self._node.log_blocks_network_content(self._node.network_num, block_message)
         else:
             if self._node.block_queuing_service_manager.is_in_any_queuing_service(block_hash) and not recovered:
                 connection.log_trace("Handling already queued block again. Ignoring.")

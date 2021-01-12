@@ -1,6 +1,7 @@
 import asyncio
 import blxr_rlp as rlp
-from typing import Dict, Any
+from mock import MagicMock
+from typing import Dict, Any, Iterator
 
 from bloxroute_cli.provider.ws_provider import WsProvider
 from bxcommon import constants
@@ -31,9 +32,13 @@ from bxcommon.feed.new_transaction_feed import (
     RawTransactionFeedEntry,
     FeedSource,
 )
+from bxgateway.feed.eth.eth_raw_block import EthRawBlock
+from bxgateway.feed.eth.eth_transaction_receipts_feed import EthTransactionReceiptsFeed
 from bxgateway.messages.eth.eth_normal_message_converter import (
     EthNormalMessageConverter,
 )
+from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
+from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import (
     TransactionsEthProtocolMessage,
 )
@@ -73,6 +78,12 @@ def get_expected_eth_tx_contents(eth_tx_message: TxMessage) -> Dict[str, Any]:
     return expected_tx_contents
 
 
+def get_block_message_lazy(
+    block_message: InternalEthBlockInfo
+) -> Iterator[InternalEthBlockInfo]:
+    yield block_message
+
+
 class WsProviderTest(AbstractTestCase):
     @async_test
     async def setUp(self) -> None:
@@ -91,7 +102,8 @@ class WsProviderTest(AbstractTestCase):
             tier_name="Developer",
             new_transaction_streaming=self.base_feed_service_model,
             new_pending_transaction_streaming=self.base_feed_service_model,
-            on_block_feed=self.base_feed_service_model
+            on_block_feed=self.base_feed_service_model,
+            transaction_receipts_feed=self.base_feed_service_model
         )
         gateway_opts = gateway_helpers.get_gateway_opts(8000, ws=True)
         gateway_opts.set_account_options(account_model)
@@ -113,6 +125,7 @@ class WsProviderTest(AbstractTestCase):
         self.ws_uri = f"ws://{constants.LOCALHOST}:8005"
 
         await self.server.start()
+        self.gateway_node.get_ws_server_status = MagicMock(return_value=True)
 
     @async_test
     async def test_eth_new_transactions_feed_default_subscribe(self):
@@ -124,6 +137,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
         logger.error(expected_tx_hash)
@@ -147,6 +161,8 @@ class WsProviderTest(AbstractTestCase):
                 expected_tx_contents, subscription_message.notification["txContents"]
             )
 
+            self.assertTrue(subscription_message.notification["localRegion"])
+
     @async_test
     async def test_eth_new_tx_feed_subscribe_include_from_blockchain(self):
         self.gateway_node.feed_manager.feeds.clear()
@@ -157,6 +173,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -179,6 +196,7 @@ class WsProviderTest(AbstractTestCase):
             self.assertEqual(
                 expected_tx_contents, subscription_message.notification["txContents"]
             )
+            self.assertTrue(subscription_message.notification["localRegion"])
 
     @async_test
     async def test_eth_new_tx_feed_subscribe_not_include_from_blockchain(self):
@@ -187,7 +205,7 @@ class WsProviderTest(AbstractTestCase):
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -196,6 +214,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message_blockchain.tx_hash(),
             eth_tx_message_blockchain.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
 
         async with WsProvider(self.ws_uri) as ws:
@@ -227,7 +246,7 @@ class WsProviderTest(AbstractTestCase):
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -254,7 +273,7 @@ class WsProviderTest(AbstractTestCase):
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -290,7 +309,7 @@ class WsProviderTest(AbstractTestCase):
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
-            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET
+            eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
 
@@ -323,6 +342,7 @@ class WsProviderTest(AbstractTestCase):
 
     @async_test
     async def test_onblock_feed_default_subscribe(self):
+        self.gateway_node.opts.eth_ws_uri = f"ws://{constants.LOCALHOST}:8005"
         block_height = 100
         name = "abc123"
 
@@ -355,6 +375,102 @@ class WsProviderTest(AbstractTestCase):
             )
 
             self.assertEqual(name, subscription_message.notification["name"])
+
+    @async_test
+    async def test_eth_transaction_receipts_feed_default_subscribe(self):
+        self.gateway_node.opts.eth_ws_uri = f"ws://{constants.LOCALHOST}:8005"
+        self.gateway_node.feed_manager.register_feed(
+            EthTransactionReceiptsFeed(self.gateway_node, 0)
+        )
+        self.gateway_node.eth_ws_proxy_publisher = MockEthWsProxyPublisher(
+            "", None, None, self.gateway_node
+        )
+        receipt_result = {
+            "blockHash":"0xe6f67c6948158c45dct10b169ad6bf3a96c6402489733a03051feaf7d09e7b54","blockNumber":"0xaf25e5","cumulativeGasUsed":"0xbdb9ae","from":"0x82170dd1cec50107963bf1ba1e80955ea302c5ce","gasUsed":"0x5208","logs":[],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","status":"0x1","to":"0xa09f63d9a0b0fbe89e41e51282ad660e7c876165","transactionHash":"0xbcdc5b22bf463f9b8766dd61cc133caf13472b6ae8474061134d9dc2983625f6","transactionIndex":"0x90"
+        }
+        self.gateway_node.eth_ws_proxy_publisher.call_rpc = AsyncMock(
+            return_value=JsonRpcResponse(
+                request_id=1, result=receipt_result
+            )
+        )
+        block = mock_eth_messages.get_dummy_block(5)
+        internal_block_info = InternalEthBlockInfo.from_new_block_msg(NewBlockEthProtocolMessage(None, block, 1))
+        eth_raw_block_1 = EthRawBlock(
+            1,
+            internal_block_info.block_hash(),
+            FeedSource.BLOCKCHAIN_RPC,
+            get_block_message_lazy(None)
+        )
+        eth_raw_block_2 = EthRawBlock(
+            1,
+            internal_block_info.block_hash(),
+            FeedSource.BLOCKCHAIN_SOCKET,
+            get_block_message_lazy(internal_block_info)
+        )
+
+        async with WsProvider(self.ws_uri) as ws:
+            subscription_id = await ws.subscribe(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME)
+
+            self.gateway_node.feed_manager.publish_to_feed(
+                FeedKey(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME), eth_raw_block_1
+            )
+            self.gateway_node.feed_manager.publish_to_feed(
+                FeedKey(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME), eth_raw_block_2
+            )
+
+            for i in range(len(block.transactions)):
+                subscription_message = await ws.get_next_subscription_notification_by_id(
+                    subscription_id
+                )
+                self.assertEqual(subscription_id,
+                                 subscription_message.subscription_id)
+                self.assertEqual(subscription_message.notification, {"receipt": receipt_result})
+
+    @async_test
+    async def test_eth_transaction_receipts_feed_specify_include(self):
+        self.gateway_node.opts.eth_ws_uri = f"ws://{constants.LOCALHOST}:8005"
+        self.gateway_node.feed_manager.register_feed(
+            EthTransactionReceiptsFeed(self.gateway_node, 0)
+        )
+        self.gateway_node.eth_ws_proxy_publisher = MockEthWsProxyPublisher(
+            "", None, None, self.gateway_node
+        )
+        receipt_response = {
+            "blockHash":"0xe6f67c6948158c45dct10b169ad6bf3a96c6402489733a03051feaf7d09e7b54","blockNumber":"0xaf25e5","cumulativeGasUsed":"0xbdb9ae","from":"0x82170dd1cec50107963bf1ba1e80955ea302c5ce","gasUsed":"0x5208","logs":[],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","status":"0x1","to":"0xa09f63d9a0b0fbe89e41e51282ad660e7c876165","transactionHash":"0xbcdc5b22bf463f9b8766dd61cc133caf13472b6ae8474061134d9dc2983625f6","transactionIndex":"0x90"
+        }
+        receipt_result = {
+           "transactionHash":"0xbcdc5b22bf463f9b8766dd61cc133caf13472b6ae8474061134d9dc2983625f6"
+        }
+        self.gateway_node.eth_ws_proxy_publisher.call_rpc = AsyncMock(
+            return_value=JsonRpcResponse(
+                request_id=1, result=receipt_response
+            )
+        )
+        block = mock_eth_messages.get_dummy_block(5)
+        internal_block_info = InternalEthBlockInfo.from_new_block_msg(NewBlockEthProtocolMessage(None, block, 1))
+        eth_raw_block = EthRawBlock(
+            1,
+            internal_block_info.block_hash(),
+            FeedSource.BLOCKCHAIN_RPC,
+            get_block_message_lazy(internal_block_info)
+        )
+
+        async with WsProvider(self.ws_uri) as ws:
+            subscription_id = await ws.subscribe(
+                rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME,
+                {"include": ["receipt.transaction_hash"]}
+            )
+
+            self.gateway_node.feed_manager.publish_to_feed(
+                FeedKey(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME), eth_raw_block
+            )
+
+            for i in range(len(block.transactions)):
+                subscription_message = await ws.get_next_subscription_notification_by_id(
+                    subscription_id
+                )
+                self.assertEqual(subscription_id, subscription_message.subscription_id)
+                self.assertEqual(subscription_message.notification, {"receipt": receipt_result})
 
     @async_test
     async def test_connection_and_close(self):
@@ -390,9 +506,10 @@ class WsProviderTest(AbstractTestCase):
                 helpers.generate_object_hash(),
                 memoryview(tx_contents),
                 FeedSource.BDN_SOCKET,
+                False
             )
             serialized_published_message = RawTransactionFeedEntry(
-                raw_published_message.tx_hash, raw_published_message.tx_contents
+                raw_published_message.tx_hash, raw_published_message.tx_contents, raw_published_message.local_region
             )
             self.gateway_node.feed_manager.publish_to_feed(
                 FeedKey("newTxs"), raw_published_message
@@ -410,6 +527,10 @@ class WsProviderTest(AbstractTestCase):
             self.assertEqual(
                 serialized_published_message.tx_contents,
                 subscription_message.notification["txContents"],
+            )
+
+            self.assertFalse(
+                subscription_message.notification["localRegion"],
             )
 
             task = asyncio.create_task(
@@ -476,6 +597,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
         logger.error(expected_tx_hash)
@@ -509,6 +631,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
         to2 = "0x1111111111111111111111111111111111111111"
@@ -517,6 +640,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message2.tx_hash(),
             eth_tx_message2.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash2 = f"0x{str(eth_transaction2.tx_hash)}"
         logger.error(expected_tx_hash2)
@@ -556,15 +680,16 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
-        logger.error(expected_tx_hash)
         to2 = "0x1111111111111111111111111111111111111111"
         eth_tx_message2 = generate_new_eth_with_to_transaction(to2[2:])
         eth_transaction2 = EthRawTransaction(
             eth_tx_message2.tx_hash(),
             eth_tx_message2.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash2 = f"0x{str(eth_transaction2.tx_hash)}"
         logger.error(expected_tx_hash2)
@@ -608,6 +733,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
         logger.error(expected_tx_hash)
@@ -617,6 +743,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message2.tx_hash(),
             eth_tx_message2.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
+            local_region=True
         )
         expected_tx_hash2 = f"0x{str(eth_transaction2.tx_hash)}"
         logger.error(expected_tx_hash2)

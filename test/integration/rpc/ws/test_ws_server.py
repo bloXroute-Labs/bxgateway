@@ -1,14 +1,14 @@
 import asyncio
 from dataclasses import dataclass
 from typing import Any
-from mock import MagicMock
+from unittest import skip
 
-# TODO: remove try-catch when removing py3.7 support
-from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
-from bxcommon.models.bdn_service_model_base import FeedServiceModelBase
-from bxcommon.models.bdn_service_model_config_base import BdnFeedServiceModelConfigBase
+import orjson
+from mock import MagicMock, patch
+
 from bxutils.encoding.json_encoder import Case
 
+# TODO: remove try-catch when removing py3.7 support
 try:
     from asyncio.exceptions import TimeoutError
 except ImportError:
@@ -30,7 +30,7 @@ from bxgateway.testing.abstract_gateway_rpc_integration_test import \
     AbstractGatewayRpcIntegrationTest
 
 
-class TestFeed(Feed[int, int]):
+class TestFeed(Feed[Any, Any]):
     def serialize(self, raw_message: int) -> int:
         return raw_message
 
@@ -160,9 +160,99 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
             self._assert_notification({"fieldOne": "123"}, subscriber_id, await ws.recv())
             self._assert_notification({"fieldOne": "234"}, subscriber_id, await ws.recv())
 
+    @skip("Reenable this when orjson library upgraded")
+    @async_test
+    async def test_serialization_caching(self):
+        old_to_json_bytes_split = BxJsonRpcRequest.to_json_bytes_split_serialization
+        old_to_json_bytes_cached = BxJsonRpcRequest.to_json_bytes_with_cached_result
+
+        # cache hit, cache miss
+        byte_serialize_count = [0, 0]
+
+        def to_json_bytes_split(calling_self, case):
+            byte_serialize_count[0] += 1
+            return old_to_json_bytes_split(calling_self, case)
+
+        def to_json_bytes_cached(calling_self, case, cached):
+            byte_serialize_count[1] += 1
+            return old_to_json_bytes_cached(calling_self, case, cached)
+
+        BxJsonRpcRequest.to_json_bytes_split_serialization = to_json_bytes_split
+        BxJsonRpcRequest.to_json_bytes_with_cached_result = to_json_bytes_cached
+
+        self.gateway_node.account_model.get_feed_service_config_by_name = MagicMock(
+            return_value=self.gateway_node.account_model.new_transaction_streaming
+        )
+        feed = TestFeed("foo")
+        feed.FIELDS = ["foo", "bar"]
+        feed.ALL_FIELDS = ["foo", "bar"]
+        self.feed_manager.register_feed(feed)
+
+        def publish():
+            feed.publish({"foo": 1, "bar": 2})
+
+        ws = await websockets.connect(self.ws_uri)
+        ws_same = await websockets.connect(self.ws_uri)
+        ws_same_2 = await websockets.connect(self.ws_uri)
+        ws_diff = await websockets.connect(self.ws_uri)
+
+        try:
+
+            asyncio.get_event_loop().call_later(
+                0.1, publish
+            )
+
+            # subscribe all clients
+            await ws.send(
+                BxJsonRpcRequest(
+                    "2", RpcRequestType.SUBSCRIBE, ["foo", {"include": ["foo"]}]
+                ).to_jsons()
+            )
+            await ws_same.send(
+                BxJsonRpcRequest(
+                    "2", RpcRequestType.SUBSCRIBE, ["foo", {"include": ["foo"]}]
+                ).to_jsons()
+            )
+            await ws_same_2.send(
+                BxJsonRpcRequest(
+                    "2", RpcRequestType.SUBSCRIBE, ["foo", {"include": ["foo"]}]
+                ).to_jsons()
+            )
+            await ws_diff.send(
+                BxJsonRpcRequest(
+                    "2", RpcRequestType.SUBSCRIBE, ["foo", {"include": ["bar"]}]
+                ).to_jsons()
+            )
+
+            # receive all subscription responses
+            ws_subscription_id = self._get_subscription_id(await ws.recv())
+            ws_same_subscription_id = self._get_subscription_id(await ws_same.recv())
+            ws_same_2_subscription_id = self._get_subscription_id(await ws_same_2.recv())
+            ws_diff_subscription_id = self._get_subscription_id(await ws_diff.recv())
+
+            byte_serialize_count[0] = 0
+
+            self._assert_notification({"foo": 1}, ws_subscription_id, await ws.recv())
+            self._assert_notification({"foo": 1}, ws_same_subscription_id, await ws_same.recv())
+            self._assert_notification({"foo": 1}, ws_same_2_subscription_id, await ws_same_2.recv())
+            self._assert_notification({"bar": 2}, ws_diff_subscription_id, await ws_diff.recv())
+
+            self.assertEqual(2, byte_serialize_count[0])
+            self.assertEqual(2, byte_serialize_count[1])
+
+        finally:
+            await ws.close()
+            await ws_same.close()
+            await ws_diff.close()
+
     @async_test
     async def tearDown(self) -> None:
         await self.server.stop()
+
+    def _get_subscription_id(self, message: str) -> str:
+        parsed_response = JsonRpcResponse.from_jsons(message)
+        subscriber_id = parsed_response.result
+        return subscriber_id
 
     def _assert_notification(
         self, expected_result: Any, subscriber_id: str, message: str

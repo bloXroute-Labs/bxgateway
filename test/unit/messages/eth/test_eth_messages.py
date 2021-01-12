@@ -27,6 +27,7 @@ from bxgateway.messages.eth.protocol.node_data_eth_protocol_message import NodeD
 from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
+from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxcommon.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.block_hash import BlockHash
@@ -78,13 +79,26 @@ class EthMessagesTests(AbstractTestCase):
         dummy_chain_head_hash = convert.hex_to_bytes("f973c5d3763c40e2b5080f35a9003e64e7d9f9d429ddecd7c559cbd4061094cd")
         dummy_genesis_hash = convert.hex_to_bytes("aec175735fb6b74722d54455b638f6340bb9fdd5fa8101c8c0869d10cdccb000")
 
-        self._test_msg_serialization(StatusEthProtocolMessage,
-                                     False,
-                                     eth_common_constants.ETH_PROTOCOL_VERSION,
-                                     dummy_network_id,
-                                     dummy_chain_difficulty,
-                                     dummy_chain_head_hash,
-                                     dummy_genesis_hash)
+        self._test_msg_serialization(
+            StatusEthProtocolMessage,
+            False,
+            eth_common_constants.ETH_PROTOCOL_VERSION,
+            dummy_network_id,
+            dummy_chain_difficulty,
+            dummy_chain_head_hash,
+            dummy_genesis_hash,
+            [b'\xe0)\xe9\x91', 0]
+        )
+
+        self._test_msg_serialization(
+            StatusEthProtocolMessageV63,
+            False,
+            eth_common_constants.ETH_PROTOCOL_VERSION,
+            dummy_network_id,
+            dummy_chain_difficulty,
+            dummy_chain_head_hash,
+            dummy_genesis_hash
+        )
 
     def test_disconnect_message(self):
         dummy_disconnect_reason = 3

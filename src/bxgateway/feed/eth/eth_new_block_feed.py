@@ -16,7 +16,6 @@ from bxutils import logging
 if TYPE_CHECKING:
     from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 
-MAX_BLOCK_BACKLOG_TO_PUBLISH = 10
 logger = logging.get_logger(__name__)
 
 # Note: Block feed normal use case is only supported for gateways with a single blockchain connection
@@ -86,7 +85,7 @@ class EthNewBlockFeed(Feed[EthBlockFeedEntry, EthRawBlock]):
         block_hash = raw_message.block_hash
         block_number = raw_message.block_number
 
-        if block_number < self.last_block_number - MAX_BLOCK_BACKLOG_TO_PUBLISH:
+        if block_number < self.last_block_number - gateway_constants.MAX_BLOCK_BACKLOG_TO_PUBLISH:
             # published block is too far behind ignore
             return
 

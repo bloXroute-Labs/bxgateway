@@ -96,6 +96,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     remote_blockchain_ip: Optional[str] = None
     remote_blockchain_port: Optional[int] = None
     remote_node_conn: Optional[AbstractGatewayBlockchainConnection] = None
+    remote_blockchain_protocol_version: Optional[int] = None
+    remote_blockchain_connection_established: bool = False
     transaction_streamer_peer: Optional[OutboundPeerModel] = None
 
     _blockchain_liveliness_alarm: Optional[AlarmId] = None
@@ -1170,6 +1172,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 constants.GC_HIGH_MEMORY_THRESHOLD
             )
         )
+
+    def get_ws_server_status(self) -> bool:
+        return self._ws_server.status()
 
     def _set_transaction_streamer_peer(self) -> None:
         if self.transaction_streamer_peer is not None or self.NODE_TYPE is not NodeType.EXTERNAL_GATEWAY:

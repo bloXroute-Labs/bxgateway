@@ -10,6 +10,7 @@ from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.eth.serializers.transaction import Transaction
+from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.network.peer_info import ConnectionPeerInfo
@@ -28,6 +29,7 @@ from bxgateway import log_messages, gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
 from bxgateway.connections.abstract_relay_connection import AbstractRelayConnection
+from bxgateway.connections.eth.eth_base_connection_protocol import EthConnectionProtocolStatus
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxgateway.connections.eth.eth_node_discovery_connection import EthNodeDiscoveryConnection
 from bxgateway.connections.eth.eth_relay_connection import EthRelayConnection
@@ -38,6 +40,7 @@ from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
 from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
+from bxgateway.feed.eth.eth_transaction_receipts_feed import EthTransactionReceiptsFeed
 from bxgateway.messages.eth import eth_message_converter_factory as converter_factory
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
@@ -86,6 +89,9 @@ class EthGatewayNode(AbstractGatewayNode):
     def __init__(self, opts, node_ssl_service: NodeSSLService) -> None:
         super(EthGatewayNode, self).__init__(opts, node_ssl_service,
                                              eth_common_constants.TRACKED_BLOCK_CLEANUP_INTERVAL_S)
+
+        self.remote_blockchain_protocol_version = eth_common_constants.ETH_PROTOCOL_VERSION
+        self.remote_blockchain_connection_established = False
 
         self._node_public_key = None
         self._remote_public_key = None
@@ -324,12 +330,77 @@ class EthGatewayNode(AbstractGatewayNode):
         else:
             logger.warning(log_messages.UNEXPECTED_BLOCKS)
 
+    def _should_decrease_version_number(
+        self, connection_state: ConnectionState, connection_status: EthConnectionProtocolStatus
+    ) -> bool:
+        return (
+            ConnectionState.ESTABLISHED not in connection_state
+            and connection_status.auth_message_sent
+            and not connection_status.auth_message_received
+            and not connection_status.auth_ack_message_sent
+            and connection_status.auth_ack_message_received
+            and connection_status.hello_message_sent
+            and connection_status.hello_message_received
+            and not connection_status.status_message_sent
+            and not connection_status.status_message_received
+            and connection_status.disconnect_message_received
+            and connection_status.disconnect_reason == 3
+        )
+
+    def _get_new_protocol_version(self, connection, peer_version) -> int:
+        for index, version in enumerate(eth_common_constants.SUPPORTED_ETH_PROTOCOL_VERSION):
+            if (
+                version == peer_version
+                and index < len(eth_common_constants.SUPPORTED_ETH_PROTOCOL_VERSION) - 1
+            ):
+                new_version = eth_common_constants.SUPPORTED_ETH_PROTOCOL_VERSION[index + 1]
+                connection.log_debug(
+                    "Failed to connect with version {}, try to reconnect with version {}",
+                    version, new_version
+                )
+                return new_version
+
+        return peer_version
+
+    def _should_log_closed_connection(self, connection: AbstractConnection) -> bool:
+        if isinstance(connection, EthNodeConnection):
+            connection_status = connection.connection_protocol.connection_status
+
+            if (
+                self._should_decrease_version_number(connection.state, connection_status)
+                and connection.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE
+            ):
+                for peer in self.blockchain_peers:
+                    if (
+                        peer == BlockchainPeerInfo(connection.peer_ip, connection.peer_port)
+                        and not peer.connection_established
+                    ):
+                        peer.blockchain_protocol_version = self._get_new_protocol_version(
+                            connection, peer.blockchain_protocol_version
+                        )
+                        return False
+
+        elif isinstance(connection, EthRemoteConnection):
+            connection_status = connection.connection_protocol.connection_status
+
+            if (
+                self._should_decrease_version_number(connection.state, connection_status)
+                and connection.CONNECTION_TYPE == ConnectionType.REMOTE_BLOCKCHAIN_NODE
+                and not self.remote_blockchain_connection_established
+            ):
+                self.remote_blockchain_protocol_version = \
+                    self._get_new_protocol_version(
+                        connection, self.remote_blockchain_protocol_version
+                    )
+                return False
+
+        return True
+
     def log_closed_connection(self, connection: AbstractConnection) -> None:
         if isinstance(connection, EthNodeConnection):
             # pyre-fixme[22]: The cast is redundant.
             eth_node_connection = cast(EthNodeConnection, connection)
             connection_status = connection.connection_protocol.connection_status
-
             if ConnectionState.INITIALIZED not in eth_node_connection.state:
                 logger.info("Failed to connect to Ethereum node. Verify that provided ip address ({}) and port ({}) "
                             "are correct. Verify that firewall port is open. Connection details: {}.",
@@ -354,6 +425,7 @@ class EthGatewayNode(AbstractGatewayNode):
                             eth_node_connection)
             else:
                 super(EthGatewayNode, self).log_closed_connection(connection)
+
         elif isinstance(connection, GatewayConnection):
             if ConnectionState.ESTABLISHED not in connection.state:
                 logger.debug("Failed to connect to: {}.", connection)
@@ -376,6 +448,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self.feed_manager.register_feed(EthPendingTransactionFeed(self.alarm_queue))
         self.feed_manager.register_feed(EthOnBlockFeed(self))
         self.feed_manager.register_feed(EthNewBlockFeed(self))
+        self.feed_manager.register_feed(EthTransactionReceiptsFeed(self))
 
     def on_new_subscriber_request(self) -> None:
         if self.opts.eth_ws_uri and not self.eth_ws_proxy_publisher.running:
@@ -461,6 +534,7 @@ class EthGatewayNode(AbstractGatewayNode):
                 self._get_block_message_lazy(block_message, block_hash)
             )
             self._publish_block_to_on_block_feed(raw_block)
+            self._publish_block_to_transaction_receipts_feed(raw_block)
             if block_message is not None:
                 self._publish_block_to_new_block_feed(raw_block)
 
@@ -532,6 +606,14 @@ class EthGatewayNode(AbstractGatewayNode):
             self.feed_manager.publish_to_feed(
                 FeedKey(EthOnBlockFeed.NAME), EventNotification(raw_block.block_number)
             )
+
+    def _publish_block_to_transaction_receipts_feed(
+        self,
+        raw_block: EthRawBlock
+    ):
+        self.feed_manager.publish_to_feed(
+            FeedKey(EthTransactionReceiptsFeed.NAME), raw_block
+        )
 
     def is_gas_price_above_min_network_fee(self, transaction_contents: Union[memoryview, bytearray]) -> bool:
         gas_price = eth_common_utils.raw_tx_gas_price(memoryview(transaction_contents), 0)

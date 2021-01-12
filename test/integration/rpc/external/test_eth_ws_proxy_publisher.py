@@ -198,6 +198,7 @@ class EthWsProxyPublisherTest(AbstractTestCase):
         self.eth_test_ws_server.close()
         await self.eth_test_ws_server.wait_closed()
         await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash.binary)}"))
+        await self.eth_ws_proxy_publisher.close()
 
         await asyncio.sleep(0.05)
 
@@ -251,6 +252,7 @@ class EthWsProxyPublisherTest(AbstractTestCase):
         self.eth_test_ws_server.close()
         await self.eth_test_ws_server.wait_closed()
         await self.eth_ws_server_message_queue.put((TX_SUB_ID, f"0x{convert.bytes_to_hex(tx_hash.binary)}"))
+        await self.eth_ws_proxy_publisher.close()
 
         await asyncio.sleep(0.05)
 

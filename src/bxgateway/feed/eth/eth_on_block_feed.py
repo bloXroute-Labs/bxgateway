@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 SUPPORTED_PAYLOAD_OPTIONS = {"data", "from", "to", "gasPrice", "gas", "address", "pos"}
-INTERNAL_RESPONSE_ITEMS = {"jsonrpc", "id"}
 RETRIES_MAX_ATTEMPTS = 2
 RETRIES_SLEEP_INTERVAL = 0.01
 
@@ -298,7 +297,7 @@ class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
         self, name: str, response: Dict, block_height: int, tag: TAG_TYPE
     ) -> OnBlockFeedEntry:
         sanitized_response = {
-            k: v for (k, v) in response.items() if k not in INTERNAL_RESPONSE_ITEMS
+            k: v for (k, v) in response.items() if k not in rpc_constants.ETH_RPC_INTERNAL_RESPONSE_ITEMS
         }
         return OnBlockFeedEntry(name, sanitized_response, block_height, tag)
 

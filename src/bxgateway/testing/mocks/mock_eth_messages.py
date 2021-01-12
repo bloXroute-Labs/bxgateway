@@ -29,7 +29,7 @@ def generate_eth_tx_message() -> TxMessage:
 def generate_eth_raw_transaction(source: FeedSource = FeedSource.BDN_SOCKET) -> EthRawTransaction:
     tx_message = generate_eth_tx_message()
     return EthRawTransaction(
-        tx_message.tx_hash(), tx_message.tx_val(), source
+        tx_message.tx_hash(), tx_message.tx_val(), source, local_region=True
     )
 
 
@@ -40,7 +40,7 @@ def generate_eth_raw_transaction_with_to_address(
     transactions_eth_message = TransactionsEthProtocolMessage(None, [transaction])
     tx_message = EthNormalMessageConverter().tx_to_bx_txs(transactions_eth_message, 5)[0][0]
     return EthRawTransaction(
-        tx_message.tx_hash(), tx_message.tx_val(), source
+        tx_message.tx_hash(), tx_message.tx_val(), source, local_region=True
     )
 
 
