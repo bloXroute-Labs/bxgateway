@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
 logger = logging.get_logger(__name__)
 
+RETRIES_MAX_ATTEMPTS = 20
+
 
 class TransactionReceiptsFeedEntry:
     receipt: Dict[str, str]
@@ -158,16 +160,25 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
         assert response is not None
 
         if response.result is None:
-            logger.debug(
-                "Failed to fetch transaction receipt for tx {} in block {}: not found. Attempt: {}. Retrying.",
-                transaction_hash, block_hash, retry_count + 1
-            )
-            await asyncio.sleep(0.1)
-            asyncio.create_task(self._publish(transaction_hash, block_hash, retry_count + 1))
+            if retry_count == 0 or retry_count == RETRIES_MAX_ATTEMPTS:
+                logger.debug(
+                    "Failed to fetch transaction receipt for tx {} in block {}: not found. "
+                    "Attempt: {}. Max attempts: {}.",
+                    transaction_hash, block_hash, retry_count + 1, RETRIES_MAX_ATTEMPTS + 1
+                )
+            if retry_count < RETRIES_MAX_ATTEMPTS:
+                await asyncio.sleep(0.1)
+                asyncio.create_task(self._publish(transaction_hash, block_hash, retry_count + 1))
             return
 
         response.result = humps.decamelize(response.result)
         super().publish(response.to_json())
+
+        if retry_count > 0:
+            logger.debug(
+                "Succeeded in fetching receipt for tx {} in block {} after {} attempts.",
+                transaction_hash, block_hash, retry_count
+            )
 
     def _publish_blocks_from_queue(self, start_block_height, end_block_height) -> Set[int]:
         missing_blocks = set()
