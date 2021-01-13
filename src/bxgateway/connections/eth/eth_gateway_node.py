@@ -602,7 +602,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self,
         raw_block: EthRawBlock,
     ) -> None:
-        if raw_block.source in {FeedSource.BLOCKCHAIN_RPC}:
+        if raw_block.source in EthOnBlockFeed.VALID_SOURCES:
             self.feed_manager.publish_to_feed(
                 FeedKey(EthOnBlockFeed.NAME), EventNotification(raw_block.block_number)
             )
