@@ -27,12 +27,12 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
         )
 
         self.relay_connection = AbstractRelayConnection(
-            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=12345), self.node
+            MockSocketConnection(1, node=self.node, ip_address="127.0.0.1", port=12345), self.node
         )
         self.blockchain_connection = EthBaseConnection(
-            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=1234), self.node)
+            MockSocketConnection(1, node=self.node, ip_address="127.0.0.1", port=1234), self.node)
         self.blockchain_connection2 = EthBaseConnection(
-            MockSocketConnection(node=self.node, ip_address="127.0.0.1", port=4321), self.node)
+            MockSocketConnection(1, node=self.node, ip_address="127.0.0.1", port=4321), self.node)
         self.node.message_converter = converter_factory.create_eth_message_converter(self.node.opts)
 
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))

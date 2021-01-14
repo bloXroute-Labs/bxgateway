@@ -41,12 +41,12 @@ class AbstractRelayConnectionTest(AbstractTestCase):
             )
         )
         self.connection = AbstractRelayConnection(
-            MockSocketConnection(node=self.node, ip_address=constants.LOCALHOST, port=12345), self.node
+            MockSocketConnection(1, node=self.node, ip_address=constants.LOCALHOST, port=12345), self.node
         )
         self.connection.state = ConnectionState.INITIALIZED
 
         self.blockchain_connecton = AbstractGatewayBlockchainConnection(
-            MockSocketConnection(node=self.node, ip_address=constants.LOCALHOST, port=333), self.node)
+            MockSocketConnection(1, node=self.node, ip_address=constants.LOCALHOST, port=333), self.node)
         self.blockchain_connecton.state = ConnectionState.ESTABLISHED
 
     @patch("bxgateway.services.block_processing_service.BlockProcessingService._handle_decrypted_block")

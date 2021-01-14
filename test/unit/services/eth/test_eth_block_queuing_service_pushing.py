@@ -43,9 +43,9 @@ class EthBlockQueuingServicePushingTest(AbstractTestCase):
         self.block_processing_service = EthBlockProcessingService(self.node)
         self.node.block_processing_service = self.block_processing_service
 
-        self.node_connection = MockConnection(MockSocketConnection(
-            1, self.node, ip_address=LOCALHOST, port=8002), self.node
-        )
+        self.node_connection = MockConnection(
+            MockSocketConnection(1, self.node, ip_address=LOCALHOST, port=8002), self.node
+            )
         self.node_connection.is_active = MagicMock(return_value=True)
         self.block_queuing_service = EthBlockQueuingService(self.node, self.node_connection)
         self.node.block_queuing_service_manager.add_block_queuing_service(
@@ -53,9 +53,9 @@ class EthBlockQueuingServicePushingTest(AbstractTestCase):
         )
         self.node_connection.enqueue_msg = MagicMock()
 
-        self.node_connection_2 = MockConnection(MockSocketConnection(
-            1, self.node, ip_address=LOCALHOST, port=8003), self.node
-        )
+        self.node_connection_2 = MockConnection(
+            MockSocketConnection(1, self.node, ip_address=LOCALHOST, port=8003), self.node
+            )
         self.node_connection_2.is_active = MagicMock(return_value=True)
         self.block_queuing_service_2 = EthBlockQueuingService(self.node, self.node_connection_2)
         self.node.block_queuing_service_manager.add_block_queuing_service(

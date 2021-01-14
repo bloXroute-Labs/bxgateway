@@ -31,7 +31,7 @@ class BtcNodeConnectionProtocolHandler(AbstractTestCase):
         self.node.block_processing_service = MagicMock()
 
         self.connection = BtcNodeConnection(
-            MockSocketConnection(node=self.node, ip_address=LOCALHOST, port=123), self.node
+            MockSocketConnection(1, node=self.node, ip_address=LOCALHOST, port=123), self.node
         )
         self.connection.node = self.node
         self.connection.peer_ip = LOCALHOST

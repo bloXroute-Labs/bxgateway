@@ -41,9 +41,24 @@ def of_type(gateway_class: Type[AbstractGatewayNode], opts: GatewayOpts) -> Full
     relay_fileno = 2
     gateway_fileno = 3
 
-    blockchain_socket = MockSocketConnection(file_no=blockchain_fileno, ip_address=constants.LOCALHOST, port=7000)
-    relay_socket = MockSocketConnection(file_no=relay_fileno, ip_address=constants.LOCALHOST, port=7001)
-    gateway_socket = MockSocketConnection(file_no=gateway_fileno, ip_address=constants.LOCALHOST, port=7002)
+    blockchain_socket = MockSocketConnection(
+        file_no=blockchain_fileno,
+        node=gateway,
+        ip_address=constants.LOCALHOST,
+        port=7000
+    )
+    relay_socket = MockSocketConnection(
+        file_no=relay_fileno,
+        node=gateway,
+        ip_address=constants.LOCALHOST,
+        port=7001
+    )
+    gateway_socket = MockSocketConnection(
+        file_no=gateway_fileno,
+        node=gateway,
+        ip_address=constants.LOCALHOST,
+        port=7002
+    )
 
     gateway.on_connection_added(blockchain_socket)
 

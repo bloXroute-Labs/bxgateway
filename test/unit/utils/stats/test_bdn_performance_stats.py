@@ -53,14 +53,14 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
         )
         self.eth_node = EthGatewayNode(eth_opts, node_ssl_service)
         self.blockchain_connection = EthBaseConnection(
-            MockSocketConnection(node=self.node, ip_address=local_ip, port=30303), self.node)
+            MockSocketConnection(1, node=self.node, ip_address=local_ip, port=30303), self.node)
         self.blockchain_connection.state = ConnectionState.ESTABLISHED
         self.node.connection_pool.add(
             19, local_ip, eth_port, self.blockchain_connection
         )
 
         self.blockchain_connection_1 = EthBaseConnection(
-            MockSocketConnection(node=self.node, ip_address=local_ip, port=333), self.node)
+            MockSocketConnection(1, node=self.node, ip_address=local_ip, port=333), self.node)
         self.blockchain_connection_1.state = ConnectionState.ESTABLISHED
         self.node.mock_add_blockchain_peer(self.blockchain_connection_1)
         self.node_1_endpoint = IpEndpoint(local_ip, 333)
@@ -69,7 +69,7 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
         )
 
         self.blockchain_connection_2 = EthBaseConnection(
-            MockSocketConnection(node=self.node, ip_address=local_ip, port=444), self.node)
+            MockSocketConnection(1, node=self.node, ip_address=local_ip, port=444), self.node)
         self.blockchain_connection_2.state = ConnectionState.ESTABLISHED
         self.node.mock_add_blockchain_peer(self.blockchain_connection_2)
         self.node_2_endpoint = IpEndpoint(local_ip, 444)
@@ -94,7 +94,7 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
         self.block_blockchain_connection_protocol_2.publish_transaction = MagicMock()
 
         self.relay_connection = AbstractRelayConnection(
-            MockSocketConnection(node=self.node, ip_address=local_ip, port=12345), self.node
+            MockSocketConnection(1, node=self.node, ip_address=local_ip, port=12345), self.node
         )
         self.relay_connection.state = ConnectionState.INITIALIZED
 

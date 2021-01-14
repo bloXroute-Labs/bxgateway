@@ -54,19 +54,19 @@ class OntRelayConnectionTest(AbstractTestCase):
         self.gateway_node = OntGatewayNode(opts, node_ssl_service)
         self.gateway_node.opts.has_fully_updated_tx_service = True
         self.gateway_node.opts.is_consensus = False
-        self.sut = OntRelayConnection(MockSocketConnection(
-            node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
-        )
+        self.sut = OntRelayConnection(
+            MockSocketConnection(1, node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
+            )
 
-        self.node_conn = MockConnection(MockSocketConnection(
-            1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
-        )
+        self.node_conn = MockConnection(
+            MockSocketConnection(1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
+            )
         self.gateway_node.connection_pool.add(1, LOCALHOST, 8002, self.node_conn)
         gateway_helpers.add_blockchain_peer(self.gateway_node, self.node_conn)
 
-        self.node_conn_2 = MockConnection(MockSocketConnection(
-            1, self.gateway_node, ip_address=LOCALHOST, port=8003), self.gateway_node
-        )
+        self.node_conn_2 = MockConnection(
+            MockSocketConnection(1, self.gateway_node, ip_address=LOCALHOST, port=8003), self.gateway_node
+            )
         self.gateway_node.connection_pool.add(1, LOCALHOST, 8003, self.node_conn_2)
         gateway_helpers.add_blockchain_peer(self.gateway_node, self.node_conn_2)
         self.blockchain_connections = [self.node_conn, self.node_conn_2]
