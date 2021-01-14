@@ -85,17 +85,17 @@ class BlockQueuingServiceTest(AbstractTestCase):
                 blockchain_message_ttl=TTL
             )
         )
-        self.node_conn = MockConnection(MockSocketConnection(
-            1, self.node, ip_address=LOCALHOST, port=8002), self.node
-        )
+        self.node_conn = MockConnection(
+            MockSocketConnection(1, self.node, ip_address=LOCALHOST, port=8002), self.node
+            )
         self.node.blockchain_peers.add(BlockchainPeerInfo(self.node_conn.peer_ip, self.node_conn.peer_port))
         self.block_queuing_service = TestPushBlockQueuingService(self.node, self.node_conn)
         self.node.block_queuing_service_manager.add_block_queuing_service(self.node_conn, self.block_queuing_service)
         self.node_conn.enqueue_msg = MagicMock()
 
-        self.node_conn_2 = MockConnection(MockSocketConnection(
-            2, self.node, ip_address=LOCALHOST, port=8003), self.node
-        )
+        self.node_conn_2 = MockConnection(
+            MockSocketConnection(2, self.node, ip_address=LOCALHOST, port=8003), self.node
+            )
         self.node.blockchain_peers.add(BlockchainPeerInfo(self.node_conn_2.peer_ip, self.node_conn_2.peer_port))
         self.block_queuing_service_2 = TestPushBlockQueuingService(self.node, self.node_conn_2)
         self.node.block_queuing_service_manager.add_block_queuing_service(self.node_conn_2, self.block_queuing_service_2)

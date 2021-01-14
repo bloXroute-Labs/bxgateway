@@ -147,7 +147,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertTrue(node.has_active_blockchain_peer())
         self.assertTrue(blockchain_conn in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
 
-        blockchain_conn2 = node.build_blockchain_connection(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
+        blockchain_conn2 = node.build_blockchain_connection(
+            MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
         blockchain_conn2.CONNECTION_TYPE = ConnectionType.BLOCKCHAIN_NODE
         node.connection_pool.add(2, LOCALHOST, 8002, blockchain_conn2)
         self.assertEqual(2, len(list(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))))
@@ -242,7 +243,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel(LOCALHOST, 8003, "12345", node_type=NodeType.EXTERNAL_GATEWAY)
         ])
 
-        node.on_connection_added(MockSocketConnection(node=node, ip_address=LOCALHOST, port=8002))
+        node.on_connection_added(
+            MockSocketConnection(1, node=node, ip_address=LOCALHOST, port=8002))
         not_cli_peer_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
         not_cli_peer_conn.mark_for_close(False)
 
@@ -289,10 +291,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             call(LOCALHOST, 8002, ConnectionType.RELAY_TRANSACTION),
         ], any_order=True)
 
-        node.on_connection_added(MockSocketConnection(1, ip_address=LOCALHOST, port=8001))
+        node.on_connection_added(MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001))
         self._check_connection_pool(node, 1, 1, 0, 1)
 
-        node.on_connection_added(MockSocketConnection(2, ip_address=LOCALHOST, port=8002))
+        node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
         self._check_connection_pool(node, 2, 1, 1, 2)
 
     def test_split_relay_reconnect_disconnect_block(self):
@@ -374,7 +376,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(1, len(node.remote_node_msg_queue._queue))
         self.assertEqual(queued_message, node.remote_node_msg_queue._queue[0])
 
-        node.on_connection_added(MockSocketConnection(ip_address=LOCALHOST, port=8003))
+        node.on_connection_added(MockSocketConnection(1, node, ip_address=LOCALHOST, port=8003))
         next_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.REMOTE_BLOCKCHAIN_NODE])))
         next_conn.outputbuf = OutputBuffer()  # clear buffer
 
@@ -489,9 +491,11 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             call(LOCALHOST, 8002, ConnectionType.RELAY_TRANSACTION),
         ], any_order=True)
 
-        node.on_connection_added(MockSocketConnection(1, ip_address=LOCALHOST, port=8001, node=node))
+        node.on_connection_added(
+            MockSocketConnection(1, node=node, ip_address=LOCALHOST, port=8001))
         self._check_connection_pool(node, 1, 1, 0, 1)
-        node.on_connection_added(MockSocketConnection(2, ip_address=LOCALHOST, port=8002, node=node))
+        node.on_connection_added(
+            MockSocketConnection(2, node=node, ip_address=LOCALHOST, port=8002))
         self._check_connection_pool(node, 2, 1, 1, 2)
 
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[1]])
@@ -512,8 +516,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             call(LOCALHOST, 9001, ConnectionType.RELAY_BLOCK),
             call(LOCALHOST, 9002, ConnectionType.RELAY_TRANSACTION),
         ], any_order=True)
-        node.on_connection_added(MockSocketConnection(3, ip_address=LOCALHOST, port=9001))
-        node.on_connection_added(MockSocketConnection(4, ip_address=LOCALHOST, port=9002))
+        node.on_connection_added(MockSocketConnection(3, node, ip_address=LOCALHOST, port=9001))
+        node.on_connection_added(MockSocketConnection(4, node, ip_address=LOCALHOST, port=9002))
         for conn in node.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK]):
             self.assertEqual(9001, conn.peer_port)
         for conn in node.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION]):

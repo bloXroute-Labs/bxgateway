@@ -49,22 +49,22 @@ class BtcRelayConnectionTest(AbstractTestCase):
         node_ssl_service = MockNodeSSLService(BtcGatewayNode.NODE_TYPE, MagicMock())
         self.gateway_node = BtcGatewayNode(opts, node_ssl_service)
         self.gateway_node.opts.has_fully_updated_tx_service = True
-        self.sut = BtcRelayConnection(MockSocketConnection(
-            node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
-        )
+        self.sut = BtcRelayConnection(
+            MockSocketConnection(1, node=self.gateway_node, ip_address=LOCALHOST, port=8001), self.gateway_node
+            )
         self.gateway_node.message_converter = converter_factory.create_btc_message_converter(
             12345, self.gateway_node.opts
         )
 
-        self.node_conn = MockConnection(MockSocketConnection(
-            1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
-        )
+        self.node_conn = MockConnection(
+            MockSocketConnection(1, self.gateway_node, ip_address=LOCALHOST, port=8002), self.gateway_node
+            )
         self.gateway_node.connection_pool.add(1, LOCALHOST, 8002, self.node_conn)
         gateway_helpers.add_blockchain_peer(self.gateway_node, self.node_conn)
 
-        self.node_conn_2 = MockConnection(MockSocketConnection(
-            1, self.gateway_node, ip_address=LOCALHOST, port=8003), self.gateway_node
-        )
+        self.node_conn_2 = MockConnection(
+            MockSocketConnection(1, self.gateway_node, ip_address=LOCALHOST, port=8003), self.gateway_node
+            )
         self.gateway_node.connection_pool.add(1, LOCALHOST, 8003, self.node_conn_2)
         gateway_helpers.add_blockchain_peer(self.gateway_node, self.node_conn_2)
 

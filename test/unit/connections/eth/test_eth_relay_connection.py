@@ -117,7 +117,8 @@ class EthRelayConnectionTest(AbstractTestCase):
         return bx_tx_message
 
     def _set_bc_connection(self) -> None:
-        self.node.on_connection_added(MockSocketConnection(1, self.node, ip_address=LOCALHOST, port=7000))
+        self.node.on_connection_added(
+            MockSocketConnection(1, self.node, ip_address=LOCALHOST, port=7000))
         self.assertEqual(1, len(list(self.node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))))
         self.assertEqual(1, len(self.node.blockchain_peers))
         blockchain_conn = next(iter(self.node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))

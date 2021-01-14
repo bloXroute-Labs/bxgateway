@@ -76,8 +76,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.gateway_node.account_id = ACCOUNT_ID
         self.node_endpoint_1 = IpEndpoint("127.0.0.1", 7000)
         self.blockchain_connection_1 = EthBaseConnection(
-            MockSocketConnection(
-                node=self.gateway_node, ip_address="127.0.0.1", port=7000), cast(EthGatewayNode, self.gateway_node)
+            MockSocketConnection(1, node=self.gateway_node, ip_address="127.0.0.1", port=7000), cast(EthGatewayNode, self.gateway_node)
         )
         self.blockchain_connection_1.state = ConnectionState.ESTABLISHED
 
@@ -317,7 +316,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         )
 
         blockchain_connection_2 = EthBaseConnection(
-            MockSocketConnection(node=self.gateway_node, ip_address="127.0.0.1", port=333), self.gateway_node)
+            MockSocketConnection(1, node=self.gateway_node, ip_address="127.0.0.1", port=333), self.gateway_node)
         blockchain_connection_2.state = ConnectionState.ESTABLISHED
         self.gateway_node.mock_add_blockchain_peer(blockchain_connection_2)
         node_endpoint_2 = IpEndpoint("127.0.0.1", 333)
@@ -402,7 +401,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
     @async_test
     async def test_remove_blockchain_peer(self):
-        conn = MockConnection(MockSocketConnection(9, ip_address="127.0.0.1", port=30302), self.gateway_node)
+        conn = MockConnection(MockSocketConnection(9, self.gateway_node, ip_address="127.0.0.1", port=30302), self.gateway_node)
         conn.mark_for_close = MagicMock()
         self.gateway_node.connection_pool.add(9, "127.0.0.1", 30302, conn)
         self.gateway_node.blockchain_peers.add(BlockchainPeerInfo("127.0.0.1", 30302, "d76d7d11a822fab02836f8b0ea462205916253eb630935d15191fb6f9d218cd94a768fc5b3d5516b9ed5010a4765f95aea7124a39d0ab8aaf6fa3d57e21ef396"))

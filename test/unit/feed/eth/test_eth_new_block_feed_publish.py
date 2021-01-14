@@ -36,9 +36,9 @@ class EthNewBlockFeedPublishTest(AbstractTestCase):
             helpers.set_extensions_parallelism()
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())
         self.node = EthGatewayNode(opts, node_ssl_service)
-        self.node_conn = MockConnection(MockSocketConnection(
-            1, self.node, ip_address=LOCALHOST, port=8002), self.node
-        )
+        self.node_conn = MockConnection(
+            MockSocketConnection(1, self.node, ip_address=LOCALHOST, port=8002), self.node
+            )
         self.node.connection_pool.add(1, LOCALHOST, 8002, self.node_conn)
         gateway_helpers.add_blockchain_peer(self.node, self.node_conn)
         self.block_queuing_service = self.node.block_queuing_service_manager.get_designated_block_queuing_service()

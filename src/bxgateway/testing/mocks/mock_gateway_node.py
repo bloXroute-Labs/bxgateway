@@ -77,7 +77,8 @@ class MockGatewayNode(AbstractGatewayNode):
             self.broadcast_to_nodes_messages.append(msg)
         else:
             self.broadcast_messages.append((msg, connection_types))
-        return [MockConnection(MockSocketConnection(1, ip_address="123.123.123.123", port=1000), self)]
+        return [MockConnection(
+            MockSocketConnection(1, self, ip_address="123.123.123.123", port=1000), self)]
 
     def get_tx_service(self, _network_num=None):
         return self._tx_service
