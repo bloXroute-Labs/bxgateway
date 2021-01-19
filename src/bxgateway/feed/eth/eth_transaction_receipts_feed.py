@@ -12,8 +12,9 @@ from bxcommon.utils.expiring_set import ExpiringSet
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import gateway_constants
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
+from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
-from bxutils import logging
+from bxutils import logging, utils
 
 if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 
 logger = logging.get_logger(__name__)
 
-RETRIES_MAX_ATTEMPTS = 20
+RETRIES_MAX_ATTEMPTS = 8
 
 
 class TransactionReceiptsFeedEntry:
@@ -108,7 +109,7 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
             return
 
         if block is None:
-            block = self.node.block_queuing_service_manager.get_block_data(block_hash)
+            block = cast(InternalEthBlockInfo, self.node.block_queuing_service_manager.get_block_data(block_hash))
             if block is None:
                 return
 
@@ -116,6 +117,9 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
 
         if block_hash not in self.blocks_confirmed_by_new_heads_notification:
             return
+
+        if raw_message.source == FeedSource.BDN_SOCKET:
+            block = block.to_new_block_msg()
 
         self.published_blocks.add(block_hash)
         self.published_blocks_height.add(block_number)
@@ -129,8 +133,9 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
                 )
 
         logger.debug("{} Attempting to fetch transaction receipts for block {}", self.name, block_hash)
+        block_hash_str = block_hash.to_string(True)
         for tx in block.txns():
-            asyncio.create_task(self._publish(tx.hash(), block_hash))
+            asyncio.create_task(self._publish(tx.hash().to_string(True), block_hash_str))
 
         if block_number in self.published_blocks_height and block_number <= self.last_block_number:
             # possible fork, try to republish all later blocks
@@ -141,14 +146,14 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
 
     async def _publish(
         self,
-        transaction_hash: Sha256Hash,
-        block_hash: Sha256Hash,
+        transaction_hash: str,
+        block_hash: str,
         retry_count: int = 0
     ) -> None:
         response = None
         try:
             response = await self.node.eth_ws_proxy_publisher.call_rpc(
-                rpc_constants.ETH_GET_TRANSACTION_RECEIPT_RPC_METHOD, [transaction_hash.to_string(True)],
+                rpc_constants.ETH_GET_TRANSACTION_RECEIPT_RPC_METHOD, [transaction_hash],
             )
         except RpcError as e:
             error_response = e.to_json()
@@ -167,12 +172,16 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
                     transaction_hash, block_hash, retry_count + 1, RETRIES_MAX_ATTEMPTS + 1
                 )
             if retry_count < RETRIES_MAX_ATTEMPTS:
-                await asyncio.sleep(0.1)
+                sleep_time = utils.fibonacci(retry_count + 1) * 0.1
+                await asyncio.sleep(sleep_time)
                 asyncio.create_task(self._publish(transaction_hash, block_hash, retry_count + 1))
             return
 
         response.result = humps.decamelize(response.result)
-        super().publish(response.to_json())
+        json_response = response.to_json()
+        if json_response["result"]["block_hash"] != block_hash:
+            return
+        super().publish(json_response)
 
         if retry_count > 0:
             logger.debug(
@@ -194,8 +203,9 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
             if block_hash:
                 block = self.node.block_queuing_service_manager.get_block_data(block_hash)
                 if block is not None:
+                    block_hash_str = block_hash.to_string(True)
                     for tx in block.txns():
-                        asyncio.create_task(self._publish(tx.hash(), block_hash))
+                        asyncio.create_task(self._publish(tx.hash().to_string(True), block_hash_str))
             else:
                 missing_blocks.add(block_number)
         return missing_blocks

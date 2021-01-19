@@ -26,6 +26,7 @@ from bxcommon.rpc.provider.abstract_ws_provider import WsException
 from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
 from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.feed.eth.eth_on_block_feed import EthOnBlockFeed, EventNotification
 from bxcommon.feed.new_transaction_feed import (
     RawTransaction,
@@ -385,8 +386,9 @@ class WsProviderTest(AbstractTestCase):
         self.gateway_node.eth_ws_proxy_publisher = MockEthWsProxyPublisher(
             "", None, None, self.gateway_node
         )
+        block_hash = Sha256Hash.generate_object_hash()
         receipt_result = {
-            "blockHash":"0xe6f67c6948158c45dct10b169ad6bf3a96c6402489733a03051feaf7d09e7b54","blockNumber":"0xaf25e5","cumulativeGasUsed":"0xbdb9ae","from":"0x82170dd1cec50107963bf1ba1e80955ea302c5ce","gasUsed":"0x5208","logs":[],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","status":"0x1","to":"0xa09f63d9a0b0fbe89e41e51282ad660e7c876165","transactionHash":"0xbcdc5b22bf463f9b8766dd61cc133caf13472b6ae8474061134d9dc2983625f6","transactionIndex":"0x90"
+            "blockHash":block_hash.to_string(True),"blockNumber":"0xaf25e5","cumulativeGasUsed":"0xbdb9ae","from":"0x82170dd1cec50107963bf1ba1e80955ea302c5ce","gasUsed":"0x5208","logs":[],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","status":"0x1","to":"0xa09f63d9a0b0fbe89e41e51282ad660e7c876165","transactionHash":"0xbcdc5b22bf463f9b8766dd61cc133caf13472b6ae8474061134d9dc2983625f6","transactionIndex":"0x90"
         }
         self.gateway_node.eth_ws_proxy_publisher.call_rpc = AsyncMock(
             return_value=JsonRpcResponse(
@@ -397,13 +399,13 @@ class WsProviderTest(AbstractTestCase):
         internal_block_info = InternalEthBlockInfo.from_new_block_msg(NewBlockEthProtocolMessage(None, block, 1))
         eth_raw_block_1 = EthRawBlock(
             1,
-            internal_block_info.block_hash(),
+            block_hash,
             FeedSource.BLOCKCHAIN_RPC,
             get_block_message_lazy(None)
         )
         eth_raw_block_2 = EthRawBlock(
             1,
-            internal_block_info.block_hash(),
+            block_hash,
             FeedSource.BLOCKCHAIN_SOCKET,
             get_block_message_lazy(internal_block_info)
         )
@@ -422,8 +424,7 @@ class WsProviderTest(AbstractTestCase):
                 subscription_message = await ws.get_next_subscription_notification_by_id(
                     subscription_id
                 )
-                self.assertEqual(subscription_id,
-                                 subscription_message.subscription_id)
+                self.assertEqual(subscription_id, subscription_message.subscription_id)
                 self.assertEqual(subscription_message.notification, {"receipt": receipt_result})
 
     @async_test
@@ -435,8 +436,9 @@ class WsProviderTest(AbstractTestCase):
         self.gateway_node.eth_ws_proxy_publisher = MockEthWsProxyPublisher(
             "", None, None, self.gateway_node
         )
+        block_hash = Sha256Hash.generate_object_hash()
         receipt_response = {
-            "blockHash":"0xe6f67c6948158c45dct10b169ad6bf3a96c6402489733a03051feaf7d09e7b54","blockNumber":"0xaf25e5","cumulativeGasUsed":"0xbdb9ae","from":"0x82170dd1cec50107963bf1ba1e80955ea302c5ce","gasUsed":"0x5208","logs":[],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","status":"0x1","to":"0xa09f63d9a0b0fbe89e41e51282ad660e7c876165","transactionHash":"0xbcdc5b22bf463f9b8766dd61cc133caf13472b6ae8474061134d9dc2983625f6","transactionIndex":"0x90"
+            "blockHash":block_hash.to_string(True),"blockNumber":"0xaf25e5","cumulativeGasUsed":"0xbdb9ae","from":"0x82170dd1cec50107963bf1ba1e80955ea302c5ce","gasUsed":"0x5208","logs":[],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","status":"0x1","to":"0xa09f63d9a0b0fbe89e41e51282ad660e7c876165","transactionHash":"0xbcdc5b22bf463f9b8766dd61cc133caf13472b6ae8474061134d9dc2983625f6","transactionIndex":"0x90"
         }
         receipt_result = {
            "transactionHash":"0xbcdc5b22bf463f9b8766dd61cc133caf13472b6ae8474061134d9dc2983625f6"
@@ -450,7 +452,7 @@ class WsProviderTest(AbstractTestCase):
         internal_block_info = InternalEthBlockInfo.from_new_block_msg(NewBlockEthProtocolMessage(None, block, 1))
         eth_raw_block = EthRawBlock(
             1,
-            internal_block_info.block_hash(),
+            block_hash,
             FeedSource.BLOCKCHAIN_RPC,
             get_block_message_lazy(internal_block_info)
         )
