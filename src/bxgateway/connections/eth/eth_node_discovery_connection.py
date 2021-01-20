@@ -3,6 +3,7 @@ import time
 from typing import TYPE_CHECKING
 
 from bxcommon.messages.abstract_message import AbstractMessage
+from bxcommon.messages.abstract_message_factory import AbstractMessageFactory
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.messages.eth.discovery.eth_discovery_message_factory import eth_discovery_message_factory
@@ -27,7 +28,6 @@ class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection["EthGateway
     def __init__(self, sock: AbstractSocketConnectionProtocol, node: "EthGatewayNode"):
         super(EthNodeDiscoveryConnection, self).__init__(sock, node)
 
-        self.message_factory = eth_discovery_message_factory
         self.message_handlers = {
             EthDiscoveryMessageType.PING: self.msg_ping,
             EthDiscoveryMessageType.PONG: self.msg_pong
@@ -42,6 +42,9 @@ class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection["EthGateway
         self.node.alarm_queue.register_alarm(eth_common_constants.DISCOVERY_PONG_TIMEOUT_SEC, self._pong_timeout)
 
         self.hello_messages = [EthDiscoveryMessageType.PING, EthDiscoveryMessageType.PONG]
+
+    def connection_message_factory(self) -> AbstractMessageFactory:
+        return eth_discovery_message_factory
 
     def ping_message(self) -> AbstractMessage:
         return PingEthDiscoveryMessage(

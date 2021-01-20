@@ -14,6 +14,7 @@ from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_node_ssl_service import MockNodeSSLService
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxcommon.utils.blockchain_utils.btc.btc_object_hash import BtcObjectHash
+from bxcommon.utils.blockchain_utils.eth import crypto_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
@@ -127,3 +128,10 @@ class MockGatewayNode(AbstractGatewayNode):
         self.blockchain_peers.add(BlockchainPeerInfo(connection.peer_ip, connection.peer_port))
         block_queuing_service = self.build_block_queuing_service(connection)
         self.block_queuing_service_manager.add_block_queuing_service(connection, block_queuing_service)
+
+    def get_private_key(self):
+        return crypto_utils.make_private_key(helpers.generate_bytearray(111))
+
+    def get_node_public_key(self, _ip,_port):
+        return crypto_utils.private_to_public_key(self.get_private_key())
+

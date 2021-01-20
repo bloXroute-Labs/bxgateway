@@ -46,7 +46,7 @@ class EthConnectionProtocolStatus:
 class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=ABCMeta):
     node: "EthGatewayNode"
 
-    def __init__(self, connection, is_handshake_initiator, private_key, public_key):
+    def __init__(self, connection, is_handshake_initiator, rlpx_cipher: RLPxCipher):
         super(EthBaseConnectionProtocol, self).__init__(
             connection,
             block_cleanup_poll_interval_s=eth_common_constants.BLOCK_CLEANUP_NODE_BLOCK_LIST_POLL_INTERVAL_S
@@ -54,25 +54,22 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
 
         self.node = cast("EthGatewayNode", connection.node)
 
-        self.rlpx_cipher = RLPxCipher(is_handshake_initiator, private_key, public_key)
-
+        self.rlpx_cipher = rlpx_cipher
         self.connection_status = EthConnectionProtocolStatus()
 
         self._last_ping_pong_time: Optional[float] = None
         self._handshake_complete = False
 
-        connection.hello_messages = [EthProtocolMessageType.AUTH,
-                                     EthProtocolMessageType.AUTH_ACK,
-                                     EthProtocolMessageType.HELLO,
-                                     EthProtocolMessageType.STATUS,
-                                     # Ethereum Parity sends PING message before handshake is completed
-                                     EthProtocolMessageType.PING,
-                                     EthProtocolMessageType.DISCONNECT]
+        connection.hello_messages = [
+            EthProtocolMessageType.AUTH,
+            EthProtocolMessageType.AUTH_ACK,
+            EthProtocolMessageType.HELLO,
+            EthProtocolMessageType.STATUS,
+            # Ethereum Parity sends PING message before handshake is completed
+            EthProtocolMessageType.PING,
+            EthProtocolMessageType.DISCONNECT
+        ]
 
-        connection.message_factory = EthProtocolMessageFactory(self.rlpx_cipher)
-        expected_first_msg_type = EthProtocolMessageType.AUTH_ACK if is_handshake_initiator \
-            else EthProtocolMessageType.AUTH
-        connection.message_factory.set_expected_msg_type(expected_first_msg_type)
         connection.message_handlers = {
             EthProtocolMessageType.AUTH: self.msg_auth,
             EthProtocolMessageType.AUTH_ACK: self.msg_auth_ack,

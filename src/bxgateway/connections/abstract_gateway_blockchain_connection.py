@@ -1,5 +1,6 @@
 import time
 import typing
+from abc import ABC
 from typing import TYPE_CHECKING, TypeVar
 
 from bxcommon.connections.abstract_connection import AbstractConnection
@@ -23,7 +24,7 @@ GatewayNode = TypeVar("GatewayNode", bound="AbstractGatewayNode")
 logger = logging.get_logger(__name__)
 
 
-class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode]):
+class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode], ABC):
     CONNECTION_TYPE = ConnectionType.BLOCKCHAIN_NODE
 
     def __init__(self, sock: AbstractSocketConnectionProtocol, node: GatewayNode):

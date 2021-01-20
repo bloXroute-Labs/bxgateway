@@ -5,6 +5,7 @@ from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.feed.feed import FeedKey
+from bxcommon.messages.abstract_message_factory import AbstractMessageFactory
 from bxcommon.messages.bloxroute.ack_message import AckMessage
 from bxcommon.messages.bloxroute.bloxroute_message_type import BloxrouteMessageType
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
@@ -44,8 +45,6 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
 
         self.hello_messages = gateway_constants.GATEWAY_HELLO_MESSAGES
         self.header_size = constants.STARTING_SEQUENCE_BYTES_LEN + constants.BX_HDR_COMMON_OFF
-
-        self.message_factory = gateway_message_factory
         self.message_handlers = {
             GatewayMessageType.HELLO: self.msg_hello,
             BloxrouteMessageType.ACK: self.msg_ack,
@@ -63,6 +62,9 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             self._initialize_ordered_handshake()
         else:
             self.ordering = self.NULL_ORDERING
+
+    def connection_message_factory(self) -> AbstractMessageFactory:
+        return gateway_message_factory
 
     def on_connection_established(self):
         super().on_connection_established()

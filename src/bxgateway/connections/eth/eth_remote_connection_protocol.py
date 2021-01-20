@@ -12,14 +12,15 @@ from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message impor
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
+from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
 
 
 class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
-    def __init__(self, connection, is_handshake_initiator, private_key, public_key):
-        super(EthRemoteConnectionProtocol, self).__init__(connection, is_handshake_initiator, private_key, public_key)
+    def __init__(self, connection, is_handshake_initiator, rlpx_cipher: RLPxCipher):
+        super().__init__(connection, is_handshake_initiator, rlpx_cipher)
 
         connection.message_handlers.update({
             EthProtocolMessageType.STATUS: self.msg_status,

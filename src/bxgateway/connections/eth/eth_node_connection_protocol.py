@@ -33,6 +33,7 @@ from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxgateway.services.gateway_transaction_service import ProcessTransactionMessageFromNodeResult
+from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import \
     gateway_bdn_performance_stats_service
 from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
@@ -43,8 +44,8 @@ logger = logging.get_logger(__name__)
 
 
 class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
-    def __init__(self, connection, is_handshake_initiator, private_key, public_key):
-        super(EthNodeConnectionProtocol, self).__init__(connection, is_handshake_initiator, private_key, public_key)
+    def __init__(self, connection, is_handshake_initiator, rlpx_cipher: RLPxCipher):
+        super().__init__(connection, is_handshake_initiator, rlpx_cipher)
 
         connection.message_handlers.update({
             EthProtocolMessageType.STATUS: self.msg_status,
