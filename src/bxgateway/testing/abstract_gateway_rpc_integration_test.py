@@ -128,8 +128,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertEqual("1", result.id)
         self.assertIsNone(result.error)
         self.assertEqual(TRANSACTION_HASH, result.result["tx_hash"])
-        self.assertEqual(ACCOUNT_ID, result.result["account_id"])
-        self.assertEqual(TransactionFlag.PAID_TX.name.lower(), result.result["transaction_flag"].lower())
 
         self.assertEqual(1, len(self.gateway_node.broadcast_messages))
         self.assertEqual(
@@ -194,8 +192,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertEqual("1", result.id)
         self.assertIsNone(result.error)
         self.assertEqual("ad6f9332384194f80d8e49af8f093ad019b3f6b7173eb2956a46c9a0d8c4d03c", result.result["tx_hash"])
-        self.assertEqual(ACCOUNT_ID, result.result["account_id"])
-        self.assertEqual(TransactionFlag.PAID_TX.name.lower(), result.result["transaction_flag"].lower())
 
         self.assertEqual(1, len(self.gateway_node.broadcast_messages))
         self.assertEqual(

@@ -148,8 +148,6 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
         tx_service.set_transaction_contents_by_key(transaction_key, bx_tx.tx_val())
         tx_json = {
             "tx_hash": str(tx_hash),
-            "transaction_flag": str(transaction_flag),
-            "account_id": account_id
         }
         if not self.node.account_model.is_account_valid():
             raise RpcAccountIdError(
