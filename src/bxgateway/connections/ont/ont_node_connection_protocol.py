@@ -178,9 +178,12 @@ class OntNodeConnectionProtocol(OntBaseConnectionProtocol):
         )
 
         # Broadcast BlockHoldingMessage through relays and gateways
-        conns = self.node.broadcast(BlockHoldingMessage(block_hash, self.node.network_num),
-                                    broadcasting_conn=self.connection, prepend_to_queue=True,
-                                    connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY])
+        conns = self.node.broadcast(
+            BlockHoldingMessage(block_hash, self.node.network_num),
+            broadcasting_conn=self.connection,
+            prepend_to_queue=True,
+            connection_types=(ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY)
+        )
         if len(conns) > 0:
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.BLOCK_HOLD_SENT_BY_GATEWAY_TO_PEERS,

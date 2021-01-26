@@ -58,14 +58,14 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
         self.eth_node = EthGatewayNode(eth_opts, node_ssl_service)
         self.blockchain_connection = EthNodeConnection(
             MockSocketConnection(1, node=self.node, ip_address=local_ip, port=30303), self.node)
-        self.blockchain_connection.state = ConnectionState.ESTABLISHED
+        self.blockchain_connection.on_connection_established()
         self.node.connection_pool.add(
             19, local_ip, eth_port, self.blockchain_connection
         )
 
         self.blockchain_connection_1 = EthNodeConnection(
             MockSocketConnection(1, node=self.node, ip_address=local_ip, port=333), self.node)
-        self.blockchain_connection_1.state = ConnectionState.ESTABLISHED
+        self.blockchain_connection_1.on_connection_established()
         self.node.mock_add_blockchain_peer(self.blockchain_connection_1)
         self.node_1_endpoint = IpEndpoint(local_ip, 333)
         self.node.connection_pool.add(
@@ -74,7 +74,7 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
 
         self.blockchain_connection_2 = EthNodeConnection(
             MockSocketConnection(1, node=self.node, ip_address=local_ip, port=444), self.node)
-        self.blockchain_connection_2.state = ConnectionState.ESTABLISHED
+        self.blockchain_connection_2.on_connection_established()
         self.node.mock_add_blockchain_peer(self.blockchain_connection_2)
         self.node_2_endpoint = IpEndpoint(local_ip, 444)
         self.node.connection_pool.add(

@@ -131,7 +131,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         # connection added, but inactive
         self.assertFalse(node.has_active_blockchain_peer())
 
-        blockchain_conn.state |= ConnectionState.ESTABLISHED
+        blockchain_conn.on_connection_established()
         self.assertTrue(node.has_active_blockchain_peer())
 
     def test_last_active_blockchain_peer_queuing_service_not_destroyed(self):
@@ -143,7 +143,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(1, len(list(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))))
         blockchain_conn = next(iter(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
         node.on_blockchain_connection_ready(blockchain_conn)
-        blockchain_conn.state |= ConnectionState.ESTABLISHED
+        blockchain_conn.on_connection_established()
         self.assertTrue(node.has_active_blockchain_peer())
         self.assertTrue(blockchain_conn in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
 
@@ -154,7 +154,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertEqual(2, len(list(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))))
         blockchain_conn2 = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
         node.on_blockchain_connection_ready(blockchain_conn2)
-        blockchain_conn2.state |= ConnectionState.ESTABLISHED
+        blockchain_conn2.on_connection_established()
         self.assertIsNotNone(node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn2))
         self.assertTrue(blockchain_conn2 in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
 
@@ -220,7 +220,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.num_retries_by_ip[(LOCALHOST, 8001)] = MAX_CONNECT_RETRIES
         cli_peer_conn.state = ConnectionState.CONNECTING
         node._connection_timeout(cli_peer_conn)
-        self.assertTrue(SocketConnectionStates.MARK_FOR_CLOSE in mock_socket.state)
+        self.assertFalse(mock_socket.alive)
 
         node.on_connection_closed(mock_socket.fileno())
         # timeout is fib(3) == 3
@@ -341,7 +341,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         sdn_http_service.submit_peer_connection_error_event.called_once_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertTrue(SocketConnectionStates.MARK_FOR_CLOSE in relay_transaction_conn.socket_connection.state)
+        self.assertFalse(relay_transaction_conn.socket_connection.alive)
         self.assertTrue(SocketConnectionStates.DO_NOT_RETRY in relay_transaction_conn.socket_connection.state)
 
     @async_test
@@ -362,7 +362,7 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             sdn_http_service.submit_peer_connection_error_event.assert_called_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertTrue(SocketConnectionStates.MARK_FOR_CLOSE in relay_block_conn.socket_connection.state)
+        self.assertFalse(relay_block_conn.socket_connection.alive)
         self.assertTrue(SocketConnectionStates.DO_NOT_RETRY in relay_block_conn.socket_connection.state)
 
     @async_test

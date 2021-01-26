@@ -124,7 +124,11 @@ class NeutralityService(object):
         broadcast_message = BroadcastMessage(cipher_hash, self._node.network_num, is_encrypted=True,
                                              blob=encrypted_block)
 
-        conns = self._node.broadcast(broadcast_message, connection, connection_types=[ConnectionType.RELAY_BLOCK])
+        conns = self._node.broadcast(
+            broadcast_message,
+            connection,
+            connection_types=(ConnectionType.RELAY_BLOCK,)
+        )
 
         handling_duration = self._node.track_block_from_node_handling_ended(block_hash)
         block_stats.add_block_event_by_block_hash(cipher_hash,
@@ -146,7 +150,11 @@ class NeutralityService(object):
 
         broadcast_message = BroadcastMessage(block_info.block_hash, self._node.network_num, is_encrypted=False,
                                              blob=bx_block)
-        conns = self._node.broadcast(broadcast_message, connection, connection_types=[ConnectionType.RELAY_BLOCK])
+        conns = self._node.broadcast(
+            broadcast_message,
+            connection,
+            connection_types=(ConnectionType.RELAY_BLOCK,)
+        )
         handling_duration = self._node.track_block_from_node_handling_ended(block_info.block_hash)
         block_stats.add_block_event_by_block_hash(block_info.block_hash,
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,
@@ -175,8 +183,15 @@ class NeutralityService(object):
         enough_by_count = receipt_count >= gateway_constants.NEUTRALITY_EXPECTED_RECEIPT_COUNT
 
         active_gateway_peer_count = len(
-            list(filter(lambda conn: conn.is_active(),
-                        self._node.connection_pool.get_by_connection_types([ConnectionType.GATEWAY]))))
+            list(
+                filter(
+                    lambda conn: conn.is_active(),
+                    self._node.connection_pool.get_by_connection_types(
+                        (ConnectionType.GATEWAY,)
+                    )
+                )
+            )
+        )
         if active_gateway_peer_count == 0:
             logger.debug("No active gateway peers to get block receipts from.")
             enough_by_percent = False
@@ -207,7 +222,7 @@ class NeutralityService(object):
         self._send_key(cipher_hash)
 
         request = BlockPropagationRequestMessage(bx_block)
-        conns = self._node.broadcast(request, None, connection_types=[ConnectionType.GATEWAY])
+        conns = self._node.broadcast(request, None, connection_types=(ConnectionType.GATEWAY,))
         block_stats.add_block_event_by_block_hash(cipher_hash,
                                                   BlockStatEventType.ENC_BLOCK_PROPAGATION_NEEDED,
                                                   network_num=self._node.network_num,
@@ -224,8 +239,11 @@ class NeutralityService(object):
     def _send_key(self, cipher_hash):
         key = self._node.in_progress_blocks.get_encryption_key(bytes(cipher_hash.binary))
         key_message = KeyMessage(cipher_hash, self._node.network_num, key=key)
-        conns = self._node.broadcast(key_message, None,
-                                     connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY])
+        conns = self._node.broadcast(
+            key_message,
+            None,
+            connection_types=(ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY)
+        )
         block_stats.add_block_event_by_block_hash(
             cipher_hash,
             BlockStatEventType.ENC_BLOCK_KEY_SENT_FROM_GATEWAY_TO_NETWORK,

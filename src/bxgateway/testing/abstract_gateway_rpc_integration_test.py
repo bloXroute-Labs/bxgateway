@@ -78,7 +78,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.blockchain_connection_1 = EthNodeConnection(
             MockSocketConnection(1, node=self.gateway_node, ip_address="127.0.0.1", port=7000), cast(EthGatewayNode, self.gateway_node)
         )
-        self.blockchain_connection_1.state = ConnectionState.ESTABLISHED
+        self.blockchain_connection_1.on_connection_established()
 
     @abstractmethod
     def get_gateway_opts(self) -> GatewayOpts:
@@ -313,7 +313,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
 
         blockchain_connection_2 = EthNodeConnection(
             MockSocketConnection(1, node=self.gateway_node, ip_address="127.0.0.1", port=333), self.gateway_node)
-        blockchain_connection_2.state = ConnectionState.ESTABLISHED
+        blockchain_connection_2.on_connection_established()
         self.gateway_node.mock_add_blockchain_peer(blockchain_connection_2)
         node_endpoint_2 = IpEndpoint("127.0.0.1", 333)
         self.gateway_node.connection_pool.add(

@@ -23,7 +23,11 @@ class OntNeutralityService(NeutralityService):
         broadcast_message = BroadcastMessage(block_info.block_hash, self._node.network_num,
                                              broadcast_type=broadcast_type, is_encrypted=False, blob=bx_block)
 
-        conns = self._node.broadcast(broadcast_message, connection, connection_types=[ConnectionType.RELAY_BLOCK])
+        conns = self._node.broadcast(
+            broadcast_message,
+            connection,
+            connection_types=(ConnectionType.RELAY_BLOCK,)
+        )
         handling_duration = self._node.track_block_from_node_handling_ended(block_info.block_hash)
         block_stats.add_block_event_by_block_hash(block_info.block_hash,
                                                   BlockStatEventType.ENC_BLOCK_SENT_FROM_GATEWAY_TO_NETWORK,

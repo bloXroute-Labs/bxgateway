@@ -398,7 +398,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.feed_manager.register_feed(NewBlockFeed())
 
     def send_bdn_performance_stats(self) -> int:
-        relay_connection = next(iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])), None)
+        relay_connection = next(iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_BLOCK,))), None)
         if not relay_connection:
             gateway_bdn_performance_stats_service.create_interval_data_object()
             return gateway_bdn_performance_stats_service.interval
@@ -620,7 +620,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def broadcast_transactions_to_nodes(
         self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
     ) -> bool:
-        self.broadcast(msg, broadcasting_conn=broadcasting_conn, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+        self.broadcast(
+            msg,
+            broadcasting_conn=broadcasting_conn,
+            connection_types=(ConnectionType.BLOCKCHAIN_NODE,)
+        )
         return True
 
     def send_msg_to_remote_node(self, msg: AbstractMessage) -> None:
@@ -669,8 +673,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             connection.peer_ip,
             connection.peer_port
         )
-        self.num_active_blockchain_peers = \
-            len(list(self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE])))
+        self.num_active_blockchain_peers = len(
+            list(
+                self.connection_pool.get_by_connection_types(
+                    (ConnectionType.BLOCKCHAIN_NODE,)
+                )
+            )
+        )
 
     def on_blockchain_connection_destroyed(self, connection: AbstractGatewayBlockchainConnection) -> None:
         if BlockchainPeerInfo(connection.peer_ip, connection.peer_port) in self.blockchain_peers:
@@ -689,8 +698,16 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             connection.peer_port,
             connection.get_connection_state_details()
         )
-        self.num_active_blockchain_peers = \
-            max(0, len(list(self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))) - 1)
+        self.num_active_blockchain_peers = max(
+            0,
+            len(
+                list(
+                    self.connection_pool.get_by_connection_types(
+                        (ConnectionType.BLOCKCHAIN_NODE,)
+                    )
+                )
+            ) - 1
+        )
         if self.num_active_blockchain_peers > 0:
             self.block_queuing_service_manager.remove_block_queuing_service(connection)
 
@@ -737,7 +754,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if self.opts.sync_tx_service \
             and self.network_num not in self.last_sync_message_received_by_network \
                 and ConnectionType.RELAY_TRANSACTION in conn_type \
-                and len(list(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION]))) == 1:
+                and len(list(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_TRANSACTION,)))) == 1:
             # set sync to false and updating sdn
             self.opts.has_fully_updated_tx_service = False
             self.requester.send_threaded_request(sdn_http_service.submit_tx_not_synced_event, self.opts.node_id)
@@ -916,13 +933,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         return blockchain_peers
 
     def has_active_blockchain_peer(self) -> bool:
-        for conn in self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]):
+        for conn in self.connection_pool.get_by_connection_types((ConnectionType.BLOCKCHAIN_NODE,)):
             if conn.is_active():
                 return True
         return False
 
     def get_any_active_blockchain_connection(self) -> Optional[AbstractConnection]:
-        for conn in self.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]):
+        for conn in self.connection_pool.get_by_connection_types((ConnectionType.BLOCKCHAIN_NODE,)):
             if conn.is_active():
                 return conn
         return None
@@ -953,7 +970,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         return gateway_constants.ACTIVE_BLOCKCHAIN_PEERS_LIVELINESS_CHECK_S
 
     def check_relay_liveliness(self) -> None:
-        if not list(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])):
+        if not list(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_ALL,))):
             self.should_force_exit = True
             logger.error(log_messages.NO_ACTIVE_BDN_CONNECTIONS)
 
@@ -1035,10 +1052,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             retry = True
             if self.opts.split_relays:
                 relay_tx_connection: Optional[AbstractRelayConnection] = next(
-                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION])), None
+                    iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_TRANSACTION,))), None
                 )
                 relay_block_connection: Optional[AbstractRelayConnection] = next(
-                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK])), None
+                    iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_BLOCK,))), None
                 )
 
                 if (
@@ -1061,7 +1078,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     retry = False
             else:
                 relay_connection: Optional[AbstractRelayConnection] = next(
-                    iter(self.connection_pool.get_by_connection_types([ConnectionType.RELAY_ALL])), None
+                    iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_ALL,))), None
                 )
                 if relay_connection and relay_connection.is_active():
                     if self.transaction_sync_timeout_alarm_id:

@@ -27,7 +27,6 @@ class GatewaySubscribeRpcRequestTest(AbstractTestCase):
             8000,
             include_default_eth_args=True,
             pub_key=pub_key,
-            track_detailed_sent_messages=True
         )
         if opts.use_extensions:
             helpers.set_extensions_parallelism()

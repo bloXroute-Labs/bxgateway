@@ -130,10 +130,16 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
         )
         if self.node.has_active_blockchain_peer():
             blockchain_tx_message = self.node.message_converter.bx_tx_to_tx(bx_tx)
-            self.node.broadcast(blockchain_tx_message, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+            self.node.broadcast(
+                blockchain_tx_message,
+                connection_types=(ConnectionType.BLOCKCHAIN_NODE,)
+            )
 
         # All connections outside of this one is a bloXroute server
-        broadcast_peers = self.node.broadcast(bx_tx, connection_types=[ConnectionType.RELAY_TRANSACTION])
+        broadcast_peers = self.node.broadcast(
+            bx_tx,
+            connection_types=(ConnectionType.RELAY_TRANSACTION,)
+        )
         tx_stats.add_tx_by_hash_event(
             tx_hash,
             TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_PEERS,

@@ -29,6 +29,7 @@ def mock_connection(message_converter=None, connection_type=None):
     connection.node.message_converter = message_converter
     connection.CONNECTION_TYPE = connection_type
     connection.peer_desc = "127.0.0.1 8000"
+    connection.format_connection_desc = "127.0.0.1 8000"
     return connection
 
 
@@ -165,8 +166,9 @@ class NeutralityServiceTest(AbstractTestCase):
 
     def _add_num_gateway_connections(self, count):
         for i in range(count):
-            self.node.connection_pool.add(i, LOCALHOST, 8000 + i,
-                                          mock_connection(connection_type=ConnectionType.EXTERNAL_GATEWAY))
+            self.node.connection_pool.add(
+                i, LOCALHOST, 8000 + i, mock_connection(connection_type=ConnectionType.EXTERNAL_GATEWAY)
+            )
 
     def _assert_broadcast_key(self):
         key_messages = list(filter(lambda broadcasted: broadcasted[0].msg_type() == BloxrouteMessageType.KEY,

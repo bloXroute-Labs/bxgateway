@@ -79,9 +79,9 @@ def of_type(gateway_class: Type[AbstractGatewayNode], opts: GatewayOpts) -> Full
     assert isinstance(gateway_connection, GatewayConnection)
 
     gateway.on_blockchain_connection_ready(blockchain_connection)
-    blockchain_connection.state |= ConnectionState.ESTABLISHED
-    relay_connection.state |= ConnectionState.ESTABLISHED
-    gateway_connection.state |= ConnectionState.ESTABLISHED
+    blockchain_connection.on_connection_established()
+    relay_connection.on_connection_established()
+    gateway_connection.on_connection_established()
 
     # clear output buffers
     if blockchain_connection.outputbuf.length:

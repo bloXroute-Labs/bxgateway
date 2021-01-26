@@ -150,9 +150,13 @@ class AbstractBlockchainConnectionProtocol:
             broadcast_peers = self.node.broadcast(
                 tx_result.bdn_transaction_message,
                 self.connection,
-                connection_types=[ConnectionType.RELAY_TRANSACTION]
+                connection_types=(ConnectionType.RELAY_TRANSACTION,)
             )
-            self.node.broadcast(msg, self.connection, connection_types=[ConnectionType.BLOCKCHAIN_NODE])
+            self.node.broadcast(
+                msg,
+                self.connection,
+                connection_types=(ConnectionType.BLOCKCHAIN_NODE,)
+            )
             gateway_bdn_performance_stats_service.log_tx_sent_to_nodes(broadcasting_endpoint=self.connection.endpoint)
 
             if self.node.opts.ws:

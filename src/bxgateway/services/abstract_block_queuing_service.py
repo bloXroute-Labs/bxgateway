@@ -201,20 +201,17 @@ class AbstractBlockQueuingService(
         # TODO: revisit this metric for multi-node gateway
         (handling_time, relay_desc) = self.node.track_block_from_bdn_handling_ended(block_hash)
 
-        # if tracking detailed send info, log this event only after all
-        # bytes written to sockets
-        if not self.node.opts.track_detailed_sent_messages:
-            block_stats.add_block_event_by_block_hash(
-                block_hash,
-                BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
-                network_num=self.node.network_num,
-                more_info="{} bytes; Handled in {}; R - {}; {}".format(
-                    len(block_msg.rawbytes()),
-                    stats_format.duration(handling_time),
-                    relay_desc,
-                    block_msg.extra_stats_data(),
-                ),
-            )
+        block_stats.add_block_event_by_block_hash(
+            block_hash,
+            BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
+            network_num=self.node.network_num,
+            more_info="{} bytes; Handled in {}; R - {}; {}".format(
+                len(block_msg.rawbytes()),
+                stats_format.duration(handling_time),
+                relay_desc,
+                block_msg.extra_stats_data(),
+            ),
+        )
 
     def try_send_header_to_node(self, block_hash: Sha256Hash) -> bool:
         if not self.node.block_queuing_service_manager.is_in_common_block_storage(block_hash):

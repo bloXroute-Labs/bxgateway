@@ -31,7 +31,6 @@ class EthConnectionProtocolTest(AbstractTestCase):
         opts = gateway_helpers.get_gateway_opts(
             8000,
             include_default_eth_args=True,
-            track_detailed_sent_messages=True
         )
         if opts.use_extensions:
             helpers.set_extensions_parallelism()

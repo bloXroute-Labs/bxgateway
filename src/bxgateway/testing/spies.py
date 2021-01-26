@@ -22,6 +22,9 @@ def make_spy_connection(connection_cls, fileno, port, node, state=ConnectionStat
     gateway_connection = connection_cls(
         MockSocketConnection(fileno, node, ip_address=LOCALHOST, port=port), node
     )
-    gateway_connection.state = state
+    if state == ConnectionState.ESTABLISHED:
+        gateway_connection.on_connection_established()
+    else:
+        gateway_connection.state = state
     gateway_connection.enqueue_msg = MagicMock()
     return gateway_connection
