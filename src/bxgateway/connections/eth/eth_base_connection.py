@@ -60,4 +60,4 @@ class EthBaseConnection(AbstractGatewayBlockchainConnection["EthGatewayNode"], A
         for message_bytes in self.connection_protocol.get_message_bytes(msg):
             full_message_bytes.extend(message_bytes)
 
-        self.enqueue_msg_bytes(full_message_bytes, prepend, full_message=msg)
+        self.enqueue_msg_bytes(full_message_bytes, prepend)
