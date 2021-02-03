@@ -27,7 +27,6 @@ class BtcBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
         connection.hello_messages = btc_constants.BTC_HELLO_MESSAGES
         connection.header_size = btc_constants.BTC_HDR_COMMON_OFF
-        connection.message_factory = btc_message_factory
         connection.message_handlers = {
             BtcMessageType.PING: self.msg_ping,
             BtcMessageType.PONG: self.msg_pong,

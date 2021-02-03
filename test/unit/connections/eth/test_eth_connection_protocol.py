@@ -14,6 +14,7 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBl
 from bxgateway.testing.mocks import mock_eth_messages
 from bxgateway.testing.mocks.mock_gateway_node import MockGatewayNode
 from bxcommon.utils.blockchain_utils.eth import crypto_utils
+from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import gateway_bdn_performance_stats_service
 
 
@@ -30,7 +31,6 @@ class EthConnectionProtocolTest(AbstractTestCase):
         opts = gateway_helpers.get_gateway_opts(
             8000,
             include_default_eth_args=True,
-            track_detailed_sent_messages=True
         )
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
@@ -50,7 +50,11 @@ class EthConnectionProtocolTest(AbstractTestCase):
 
         dummy_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
         dummy_public_key = crypto_utils.private_to_public_key(dummy_private_key)
-        self.sut = EthNodeConnectionProtocol(self.connection, True, dummy_private_key, dummy_public_key)
+        is_handshake_initiator = True
+        self.rlpx_cipher = RLPxCipher(
+            is_handshake_initiator, dummy_private_key, dummy_public_key
+        )
+        self.sut = EthNodeConnectionProtocol(self.connection, is_handshake_initiator, self.rlpx_cipher)
 
     def test_msg_block_success(self):
         message = NewBlockEthProtocolMessage(

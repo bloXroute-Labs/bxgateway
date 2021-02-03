@@ -96,8 +96,7 @@ class EthNewBlockFeedTest(AbstractTestCase):
             return_value=bytes(32))
 
         pub_key = "a04f30a45aae413d0ca0f219b4dcb7049857bc3f91a6351288cce603a2c9646294a02b987bf6586b370b2c22d74662355677007a14238bb037aedf41c2d08866"
-        opts = gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True, pub_key=pub_key,
-                                                                  track_detailed_sent_messages=True)
+        opts = gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True, pub_key=pub_key)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node_ssl_service = MockNodeSSLService(EthGatewayNode.NODE_TYPE, MagicMock())

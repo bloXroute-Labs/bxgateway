@@ -73,8 +73,11 @@ class GatewayConnectionPeeringTest(AbstractTestCase):
 
         self.assertTrue(gateway_connection.is_active())
         self.assertTrue(self.peer_gateway.connection_exists(LOCALHOST, self.main_port))
-        self.assertTrue(self.peer_gateway.connection_pool.get_by_ipport(LOCALHOST, self.main_port).state &
-                        ConnectionState.ESTABLISHED)
+        self.assertTrue(
+            self.peer_gateway.connection_pool.get_by_ipport(
+                LOCALHOST, self.main_port
+            ).established
+        )
 
     def _test_duplicate_gateway_connections(self):
         self.assertEqual(1, len(self.main_gateway.connection_pool))

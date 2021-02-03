@@ -37,7 +37,6 @@ class OntBaseConnectionProtocol(AbstractBlockchainConnectionProtocol):
 
         connection.hello_messages = ont_constants.ONT_HELLO_MESSAGES
         connection.header_size = ont_constants.ONT_HDR_COMMON_OFF
-        connection.message_factory = ont_message_factory
         connection.message_handlers = {
             OntMessageType.PING: self.msg_ping,
             OntMessageType.PONG: self.msg_pong,

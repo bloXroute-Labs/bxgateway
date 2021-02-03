@@ -21,7 +21,6 @@ class TestAbstractGatewayTransactionService(AbstractTransactionServiceTestCase, 
             8000,
             include_default_eth_args=True,
             pub_key=pub_key,
-            track_detailed_sent_messages=True,
             blockchain_network_num=5
         )
 

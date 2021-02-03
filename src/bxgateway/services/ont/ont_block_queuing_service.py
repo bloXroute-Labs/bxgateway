@@ -111,19 +111,18 @@ class OntBlockQueuingService(
                 )
                 self.connection.enqueue_msg(block_msg)
                 handling_time, relay_desc = self.node.track_block_from_bdn_handling_ended(block_hash)
-                if not self.node.opts.track_detailed_sent_messages:
-                    block_stats.add_block_event_by_block_hash(
-                        block_hash,
-                        BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
-                        network_num=self.node.network_num,
-                        broadcast_type=BroadcastMessageType.CONSENSUS,
-                        more_info="{} bytes; Handled in {}; R - {}; {}".format(
-                            len(block_msg.rawbytes()),
-                            stats_format.duration(handling_time),
-                            relay_desc,
-                            block_msg.extra_stats_data(),
-                        ),
-                    )
+                block_stats.add_block_event_by_block_hash(
+                    block_hash,
+                    BlockStatEventType.BLOCK_SENT_TO_BLOCKCHAIN_NODE,
+                    network_num=self.node.network_num,
+                    broadcast_type=BroadcastMessageType.CONSENSUS,
+                    more_info="{} bytes; Handled in {}; R - {}; {}".format(
+                        len(block_msg.rawbytes()),
+                        stats_format.duration(handling_time),
+                        relay_desc,
+                        block_msg.extra_stats_data(),
+                    ),
+                )
 
     # pyre-fixme[14]: `bxgateway.services.ont.ont_block_queuing_service.OntBlockQueuingService.send_block_to_node`
     #  overrides method defined in `AbstractBlockQueuingService` inconsistently. Parameter of

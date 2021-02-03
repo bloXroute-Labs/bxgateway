@@ -153,7 +153,8 @@ class FilterParsingTest(AbstractTestCase):
     async def test_filters2(self):
         t2 = "from = 0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a or value > 5534673480000000000"
 
-        f = {"value": 1.3467348e+18, "to": "0xd7bec4d6bf6fc371eb51611a50540f0b59b5f896", "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a"}
+        f = {"value": 1.3467348e+18, "to": "0xd7bec4d6bf6fc371eb51611a50540f0b59b5f896",
+             "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a"}
         validator = filter_parsing.get_validator(t2)
         self.assertTrue(validator({"value": 6534673480000000000, "from": "a"}))
         self.assertFalse(validator({"value": 50, "from": "a"}))
@@ -164,12 +165,28 @@ class FilterParsingTest(AbstractTestCase):
     async def test_filters3(self):
         t3 = "value > 5534673480000000000 or (to = 0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be or to = 0xbd4e113ee68bcbbf768ba1d6c7a14e0033629792)"
         validator = filter_parsing.get_validator(t3)
-        f = {"value": 1.3467348e+18, "to": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be", "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a"}
+        f = {"value": 1.3467348e+18, "to": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+             "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a"}
         self.assertTrue(validator(f))
 
     @async_test
     async def test_filters4(self):
-        t4 ="to = 0x1111111111111111111111111111111111111111 or to = aaaa"
+        t4 = "to = 0x1111111111111111111111111111111111111111 or to = aaaa"
         validator = filter_parsing.get_validator(t4)
-        f = {"value": 1.3467348e+18, "to": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be", "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a"}
+        f = {"value": 1.3467348e+18, "to": "0x3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be",
+             "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a"}
         self.assertFalse(validator(f))
+
+    @async_test
+    async def test_filters5(self):
+        t5 = "gas_price < 100"
+        validator = filter_parsing.get_validator(t5)
+        f = {"gas_price": 200}
+        self.assertFalse(validator(f))
+
+    @async_test
+    async def test_filters6(self):
+        t6 = "gas_price > 100"
+        validator = filter_parsing.get_validator(t6)
+        f = {"gas_price": 200}
+        self.assertTrue(validator(f))

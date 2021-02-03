@@ -101,7 +101,7 @@ class BlockProcessingService:
             conns = self._node.broadcast(
                 BlockHoldingMessage(block_hash, self._node.network_num),
                 broadcasting_conn=connection,
-                connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY]
+                connection_types=(ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY)
             )
             if len(conns) > 0:
                 block_stats.add_block_event_by_block_hash(
@@ -157,7 +157,7 @@ class BlockProcessingService:
                     BlockHoldingMessage(block_hash, self._node.network_num),
                     broadcasting_conn=connection,
                     prepend_to_queue=True,
-                    connection_types=[ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY]
+                    connection_types=(ConnectionType.RELAY_BLOCK, ConnectionType.GATEWAY)
                 )
                 if len(conns) > 0:
                     block_stats.add_block_event_by_block_hash(
@@ -247,7 +247,11 @@ class BlockProcessingService:
             connection.log_trace("Received encrypted block. Storing.")
             self._node.in_progress_blocks.add_ciphertext(block_hash, cipherblob)
             block_received_message = BlockReceivedMessage(block_hash)
-            conns = self._node.broadcast(block_received_message, connection, connection_types=[ConnectionType.GATEWAY])
+            conns = self._node.broadcast(
+                block_received_message,
+                connection,
+                connection_types=(ConnectionType.GATEWAY,)
+            )
             block_stats.add_block_event_by_block_hash(
                 block_hash,
                 BlockStatEventType.ENC_BLOCK_SENT_BLOCK_RECEIPT,
@@ -305,7 +309,7 @@ class BlockProcessingService:
             connection.log_trace("No cipher text found on key message. Storing.")
             self._node.in_progress_blocks.add_key(block_hash, key)
 
-        conns = self._node.broadcast(msg, connection, connection_types=[ConnectionType.GATEWAY])
+        conns = self._node.broadcast(msg, connection, connection_types=(ConnectionType.GATEWAY,))
         if len(conns) > 0:
             block_stats.add_block_event_by_block_hash(block_hash,
                                                       BlockStatEventType.ENC_BLOCK_KEY_SENT_BY_GATEWAY_TO_PEERS,
@@ -661,7 +665,7 @@ class BlockProcessingService:
             return
 
         get_txs_message = GetTxsMessage(short_ids=all_unknown_sids)
-        self._node.broadcast(get_txs_message, connection_types=[ConnectionType.RELAY_TRANSACTION])
+        self._node.broadcast(get_txs_message, connection_types=(ConnectionType.RELAY_TRANSACTION,))
 
         if connection is not None:
             tx_stats.add_txs_by_short_ids_event(

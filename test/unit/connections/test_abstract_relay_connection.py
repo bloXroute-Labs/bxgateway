@@ -47,7 +47,7 @@ class AbstractRelayConnectionTest(AbstractTestCase):
 
         self.blockchain_connecton = AbstractGatewayBlockchainConnection(
             MockSocketConnection(1, node=self.node, ip_address=constants.LOCALHOST, port=333), self.node)
-        self.blockchain_connecton.state = ConnectionState.ESTABLISHED
+        self.blockchain_connecton.on_connection_established()
 
     @patch("bxgateway.services.block_processing_service.BlockProcessingService._handle_decrypted_block")
     def test_msg_broadcast_encrypted(self, mock_handle_decrypted_block):

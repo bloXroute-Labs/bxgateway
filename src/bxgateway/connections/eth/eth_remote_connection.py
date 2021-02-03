@@ -14,9 +14,11 @@ class EthRemoteConnection(EthBaseConnection):
 
     def __init__(self, sock: AbstractSocketConnectionProtocol, node: "EthGatewayNode"):
         super(EthRemoteConnection, self).__init__(sock, node)
-        node_public_key = self.node.get_remote_public_key()
-        is_handshake_initiator = node_public_key is not None
-        private_key = self.node.get_private_key()
         self.connection_protocol = EthRemoteConnectionProtocol(
-            self, is_handshake_initiator, private_key, node_public_key
+            self, self.is_handshake_initiator, self.rlpx_cipher
         )
+
+    def connection_public_key(
+        self, _sock: AbstractSocketConnectionProtocol, node: "EthGatewayNode"
+    ) -> bytes:
+        return node.get_remote_public_key()

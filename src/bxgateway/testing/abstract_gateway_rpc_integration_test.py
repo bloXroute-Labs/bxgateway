@@ -14,8 +14,8 @@ from bxcommon.rpc import rpc_constants
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
-from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
+from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
 from bxutils import constants as utils_constants
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_base import BdnServiceModelBase, FeedServiceModelBase
@@ -75,10 +75,10 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.gateway_node.requester.start()
         self.gateway_node.account_id = ACCOUNT_ID
         self.node_endpoint_1 = IpEndpoint("127.0.0.1", 7000)
-        self.blockchain_connection_1 = EthBaseConnection(
+        self.blockchain_connection_1 = EthNodeConnection(
             MockSocketConnection(1, node=self.gateway_node, ip_address="127.0.0.1", port=7000), cast(EthGatewayNode, self.gateway_node)
         )
-        self.blockchain_connection_1.state = ConnectionState.ESTABLISHED
+        self.blockchain_connection_1.on_connection_established()
 
     @abstractmethod
     def get_gateway_opts(self) -> GatewayOpts:
@@ -128,8 +128,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertEqual("1", result.id)
         self.assertIsNone(result.error)
         self.assertEqual(TRANSACTION_HASH, result.result["tx_hash"])
-        self.assertEqual(ACCOUNT_ID, result.result["account_id"])
-        self.assertEqual(TransactionFlag.PAID_TX.name.lower(), result.result["transaction_flag"].lower())
 
         self.assertEqual(1, len(self.gateway_node.broadcast_messages))
         self.assertEqual(
@@ -194,8 +192,6 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertEqual("1", result.id)
         self.assertIsNone(result.error)
         self.assertEqual("ad6f9332384194f80d8e49af8f093ad019b3f6b7173eb2956a46c9a0d8c4d03c", result.result["tx_hash"])
-        self.assertEqual(ACCOUNT_ID, result.result["account_id"])
-        self.assertEqual(TransactionFlag.PAID_TX.name.lower(), result.result["transaction_flag"].lower())
 
         self.assertEqual(1, len(self.gateway_node.broadcast_messages))
         self.assertEqual(
@@ -315,9 +311,9 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             20, self.node_endpoint_1.ip_address, self.node_endpoint_1.port, self.blockchain_connection_1
         )
 
-        blockchain_connection_2 = EthBaseConnection(
+        blockchain_connection_2 = EthNodeConnection(
             MockSocketConnection(1, node=self.gateway_node, ip_address="127.0.0.1", port=333), self.gateway_node)
-        blockchain_connection_2.state = ConnectionState.ESTABLISHED
+        blockchain_connection_2.on_connection_established()
         self.gateway_node.mock_add_blockchain_peer(blockchain_connection_2)
         node_endpoint_2 = IpEndpoint("127.0.0.1", 333)
         self.gateway_node.connection_pool.add(

@@ -427,7 +427,7 @@ class EthGatewayNode(AbstractGatewayNode):
                 super(EthGatewayNode, self).log_closed_connection(connection)
 
         elif isinstance(connection, GatewayConnection):
-            if ConnectionState.ESTABLISHED not in connection.state:
+            if connection.established:
                 logger.debug("Failed to connect to: {}.", connection)
             else:
                 logger.debug("Closed connection: {}", connection)
@@ -602,7 +602,7 @@ class EthGatewayNode(AbstractGatewayNode):
         self,
         raw_block: EthRawBlock,
     ) -> None:
-        if raw_block.source in {FeedSource.BLOCKCHAIN_RPC}:
+        if raw_block.source in EthOnBlockFeed.VALID_SOURCES:
             self.feed_manager.publish_to_feed(
                 FeedKey(EthOnBlockFeed.NAME), EventNotification(raw_block.block_number)
             )

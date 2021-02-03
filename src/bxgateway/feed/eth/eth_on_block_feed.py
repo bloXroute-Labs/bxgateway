@@ -6,6 +6,7 @@ from asyncio import QueueFull, Task
 from dataclasses import dataclass, asdict
 
 from bxcommon import constants
+from bxcommon.feed.feed_source import FeedSource
 from bxcommon.models.serializeable_enum import SerializeableEnum
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcError
 from bxcommon.rpc import rpc_constants
@@ -164,6 +165,8 @@ def process_call_params(call_params: List[Dict[str, Any]]) -> Dict[str, Any]:
 class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
     NAME = rpc_constants.ETH_ON_BLOCK_FEED_NAME
     FIELDS = ["name", "response", "block_height", "tag"]
+    ALL_FIELDS = FIELDS
+    VALID_SOURCES = {FeedSource.BLOCKCHAIN_RPC}
     last_block_height: int
 
     def __init__(self, node: "EthGatewayNode", network_num: int = constants.ALL_NETWORK_NUM,) -> None:

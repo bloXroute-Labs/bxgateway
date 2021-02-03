@@ -66,7 +66,7 @@ class _GatewayBdnPerformanceStatsService(
         blockchain_node_to_bdn_stats = self.interval_data.blockchain_node_to_bdn_stats
         assert blockchain_node_to_bdn_stats is not None
 
-        active_blockchain_peers = list(node.connection_pool.get_by_connection_types([ConnectionType.BLOCKCHAIN_NODE]))
+        active_blockchain_peers = list(node.connection_pool.get_by_connection_types((ConnectionType.BLOCKCHAIN_NODE,)))
         for blockchain_peer in active_blockchain_peers:
             blockchain_node_to_bdn_stats[blockchain_peer.endpoint] = BdnPerformanceStatsData()
 

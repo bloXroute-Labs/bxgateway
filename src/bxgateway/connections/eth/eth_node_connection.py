@@ -10,14 +10,16 @@ if TYPE_CHECKING:
 
 class EthNodeConnection(EthBaseConnection):
     def __init__(self, sock: AbstractSocketConnectionProtocol, node: "EthGatewayNode"):
-        super(EthNodeConnection, self).__init__(sock, node)
-
-        node_public_key = self.node.get_node_public_key(self.peer_ip, self.peer_port)
-        is_handshake_initiator = node_public_key is not None
-        private_key = self.node.get_private_key()
+        super().__init__(sock, node)
         self.connection_protocol = EthNodeConnectionProtocol(
-            self, is_handshake_initiator, private_key, node_public_key
+            self, self.is_handshake_initiator, self.rlpx_cipher
         )
+
+    def connection_public_key(
+        self, sock: AbstractSocketConnectionProtocol, node: "EthGatewayNode"
+    ) -> bytes:
+        peer_ip, peer_port = sock.endpoint
+        return node.get_node_public_key(peer_ip, peer_port)
 
     def get_connection_state_details(self):
         """
