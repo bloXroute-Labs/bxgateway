@@ -5,11 +5,14 @@ from bxcommon.messages.bloxroute.tx_message import TxMessage
 from bxcommon.utils.blockchain_utils.bdn_tx_to_bx_tx import bdn_tx_to_bx_tx
 from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon import constants as common_constants
+
 from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.eth.eth_utils import parse_transaction_bytes
+
 from bxutils import logging
 
 logger = logging.get_logger(__name__)
@@ -48,7 +51,8 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         tx_msg,
         network_num,
         transaction_flag: Optional[TransactionFlag] = None,
-        min_tx_network_fee: int = 0
+        min_tx_network_fee: int = 0,
+        account_id: str = common_constants.DECODED_EMPTY_ACCOUNT_ID
     ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         """
         Converts Ethereum transactions message to array of internal transaction messages
@@ -57,8 +61,9 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
 
         :param tx_msg: Ethereum transaction message
         :param network_num: blockchain network number
-        :param transaction_flag: the quota type to assign to the BDN transaction.
-        :param min_tx_network_fee: minimum transaction fee. excludes transactions with gas price below this value
+        :param transaction_flag: transaction flag to assign to the BDN transaction.
+        :param min_tx_network_fee: minimum transaction fee. excludes transactions with gas price below this value,
+        :param account_id: the account id of the gateway
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 
@@ -78,7 +83,7 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         while True:
             gas_price = eth_common_utils.raw_tx_gas_price(txs_bytes, tx_start_index)
             bx_tx, tx_item_length, tx_item_start = eth_common_utils.raw_tx_to_bx_tx(
-                txs_bytes, tx_start_index, network_num, transaction_flag
+                txs_bytes, tx_start_index, network_num, transaction_flag, account_id
             )
 
             if gas_price >= min_tx_network_fee:
@@ -95,9 +100,10 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         self,
         raw_tx: Union[bytes, bytearray, memoryview],
         network_num: int,
-        transaction_flag: Optional[TransactionFlag] = None
+        transaction_flag: Optional[TransactionFlag] = None,
+        account_id: str = common_constants.DECODED_EMPTY_ACCOUNT_ID
     ) -> TxMessage:
-        return bdn_tx_to_bx_tx(raw_tx, network_num, transaction_flag)
+        return bdn_tx_to_bx_tx(raw_tx, network_num, transaction_flag, account_id)
 
     def bx_tx_to_tx(self, bx_tx_msg):
         """

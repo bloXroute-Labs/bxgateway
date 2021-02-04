@@ -54,7 +54,8 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         tx_msg,
         network_num: int,
         transaction_flag: Optional[TransactionFlag] = None,
-        min_tx_network_fee: int = 0
+        min_tx_network_fee: int = 0,
+        account_id: str = constants.DECODED_EMPTY_ACCOUNT_ID
     ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         """
         Converts blockchain transactions message to internal transaction message
@@ -64,6 +65,7 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         :param transaction_flag: the transaction_flag type to assign to the BDN transaction.
         :param min_tx_network_fee: minimum transaction fee. If support by the network, transactions
                                    with fees lower than this will be excluded from the result
+        :param account_id: gateway's account id
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 
@@ -113,13 +115,15 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         self,
         raw_tx: Union[bytes, bytearray, memoryview],
         network_num: int,
-        transaction_flag: Optional[TransactionFlag] = None
+        transaction_flag: Optional[TransactionFlag] = None,
+        account_id: str = constants.DECODED_EMPTY_ACCOUNT_ID
     ) -> TxMessage:
         """
         Convert a raw transaction which arrived from an RPC request into bx transaction.
         :param raw_tx: The raw transaction bytes.
         :param network_num: the network number.
         :param transaction_flag: the quota type to assign to the BDN transaction.
+        :param account_id: node's account id
         :return: bx transaction.
         """
         pass

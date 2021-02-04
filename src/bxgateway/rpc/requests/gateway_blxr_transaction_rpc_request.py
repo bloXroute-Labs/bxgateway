@@ -98,7 +98,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
             message_converter = self.node.message_converter
             assert message_converter is not None, "Invalid server state!"
             transaction = message_converter.encode_raw_msg(transaction_str)
-            bx_tx = message_converter.bdn_tx_to_bx_tx(transaction, network_num, transaction_flag)
+            bx_tx = message_converter.bdn_tx_to_bx_tx(transaction, network_num, transaction_flag, account_id)
         except (ValueError, ParseError) as e:
             logger.error(common_log_messages.RPC_COULD_NOT_PARSE_TRANSACTION, e)
             raise RpcInvalidParams(
