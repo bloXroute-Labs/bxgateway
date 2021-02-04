@@ -18,18 +18,19 @@ class OntBlockPropagationTest(AbstractGatewayIntegrationTest):
 
     def gateway_opts_1(self) -> Namespace:
         return gateway_helpers.get_gateway_opts(
-            9000, sync_tx_service=False, include_default_ont_args=True, blockchain_network_num=33
+            9000, sync_tx_service=False, include_default_ont_args=True, blockchain_network_num=33, account_id="1234"
         )
 
     def gateway_opts_2(self) -> Namespace:
         return gateway_helpers.get_gateway_opts(
-            9001, sync_tx_service=False, include_default_ont_args=True, blockchain_network_num=33
+            9001, sync_tx_service=False, include_default_ont_args=True, blockchain_network_num=33, account_id="1234"
         )
 
     def test_transaction_propagation(self):
         initial_message = TxOntMessage(
             12345, 123, helpers.generate_bytearray(250)
         )
+        self.gateway_1.account_id = "12345"
         transaction_hash = initial_message.tx_hash()
         transaction_key = self.gateway_1._tx_service.get_transaction_key(transaction_hash)
         self.gateway_1_receive_message_from_blockchain(initial_message)
@@ -39,7 +40,6 @@ class OntBlockPropagationTest(AbstractGatewayIntegrationTest):
 
         self.assertTrue(self.gateway_1._tx_service.has_transaction_contents_by_key(transaction_key))
         self.assertFalse(self.gateway_1._tx_service.has_transaction_short_id_by_key(transaction_key))
-
         messages_for_relay = self.gateway_1_get_queued_messages_for_relay()
         self.assertEqual(1, len(messages_for_relay))
 

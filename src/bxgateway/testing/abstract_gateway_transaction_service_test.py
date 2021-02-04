@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import Union, Tuple, List
 
+from bxcommon import constants
 from bxcommon.test_utils import helpers
 from bxcommon.test_utils.abstract_transaction_service_test_case import AbstractTransactionServiceTestCase
 from bxcommon.utils import convert
@@ -21,7 +22,8 @@ class TestAbstractGatewayTransactionService(AbstractTransactionServiceTestCase, 
             8000,
             include_default_eth_args=True,
             pub_key=pub_key,
-            blockchain_network_num=5
+            blockchain_network_num=5,
+            account_id="12345"
         )
 
         if self.opts.use_extensions:
@@ -31,6 +33,7 @@ class TestAbstractGatewayTransactionService(AbstractTransactionServiceTestCase, 
 
     def _test_process_transactions_message_from_node(self):
         min_tx_network_fee = 0
+        self.node.account_id = "12345"
         if self.node.network_num in self.node.opts.blockchain_networks:
             min_tx_network_fee = self.node.opts.blockchain_networks[self.node.network_num].min_tx_network_fee
 

@@ -63,6 +63,7 @@ class TestBadSendingBtcTest(AbstractBtcGatewayIntegrationTest):
         self.gateway_node.remote_node_conn = self.btc_remote_node_connection
         self.gateway_node.connection_pool.add(self.local_node_fileno, LOCALHOST, 8001, self.btc_node_connection)
         self.gateway_node.connection_pool.add(self.remote_node_fileno, LOCALHOST, 8002, self.btc_remote_node_connection)
+        self.gateway_node.account_id = "1234"
 
         self.handshake = \
             bytearray(VersionBtcMessage(100, 1000, "127.0.0.1", 8333, "0.0.0.0", 8333,

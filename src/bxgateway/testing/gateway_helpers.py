@@ -54,7 +54,6 @@ def get_gateway_opts(
     default_tx_flag: TransactionFlag = TransactionFlag.NO_FLAGS,
     log_level_overrides=None,
     enable_network_content_logs=False,
-    account_id=None,
     account_model=None,
     ipc=False,
     ipc_file="bxgateway.ipc",
@@ -66,6 +65,7 @@ def get_gateway_opts(
     filter_txs_factor: float = 0,
     blockchain_protocol: str = "Ethereum",
     should_restart_on_high_memory: bool = False,
+    account_id: str = constants.DECODED_EMPTY_ACCOUNT_ID,
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:

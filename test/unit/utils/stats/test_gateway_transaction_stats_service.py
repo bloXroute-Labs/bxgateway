@@ -54,6 +54,7 @@ class GatewayTransactionStatsServiceTest(AbstractTestCase):
 
         self.relay_connection.state = ConnectionState.INITIALIZED
         gateway_transaction_stats_service.set_node(self.node)
+        self.node.account_id = "123456"
 
     def test_tx_stats_new_full_from_relay(self):
         short_id = 123
