@@ -4,14 +4,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast, Optional, Union
 
 from bxcommon.connections.connection_type import ConnectionType
-from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.utils import convert
 from bxgateway import gateway_constants
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
 from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import DisconnectEthProtocolMessage
-from bxgateway.messages.eth.protocol.eth_protocol_message_factory import EthProtocolMessageFactory
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.protocol.hello_eth_protocol_message import HelloEthProtocolMessage
 from bxgateway.messages.eth.protocol.pong_eth_protocol_message import PongEthProtocolMessage
@@ -133,18 +131,26 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
 
     def msg_status(self, msg: Union[StatusEthProtocolMessage, StatusEthProtocolMessageV63]):
         self.connection.log_trace("Status message received.")
+        try:
+            protocol_version = msg.get_eth_version()
+        except Exception:
+            status_msg = StatusEthProtocolMessageV63(msg.rawbytes())
+            protocol_version = status_msg.get_eth_version()
+        else:
+            status_msg = msg
+
         self.connection_status.status_message_received = True
 
         for peer in self.node.blockchain_peers:
             if self.node.is_blockchain_peer(self.connection.peer_ip, self.connection.peer_port):
                 peer.connection_established = True
 
-        chain_difficulty_from_status_msg = msg.get_chain_difficulty()
+        chain_difficulty_from_status_msg = status_msg.get_chain_difficulty()
         chain_difficulty = int(self.node.opts.chain_difficulty, 16)
-        fork_id = msg.get_fork_id()
+        fork_id = status_msg.get_fork_id()
         if isinstance(chain_difficulty_from_status_msg, int) and chain_difficulty_from_status_msg > chain_difficulty:
             chain_difficulty = chain_difficulty_from_status_msg
-        self._enqueue_status_message(chain_difficulty, fork_id)
+        self._enqueue_status_message(chain_difficulty, fork_id, protocol_version)
 
     def msg_disconnect(self, msg):
         self.connection_status.disconnect_message_received = True
@@ -216,16 +222,15 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
         self.connection.enqueue_msg(hello_msg)
         self.connection_status.hello_message_sent = True
 
-    def _enqueue_status_message(self, chain_difficulty: int, fork_id):
+    def _enqueue_status_message(self, chain_difficulty: int, fork_id, protocol_version: int):
         network_id = self.node.opts.network_id
         chain_head_hash = convert.hex_to_bytes(self.node.opts.genesis_hash)
-        genesis_hash = convert.hex_to_bytes(self.node.opts.genesis_hash)
-        eth_protocol_version = self._get_eth_protocol_version()
+        genesis_hash = chain_head_hash
 
-        if eth_common_constants.ETH_PROTOCOL_VERSION == gateway_constants.ETH_PROTOCOL_VERSION_63:
+        if protocol_version == gateway_constants.ETH_PROTOCOL_VERSION_63:
             status_msg = StatusEthProtocolMessageV63(
                 None,
-                eth_protocol_version,
+                protocol_version,
                 network_id,
                 chain_difficulty,
                 chain_head_hash,
@@ -234,7 +239,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
         else:
             status_msg = StatusEthProtocolMessage(
                 None,
-                eth_protocol_version,
+                protocol_version,
                 network_id,
                 chain_difficulty,
                 chain_head_hash,
