@@ -199,7 +199,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
         self.assertTrue(valid)
         subscriber = self.sut.subscribe({"filters": t2})
         subscriber.queue = MagicMock(wraps=subscriber.queue)
-        logger.error(subscriber.validator({"value": 10, "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a"}))
+        logger.error(subscriber.validate({"value": 10, "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a"}))
         raw_transaction = mock_eth_messages.generate_eth_raw_transaction_with_to_address(
             FeedSource.BLOCKCHAIN_SOCKET, "3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be"
         )
@@ -217,7 +217,7 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
         self.assertTrue(valid)
         subscriber = self.sut.subscribe({"filters": t3})
         subscriber.queue = MagicMock(wraps=subscriber.queue)
-        logger.error(subscriber.validator({"value": 10, "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a"}))
+        logger.error(subscriber.validate({"value": 10, "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a"}))
         raw_transaction = mock_eth_messages.generate_eth_raw_transaction_with_to_address(
             FeedSource.BLOCKCHAIN_SOCKET, "3f5ce5fbfe3e9af3971dd833d26ba9b5c936f0be"
         )
@@ -235,11 +235,11 @@ class EthPendingTransactionFeedTest(AbstractTestCase):
         self.assertTrue(valid)
         subscriber = self.sut.subscribe({"filters": t3})
         subscriber.queue = MagicMock(wraps=subscriber.queue)
-        valid = subscriber.validator({"value": 10, "to": eth_filter_handlers.reformat_address("0x")})
+        valid = subscriber.validate({"value": 10, "to": eth_filter_handlers.reformat_address("0x")})
         self.assertFalse(valid)
-        valid = subscriber.validator({"value": 10, "to": "0x"})
+        valid = subscriber.validate({"value": 10, "to": "0x"})
         self.assertTrue(valid)
         t4 = "to in [0x0000000000000000000000000000000000000000]"
         subscriber = self.sut.subscribe({"filters": t4})
-        valid = subscriber.validator({"value": 10, "to": eth_filter_handlers.reformat_address("0x")})
+        valid = subscriber.validate({"value": 10, "to": eth_filter_handlers.reformat_address("0x")})
         self.assertTrue(valid)

@@ -113,6 +113,13 @@ class FilterParsingTest(AbstractTestCase):
             rpc_handler = self.rpc.get_request_handler(subscribe_request4)
             await rpc_handler.process_request()
 
+        subscribe_request4 = BxJsonRpcRequest(
+            "1", RpcRequestType.SUBSCRIBE, ["foo", {"filters": "hello > 1"}],
+        )
+        with self.assertRaises(RpcInvalidParams):
+            rpc_handler = self.rpc.get_request_handler(subscribe_request4)
+            await rpc_handler.process_request()
+
     @async_test
     async def test_subscribe_to_feed_with_filtering_not_allowed(self):
         feed_service_model = FeedServiceModelBase(
