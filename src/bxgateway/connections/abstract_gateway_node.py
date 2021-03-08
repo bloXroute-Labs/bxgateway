@@ -155,8 +155,23 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         if opts.account_model:
             self.account_model = opts.account_model
+            node_cache.update_cache_file(
+                opts,
+                # pyre-fixme[16]: `Optional` has no attribute `account_id`
+                accounts={opts.account_model.account_id: self.account_model},
+            )
         else:
-            self.account_model = None
+            node_cache_info = node_cache.read(opts)
+            if (
+                node_cache_info
+                and node_cache_info.accounts
+                and node_cache_info.node_model
+                and node_cache_info.node_model.account_id is not None
+            ):
+                # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[str]`
+                self.account_model = node_cache_info.accounts[node_cache_info.node_model.account_id]
+            else:
+                self.account_model = None
 
         self.quota_level = 0
         self.num_active_blockchain_peers = 0
