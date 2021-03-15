@@ -115,7 +115,12 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
                     seen,
                     tx_hash,
                     tx_contents,
-                    TxMessage(message_hash=tx_hash, network_num=self.network_num, tx_val=tx_contents),
+                    TxMessage(
+                        message_hash=tx_hash,
+                        network_num=self.network_num,
+                        tx_val=tx_contents,
+                        account_id=self.node.account_id
+                    ),
                     TxValidationStatus(tx_validation_status)
                 )
             )

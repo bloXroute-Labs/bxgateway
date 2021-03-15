@@ -37,7 +37,7 @@ def main() -> None:
     if alchemy_api_key:
         alchemy_endpoint = "https://eth-mainnet.alchemyapi.io/v2/" + alchemy_api_key
         eth_tx_receipt_endpoint = alchemy_endpoint
-        default_web3 = Web3(Web3.HTTPProvider(alchemy_endpoint))  # pyre-ignore
+        default_web3 = Web3(Web3.HTTPProvider(alchemy_endpoint))
         if not default_web3.isConnected():
             print(f"Alchemy endpoint {alchemy_endpoint} is not connected. Please check your API key and try again.")
             sys.exit(0)
@@ -45,7 +45,7 @@ def main() -> None:
     if infura_api_key:
         infura_endpoint = "https://mainnet.infura.io/v3/" + infura_api_key
         eth_tx_receipt_endpoint = infura_endpoint
-        default_web3 = Web3(Web3.HTTPProvider(infura_endpoint))  # pyre-ignore
+        default_web3 = Web3(Web3.HTTPProvider(infura_endpoint))
         if not default_web3.isConnected():
             print(f"Infura endpoint {infura_endpoint} is not connected. Please check your API key and try again.")
             sys.exit(0)
@@ -75,8 +75,8 @@ def main() -> None:
     sender_account = Account.from_key(sender_private_key)  # pyre-ignore
     sender_address = sender_account.address
 
-    nonce = default_web3.eth.getTransactionCount(sender_address)
-    sender_balance = default_web3.eth.getBalance(sender_address)
+    nonce = default_web3.eth.getTransactionCount(sender_address)  # pyre-ignore
+    sender_balance = default_web3.eth.getBalance(sender_address)  # pyre-ignore
     sender_balance_in_eth = default_web3.fromWei(sender_balance, "ether")  # pyre-ignore
 
     sender_expense = num_tx_groups * gas_price_wei * gas_limit

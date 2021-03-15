@@ -10,6 +10,7 @@ from bxcommon.utils import crypto, convert
 from bxcommon.utils.blockchain_utils.bdn_tx_to_bx_tx import bdn_tx_to_bx_tx
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.proxy.vector_proxy import VectorProxy
+from bxcommon import constants as common_constants
 
 from bxgateway import btc_constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
@@ -136,12 +137,19 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
         tx_msg,
         network_num: int,
         transaction_flag: Optional[TransactionFlag] = None,
-        min_tx_network_fee: int = 0
+        min_tx_network_fee: int = 0,
+        account_id: str = common_constants.DECODED_EMPTY_ACCOUNT_ID
     ) -> List[Tuple[TxMessage, Sha256Hash, Union[bytearray, memoryview]]]:
         if not isinstance(tx_msg, TxBtcMessage):
             raise TypeError("tx_msg is expected to be of type TxBTCMessage")
 
-        bx_tx_msg = TxMessage(tx_msg.tx_hash(), network_num, tx_val=tx_msg.tx(), transaction_flag=transaction_flag)
+        bx_tx_msg = TxMessage(
+            tx_msg.tx_hash(),
+            network_num,
+            tx_val=tx_msg.tx(),
+            transaction_flag=transaction_flag,
+            account_id=account_id
+        )
 
         return [(bx_tx_msg, tx_msg.tx_hash(), tx_msg.tx())]
 
@@ -149,6 +157,7 @@ class AbstractBtcMessageConverter(AbstractMessageConverter):
         self,
         raw_tx: Union[bytes, bytearray, memoryview],
         network_num: int,
-        transaction_flag: Optional[TransactionFlag] = None
+        transaction_flag: Optional[TransactionFlag] = None,
+        account_id: str = common_constants.DECODED_EMPTY_ACCOUNT_ID
     ) -> TxMessage:
-        return bdn_tx_to_bx_tx(raw_tx, network_num, transaction_flag)
+        return bdn_tx_to_bx_tx(raw_tx, network_num, transaction_flag, account_id)

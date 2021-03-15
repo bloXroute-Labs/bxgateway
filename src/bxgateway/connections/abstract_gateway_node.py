@@ -155,8 +155,23 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         if opts.account_model:
             self.account_model = opts.account_model
+            node_cache.update_cache_file(
+                opts,
+                # pyre-fixme[16]: `Optional` has no attribute `account_id`
+                accounts={opts.account_model.account_id: self.account_model},
+            )
         else:
-            self.account_model = None
+            node_cache_info = node_cache.read(opts)
+            if (
+                node_cache_info
+                and node_cache_info.accounts
+                and node_cache_info.node_model
+                and node_cache_info.node_model.account_id is not None
+            ):
+                # pyre-fixme[6]: Expected `str` for 1st param but got `Optional[str]`
+                self.account_model = node_cache_info.accounts[node_cache_info.node_model.account_id]
+            else:
+                self.account_model = None
 
         self.quota_level = 0
         self.num_active_blockchain_peers = 0
@@ -1050,49 +1065,50 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         super(AbstractGatewayNode, self).sync_tx_services()
         if self.opts.sync_tx_service:
             retry = True
-            if self.opts.split_relays:
-                relay_tx_connection: Optional[AbstractRelayConnection] = next(
-                    iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_TRANSACTION,))), None
-                )
-                relay_block_connection: Optional[AbstractRelayConnection] = next(
-                    iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_BLOCK,))), None
-                )
-
-                if (
-                    relay_tx_connection and relay_block_connection and
-                    relay_tx_connection.is_active() and relay_block_connection.is_active()
-                ):
-                    if self.transaction_sync_timeout_alarm_id:
-                        alarm_id = self.transaction_sync_timeout_alarm_id
-                        assert alarm_id is not None
-                        self.alarm_queue.unregister_alarm(alarm_id)
-                        self.transaction_sync_timeout_alarm_id = None
-                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
-                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
+            if self.has_active_blockchain_peer():
+                if self.opts.split_relays:
+                    relay_tx_connection: Optional[AbstractRelayConnection] = next(
+                        iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_TRANSACTION,))), None
+                    )
+                    relay_block_connection: Optional[AbstractRelayConnection] = next(
+                        iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_BLOCK,))), None
                     )
 
-                    # the sync with relay_tx must be the last one. since each call erase the previous call alarm
-                    relay_block_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
-                    relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
-                    self._clear_transaction_service()
-                    retry = False
-            else:
-                relay_connection: Optional[AbstractRelayConnection] = next(
-                    iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_ALL,))), None
-                )
-                if relay_connection and relay_connection.is_active():
-                    if self.transaction_sync_timeout_alarm_id:
-                        alarm_id = self.transaction_sync_timeout_alarm_id
-                        assert alarm_id is not None
-                        self.alarm_queue.unregister_alarm(alarm_id)
-                        self.transaction_sync_timeout_alarm_id = None
+                    if (
+                        relay_tx_connection and relay_block_connection and
+                        relay_tx_connection.is_active() and relay_block_connection.is_active()
+                    ):
+                        if self.transaction_sync_timeout_alarm_id:
+                            alarm_id = self.transaction_sync_timeout_alarm_id
+                            assert alarm_id is not None
+                            self.alarm_queue.unregister_alarm(alarm_id)
+                            self.transaction_sync_timeout_alarm_id = None
+                        self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
+                            constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
+                        )
 
-                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
-                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
+                        # the sync with relay_tx must be the last one. since each call erase the previous call alarm
+                        relay_block_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                        relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                        self._clear_transaction_service()
+                        retry = False
+                else:
+                    relay_connection: Optional[AbstractRelayConnection] = next(
+                        iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_ALL,))), None
                     )
-                    relay_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
-                    self._clear_transaction_service()
-                    retry = False
+                    if relay_connection and relay_connection.is_active():
+                        if self.transaction_sync_timeout_alarm_id:
+                            alarm_id = self.transaction_sync_timeout_alarm_id
+                            assert alarm_id is not None
+                            self.alarm_queue.unregister_alarm(alarm_id)
+                            self.transaction_sync_timeout_alarm_id = None
+
+                        self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
+                            constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
+                        )
+                        relay_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                        self._clear_transaction_service()
+                        retry = False
 
             if retry:
                 logger.info("Relay connection is not ready to sync transaction state with BDN. Scheduling retry.")

@@ -7,7 +7,6 @@ from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.connections.internal_node_connection import InternalNodeConnection
 from bxcommon.feed.feed import FeedKey
-from bxcommon.messages.abstract_message_factory import AbstractMessageFactory
 from bxcommon.messages.bloxroute.abstract_cleanup_message import AbstractCleanupMessage
 from bxcommon.messages.bloxroute.bdn_performance_stats_message import BdnPerformanceStatsMessage
 from bxcommon.messages.bloxroute.blockchain_network_message import RefreshBlockchainNetworkMessage
@@ -318,8 +317,11 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         Drop relay peer request handler. Forces a gateway to drop its relay connection and request a new one
         :return: None
         """
-        self.log_info("Received disconnect request. Dropping.")
-        self.mark_for_close(should_retry=False)
+        if self.peer_ip in set([outbound_peer.ip for outbound_peer in self.node.opts.outbound_peers if outbound_peer]):
+            self.log_info("Received disconnect request. Not dropping because relay peer is static.")
+        else:
+            self.log_info("Received disconnect request. Dropping.")
+            self.mark_for_close(should_retry=False)
 
     def log_connection_mem_stats(self) -> None:
         """

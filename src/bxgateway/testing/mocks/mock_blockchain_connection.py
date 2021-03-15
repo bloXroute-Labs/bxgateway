@@ -8,6 +8,8 @@ from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.test_utils import helpers
 from bxcommon.utils import crypto, convert
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon import constants as common_constants
+
 from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
 from bxgateway.utils.block_info import BlockInfo
@@ -21,8 +23,14 @@ class MockMessageConverter(AbstractMessageConverter):
 
     PREV_BLOCK = Sha256Hash(helpers.generate_bytearray(crypto.SHA256_HASH_LEN))
 
-    def tx_to_bx_txs(self, tx_msg, network_num, transaction_flag: Optional[TransactionFlag] = None,
-                     min_tx_network_fee=0):
+    def tx_to_bx_txs(
+        self,
+        tx_msg,
+        network_num: int,
+        transaction_flag: Optional[TransactionFlag] = None,
+        min_tx_network_fee: int = 0,
+        account_id: str = common_constants.DECODED_EMPTY_ACCOUNT_ID
+    ):
         return [(tx_msg, tx_msg.tx_hash(), tx_msg.tx_val(), transaction_flag)]
 
     def bx_tx_to_tx(self, bx_tx_msg):
@@ -43,10 +51,15 @@ class MockMessageConverter(AbstractMessageConverter):
         self,
         raw_tx: Union[bytes, bytearray, memoryview],
         network_num: int,
-        transaction_flag: Optional[TransactionFlag] = None
+        transaction_flag: Optional[TransactionFlag] = None,
+        account_id: str = common_constants.DECODED_EMPTY_ACCOUNT_ID
     ) -> TxMessage:
         return TxMessage(
-            Sha256Hash(crypto.double_sha256(raw_tx)), network_num, tx_val=raw_tx, transaction_flag=transaction_flag
+            Sha256Hash(crypto.double_sha256(raw_tx)),
+            network_num,
+            tx_val=raw_tx,
+            transaction_flag=transaction_flag,
+            account_id=account_id
         )
 
 

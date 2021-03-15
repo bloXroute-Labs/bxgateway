@@ -9,6 +9,7 @@ from bxcommon.services.transaction_service import TransactionService, Transactio
     TransactionFromBdnGatewayProcessingResult
 from bxcommon.utils.blockchain_utils import transaction_validation
 from bxcommon.utils.object_hash import Sha256Hash
+from bxcommon import constants
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
@@ -89,9 +90,10 @@ class GatewayTransactionService(TransactionService):
     ) -> List[ProcessTransactionMessageFromNodeResult]:
         message_converter = cast(AbstractMessageConverter, self.node.message_converter)
 
+        account_id = self.node.account_id if self.node.account_id is not None else constants.DECODED_EMPTY_ACCOUNT_ID
         # avoid filtering low fee transactions in tx_to_bx_txs to match extensions behavior
         bx_tx_messages = message_converter.tx_to_bx_txs(
-            msg, self.network_num, self.node.default_tx_flag, min_tx_network_fee=0
+            msg, self.network_num, self.node.default_tx_flag, min_tx_network_fee=0, account_id=account_id
         )
 
         result = []

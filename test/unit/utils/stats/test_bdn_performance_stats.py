@@ -39,7 +39,9 @@ def _block_with_timestamp(timestamp):
 class GatewayBdnPerformanceStatsTest(AbstractTestCase):
     def setUp(self):
         self.node = MockGatewayNode(
-            gateway_helpers.get_gateway_opts(8000, include_default_eth_args=True, use_extensions=True),
+            gateway_helpers.get_gateway_opts(
+                8000, include_default_eth_args=True, use_extensions=True
+            ),
             block_queueing_cls=MagicMock())
         self.node.message_converter = converter_factory.create_eth_message_converter(self.node.opts)
         self.node.block_processing_service = BlockProcessingService(self.node)
@@ -103,6 +105,7 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
         self.relay_connection.state = ConnectionState.INITIALIZED
 
         gateway_bdn_performance_stats_service.set_node(self.node)
+        self.node.account_id = "12345"
 
     def test_bdn_stats_tx_new_full_from_bdn(self):
         short_id = 1
