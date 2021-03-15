@@ -38,7 +38,6 @@ class GatewayTransactionServiceRpcRequest(AbstractRpcRequest["AbstractGatewayNod
         super().validate_params()
         params = self.params
         assert isinstance(params, dict)
-        self.authenticate_request()
         if rpc_constants.TX_SERVICE_FILE_NAME_PARAMS_KEY in params:
             self._file_name = params[rpc_constants.TX_SERVICE_FILE_NAME_PARAMS_KEY]
 

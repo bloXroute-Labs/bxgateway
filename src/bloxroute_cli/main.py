@@ -72,10 +72,10 @@ class RpcClient:
         self.interactive = interactive
         if target_is_cloud_api:
             self._rpc_url = cloud_api_url
-            self.encoded_auth = base64.b64encode(f"{account_id}:{secret_hash}".encode("utf-8")).decode("utf-8")
+            self._encoded_auth = base64.b64encode(f"{account_id}:{secret_hash}".encode("utf-8")).decode("utf-8")
         else:
             self._rpc_url = f"http://{rpc_host}:{rpc_port}/"
-            self.encoded_auth = base64.b64encode(f"{rpc_user}:{rpc_password}".encode("utf-8")).decode("utf-8")
+            self._encoded_auth = base64.b64encode(f"{rpc_user}:{rpc_password}".encode("utf-8")).decode("utf-8")
 
     async def __aenter__(self):
         return self
@@ -107,7 +107,7 @@ class RpcClient:
                     data=json.dumps(json_data),
                     headers={
                         rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE,
-                        rpc_constants.AUTHORIZATION_HEADER_KEY: self.encoded_auth
+                        rpc_constants.AUTHORIZATION_HEADER_KEY: self._encoded_auth
                     }
                 )
             )
@@ -118,7 +118,7 @@ class RpcClient:
             data=json.dumps(json_data),
             headers={
                 rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE,
-                rpc_constants.AUTHORIZATION_HEADER_KEY: self.encoded_auth
+                rpc_constants.AUTHORIZATION_HEADER_KEY: self._encoded_auth
             }
         )
 
@@ -127,7 +127,7 @@ class RpcClient:
             self._rpc_url,
             headers={
                 rpc_constants.CONTENT_TYPE_HEADER_KEY: rpc_constants.PLAIN_HEADER_TYPE,
-                rpc_constants.AUTHORIZATION_HEADER_KEY: self.encoded_auth
+                rpc_constants.AUTHORIZATION_HEADER_KEY: self._encoded_auth
             }
         )
 

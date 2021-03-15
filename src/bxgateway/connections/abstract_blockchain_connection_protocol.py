@@ -2,7 +2,6 @@ import time
 from abc import ABCMeta, abstractmethod
 from typing import List, Optional
 
-from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.abstract_message import AbstractMessage
@@ -48,15 +47,10 @@ class AbstractBlockchainConnectionProtocol:
         txn_count = 0
         broadcast_txs_count = 0
 
-        account_id = self.connection.account_id
-        if account_id is None:
-            account_id = constants.DECODED_EMPTY_ACCOUNT_ID
-
         process_tx_msg_result = self.tx_service.process_transactions_message_from_node(
             msg,
             self.node.get_network_min_transaction_fee(),
-            self.node.opts.transaction_validation,
-            account_id
+            self.node.opts.transaction_validation
         )
 
         self.msg_tx_after_tx_service_process_complete(process_tx_msg_result)

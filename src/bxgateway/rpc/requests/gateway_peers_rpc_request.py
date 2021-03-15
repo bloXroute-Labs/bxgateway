@@ -17,7 +17,7 @@ class GatewayPeersRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     }
 
     def validate_params(self) -> None:
-        self.authenticate_request()
+        pass
 
     async def process_request(self) -> JsonRpcResponse:
         data = []

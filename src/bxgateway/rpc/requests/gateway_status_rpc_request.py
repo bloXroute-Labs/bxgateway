@@ -1,7 +1,6 @@
 import asyncio
 from typing import TYPE_CHECKING
 
-from bxcommon import constants
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
@@ -49,13 +48,6 @@ class GatewayStatusRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     async def process_request(self) -> JsonRpcResponse:
         loop = asyncio.get_event_loop()
         opts = self.node.opts
-        if not self.node.opts.auth_with_cert:
-            account_ids = []
-            for blockchain_peer in self.node.blockchain_peers:
-                account_ids.append(blockchain_peer.account_id)
-            account_id = ", ".join(account_ids)
-        else:
-            account_id = self.node.account_id
         diagnostics = await loop.run_in_executor(
             self.node.requester.thread_pool,
             status_log.get_diagnostics,
@@ -65,7 +57,7 @@ class GatewayStatusRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
             opts.continent,
             opts.country,
             opts.should_update_source_version,
-            account_id,
+            self.node.account_id,
             self.node.quota_level
         )
         if self._details_level == GatewayStatusDetailsLevel.SUMMARY.name.lower():

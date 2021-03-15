@@ -28,7 +28,7 @@ class BdnPerformanceRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     }
 
     def validate_params(self) -> None:
-        self.authenticate_request()
+        pass
 
     async def process_request(self) -> JsonRpcResponse:
         return self.ok(self._calc_bdn_performance_stats())

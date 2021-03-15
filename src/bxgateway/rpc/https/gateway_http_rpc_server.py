@@ -7,7 +7,6 @@ from aiohttp.web_exceptions import HTTPClientError
 from prometheus_client import REGISTRY
 from prometheus_client import exposition as prometheus_client
 
-from bxcommon import constants
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.abstract_ws_rpc_handler import AbstractWsRpcHandler
 from bxcommon.rpc.https import abstract_http_rpc_server
@@ -38,13 +37,11 @@ class GatewayHttpRpcServer(AbstractHttpRpcServer["AbstractGatewayNode"]):
 
     def authenticate_request(self, request: Request) -> None:
         is_authenticated = True
-        if not self.node.opts.auth_with_cert:
-            return
-        if self.encoded_auth:
+        if self._encoded_auth is not None:
             # pyre-fixme[16]: Callable `headers` has no attribute `__getitem__`.
             if rpc_constants.AUTHORIZATION_HEADER_KEY in request.headers:
                 is_authenticated = (
-                    self.encoded_auth == request.headers[rpc_constants.AUTHORIZATION_HEADER_KEY]
+                    self._encoded_auth == request.headers[rpc_constants.AUTHORIZATION_HEADER_KEY]
                 )
             else:
                 is_authenticated = False

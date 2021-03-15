@@ -1,4 +1,3 @@
-import base64
 from typing import TYPE_CHECKING
 import asyncio
 
@@ -10,7 +9,6 @@ from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_blxr_transaction_rpc_request import AbstractBlxrTransactionRpcRequest
 from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError, RpcBlocked
-from bxcommon.services import sdn_http_service
 from bxcommon.utils import convert
 from bxcommon.utils.stats.transaction_stat_event_type import TransactionStatEventType
 from bxcommon.utils.stats.transaction_statistics_service import tx_stats
@@ -30,7 +28,6 @@ logger = logging.get_logger(__name__)
 class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["AbstractGatewayNode"]):
     SYNCHRONOUS = rpc_constants.SYNCHRONOUS_PARAMS_KEY
     synchronous: bool = True
-    encoded_auth: str = ""
 
     def validate_params(self) -> None:
         params = self.params
@@ -55,15 +52,12 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
         else:
             self.synchronous = GatewayBlxrTransactionRpcRequest.synchronous
 
-        if self.headers is not None:
-            self.encoded_auth = base64.b64encode(self.headers.encode("utf-8")).decode("utf-8")
-
     async def process_request(self) -> JsonRpcResponse:
         params = self.params
         assert isinstance(params, dict)
 
         account_id = self.get_account_id()
-        if account_id is None:
+        if not account_id:
             raise RpcAccountIdError(
                 self.request_id,
                 "Gateway does not have an associated account. Please register the gateway with an account to submit "
@@ -122,8 +116,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
                 tx_hash,
                 TransactionStatEventType.TX_RECEIVED_FROM_RPC_REQUEST_IGNORE_SEEN,
                 network_num,
-                account_id=account_id,
-                short_id=short_id
+                account_id=account_id, short_id=short_id
             )
             tx_json = {
                 "tx_hash": str(tx_hash),
@@ -180,15 +173,7 @@ class GatewayBlxrTransactionRpcRequest(AbstractBlxrTransactionRpcRequest["Abstra
         return self.node.network_num
 
     def get_account_id(self) -> str:
-        account_id = None
-        if self.node.opts.auth_with_cert:
-            account_id = self.node.account_id
-        if self.encoded_auth:
-            account_model = sdn_http_service.fetch_account_model(self.encoded_auth)
-            if account_model is not None:
-                account_id = account_model.account_id
-
-        return account_id
+        return self.node.account_id
 
     def get_network_protocol(self) -> BlockchainProtocol:
         blockchain_protocol = self.node.opts.blockchain_protocol

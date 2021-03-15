@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Dict
+from typing import TYPE_CHECKING, Optional
 
 from bxcommon.models.blockchain_peer_info import BlockchainPeerInfo
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
@@ -16,18 +16,13 @@ if TYPE_CHECKING:
 
 class AbstractBlockchainPeerRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {
-        "params":
-            f"{rpc_constants.BLOCKCHAIN_PEER_PARAMS_KEY}: "
-            "For Ethereum, the format is enode://<eth node public key>@<eth node ip>:<port>. "
-            "For other blockchain protocols, the format is <ip>:<port>, "
-            f"{rpc_constants.ACCOUNT_ID_PARAMS_KEY}: Account Id, "
-            f"{rpc_constants.PRIVATE_KEY_PARAMS_KEY}: Private key"
+        "params": f"{rpc_constants.BLOCKCHAIN_PEER_PARAMS_KEY}: "
+                "For Ethereum, the format is enode://<eth node public key>@<eth node ip>:<port>. "
+                "For other blockchain protocols, the format is <ip>:<port>",
     }
 
     def __init__(self, request: BxJsonRpcRequest, node: "AbstractGatewayNode") -> None:
         self._blockchain_peer_info: Optional[BlockchainPeerInfo] = None
-        self._account_id: Optional[str] = None
-        self._gateway_connection_params: Optional[Dict[str, str]] = None
         super().__init__(request, node)
 
     def validate_params(self) -> None:
@@ -48,14 +43,6 @@ class AbstractBlockchainPeerRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]
                     self.request_id,
                     "Could not process request to add/remove blockchain peer. Please contact bloXroute support."
                 )
-            blockchain_peer_info = self._blockchain_peer_info
-            assert blockchain_peer_info is not None
-            if rpc_constants.ACCOUNT_ID_PARAMS_KEY in params:
-                account_id = params[rpc_constants.ACCOUNT_ID_PARAMS_KEY]
-                blockchain_peer_info.account_id = account_id
-            if rpc_constants.PRIVATE_KEY_PARAMS_KEY in params:
-                private_key = params[rpc_constants.PRIVATE_KEY_PARAMS_KEY]
-                blockchain_peer_info.gateway_connection_params = {rpc_constants.PRIVATE_KEY_PARAMS_KEY: private_key}
         else:
             raise RpcInvalidParams(
                 self.request_id,

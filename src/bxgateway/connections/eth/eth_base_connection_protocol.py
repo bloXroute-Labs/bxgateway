@@ -204,7 +204,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
         return eth_common_constants.ETH_PROTOCOL_VERSION
 
     def _enqueue_hello_message(self):
-        public_key = self.node.get_public_key(self.connection.peer_ip, self.connection.peer_port)
+        public_key = self.node.get_public_key()
         eth_protocol_version = eth_common_constants.ETH_PROTOCOL_VERSION
         if self.connection.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
             eth_protocol_version = self._get_eth_protocol_version()

@@ -129,9 +129,9 @@ class MockGatewayNode(AbstractGatewayNode):
         block_queuing_service = self.build_block_queuing_service(connection)
         self.block_queuing_service_manager.add_block_queuing_service(connection, block_queuing_service)
 
-    def get_private_key(self, _ip, _port):
+    def get_private_key(self):
         return crypto_utils.make_private_key(helpers.generate_bytearray(111))
 
-    def get_node_public_key(self, ip, port):
-        return crypto_utils.private_to_public_key(self.get_private_key(ip, port))
+    def get_node_public_key(self, _ip,_port):
+        return crypto_utils.private_to_public_key(self.get_private_key())
 

@@ -60,7 +60,7 @@ class WsServer:
         connection = WsConnection(
             websocket,
             path,
-            SubscriptionRpcHandler(self.node, self.feed_manager, self.case, websocket.request_headers),
+            SubscriptionRpcHandler(self.node, self.feed_manager, self.case)
         )
         self._connections.append(connection)
         await connection.handle()

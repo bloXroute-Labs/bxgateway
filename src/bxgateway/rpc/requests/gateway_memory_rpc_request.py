@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.requests.abstract_rpc_request import AbstractRpcRequest
-from bxcommon.services import sdn_http_service
 from bxcommon.utils import memory_utils
 from bxcommon.utils.stats import stats_format
 
@@ -24,7 +23,7 @@ class GatewayMemoryRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     }
 
     def validate_params(self) -> None:
-        self.authenticate_request()
+        pass
 
     async def process_request(self) -> JsonRpcResponse:
         tx_service = self.node.get_tx_service()
@@ -34,3 +33,4 @@ class GatewayMemoryRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
             TOTAL_CACHED_TX: cache_state["tx_hash_to_contents_len"],
             TOTAL_CACHED_TX_SIZE: stats_format.byte_count(cache_state["total_tx_contents_size"])
         })
+

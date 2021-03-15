@@ -41,16 +41,8 @@ gateway_status = Enum(
 )
 
 
-def initialize(
-    use_ext: bool,
-    src_ver: str,
-    ip_address: str,
-    continent: str,
-    country: str,
-    update_required: bool,
-    account_id: Optional[str],
-    quota_level: Optional[int]
-) -> Diagnostics:
+def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
+               update_required: bool, account_id: Optional[str], quota_level: Optional[int]) -> Diagnostics:
     current_time = _get_current_time()
     summary = Summary(
         gateway_status=GatewayStatus.OFFLINE,
@@ -74,26 +66,9 @@ def initialize(
     return diagnostics
 
 
-def get_diagnostics(
-    use_ext: bool,
-    src_ver: str,
-    ip_address: str,
-    continent: str,
-    country: str,
-    update_required: bool,
-    account_id: Optional[str],
-    quota_level: Optional[int]
-) -> Diagnostics:
-    return _load_status_from_file(
-        use_ext,
-        src_ver,
-        ip_address,
-        continent,
-        country,
-        update_required,
-        account_id,
-        quota_level
-    )
+def get_diagnostics(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
+                    update_required: bool, account_id: Optional[str], quota_level: Optional[int]) -> Diagnostics:
+    return _load_status_from_file(use_ext, src_ver, ip_address, continent, country, update_required, account_id, quota_level)
 
 
 def update(conn_pool: ConnectionPool, use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
@@ -182,16 +157,8 @@ def _get_startup_param() -> str:
     return " ".join(sys.argv[1:])
 
 
-def _load_status_from_file(
-    use_ext: bool,
-    src_ver: str,
-    ip_address: str,
-    continent: str,
-    country: str,
-    update_required: bool,
-    account_id: Optional[str],
-    quota_level: Optional[int]
-) -> Diagnostics:
+def _load_status_from_file(use_ext: bool, src_ver: str, ip_address: str, continent: str, country: str,
+                           update_required: bool, account_id: Optional[str], quota_level: Optional[int]) -> Diagnostics:
     path = config.get_data_file(STATUS_FILE_NAME)
     with open(path, "r", encoding="utf-8") as json_file:
         status_file = json_file.read()
@@ -200,9 +167,7 @@ def _load_status_from_file(
         diagnostics = model_loader.load_model(Diagnostics, model_dict)
     except JSONDecodeError:
         logger.warning(log_messages.STATUS_FILE_JSON_LOAD_FAIL, path)
-        diagnostics = initialize(
-            use_ext, src_ver, ip_address, continent, country, update_required, account_id, quota_level
-        )
+        diagnostics = initialize(use_ext, src_ver, ip_address, continent, country, update_required, account_id, quota_level)
     return diagnostics
 
 

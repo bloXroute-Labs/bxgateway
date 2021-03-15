@@ -329,12 +329,6 @@ def get_argument_parser() -> argparse.ArgumentParser:
         type=float,
         default=0
     )
-    arg_parser.add_argument(
-        "--auth-with-cert",
-        help="If False, means this gateway is a multi accounts gateway and no need to check its account id from cert",
-        default=True,
-        type=convert.str_to_bool,
-    )
 
     return arg_parser
 

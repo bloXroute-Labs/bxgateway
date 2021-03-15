@@ -1,13 +1,8 @@
 import asyncio
-import base64
 import json
 from typing import TYPE_CHECKING, Dict, Any, Optional, Union, cast, Type
 
-import websockets
-
-from bxcommon import constants
 from bxcommon.feed.feed import FeedKey
-from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.abstract_rpc_handler import AbstractRpcHandler
 from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
@@ -21,7 +16,8 @@ from bxcommon.rpc.abstract_ws_rpc_handler import Subscription
 from bxgateway import gateway_constants, log_messages
 from bxgateway.rpc.requests.add_blockchain_peer_rpc_request import AddBlockchainPeerRpcRequest
 from bxgateway.rpc.requests.bdn_performance_rpc_request import BdnPerformanceRpcRequest
-from bxgateway.rpc.requests.gateway_blxr_transaction_rpc_request import GatewayBlxrTransactionRpcRequest
+from bxgateway.rpc.requests.gateway_blxr_transaction_rpc_request import \
+    GatewayBlxrTransactionRpcRequest
 from bxgateway.rpc.requests.gateway_memory_rpc_request import GatewayMemoryRpcRequest
 from bxgateway.rpc.requests.gateway_memory_usage_report_rpc_request import GatewayMemoryUsageRpcRequest
 from bxgateway.rpc.requests.gateway_peers_rpc_request import GatewayPeersRpcRequest
@@ -51,13 +47,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
     subscriptions: Dict[str, Subscription]
     subscribed_messages: 'asyncio.Queue[BxJsonRpcRequest]'
 
-    def __init__(
-        self,
-        node: "AbstractGatewayNode",
-        feed_manager: FeedManager,
-        case: Case,
-        headers: Optional[websockets.http.Headers] = None
-    ) -> None:
+    def __init__(self, node: "AbstractGatewayNode", feed_manager: FeedManager, case: Case) -> None:
         super().__init__(node, case)
         self.request_handlers = {
             RpcRequestType.BLXR_TX: GatewayBlxrTransactionRpcRequest,
@@ -83,18 +73,11 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             gateway_constants.RPC_SUBSCRIBER_MAX_QUEUE_SIZE
         )
         self.disconnect_event = asyncio.Event()
-        self.headers = headers
 
     async def parse_request(self, request: Union[bytes, str]) -> Dict[str, Any]:
         return json.loads(request)
 
     def get_request_handler(self, request: BxJsonRpcRequest) -> AbstractRpcRequest:
-        if self.headers is not None:
-            # pyre-fixme[16]: `Optional` has no attribute `get`.
-            request_auth_key = self.headers.get(rpc_constants.AUTHORIZATION_HEADER_KEY, None)
-            if request_auth_key is not None:
-                request.account_cache_key = base64.b64decode(request_auth_key).decode(constants.DEFAULT_TEXT_ENCODING)
-
         if request.method == RpcRequestType.SUBSCRIBE:
             return self._subscribe_request_factory(request)
         elif request.method == RpcRequestType.UNSUBSCRIBE:

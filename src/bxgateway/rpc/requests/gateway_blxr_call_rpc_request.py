@@ -31,8 +31,6 @@ class GatewayBlxrCallRpcRequest(AbstractRpcRequest["EthGatewayNode"]):
                 self.request_id,
                 "Params request field is either missing or not a dictionary type."
             )
-
-        self.authenticate_request()
         transaction_json = params.get(rpc_constants.TRANSACTION_JSON_PARAMS_KEY)
         if not transaction_json or not isinstance(transaction_json, dict):
             raise RpcInvalidParams(

@@ -1,6 +1,7 @@
 import asyncio
 # TODO: remove try-catch when removing py3.7 support
 import functools
+import gc
 from collections import defaultdict, deque
 
 from bxcommon.utils.stats.memory_statistics_service import memory_statistics
@@ -285,7 +286,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
         self.has_feed_subscribers = False
         self.feed_manager = FeedManager(self)
-        self.rpc_server = self.build_rpc_server()
+        self._rpc_server = self.build_rpc_server()
         self._ws_server = self.build_ws_server()
         self._ipc_server = IpcServer(opts.ipc_file, self.feed_manager, self)
         self.init_authorized_live_feeds()
@@ -315,7 +316,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             functools.partial(self._ipc_server.status)
         )
         self.additional_servers.labels("rpc_server").set_function(
-            functools.partial(self.rpc_server.status)
+            functools.partial(self._rpc_server.status)
         )
 
         status_log.initialize(
@@ -516,7 +517,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if self.opts.rpc:
             try:
                 await asyncio.wait_for(
-                    self.rpc_server.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
+                    self._rpc_server.start(), rpc_constants.RPC_SERVER_INIT_TIMEOUT_S
                 )
             except Exception as e:
                 logger.error(log_messages.RPC_INITIALIZATION_FAIL, e, exc_info=True)
@@ -539,7 +540,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     async def close(self) -> None:
         try:
-            await asyncio.wait_for(self.rpc_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
+            await asyncio.wait_for(self._rpc_server.stop(), rpc_constants.RPC_SERVER_STOP_TIMEOUT_S)
         except (Exception, CancelledError) as e:
             logger.error(log_messages.RPC_CLOSE_FAIL, e, exc_info=True)
         try:
@@ -573,9 +574,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         ]
         for blockchain_peer in self.blockchain_peers:
             peers.append(ConnectionPeerInfo(
-                IpEndpoint(blockchain_peer.ip, blockchain_peer.port),
-                ConnectionType.BLOCKCHAIN_NODE,
-                account_id=blockchain_peer.account_id
+                IpEndpoint(blockchain_peer.ip, blockchain_peer.port), ConnectionType.BLOCKCHAIN_NODE
             ))
         if self.remote_blockchain_ip is not None and self.remote_blockchain_port is not None:
             peers.append(ConnectionPeerInfo(
@@ -667,17 +666,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                         self.num_retries_by_ip[(ip, port)] < gateway_constants.REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES))
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection) -> None:
-        conn_peer_ip = connection.peer_ip
-        conn_peer_port = connection.peer_port
-        account_id = connection.account_id
-
-        if self.is_blockchain_peer(conn_peer_ip, conn_peer_port):
-            for blockchain_peer in self.blockchain_peers:
-                if blockchain_peer.ip == conn_peer_ip and blockchain_peer.port == conn_peer_port:
-                    account_id = blockchain_peer.account_id
-                    break
-
-        new_blockchain_peer = BlockchainPeerInfo(conn_peer_ip, conn_peer_port, account_id)
+        new_blockchain_peer = BlockchainPeerInfo(connection.peer_ip, connection.peer_port)
         self.blockchain_peers.add(new_blockchain_peer)
         if connection not in self.block_queuing_service_manager.blockchain_peer_to_block_queuing_service:
             block_queuing_service = self.build_block_queuing_service(connection)
@@ -696,10 +685,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             sdn_http_service.submit_peer_connection_event,
             NodeEventType.BLOCKCHAIN_NODE_CONN_ESTABLISHED,
             self.opts.node_id,
-            conn_peer_ip,
-            conn_peer_port,
-            None,
-            account_id
+            connection.peer_ip,
+            connection.peer_port
         )
         self.num_active_blockchain_peers = len(
             list(
@@ -724,8 +711,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.opts.node_id,
             connection.peer_ip,
             connection.peer_port,
-            connection.get_connection_state_details(),
-            connection.account_id
+            connection.get_connection_state_details()
         )
         self.num_active_blockchain_peers = max(
             0,
@@ -745,15 +731,12 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             logger.info("Failed to connect to: {}, {}. Verify that provided ip address ({}) and port ({}) "
                         "are correct. Verify that firewall port is open.", peer_info, error,
                         peer_info.endpoint.ip_address, peer_info.endpoint.port)
-            self.requester.send_threaded_request(
-                sdn_http_service.submit_peer_connection_event,
-                NodeEventType.BLOCKCHAIN_NODE_CONN_ERR,
-                self.opts.node_id,
-                peer_info.endpoint.ip_address,
-                peer_info.endpoint.port,
-                "Connection refused",
-                peer_info.account_id
-            )
+            self.requester.send_threaded_request(sdn_http_service.submit_peer_connection_event,
+                                                 NodeEventType.BLOCKCHAIN_NODE_CONN_ERR,
+                                                 self.opts.node_id,
+                                                 peer_info.endpoint.ip_address,
+                                                 peer_info.endpoint.port,
+                                                 "Connection refused")
         elif peer_info.connection_type == ConnectionType.EXTERNAL_GATEWAY:
             logger.debug("Failed to connect to: {}, {}.", peer_info, error)
         else:
@@ -953,15 +936,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def get_blockchain_peers_from_cache_and_command_line(self) -> Set[BlockchainPeerInfo]:
         blockchain_peers = self.opts.blockchain_peers
-        # pyre-fixme[16]: `Optional` has no attribute `account_id`.
-        account_id = self.account_model.account_id if self.account_model is not None else None
         blockchain_peers.add(
-            BlockchainPeerInfo(
-                self.opts.blockchain_ip,
-                self.opts.blockchain_port,
-                self.opts.node_public_key,
-                account_id=account_id
-            )
+            BlockchainPeerInfo(self.opts.blockchain_ip, self.opts.blockchain_port, self.opts.node_public_key)
         )
         cache_file_info = node_cache.read(self.opts)
         if cache_file_info is not None:

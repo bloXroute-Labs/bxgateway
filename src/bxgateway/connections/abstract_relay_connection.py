@@ -22,7 +22,6 @@ from bxcommon.models.entity_type_model import EntityType
 from bxcommon.models.notification_code import NotificationCode
 from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketConnectionProtocol
-from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.services import sdn_http_service
 from bxcommon.utils import convert, performance_utils
 from bxcommon.utils import memory_utils
@@ -351,17 +350,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         bdn_stats_per_node = bdn_stats_interval.blockchain_node_to_bdn_stats
         if bdn_stats_per_node is None:
             bdn_stats_per_node = {}
-        else:
-            for blockchain_peer in self.node.blockchain_peers:
-                blockchain_peer_ip = blockchain_peer.ip
-                blockchain_peer_port = blockchain_peer.port
-                if self.node.is_blockchain_peer(blockchain_peer_ip, blockchain_peer_port):
-                    blockchain_ip_port = IpEndpoint(blockchain_peer_ip, blockchain_peer_port)
-                    if blockchain_ip_port in bdn_stats_per_node:
-                        account_id = blockchain_peer.account_id
-                        if account_id is None:
-                            account_id = constants.DECODED_EMPTY_ACCOUNT_ID
-                        bdn_stats_per_node[blockchain_ip_port].account_id = account_id
 
         msg_to_send = BdnPerformanceStatsMessage(
             bdn_stats_interval.start_time,
