@@ -63,13 +63,13 @@ class EthGatewayNodeTest(AbstractTestCase):
 
     def test_get_private_key(self):
         node = self._set_up_test_node(False, generate_pub_key=True)
-        private_key = node.get_private_key()
+        private_key = node.get_private_key(self.blockchain_ip, self.blockchain_port)
         self.assertTrue(private_key)
         self.assertEqual(len(private_key), eth_common_constants.PRIVATE_KEY_LEN)
 
     def test_get_public_key(self):
         node = self._set_up_test_node(False, generate_pub_key=True)
-        public_key = node.get_public_key()
+        public_key = node.get_public_key(self.blockchain_ip, self.blockchain_port)
         self.assertTrue(public_key)
         self.assertEqual(len(public_key), eth_common_constants.PUBLIC_KEY_LEN)
 

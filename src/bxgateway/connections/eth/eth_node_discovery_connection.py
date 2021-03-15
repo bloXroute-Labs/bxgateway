@@ -49,7 +49,7 @@ class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection["EthGateway
     def ping_message(self) -> AbstractMessage:
         return PingEthDiscoveryMessage(
             None,
-            self.node.get_private_key(),
+            self.node.get_private_key(self.peer_ip, self.peer_port),
             eth_common_constants.P2P_PROTOCOL_VERSION,
             (self.external_ip, self.external_port, self.external_port),
             (socket.gethostbyname(self.peer_ip), self.peer_port, self.peer_port),
@@ -60,7 +60,7 @@ class EthNodeDiscoveryConnection(AbstractGatewayBlockchainConnection["EthGateway
         pass
 
     def msg_pong(self, msg):
-        self.node.set_remote_public_key(self, msg.get_public_key())
+        self.node.set_remote_public_key(self, msg.get_public_key(self.peer_ip, self.peer_port))
         self._pong_received = True
 
     def _pong_timeout(self):

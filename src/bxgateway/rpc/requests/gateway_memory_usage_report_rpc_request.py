@@ -16,7 +16,7 @@ class GatewayMemoryUsageRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     }
 
     def validate_params(self) -> None:
-        pass
+        self.authenticate_request()
 
     async def process_request(self) -> JsonRpcResponse:
         node_size = self.node.get_node_memory_size()

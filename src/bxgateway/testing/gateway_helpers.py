@@ -66,6 +66,7 @@ def get_gateway_opts(
     blockchain_protocol: str = "Ethereum",
     should_restart_on_high_memory: bool = False,
     account_id: str = constants.DECODED_EMPTY_ACCOUNT_ID,
+    auth_with_cert: bool = True,
     **kwargs,
 ) -> GatewayOpts:
     if node_id is None:
@@ -163,6 +164,7 @@ def get_gateway_opts(
             "filter_txs_factor": filter_txs_factor,
             "min_peer_relays_count": None,
             "should_restart_on_high_memory": should_restart_on_high_memory,
+            "auth_with_cert": auth_with_cert
         }
     )
 

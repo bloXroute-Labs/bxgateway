@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     # noinspection PyUnresolvedReferences
     # pylint: disable=ungrouped-imports,cyclic-import
     from bxgateway.connections.abstract_gateway_node import AbstractGatewayNode
-    from bxcommon.connections.abstract_node import AbstractNode
 
 logger = logging.get_logger(__name__)
 

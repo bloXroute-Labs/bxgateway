@@ -1,3 +1,5 @@
+import base64
+
 from aiohttp import ClientSession
 
 from bxcommon import constants
@@ -29,8 +31,11 @@ class GatewayRpcServerTest(AbstractGatewayRpcIntegrationTest):
             8000, rpc_port=self.rpc_port, account_model=self._account_model, blockchain_protocol="Ethereum")
 
     async def request(self, req: BxJsonRpcRequest):
+        authorization_header = base64.b64encode("rpc_user:rpc_password".encode("utf-8")).decode("utf-8")
         headers = {
-            rpc_constants.CONTENT_TYPE_HEADER_KEY: ContentType.JSON.value
+            rpc_constants.CONTENT_TYPE_HEADER_KEY: ContentType.JSON.value,
+            rpc_constants.AUTHORIZATION_HEADER_KEY: authorization_header
+
         }
 
         async with ClientSession() as session:

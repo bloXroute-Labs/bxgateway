@@ -5,11 +5,11 @@ from bxcommon.messages.bloxroute.txs_message import TxsMessage
 from bxcommon.models.blockchain_protocol import BlockchainProtocol
 from bxcommon.models.transaction_key import TransactionKey
 from bxcommon.models.tx_validation_status import TxValidationStatus
-from bxcommon.services.transaction_service import TransactionService, TransactionCacheKeyType, wrap_sha256, \
-    TransactionFromBdnGatewayProcessingResult
+from bxcommon.services.transaction_service import TransactionService, TransactionFromBdnGatewayProcessingResult
 from bxcommon.utils.blockchain_utils import transaction_validation
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon import constants
+
 from bxgateway.abstract_message_converter import AbstractMessageConverter
 from bxgateway.messages.btc.tx_btc_message import TxBtcMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
@@ -86,14 +86,18 @@ class GatewayTransactionService(TransactionService):
         self,
         msg: Union[TxBtcMessage, TransactionsEthProtocolMessage, OntTxMessage],
         min_tx_network_fee: int,
-        enable_transaction_validation: bool
+        enable_transaction_validation: bool,
+        account_id: str = constants.DECODED_EMPTY_ACCOUNT_ID
     ) -> List[ProcessTransactionMessageFromNodeResult]:
         message_converter = cast(AbstractMessageConverter, self.node.message_converter)
 
-        account_id = self.node.account_id if self.node.account_id is not None else constants.DECODED_EMPTY_ACCOUNT_ID
         # avoid filtering low fee transactions in tx_to_bx_txs to match extensions behavior
         bx_tx_messages = message_converter.tx_to_bx_txs(
-            msg, self.network_num, self.node.default_tx_flag, min_tx_network_fee=0, account_id=account_id
+            msg,
+            self.network_num,
+            self.node.default_tx_flag,
+            min_tx_network_fee=0,
+            account_id=account_id
         )
 
         result = []

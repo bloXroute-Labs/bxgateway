@@ -13,7 +13,7 @@ class GatewayStopRpcRequest(AbstractRpcRequest["AbstractGatewayNode"]):
     help = {"params": "", "description": "shutdown request to the gateway"}
 
     def validate_params(self) -> None:
-        pass
+        self.authenticate_request()
 
     async def process_request(self) -> JsonRpcResponse:
         self.node.should_force_exit = True

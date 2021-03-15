@@ -194,7 +194,8 @@ class EthGatewayNode(AbstractGatewayNode):
             peers.append(ConnectionPeerInfo(
                 IpEndpoint(blockchain_peer.ip, blockchain_peer.port),
                 ConnectionType.BLOCKCHAIN_NODE,
-                local_protocol
+                local_protocol,
+                account_id=blockchain_peer.account_id
             ))
 
         if self.remote_blockchain_ip is not None and self.remote_blockchain_port is not None:
@@ -209,11 +210,33 @@ class EthGatewayNode(AbstractGatewayNode):
 
         return peers
 
-    def get_private_key(self) -> bytes:
-        return convert.hex_to_bytes(self.opts.private_key)
+    def get_private_key(self, blockchain_ip: str, blockchain_port: int) -> bytes:
+        """
+        getting private key from user if provided, else getting the default key
+        :param blockchain_ip: blockchain ip in which the private key belongs to
+        :param blockchain_port: blockchain port in which the private key belongs to
+        :return:
+        """
+        private_key = None
+        if not self.opts.auth_with_cert:
+            for blockchain_peer in self.blockchain_peers:
+                gateway_connection_params = blockchain_peer.gateway_connection_params
+                if (
+                    blockchain_peer.ip == blockchain_ip
+                    and blockchain_peer.port == blockchain_port
+                    and gateway_connection_params is not None
+                    and rpc_constants.PRIVATE_KEY_PARAMS_KEY in gateway_connection_params
+                ):
+                    private_key = gateway_connection_params[rpc_constants.PRIVATE_KEY_PARAMS_KEY]
+                    break
 
-    def get_public_key(self) -> bytes:
-        return crypto_utils.private_to_public_key(self.get_private_key())
+        if private_key is None:
+            private_key = self.opts.private_key
+
+        return convert.hex_to_bytes(private_key)
+
+    def get_public_key(self, blockchain_ip: str, blockchain_port: int) -> bytes:
+        return crypto_utils.private_to_public_key(self.get_private_key(blockchain_ip, blockchain_port))
 
     def set_node_public_key(self, discovery_connection, node_public_key) -> None:
         if not isinstance(discovery_connection, EthNodeDiscoveryConnection):
@@ -498,8 +521,8 @@ class EthGatewayNode(AbstractGatewayNode):
         return super().broadcast_transactions_to_nodes(msg, broadcasting_conn)
 
     def get_enode(self) -> str:
-        return \
-            f"enode://{convert.bytes_to_hex(self.get_public_key())}@{self.opts.external_ip}:{self.opts.non_ssl_port}"
+        public_key = convert.bytes_to_hex(self.get_public_key(self.opts.blockchain_ip, self.opts.blockchain_port))
+        return f"enode://{public_key}@{self.opts.external_ip}:{self.opts.non_ssl_port}"
 
     def on_block_received_from_bdn(
         self, block_hash: Sha256Hash, block_message: AbstractBlockMessage

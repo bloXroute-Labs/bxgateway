@@ -71,7 +71,8 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
         self,
         msg,
         min_tx_network_fee: int,
-        enable_transaction_validation: bool
+        enable_transaction_validation: bool,
+        account_id: str = constants.DECODED_EMPTY_ACCOUNT_ID
     ) -> List[ProcessTransactionMessageFromNodeResult]:
         opts = self.node.opts
         msg_bytes = msg.rawbytes()
@@ -85,7 +86,11 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
             ))
         else:
             return GatewayTransactionService.process_transactions_message_from_node(
-                self, msg, min_tx_network_fee, enable_transaction_validation
+                self,
+                msg,
+                min_tx_network_fee,
+                enable_transaction_validation,
+                account_id
             )
 
         result = []
@@ -119,7 +124,7 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
                         message_hash=tx_hash,
                         network_num=self.network_num,
                         tx_val=tx_contents,
-                        account_id=self.node.account_id
+                        account_id=account_id
                     ),
                     TxValidationStatus(tx_validation_status)
                 )

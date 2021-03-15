@@ -24,7 +24,7 @@ class EthBaseConnection(AbstractGatewayBlockchainConnection["EthGatewayNode"], A
     rlpx_cipher: RLPxCipher
 
     def __init__(self, sock: AbstractSocketConnectionProtocol, node: "EthGatewayNode"):
-        private_key = node.get_private_key()
+        private_key = node.get_private_key(sock.endpoint.ip_address, sock.endpoint.port)
         public_key = self.connection_public_key(sock, node)
         self.is_handshake_initiator = public_key is not None
         self.rlpx_cipher = RLPxCipher(
