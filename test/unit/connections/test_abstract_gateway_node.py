@@ -341,8 +341,8 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         sdn_http_service.submit_peer_connection_error_event.called_once_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertFalse(relay_transaction_conn.socket_connection.alive)
-        self.assertTrue(SocketConnectionStates.DO_NOT_RETRY in relay_transaction_conn.socket_connection.state)
+        self.assertFalse(relay_transaction_conn.socket_connection is not None and relay_transaction_conn.socket_connection.alive)
+        self.assertTrue(relay_transaction_conn.socket_connection is None or SocketConnectionStates.DO_NOT_RETRY in relay_transaction_conn.socket_connection.state)
 
     @async_test
     async def test_split_relay_no_reconnect_disconnect_transaction(self):
@@ -362,8 +362,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             sdn_http_service.submit_peer_connection_error_event.assert_called_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
         self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertFalse(relay_block_conn.socket_connection.alive)
-        self.assertTrue(SocketConnectionStates.DO_NOT_RETRY in relay_block_conn.socket_connection.state)
+
+        self.assertFalse(relay_block_conn.socket_connection is not None and relay_block_conn.socket_connection.alive)
+        self.assertTrue(relay_block_conn.socket_connection is None or SocketConnectionStates.DO_NOT_RETRY in relay_block_conn.socket_connection.state)
+
 
     @async_test
     async def test_queuing_messages_no_remote_blockchain_connection(self):

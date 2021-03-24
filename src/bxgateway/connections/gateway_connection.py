@@ -233,8 +233,6 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         self.peer_desc = "%s %d" % (self.peer_ip, self.peer_port)
 
     def dispose(self):
-        super().dispose()
-
         if not self.from_me:
             if self.peer_id:
                 self.node.requester.send_threaded_request(
@@ -242,3 +240,4 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                     self.node.opts.node_id,
                     self.peer_id
                 )
+        super().dispose()
