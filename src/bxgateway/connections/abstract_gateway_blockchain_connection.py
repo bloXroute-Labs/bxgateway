@@ -102,7 +102,6 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode], ABC):
         return f"Connection state: {self.state}"
 
     def dispose(self):
-        super().dispose()
 
         if self.CONNECTION_TYPE == ConnectionType.BLOCKCHAIN_NODE:
             self.node.on_blockchain_connection_destroyed(self)
@@ -112,3 +111,4 @@ class AbstractGatewayBlockchainConnection(AbstractConnection[GatewayNode], ABC):
             else:
                 logger.warning(log_messages.CLOSE_CONNECTION_ATTEMPT,
                                self.peer_desc, self.node.remote_node_conn.peer_desc)
+        super().dispose()
