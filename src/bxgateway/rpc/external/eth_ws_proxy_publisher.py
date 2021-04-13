@@ -2,6 +2,7 @@ import asyncio
 from asyncio import Future
 from typing import Optional, cast, List, Dict, Any, TYPE_CHECKING
 
+from bxcommon.exceptions import FeedSubscriptionTimeoutError
 from bxcommon.feed.feed import FeedKey
 from bxcommon.models.transaction_key import TransactionKey
 from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
@@ -107,9 +108,11 @@ class EthWsProxyPublisher(EthWsSubscriber):
 
     async def handle_block_notifications(self, subscription_id: str) -> None:
         while self.running:
-            next_notification = await self.get_next_subscription_notification_by_id(
+            next_notification = await self.get_next_subscription_notification_by_id_timeout(
                 subscription_id
             )
+            if not next_notification:
+                raise FeedSubscriptionTimeoutError()
             logger.debug(
                 "NewBlockHeader Notification {} from node", next_notification
             )
