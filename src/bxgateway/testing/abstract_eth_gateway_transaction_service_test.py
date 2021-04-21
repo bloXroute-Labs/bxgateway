@@ -24,7 +24,8 @@ class TestAbstractEthGatewayTransactionService(TestAbstractGatewayTransactionSer
     def _get_node_tx_message(
         self
     ) -> Tuple[
-        Union[TxOntMessage, TransactionsEthProtocolMessage], List[Tuple[Sha256Hash, Union[bytearray, memoryview]]]]:
+        Union[TxOntMessage, TransactionsEthProtocolMessage], List[Tuple[Sha256Hash, Union[bytearray, memoryview]]]
+    ]:
         txs = []
 
         for i in range(600):
@@ -32,4 +33,5 @@ class TestAbstractEthGatewayTransactionService(TestAbstractGatewayTransactionSer
 
         msg = TransactionsEthProtocolMessage(None, txs)
 
+        # pyre-fixme [7]: Expected `Tuple[Union[TransactionsEthProtocolMessage, TxOntMessage], List[Tuple[Sha256Hash, Union[bytearray, memoryview]]]]`
         return msg, list(map(lambda tx: (tx.hash(), tx.contents()), msg.get_transactions()))

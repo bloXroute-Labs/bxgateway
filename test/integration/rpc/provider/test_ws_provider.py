@@ -682,7 +682,7 @@ class WsProviderTest(AbstractTestCase):
             eth_tx_message.tx_hash(),
             eth_tx_message.tx_val(),
             FeedSource.BLOCKCHAIN_SOCKET,
-            local_region=True
+            local_region=True,
         )
         expected_tx_hash = f"0x{str(eth_transaction.tx_hash)}"
         to2 = "0x1111111111111111111111111111111111111111"

@@ -23,7 +23,8 @@ class TestAbstractOntGatewayTransactionService(TestAbstractGatewayTransactionSer
     def _get_node_tx_message(
         self
     ) -> Tuple[
-        Union[TxOntMessage, TransactionsEthProtocolMessage], List[Tuple[Any, Any]]]:
+        Union[TxOntMessage, TransactionsEthProtocolMessage], List[Tuple[Any, Any]]
+    ]:
         magic = 123456
         version = 1
         tx_contents = helpers.generate_bytearray(200)

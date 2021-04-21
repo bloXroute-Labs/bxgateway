@@ -1,37 +1,110 @@
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
-from bxcommon.utils import convert
-from bxcommon.messages.eth.serializers.transaction import Transaction
-from bxgateway.testing.mocks import mock_eth_messages
+import blxr_rlp as rlp
 
-SAMPLE_TRANSACTION = {
-  "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a",
-  "gas": 39866,
-  "gasPrice": 17679998398,
-  "hash": "0x0d96b711bdcc89b59f0fdfa963158394cea99cedce52d0e4f4a56839145a814a",
-  "input": "0xea1790b90000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000005ee3f95400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041d880a37ae74a2593900da75b3cae6335b5f58997c6f426e98e42f55d3d5cd6487369ec0250a923cf1f45a39aa551b68420ec04582d1a68bcab9a70240ae39f261b00000000000000000000000000000000000000000000000000000000000000",
-  "nonce": 488,
-  "r": "0x561fc2c4428e8d3ff1e48ce07322a98ea6c8c5836bc79e7d60a6ed5d37a124a2",
-  "s": "0x7ab1477ccb14143ba9afeb2f98099c85dd4175f09767f03d47f0733467eadde2",
-  "to": "0xd7bec4d6bf6fc371eb51611a50540f0b59b5f896",
-  "v": "0x25",
-  "value": 0
-}
-SAMPLE_TRANSACTION_FROM_WS = {
-    "from": "0xbd4e113ee68bcbbf768ba1d6c7a14e003362979a",
-    "gas": "0x9bba",
-    "gasPrice": "0x41dcf5dbe",
-    "hash": "0x0d96b711bdcc89b59f0fdfa963158394cea99cedce52d0e4f4a56839145a814a",
-    "input": "0xea1790b90000000000000000000000000000000000000000000000000000000000000060000000000000000000000000000000000000000000000000000000005ee3f95400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041d880a37ae74a2593900da75b3cae6335b5f58997c6f426e98e42f55d3d5cd6487369ec0250a923cf1f45a39aa551b68420ec04582d1a68bcab9a70240ae39f261b00000000000000000000000000000000000000000000000000000000000000",
-    "nonce": "0x1e8",
-    "r": "0x561fc2c4428e8d3ff1e48ce07322a98ea6c8c5836bc79e7d60a6ed5d37a124a2",
-    "s": "0x7ab1477ccb14143ba9afeb2f98099c85dd4175f09767f03d47f0733467eadde2",
-    "to": "0xd7bec4d6bf6fc371eb51611a50540f0b59b5f896",
-    "v": "0x25",
-    "value": "0x0"
-}
+from bxcommon.messages.eth.serializers.transaction import LegacyTransaction, \
+    AccessListTransaction
+from bxcommon.messages.eth.serializers.transaction_type import EthTransactionType
+from bxcommon.messages.eth.serializers.transaction import Transaction
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.test_utils.fixture import eth_fixtures
+from bxcommon.utils import convert
+from bxcommon.utils.object_hash import Sha256Hash
+from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import (
+    TransactionsEthProtocolMessage,
+)
+from bxgateway.testing.mocks import mock_eth_messages
 
 
 class TransactionTest(AbstractTestCase):
+    def test_legacy_transaction_from_bytes(self):
+        transaction = Transaction.deserialize(eth_fixtures.LEGACY_TRANSACTION)
+        re_encoded = rlp.encode(transaction)
+        self.assertEqual(
+            transaction, rlp.decode(re_encoded, Transaction)
+        )
+
+        self.assertEqual(EthTransactionType.LEGACY, transaction.transaction_type)
+        self.assertIsInstance(transaction, LegacyTransaction)
+        self.assertEqual(
+            Sha256Hash.from_string(eth_fixtures.LEGACY_TRANSACTION_HASH),
+            transaction.hash(),
+        )
+        self.assertEqual(
+            "0xc296825bf94ca41b881390955c2731c1d3eaa059",
+            transaction.from_address()
+        )
+        self.assertEqual(37, transaction.v)
+
+    def test_legacy_transaction_to_json(self):
+        transaction_json = Transaction.deserialize(eth_fixtures.LEGACY_TRANSACTION).to_json()
+        self.assertEqual(
+            f"0x{eth_fixtures.LEGACY_TRANSACTION_HASH}",
+            transaction_json["hash"]
+        )
+        self.assertEqual(
+            "0x0",
+            transaction_json["type"]
+        )
+        self.assertEqual(
+            "0xc296825bf94ca41b881390955c2731c1d3eaa059",
+            transaction_json["from"]
+        )
+        self.assertEqual(
+            "0x25",
+            transaction_json["v"]
+        )
+
+    def test_legacy_transaction_eip_2718_from_bytes(self):
+        transaction = Transaction.deserialize(eth_fixtures.LEGACY_TRANSACTION_EIP_2718)
+        re_encoded = rlp.encode(transaction)
+        self.assertEqual(
+            Transaction.deserialize(eth_fixtures.LEGACY_TRANSACTION),
+            transaction
+        )
+        self.assertEqual(
+            transaction, rlp.decode(re_encoded, Transaction)
+        )
+
+    def test_access_list_transaction_from_bytes(self):
+        transaction: Transaction = Transaction.deserialize(eth_fixtures.ACCESS_LIST_TRANSACTION)
+        re_encoded = rlp.encode(transaction)
+        self.assertEqual(transaction, rlp.decode(re_encoded, Transaction))
+
+        self.assertEqual(
+            EthTransactionType.ACCESS_LIST, transaction.transaction_type
+        )
+        self.assertIsInstance(transaction, AccessListTransaction)
+        self.assertEqual(
+            Sha256Hash.from_string(eth_fixtures.ACCESS_LIST_TRANSACTION_HASH),
+            transaction.hash(),
+        )
+        self.assertEqual(1, transaction.chain_id())
+        self.assertEqual(0, transaction.v)
+        self.assertEqual(
+            "0x0087c5900b9bbc051b5f6299f5bce92383273b28",
+            transaction.from_address()
+        )
+        self.assertEqual(3, len(transaction.access_list))
+
+    def test_access_list_transaction_to_json(self):
+        transaction_json = Transaction.deserialize(eth_fixtures.ACCESS_LIST_TRANSACTION).to_json()
+        self.assertEqual(
+            f"0x{eth_fixtures.ACCESS_LIST_TRANSACTION_HASH}",
+            transaction_json["hash"]
+        )
+        self.assertEqual(
+            "0x1",
+            transaction_json["type"]
+        )
+        self.assertEqual(
+            "0x0087c5900b9bbc051b5f6299f5bce92383273b28",
+            transaction_json["from"]
+        )
+        self.assertEqual(
+            "0x0",
+            transaction_json["v"]
+        )
+        self.assertEqual(3, len(transaction_json["access_list"]))
+
     def test_eip_155_to_json(self):
         transactions_message = mock_eth_messages.EIP_155_TRANSACTIONS_MESSAGE
 
@@ -45,8 +118,7 @@ class TransactionTest(AbstractTestCase):
         self.assertEqual(hex(165969), parsed_transaction_json["gas"])
         self.assertEqual(hex(53000000000), parsed_transaction_json["gas_price"])
         self.assertEqual(
-            f"0x{mock_eth_messages.EIP_155_TRANSACTION_HASH}",
-            parsed_transaction_json["hash"],
+            f"0x{mock_eth_messages.EIP_155_TRANSACTION_HASH}", parsed_transaction_json["hash"],
         )
         self.assertEqual(
             "0x7ff36ab50000000000000000000000000000000000000000000000f63ad7b170"
@@ -86,8 +158,7 @@ class TransactionTest(AbstractTestCase):
         self.assertEqual(hex(60000), parsed_transaction_json["gas"])
         self.assertEqual(hex(31000000000), parsed_transaction_json["gas_price"])
         self.assertEqual(
-            f"0x{mock_eth_messages.NOT_EIP_155_TRANSACTION_HASH}",
-            parsed_transaction_json["hash"],
+            f"0x{mock_eth_messages.NOT_EIP_155_TRANSACTION_HASH}", parsed_transaction_json["hash"],
         )
         self.assertEqual(
             "0xa9059cbb0000000000000000000000000f302271d0dfbd66c5f78a32162eebf0"
@@ -111,32 +182,56 @@ class TransactionTest(AbstractTestCase):
         )
 
     def test_from_json(self):
-        result = Transaction.from_json(SAMPLE_TRANSACTION_FROM_WS)
+        result = Transaction.from_json(eth_fixtures.LEGACY_TRANSACTION_JSON_FROM_WS)
         self.assertEqual(488, result.nonce)
         self.assertEqual(17679998398, result.gas_price)
         self.assertEqual(39866, result.start_gas)
         self.assertEqual(
-            convert.hex_to_bytes(SAMPLE_TRANSACTION["to"][2:]),
-            result.to
+            convert.hex_to_bytes(eth_fixtures.LEGACY_TRANSACTION_JSON["to"][2:]), result.to
         )
         self.assertEqual(0, result.value)
         self.assertEqual(
-            convert.hex_to_bytes(SAMPLE_TRANSACTION["input"][2:]),
-            result.data
+            convert.hex_to_bytes(eth_fixtures.LEGACY_TRANSACTION_JSON["input"][2:]), result.data
         )
-        self.assertEqual(int(SAMPLE_TRANSACTION["v"], 16), result.v)
-        self.assertEqual(int(SAMPLE_TRANSACTION["r"], 16), result.r)
-        self.assertEqual(int(SAMPLE_TRANSACTION["s"], 16), result.s)
+        self.assertEqual(int(eth_fixtures.LEGACY_TRANSACTION_JSON["v"], 16), result.v)
+        self.assertEqual(int(eth_fixtures.LEGACY_TRANSACTION_JSON["r"], 16), result.r)
+        self.assertEqual(int(eth_fixtures.LEGACY_TRANSACTION_JSON["s"], 16), result.s)
+        self.assertEqual(EthTransactionType.LEGACY, result.transaction_type)
 
         result_json = result.to_json()
-        for key, val in SAMPLE_TRANSACTION_FROM_WS.items():
+        for key, val in eth_fixtures.LEGACY_TRANSACTION_JSON_FROM_WS.items():
             # camelcase problems
             if key == "gasPrice":
                 key = "gas_price"
             self.assertEqual(val, result_json[key])
 
+    def test_from_json_access_list(self):
+        result = Transaction.from_json(eth_fixtures.ACCESS_LIST_TRANSACTION_JSON)
+        self.assertEqual(EthTransactionType.ACCESS_LIST, result.transaction_type)
+
+        result_json = result.to_json()
+        for key, val in eth_fixtures.ACCESS_LIST_TRANSACTION_JSON.items():
+            # camelcase problems
+            if key == "gasPrice":
+                key = "gas_price"
+            elif key == "chainId":
+                key = "chain_id"
+            elif key == "accessList":
+                continue
+            self.assertEqual(val, result_json[key], f"failed on key: {key}")
+
+        for i, access in enumerate(eth_fixtures.ACCESS_LIST_TRANSACTION_JSON["accessList"]):
+            self.assertEqual(access["address"], result_json["access_list"][i]["address"])
+            self.assertEqual(access["storageKeys"], result_json["access_list"][i]["storage_keys"])
+
     def test_empty_to_serializes(self):
-        sample_transactions = dict(SAMPLE_TRANSACTION_FROM_WS)
+        sample_transactions = dict(eth_fixtures.LEGACY_TRANSACTION_JSON_FROM_WS)
         sample_transactions["to"] = None
 
         Transaction.from_json(sample_transactions).to_json()
+
+    def test_openethereum_berlin_transactions(self):
+        msg = TransactionsEthProtocolMessage(
+            convert.hex_to_bytes(eth_fixtures.OPEN_ETHEREUM_BERLIN_TX_MESSAGE)
+        )
+        txs = msg.get_transactions()

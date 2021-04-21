@@ -22,7 +22,7 @@ class BlockBodiesEthProtocolMessage(EthProtocolMessage):
     def __repr__(self):
         return f"BlockBodiesEthProtocolMessage<bodies_count: {len(self.get_block_bodies_bytes())}>"
 
-    def get_blocks(self):
+    def get_blocks(self) -> List[TransientBlockBody]:
         return self.get_field_value("blocks")
 
     def get_block_bodies_bytes(self):
