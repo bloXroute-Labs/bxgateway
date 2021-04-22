@@ -2,8 +2,10 @@ from typing import Tuple, Optional, Union, List
 
 from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.messages.bloxroute.tx_message import TxMessage
+from bxcommon.utils import convert
 from bxcommon.utils.blockchain_utils.bdn_tx_to_bx_tx import bdn_tx_to_bx_tx
-from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils
+from bxcommon.utils.blockchain_utils.eth import rlp_utils, eth_common_utils, \
+    transaction_validation_utils
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon import constants as common_constants
 
@@ -14,6 +16,8 @@ from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.eth.eth_utils import parse_transaction_bytes
 
 from bxutils import logging
+
+import blxr_rlp as rlp
 
 logger = logging.get_logger(__name__)
 
@@ -148,3 +152,10 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         :return: tuple (new block message, block hash, unknown transaction short id, unknown transaction hashes)
         """
         raise NotImplementedError
+
+    def encode_raw_msg(self, raw_msg: str) -> bytes:
+        msg_bytes = convert.hex_to_bytes(raw_msg)
+
+        return transaction_validation_utils.normalize_typed_transaction(
+            memoryview(msg_bytes)
+        ).tobytes()

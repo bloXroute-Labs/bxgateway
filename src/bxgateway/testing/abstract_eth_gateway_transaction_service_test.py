@@ -26,10 +26,10 @@ class TestAbstractEthGatewayTransactionService(TestAbstractGatewayTransactionSer
     ) -> Tuple[
         Union[TxOntMessage, TransactionsEthProtocolMessage], List[Tuple[Sha256Hash, Union[bytearray, memoryview]]]
     ]:
-        txs = []
-
-        for i in range(600):
-            txs.append(mock_eth_messages.get_dummy_transaction(i + 1))
+        txs = [
+            mock_eth_messages.get_dummy_transaction(1),
+            mock_eth_messages.get_dummy_access_list_transaction(2)
+        ]
 
         msg = TransactionsEthProtocolMessage(None, txs)
 

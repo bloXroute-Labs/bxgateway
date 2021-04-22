@@ -12,10 +12,13 @@ from bxcommon.models.transaction_flag import TransactionFlag
 from bxcommon.network.ip_endpoint import IpEndpoint
 from bxcommon.rpc import rpc_constants
 from bxcommon.test_utils import helpers
+from bxcommon.test_utils.fixture import eth_fixtures
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
 from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
 from bxgateway.connections.eth.eth_node_connection import EthNodeConnection
+from bxgateway.messages.eth.eth_normal_message_converter import EthNormalMessageConverter
+from bxgateway.testing.mocks.mock_blockchain_connection import MockMessageConverter
 from bxutils import constants as utils_constants
 from bxcommon.models.bdn_account_model_base import BdnAccountModelBase
 from bxcommon.models.bdn_service_model_base import BdnServiceModelBase, FeedServiceModelBase
@@ -132,6 +135,53 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertEqual(1, len(self.gateway_node.broadcast_messages))
         self.assertEqual(
             Sha256Hash(convert.hex_to_bytes(TRANSACTION_HASH)),
+            self.gateway_node.broadcast_messages[0][0].tx_hash()
+        )
+
+    @async_test
+    async def test_blxr_tx_ethereum_berlin(self):
+        self.gateway_node.message_converter = EthNormalMessageConverter()
+        self.gateway_node.network_num = 5
+
+        # legacy
+        result = await self.request(BxJsonRpcRequest(
+            "1",
+            RpcRequestType.BLXR_TX,
+            {
+                rpc_constants.TRANSACTION_PARAMS_KEY: convert.bytes_to_hex(
+                    eth_fixtures.LEGACY_TRANSACTION
+                ),
+                rpc_constants.STATUS_TRACK_PARAMS_KEY: "True"
+            }
+        ))
+        self.assertEqual("1", result.id)
+        self.assertIsNone(result.error)
+        self.assertEqual(eth_fixtures.LEGACY_TRANSACTION_HASH, result.result["tx_hash"])
+
+        self.assertEqual(1, len(self.gateway_node.broadcast_messages))
+        self.assertEqual(
+            Sha256Hash(convert.hex_to_bytes(eth_fixtures.LEGACY_TRANSACTION_HASH)),
+            self.gateway_node.broadcast_messages[0][0].tx_hash()
+        )
+
+        # access list
+        result = await self.request(BxJsonRpcRequest(
+            "1",
+            RpcRequestType.BLXR_TX,
+            {
+                rpc_constants.TRANSACTION_PARAMS_KEY: convert.bytes_to_hex(
+                    eth_fixtures.ACCESS_LIST_TRANSACTION
+                ),
+                rpc_constants.STATUS_TRACK_PARAMS_KEY: "True"
+            }
+        ))
+        self.assertEqual("1", result.id)
+        self.assertIsNone(result.error)
+        self.assertEqual(eth_fixtures.ACCESS_LIST_TRANSACTION_HASH, result.result["tx_hash"])
+
+        self.assertEqual(2, len(self.gateway_node.broadcast_messages))
+        self.assertEqual(
+            Sha256Hash(convert.hex_to_bytes(eth_fixtures.ACCESS_LIST_TRANSACTION_HASH)),
             self.gateway_node.broadcast_messages[0][0].tx_hash()
         )
 
