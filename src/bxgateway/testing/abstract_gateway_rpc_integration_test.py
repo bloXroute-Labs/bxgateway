@@ -182,7 +182,7 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
         self.assertEqual(2, len(self.gateway_node.broadcast_messages))
         self.assertEqual(
             Sha256Hash(convert.hex_to_bytes(eth_fixtures.ACCESS_LIST_TRANSACTION_HASH)),
-            self.gateway_node.broadcast_messages[0][0].tx_hash()
+            self.gateway_node.broadcast_messages[1][0].tx_hash()
         )
 
     @async_test
