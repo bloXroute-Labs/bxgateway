@@ -158,10 +158,11 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         self.assertIsNotNone(node.block_queuing_service_manager.get_block_queuing_service(blockchain_conn2))
         self.assertTrue(blockchain_conn2 in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
 
+        node.connection_pool.delete(blockchain_conn2)
         node.on_blockchain_connection_destroyed(blockchain_conn2)
         self.assertFalse(blockchain_conn2 in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
-        node.connection_pool.delete(blockchain_conn2)
-
+        
+        node.connection_pool.delete(blockchain_conn)
         node.on_blockchain_connection_destroyed(blockchain_conn)
         self.assertTrue(blockchain_conn in node.block_queuing_service_manager.blockchain_peer_to_block_queuing_service)
 

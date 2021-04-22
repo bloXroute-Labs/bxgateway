@@ -655,6 +655,13 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def continue_retrying_connection(self, ip: str, port: int, connection_type: ConnectionType) -> bool:
         if connection_type == ConnectionType.BLOCKCHAIN_NODE:
+            self.num_active_blockchain_peers = len(
+                list(
+                    self.connection_pool.get_by_connection_types(
+                        (ConnectionType.BLOCKCHAIN_NODE,)
+                    )
+                )
+            )
             return self.num_active_blockchain_peers == 0 \
                 or ((ip, port) in self.time_blockchain_peer_conn_destroyed_by_ip and
                     time.time() - self.time_blockchain_peer_conn_destroyed_by_ip[(ip, port)]
@@ -713,16 +720,14 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             connection.peer_port,
             connection.get_connection_state_details()
         )
-        self.num_active_blockchain_peers = max(
-            0,
-            len(
-                list(
-                    self.connection_pool.get_by_connection_types(
-                        (ConnectionType.BLOCKCHAIN_NODE,)
-                    )
+        self.num_active_blockchain_peers = len(
+            list(
+                self.connection_pool.get_by_connection_types(
+                    (ConnectionType.BLOCKCHAIN_NODE,)
                 )
-            ) - 1
+            )
         )
+
         if self.num_active_blockchain_peers > 0:
             self.block_queuing_service_manager.remove_block_queuing_service(connection)
 
