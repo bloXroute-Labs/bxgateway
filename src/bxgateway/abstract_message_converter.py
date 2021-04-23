@@ -135,7 +135,6 @@ class AbstractMessageConverter(SpecialMemoryProperties, metaclass=ABCMeta):
         :return: binary encoded message
         :raise ValueError: if the encoding fails
         """
-        # TODO: remove this method, access hex to bytes directly
         return convert.hex_to_bytes(raw_msg)
 
     def special_memory_size(self, ids: Optional[Set[int]] = None) -> SpecialTuple:

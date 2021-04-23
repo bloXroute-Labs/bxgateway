@@ -24,12 +24,14 @@ class TestAbstractEthGatewayTransactionService(TestAbstractGatewayTransactionSer
     def _get_node_tx_message(
         self
     ) -> Tuple[
-        Union[TxOntMessage, TransactionsEthProtocolMessage], List[Tuple[Sha256Hash, Union[bytearray, memoryview]]]]:
-        txs = []
-
-        for i in range(600):
-            txs.append(mock_eth_messages.get_dummy_transaction(i + 1))
+        Union[TxOntMessage, TransactionsEthProtocolMessage], List[Tuple[Sha256Hash, Union[bytearray, memoryview]]]
+    ]:
+        txs = [
+            mock_eth_messages.get_dummy_transaction(1),
+            mock_eth_messages.get_dummy_access_list_transaction(2)
+        ]
 
         msg = TransactionsEthProtocolMessage(None, txs)
 
+        # pyre-fixme [7]: Expected `Tuple[Union[TransactionsEthProtocolMessage, TxOntMessage], List[Tuple[Sha256Hash, Union[bytearray, memoryview]]]]`
         return msg, list(map(lambda tx: (tx.hash(), tx.contents()), msg.get_transactions()))

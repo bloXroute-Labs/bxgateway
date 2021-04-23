@@ -14,7 +14,8 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import \
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
 from bxcommon.messages.eth.serializers.block import Block
-from bxcommon.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction, LegacyTransaction, \
+    AccessListTransaction
 from bxgateway.messages.eth.serializers.transient_block_body import \
     TransientBlockBody
 
@@ -54,7 +55,7 @@ def get_dummy_transaction(
     else:
         to_address = convert.hex_to_bytes(to_address_str)
     # create transaction object with dummy values multiplied by nonce to be able generate txs with different values
-    return Transaction(
+    return LegacyTransaction(
         nonce,
         gas_price,
         3 * nonce,
@@ -63,7 +64,32 @@ def get_dummy_transaction(
         helpers.generate_bytes(15 * nonce),
         v,
         6 * nonce,
-        7 * nonce)
+        7 * nonce
+    )
+
+
+def get_dummy_access_list_transaction(
+    nonce: int, gas_price: Optional[int] = None, v: int = 27, to_address_str: Optional[str] = None
+) -> Transaction:
+    if gas_price is None:
+        gas_price = 2 * nonce
+    if to_address_str is None:
+        to_address = helpers.generate_bytes(eth_common_constants.ADDRESS_LEN)
+    else:
+        to_address = convert.hex_to_bytes(to_address_str)
+    return AccessListTransaction(
+        8 * nonce,
+        nonce,
+        gas_price,
+        3 * nonce,
+        to_address,
+        4 * nonce,
+        helpers.generate_bytes(15 * nonce),
+        [],
+        v,
+        6 * nonce,
+        7 * nonce
+    )
 
 
 def get_dummy_block_header(
@@ -129,17 +155,18 @@ def get_dummy_block(nonce, header=None):
 
 
 def new_block_eth_protocol_message(
-        nonce: int,
-        block_number: Optional[int] = None,
-        prev_block_hash: Optional[Sha256Hash] = None
+    nonce: int,
+    block_number: Optional[int] = None,
+    prev_block_hash: Optional[Sha256Hash] = None
 ) -> NewBlockEthProtocolMessage:
-    header = get_dummy_block_header(nonce, block_number=block_number, prev_block_hash=prev_block_hash)
+    header = get_dummy_block_header(nonce, block_number=block_number,
+                                    prev_block_hash=prev_block_hash)
     block = get_dummy_block(nonce, header)
     return NewBlockEthProtocolMessage(None, block, nonce * 5 + 10)
 
+
 # reference
 # https://etherscan.io/tx/0x00278cf7120dbbbee72eb7bdaaa2eac8ec41ef931c30fd6d218bdad1b2b2324e
-
 EIP_155_TRANSACTION_HASH = "00278cf7120dbbbee72eb7bdaaa2eac8ec41ef931c30fd6d218bdad1b2b2324e"
 EIP_155_TRANSACTION_GAS_PRICE = 53_000_000_000
 EIP_155_TRANSACTION_BYTES = bytearray(
@@ -160,7 +187,6 @@ EIP_155_TRANSACTION_BYTES = bytearray(
 EIP_155_TRANSACTIONS_MESSAGE = TransactionsEthProtocolMessage(
     EIP_155_TRANSACTION_BYTES
 )
-
 
 NOT_EIP_155_TRANSACTION_HASH = "f4996a6631c6c685b6c34a30d129917b8d502988feb1d7e930035e207e9761dc"
 NOT_EIP_155_TRANSACTION_BYTES = bytearray(

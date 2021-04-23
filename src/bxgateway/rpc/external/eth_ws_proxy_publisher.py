@@ -186,7 +186,7 @@ class EthWsProxyPublisher(EthWsSubscriber):
                         transaction_key.transaction_hash,
                         parsed_tx,
                         FeedSource.BLOCKCHAIN_RPC,
-                        local_region=True
+                        local_region=True,
                     )
                 )
 

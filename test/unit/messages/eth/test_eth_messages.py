@@ -31,7 +31,7 @@ from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import Stat
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxcommon.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.block_hash import BlockHash
-from bxcommon.messages.eth.serializers.transaction import Transaction
+from bxcommon.messages.eth.serializers.transaction import Transaction, LegacyTransaction
 from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
 from bxgateway.testing.mocks import mock_eth_messages
 from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
@@ -152,13 +152,15 @@ class EthMessagesTests(AbstractTestCase):
                                      ])
 
     def test_transactions_eth_message(self):
-        self._test_msg_serialization(TransactionsEthProtocolMessage,
-                                     False,
-                                     [
-                                         mock_eth_messages.get_dummy_transaction(1),
-                                         mock_eth_messages.get_dummy_transaction(2),
-                                         mock_eth_messages.get_dummy_transaction(3)
-                                     ])
+        self._test_msg_serialization(
+            TransactionsEthProtocolMessage,
+            False,
+            [
+                mock_eth_messages.get_dummy_transaction(1),
+                mock_eth_messages.get_dummy_transaction(2),
+                mock_eth_messages.get_dummy_transaction(3)
+            ]
+        )
 
     def test_new_block_eth_message(self):
         self._test_msg_serialization(NewBlockEthProtocolMessage,
@@ -387,11 +389,16 @@ class EthMessagesTests(AbstractTestCase):
             tx = mock_eth_messages.get_dummy_transaction(1)
             txs.append(tx)
 
-            tx_bytes = rlp.encode(tx, Transaction)
+            tx_bytes = rlp.encode(LegacyTransaction.serialize(tx))
             txs_bytes.append(tx_bytes)
 
             tx_hash = tx.hash()
             txs_hashes.append(tx_hash)
+
+        al_tx = mock_eth_messages.get_dummy_access_list_transaction(11)
+        txs.append(al_tx)
+        txs_bytes.append(Transaction.serialize(al_tx))
+        txs_hashes.append(al_tx.hash())
 
         uncles = [
             mock_eth_messages.get_dummy_block_header(2),
@@ -399,15 +406,18 @@ class EthMessagesTests(AbstractTestCase):
         ]
 
         block_body = TransientBlockBody(txs, uncles)
-        block_body_bytes = memoryview(rlp.encode(TransientBlockBody.serialize(block_body)))
-
+        block_body_bytes = rlp.encode(block_body)
         block_bodies_msg = BlockBodiesEthProtocolMessage.from_body_bytes(block_body_bytes)
 
         parsed_txs_bytes = block_bodies_msg.get_block_transaction_bytes(0)
         self.assertEqual(len(parsed_txs_bytes), len(txs_hashes))
 
         for index, parsed_tx_bytes in enumerate(parsed_txs_bytes):
-            self.assertEqual(convert.bytes_to_hex(parsed_tx_bytes), convert.bytes_to_hex(txs_bytes[index]))
+            self.assertEqual(
+                convert.bytes_to_hex(txs_bytes[index]),
+                convert.bytes_to_hex(parsed_tx_bytes),
+                f"failed at index {index}"
+            )
 
         parsed_txs_hashes = block_bodies_msg.get_block_transaction_hashes(0)
         self.assertEqual(len(parsed_txs_hashes), len(txs_hashes))
@@ -502,9 +512,6 @@ class EthMessagesTests(AbstractTestCase):
 
         # verify that field values are correct after deserialization
         self._verify_field_values(msg_cls, msg_deserialized, *args)
-
-        # verify message serializes
-        print(msg)
 
         self.assertEqual(msg.msg_type, msg_cls.msg_type)
         self.assertEqual(msg.msg_type, msg_deserialized.msg_type)

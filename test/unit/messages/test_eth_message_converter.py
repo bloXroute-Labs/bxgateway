@@ -64,6 +64,7 @@ class EthMessageConverterTests(AbstractTestCase):
 
     def test_tx_to_bx_tx__success(self):
         txs = [
+            mock_eth_messages.get_dummy_access_list_transaction(4),
             mock_eth_messages.get_dummy_transaction(1),
             mock_eth_messages.get_dummy_transaction(2),
             mock_eth_messages.get_dummy_transaction(3),
@@ -79,6 +80,7 @@ class EthMessageConverterTests(AbstractTestCase):
             mock_eth_messages.get_dummy_transaction(1),
             mock_eth_messages.get_dummy_transaction(2),
             mock_eth_messages.get_dummy_transaction(3),
+            mock_eth_messages.get_dummy_access_list_transaction(4),
         ]
 
         tx_msg = TransactionsEthProtocolMessage(None, txs)

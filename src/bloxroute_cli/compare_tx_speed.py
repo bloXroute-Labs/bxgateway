@@ -75,8 +75,10 @@ def main() -> None:
     sender_account = Account.from_key(sender_private_key)  # pyre-ignore
     sender_address = sender_account.address
 
-    nonce = default_web3.eth.getTransactionCount(sender_address)  # pyre-ignore
-    sender_balance = default_web3.eth.getBalance(sender_address)  # pyre-ignore
+    # pyre-ignore[29]: `web3.method.Method` is not a function.
+    nonce = default_web3.eth.getTransactionCount(sender_address)
+    # pyre-ignore[29]: `web3.method.Method` is not a function.
+    sender_balance = default_web3.eth.getBalance(sender_address)
     sender_balance_in_eth = default_web3.fromWei(sender_balance, "ether")  # pyre-ignore
 
     sender_expense = num_tx_groups * gas_price_wei * gas_limit
