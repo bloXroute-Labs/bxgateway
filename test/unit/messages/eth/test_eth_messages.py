@@ -13,22 +13,46 @@ from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthD
 from bxgateway.messages.eth.discovery.pong_eth_discovery_message import PongEthDiscoveryMessage
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
-from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
-from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
-from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import DisconnectEthProtocolMessage
-from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
-from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
-from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import GetNodeDataEthProtocolMessage
-from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
+from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import (
+    BlockBodiesEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import (
+    BlockHeadersEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import (
+    DisconnectEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import (
+    GetBlockBodiesEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import (
+    GetBlockHeadersEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import (
+    GetNodeDataEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import (
+    GetReceiptsEthProtocolMessage,
+)
 from bxgateway.messages.eth.protocol.hello_eth_protocol_message import HelloEthProtocolMessage
-from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
-from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
-from bxgateway.messages.eth.protocol.node_data_eth_protocol_message import NodeDataEthProtocolMessage
+from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import (
+    NewBlockEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import (
+    NewBlockHashesEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.node_data_eth_protocol_message import (
+    NodeDataEthProtocolMessage,
+)
 from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
-from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
-from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
+from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import (
+    StatusEthProtocolMessageV63,
+)
+from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import (
+    TransactionsEthProtocolMessage,
+)
 from bxcommon.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.block_hash import BlockHash
 from bxcommon.messages.eth.serializers.transaction import Transaction, LegacyTransaction
@@ -38,34 +62,41 @@ from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constan
 
 
 class EthMessagesTests(AbstractTestCase):
-
     def test_discovery_ping_eth_message(self):
-        self._test_msg_serialization(PingEthDiscoveryMessage,
-                                     True,
-                                     eth_common_constants.P2P_PROTOCOL_VERSION,
-                                     # random addresses
-                                     ("192.1.2.3", 11111, 22222),
-                                     ("193.4.5.6", 33333, 44444),
-                                     int(time.time()))
+        self._test_msg_serialization(
+            PingEthDiscoveryMessage,
+            True,
+            eth_common_constants.P2P_PROTOCOL_VERSION,
+            # random addresses
+            ("192.1.2.3", 11111, 22222),
+            ("193.4.5.6", 33333, 44444),
+            int(time.time()),
+        )
 
     def test_discovery_pong_eth_message(self):
-        self._test_msg_serialization(PongEthDiscoveryMessage,
-                                     True,
-                                     ("192.1.2.3", 11111, 22222),
-                                     helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                                     int(time.time()))
+        self._test_msg_serialization(
+            PongEthDiscoveryMessage,
+            True,
+            ("192.1.2.3", 11111, 22222),
+            helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            int(time.time()),
+        )
 
     def test_hello_eth_message(self):
-        dummy_private_key = convert.hex_to_bytes("294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3")
+        dummy_private_key = convert.hex_to_bytes(
+            "294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3"
+        )
         dummy_public_key = crypto_utils.private_to_public_key(dummy_private_key)
 
-        self._test_msg_serialization(HelloEthProtocolMessage,
-                                     False,
-                                     eth_common_constants.P2P_PROTOCOL_VERSION,
-                                     eth_common_constants.BX_ETH_CLIENT_NAME,
-                                     eth_common_constants.CAPABILITIES,
-                                     30303,  # random port value
-                                     dummy_public_key)
+        self._test_msg_serialization(
+            HelloEthProtocolMessage,
+            False,
+            eth_common_constants.P2P_PROTOCOL_VERSION,
+            eth_common_constants.BX_ETH_CLIENT_NAME,
+            eth_common_constants.CAPABILITIES,
+            30303,  # random port value
+            dummy_public_key,
+        )
 
     def test_ping_eth_message(self):
         self._test_msg_serialization(PingEthProtocolMessage, False)
@@ -76,8 +107,12 @@ class EthMessagesTests(AbstractTestCase):
     def test_status_eth_message(self):
         dummy_network_id = 111
         dummy_chain_difficulty = 11111
-        dummy_chain_head_hash = convert.hex_to_bytes("f973c5d3763c40e2b5080f35a9003e64e7d9f9d429ddecd7c559cbd4061094cd")
-        dummy_genesis_hash = convert.hex_to_bytes("aec175735fb6b74722d54455b638f6340bb9fdd5fa8101c8c0869d10cdccb000")
+        dummy_chain_head_hash = convert.hex_to_bytes(
+            "f973c5d3763c40e2b5080f35a9003e64e7d9f9d429ddecd7c559cbd4061094cd"
+        )
+        dummy_genesis_hash = convert.hex_to_bytes(
+            "aec175735fb6b74722d54455b638f6340bb9fdd5fa8101c8c0869d10cdccb000"
+        )
 
         self._test_msg_serialization(
             StatusEthProtocolMessage,
@@ -87,7 +122,7 @@ class EthMessagesTests(AbstractTestCase):
             dummy_chain_difficulty,
             dummy_chain_head_hash,
             dummy_genesis_hash,
-            [b'\xe0)\xe9\x91', 0]
+            [b"\xe0)\xe9\x91", 0],
         )
 
         self._test_msg_serialization(
@@ -97,7 +132,7 @@ class EthMessagesTests(AbstractTestCase):
             dummy_network_id,
             dummy_chain_difficulty,
             dummy_chain_head_hash,
-            dummy_genesis_hash
+            dummy_genesis_hash,
         )
 
     def test_disconnect_message(self):
@@ -105,51 +140,61 @@ class EthMessagesTests(AbstractTestCase):
         self._test_msg_serialization(DisconnectEthProtocolMessage, False, [dummy_disconnect_reason])
 
     def test_new_block_hashes_eth_message(self):
-        self._test_msg_serialization(NewBlockHashesEthProtocolMessage,
-                                     False,
-                                     # passing few dummy block hashes
-                                     [
-                                         BlockHash(helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 111),
-                                         BlockHash(helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 222),
-                                         BlockHash(helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 333)
-                                     ])
+        self._test_msg_serialization(
+            NewBlockHashesEthProtocolMessage,
+            False,
+            # passing few dummy block hashes
+            [
+                BlockHash(helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 111),
+                BlockHash(helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 222),
+                BlockHash(helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 333),
+            ],
+        )
 
     def test_get_block_headers_eth_message(self):
-        self._test_msg_serialization(GetBlockHeadersEthProtocolMessage,
-                                     False,
-                                     helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                                     111,
-                                     222,
-                                     0)
+        self._test_msg_serialization(
+            GetBlockHeadersEthProtocolMessage,
+            False,
+            helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            111,
+            222,
+            0,
+        )
 
     def test_block_header_eth_message(self):
-        self._test_msg_serialization(BlockHeadersEthProtocolMessage,
-                                     False,
-                                     [
-                                         mock_eth_messages.get_dummy_block_header(1),
-                                         mock_eth_messages.get_dummy_block_header(2),
-                                         mock_eth_messages.get_dummy_block_header(3)
-                                     ])
+        self._test_msg_serialization(
+            BlockHeadersEthProtocolMessage,
+            False,
+            [
+                mock_eth_messages.get_dummy_block_header(1),
+                mock_eth_messages.get_dummy_block_header(2),
+                mock_eth_messages.get_dummy_block_header(3),
+            ],
+        )
 
     def test_get_block_bodies_eth_message(self):
-        self._test_msg_serialization(GetBlockBodiesEthProtocolMessage,
-                                     False,
-                                     # passing randomly generated hashes
-                                     [
-                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN)
-                                     ])
+        self._test_msg_serialization(
+            GetBlockBodiesEthProtocolMessage,
+            False,
+            # passing randomly generated hashes
+            [
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            ],
+        )
 
     def test_block_bodies_eth_message(self):
-        self._test_msg_serialization(BlockBodiesEthProtocolMessage,
-                                     False,
-                                     # passing randomly generated hashes
-                                     [
-                                         mock_eth_messages.get_dummy_transient_block_body(1),
-                                         mock_eth_messages.get_dummy_transient_block_body(2),
-                                         mock_eth_messages.get_dummy_transient_block_body(3)
-                                     ])
+        self._test_msg_serialization(
+            BlockBodiesEthProtocolMessage,
+            False,
+            # passing randomly generated hashes
+            [
+                mock_eth_messages.get_dummy_transient_block_body(1),
+                mock_eth_messages.get_dummy_transient_block_body(2),
+                mock_eth_messages.get_dummy_transient_block_body(3),
+            ],
+        )
 
     def test_transactions_eth_message(self):
         self._test_msg_serialization(
@@ -158,45 +203,48 @@ class EthMessagesTests(AbstractTestCase):
             [
                 mock_eth_messages.get_dummy_transaction(1),
                 mock_eth_messages.get_dummy_transaction(2),
-                mock_eth_messages.get_dummy_transaction(3)
-            ]
+                mock_eth_messages.get_dummy_transaction(3),
+            ],
         )
 
     def test_new_block_eth_message(self):
-        self._test_msg_serialization(NewBlockEthProtocolMessage,
-                                     False,
-                                     mock_eth_messages.get_dummy_block(1),
-                                     111)
+        self._test_msg_serialization(
+            NewBlockEthProtocolMessage, False, mock_eth_messages.get_dummy_block(1), 111
+        )
 
     def test_get_node_data_eth_message(self):
-        self._test_msg_serialization(GetNodeDataEthProtocolMessage,
-                                     False,
-                                     # passing randomly generated hashes
-                                     [
-                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN)
-                                     ])
+        self._test_msg_serialization(
+            GetNodeDataEthProtocolMessage,
+            False,
+            # passing randomly generated hashes
+            [
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            ],
+        )
 
     def test_node_data_eth_message(self):
-        self._test_msg_serialization(NodeDataEthProtocolMessage,
-                                     False,
-                                     helpers.generate_bytes(1000))
+        self._test_msg_serialization(
+            NodeDataEthProtocolMessage, False, helpers.generate_bytes(1000)
+        )
 
     def test_get_receipts_eth_message(self):
-        self._test_msg_serialization(GetReceiptsEthProtocolMessage,
-                                     False,
-                                     # passing randomly generated hashes
-                                     [
-                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                                         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN)
-                                     ])
+        self._test_msg_serialization(
+            GetReceiptsEthProtocolMessage,
+            False,
+            # passing randomly generated hashes
+            [
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            ],
+        )
 
     def test_receipts_eth_message(self):
-        self._test_msg_serialization(ReceiptsEthProtocolMessage,
-                                     False,
-                                     helpers.generate_bytes(1000))
+        self._test_msg_serialization(
+            ReceiptsEthProtocolMessage, False, helpers.generate_bytes(1000)
+        )
 
     def test_new_block_internal_eth_message_to_from_new_block_message(self):
         txs = []
@@ -222,11 +270,7 @@ class EthMessagesTests(AbstractTestCase):
             mock_eth_messages.get_dummy_block_header(3),
         ]
 
-        block = Block(
-            block_header,
-            txs,
-            uncles
-        )
+        block = Block(block_header, txs, uncles)
 
         dummy_chain_difficulty = 10
 
@@ -266,11 +310,7 @@ class EthMessagesTests(AbstractTestCase):
             mock_eth_messages.get_dummy_block_header(3),
         ]
 
-        block = Block(
-            block_header,
-            txs,
-            uncles
-        )
+        block = Block(block_header, txs, uncles)
 
         dummy_chain_difficulty = 10
 
@@ -285,8 +325,10 @@ class EthMessagesTests(AbstractTestCase):
         self.assertIsInstance(parsed_new_block_message, NewBlockEthProtocolMessage)
 
         self.assertEqual(len(block_msg.rawbytes()), len(parsed_new_block_message.rawbytes()))
-        self.assertEqual(convert.bytes_to_hex(block_msg.rawbytes()),
-                         convert.bytes_to_hex(parsed_new_block_message.rawbytes()))
+        self.assertEqual(
+            convert.bytes_to_hex(block_msg.rawbytes()),
+            convert.bytes_to_hex(parsed_new_block_message.rawbytes()),
+        )
 
     def test_new_block_internal_eth_message_to_from_new_block_parts(self):
         txs = []
@@ -344,7 +386,9 @@ class EthMessagesTests(AbstractTestCase):
         self.assertEqual(1, len(block_headers_msg.get_block_headers()))
         self.assertEqual(1, len(block_headers_msg.get_block_headers_bytes()))
         self.assertEqual(block_header, block_headers_msg.get_block_headers()[0])
-        self.assertEqual(block_header_bytes.tobytes(), block_headers_msg.get_block_headers_bytes()[0].tobytes())
+        self.assertEqual(
+            block_header_bytes.tobytes(), block_headers_msg.get_block_headers_bytes()[0].tobytes()
+        )
 
     def test_block_bodies_msg_from_bodies_bytes(self):
         txs = []
@@ -416,7 +460,7 @@ class EthMessagesTests(AbstractTestCase):
             self.assertEqual(
                 convert.bytes_to_hex(txs_bytes[index]),
                 convert.bytes_to_hex(parsed_tx_bytes),
-                f"failed at index {index}"
+                f"failed at index {index}",
             )
 
         parsed_txs_hashes = block_bodies_msg.get_block_transaction_hashes(0)
@@ -430,12 +474,16 @@ class EthMessagesTests(AbstractTestCase):
         block_hash = Sha256Hash(block_hash_bytes)
         block_number = 1000
 
-        new_block_hashes_msg_from_hash = NewBlockHashesEthProtocolMessage.from_block_hash_number_pair(block_hash,
-                                                                                                      block_number)
+        new_block_hashes_msg_from_hash = NewBlockHashesEthProtocolMessage.from_block_hash_number_pair(
+            block_hash, block_number
+        )
         new_block_hashes_msg_from_hash.deserialize()
 
         self.assertEqual(1, len(new_block_hashes_msg_from_hash.get_block_hash_number_pairs()))
-        deserialized_hash, deserialized_block_number = new_block_hashes_msg_from_hash.get_block_hash_number_pairs()[0]
+        (
+            deserialized_hash,
+            deserialized_block_number,
+        ) = new_block_hashes_msg_from_hash.get_block_hash_number_pairs()[0]
         self.assertEqual(deserialized_hash, block_hash)
         self.assertEqual(block_number, block_number)
 
@@ -463,11 +511,7 @@ class EthMessagesTests(AbstractTestCase):
             mock_eth_messages.get_dummy_block_header(3),
         ]
 
-        block = Block(
-            block_header,
-            txs,
-            uncles
-        )
+        block = Block(block_header, txs, uncles)
 
         dummy_chain_difficulty = 10
 
@@ -484,18 +528,24 @@ class EthMessagesTests(AbstractTestCase):
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(new_block_msg)
         new_block_parts = internal_new_block_msg.to_new_block_parts()
 
-        new_block_msg_from_block_parts = NewBlockEthProtocolMessage.from_new_block_parts(new_block_parts,
-                                                                                         dummy_chain_difficulty)
+        new_block_msg_from_block_parts = NewBlockEthProtocolMessage.from_new_block_parts(
+            new_block_parts, dummy_chain_difficulty
+        )
 
-        self.assertEqual(len(new_block_msg.rawbytes()), len(new_block_msg_from_block_parts.rawbytes()))
-        self.assertEqual(new_block_msg.rawbytes(),
-                         new_block_msg_from_block_parts.rawbytes())
-        self.assertEqual(new_block_msg_from_block_parts.get_chain_difficulty(), dummy_chain_difficulty)
+        self.assertEqual(
+            len(new_block_msg.rawbytes()), len(new_block_msg_from_block_parts.rawbytes())
+        )
+        self.assertEqual(new_block_msg.rawbytes(), new_block_msg_from_block_parts.rawbytes())
+        self.assertEqual(
+            new_block_msg_from_block_parts.get_chain_difficulty(), dummy_chain_difficulty
+        )
 
     def _test_msg_serialization(self, msg_cls, needs_private_key, *args, **kwargs):
         if needs_private_key:
             # random private key
-            private_key = convert.hex_to_bytes("294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3")
+            private_key = convert.hex_to_bytes(
+                "294549f8629f0eeb2b8e01aca491f701f5386a9662403b485c4efe7d447dfba3"
+            )
             msg = msg_cls(None, private_key, *args, **kwargs)
         else:
             msg = msg_cls(None, *args, **kwargs)
@@ -527,11 +577,15 @@ class EthMessagesTests(AbstractTestCase):
 
             self._assert_values_equal(attr_value, field_value)
 
-    def _assert_values_equal(self, actual_value, expected_value, ):
+    def _assert_values_equal(
+        self, actual_value, expected_value,
+    ):
 
-        if isinstance(expected_value, collections.Iterable) and \
-                not isinstance(expected_value, bytearray) and \
-                not isinstance(expected_value, str):
+        if (
+            isinstance(expected_value, collections.Iterable)
+            and not isinstance(expected_value, bytearray)
+            and not isinstance(expected_value, str)
+        ):
 
             for actual_item_value, expected_item_value in zip(actual_value, expected_value):
                 self._assert_values_equal(actual_item_value, expected_item_value)

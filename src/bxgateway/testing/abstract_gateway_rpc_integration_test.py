@@ -170,18 +170,18 @@ class AbstractGatewayRpcIntegrationTest(AbstractTestCase):
             RpcRequestType.BLXR_TX,
             {
                 rpc_constants.TRANSACTION_PARAMS_KEY: convert.bytes_to_hex(
-                    eth_fixtures.ACCESS_LIST_TRANSACTION
+                    eth_fixtures.ACL_TRANSACTION
                 ),
                 rpc_constants.STATUS_TRACK_PARAMS_KEY: "True"
             }
         ))
         self.assertEqual("1", result.id)
         self.assertIsNone(result.error)
-        self.assertEqual(eth_fixtures.ACCESS_LIST_TRANSACTION_HASH, result.result["tx_hash"])
+        self.assertEqual(eth_fixtures.ACL_TRANSACTION_HASH, result.result["tx_hash"])
 
         self.assertEqual(2, len(self.gateway_node.broadcast_messages))
         self.assertEqual(
-            Sha256Hash(convert.hex_to_bytes(eth_fixtures.ACCESS_LIST_TRANSACTION_HASH)),
+            Sha256Hash(convert.hex_to_bytes(eth_fixtures.ACL_TRANSACTION_HASH)),
             self.gateway_node.broadcast_messages[1][0].tx_hash()
         )
 
