@@ -1,7 +1,7 @@
 import time
 from abc import ABCMeta
 from asyncio import Future
-from typing import TYPE_CHECKING, Set
+from typing import TYPE_CHECKING, Set, Optional
 
 from bxcommon import constants
 from bxcommon.connections.connection_type import ConnectionType
@@ -25,6 +25,7 @@ from bxcommon.network.abstract_socket_connection_protocol import AbstractSocketC
 from bxcommon.services import sdn_http_service
 from bxcommon.utils import convert, performance_utils
 from bxcommon.utils import memory_utils
+from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats import hooks, stats_format
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
@@ -90,6 +91,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         msg_size_validation_settings = MessageSizeValidationSettings(self.node.network.max_block_size_bytes,
                                                                      self.node.network.max_tx_size_bytes)
         self.message_validator = BloxrouteMessageValidator(msg_size_validation_settings, self.protocol_version)
+        self.check_matching_relay_connection_alarm_id: Optional[AlarmId] = None
 
     def msg_hello(self, msg):
         super(AbstractRelayConnection, self).msg_hello(msg)
@@ -422,9 +424,24 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
     def on_connection_established(self):
         super(AbstractRelayConnection, self).on_connection_established()
 
+        if self.check_matching_relay_connection_alarm_id is not None:
+            self.node.alarm_queue.unregister_alarm(self.check_matching_relay_connection_alarm_id)
+            self.check_matching_relay_connection_alarm_id = None
         if self.is_relay_connection() and self.node.opts.split_relays:
-            self.node.alarm_queue.register_alarm(gateway_constants.CHECK_RELAY_CONNECTIONS_DELAY_S,
-                                                 self._check_matching_relay_connection)
+            self.check_matching_relay_connection_alarm_id = \
+                self.node.alarm_queue.register_alarm(
+                    gateway_constants.CHECK_RELAY_CONNECTIONS_DELAY_S,
+                    self._check_matching_relay_connection
+                )
+
+    def mark_for_close(self, should_retry: Optional[bool] = None):
+        super(AbstractRelayConnection, self).mark_for_close(should_retry)
+        self.cancel_check_matching_relay_connection()
+
+    def cancel_check_matching_relay_connection(self):
+        if self.check_matching_relay_connection_alarm_id is not None:
+            self.node.alarm_queue.unregister_alarm(self.check_matching_relay_connection_alarm_id)
+            self.check_matching_relay_connection_alarm_id = None
 
     def _check_matching_relay_connection(self):
         self.log_debug("Verifying that matching relay connection has been established.")
