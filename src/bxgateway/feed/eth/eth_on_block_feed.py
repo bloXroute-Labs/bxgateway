@@ -166,7 +166,7 @@ class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
     NAME = rpc_constants.ETH_ON_BLOCK_FEED_NAME
     FIELDS = ["name", "response", "block_height", "tag"]
     ALL_FIELDS = FIELDS
-    VALID_SOURCES = {FeedSource.BLOCKCHAIN_RPC}
+    VALID_SOURCES = {FeedSource.BLOCKCHAIN_RPC, FeedSource.BLOCKCHAIN_SOCKET}
     last_block_height: int
 
     def __init__(self, node: "EthGatewayNode", network_num: int = constants.ALL_NETWORK_NUM,) -> None:
