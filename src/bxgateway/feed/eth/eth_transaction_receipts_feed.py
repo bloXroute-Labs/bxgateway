@@ -9,7 +9,6 @@ from bxcommon.feed.feed_source import FeedSource
 from bxcommon.rpc import rpc_constants
 from bxcommon.rpc.rpc_errors import RpcError
 from bxcommon.utils.expiring_set import ExpiringSet
-from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import gateway_constants
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
@@ -97,7 +96,7 @@ class EthTransactionReceiptsFeed(Feed[TransactionReceiptsFeedEntry, Union[EthRaw
         block = raw_message.block
 
         # receipts won't be available until NewHeads feed notification
-        if raw_message.source == FeedSource.BLOCKCHAIN_RPC:
+        if raw_message.source in [FeedSource.BLOCKCHAIN_RPC, FeedSource.BLOCKCHAIN_SOCKET]:
             self.blocks_confirmed_by_new_heads_notification.add(block_hash)
 
         if block_number < self.last_block_number - gateway_constants.MAX_BLOCK_BACKLOG_TO_PUBLISH:

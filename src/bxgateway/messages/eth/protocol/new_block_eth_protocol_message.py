@@ -107,10 +107,10 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
             _, block_itm_len, block_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
-            block_itm_bytes = block_msg_bytes[block_msg_itm_start:block_msg_itm_start + block_itm_len]
+            block_itm_bytes = block_msg_bytes[block_itm_start:block_itm_start + block_itm_len]
 
             _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
-            block_header = block_itm_bytes[0:block_hdr_itm_start + block_hdr_itm_len]
+            block_header = block_itm_bytes[0: block_hdr_itm_start + block_hdr_itm_len]
             self._block_header = block_header
         return block_header
 
@@ -151,7 +151,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
             _, block_itm_len, block_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
-            block_itm_bytes = block_msg_bytes[block_msg_itm_start:block_msg_itm_start + block_itm_len]
+            block_itm_bytes = block_msg_bytes[block_itm_start:block_itm_start + block_itm_len]
 
             _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
             block_hdr_bytes = block_itm_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
@@ -159,7 +159,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             offset = BlockHeader.FIXED_LENGTH_FIELD_OFFSET
             _difficulty, difficulty_length = rlp_utils.decode_int(block_hdr_bytes, offset)
             offset += difficulty_length
-            _number, number_length = rlp_utils.decode_int(block_hdr_bytes, offset)
+            self._number, number_length = rlp_utils.decode_int(block_hdr_bytes, offset)
             offset += number_length
             _gas_limit, gas_limit_length = rlp_utils.decode_int(block_hdr_bytes, offset)
             offset += gas_limit_length
@@ -180,7 +180,7 @@ class NewBlockEthProtocolMessage(EthProtocolMessage, AbstractBlockMessage):
             block_msg_bytes = self._memory_view[block_msg_itm_start:block_msg_itm_start + block_msg_itm_len]
 
             _, block_itm_len, block_itm_start = rlp_utils.consume_length_prefix(block_msg_bytes, 0)
-            block_itm_bytes = block_msg_bytes[block_msg_itm_start:block_msg_itm_start + block_itm_len]
+            block_itm_bytes = block_msg_bytes[block_itm_start:block_itm_start + block_itm_len]
 
             _, block_hdr_itm_len, block_hdr_itm_start = rlp_utils.consume_length_prefix(block_itm_bytes, 0)
             block_hdr_bytes = block_itm_bytes[block_hdr_itm_start:block_hdr_itm_start + block_hdr_itm_len]
