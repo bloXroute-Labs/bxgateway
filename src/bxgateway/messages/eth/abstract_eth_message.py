@@ -68,6 +68,8 @@ class AbstractEthMessage(AbstractMessage, ABC):
         return encoded_payload
 
     def _deserialize_rlp_payload(self, encoded_payload):
+        if isinstance(encoded_payload, memoryview):
+            encoded_payload = encoded_payload.tobytes()
         payload = rlp.decode(encoded_payload, strict=False)
 
         serializers = self._get_serializer()
