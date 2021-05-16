@@ -108,7 +108,7 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
                 }
             )
             if self.subscribed_messages.full():
-                logger.error(
+                logger.info(
                     log_messages.GATEWAY_BAD_FEED_SUBSCRIBER,
                     self.subscribed_messages.qsize(),
                     list(self.subscriptions.keys())

@@ -288,7 +288,7 @@ class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
         try:
             subscriber.queue(serialized_message)
         except QueueFull:
-            logger.error(
+            logger.info(
                 log_messages.GATEWAY_BAD_FEED_SUBSCRIBER, subscriber.subscription_id, self.name
             )
             self.bad_subscribers.add(subscriber.subscription_id)
