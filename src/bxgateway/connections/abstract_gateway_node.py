@@ -906,11 +906,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def log_blocks_network_content(self, network_num: int, block_msg) -> None:
         pass
 
-    def log_txs_network_content(
-        self, network_num: int, transaction_hash: Sha256Hash, transaction_contents: Union[bytearray, memoryview]
-    ) -> None:
-        pass
-
     def post_block_cleanup_tasks(
         self,
         block_hash: Sha256Hash,

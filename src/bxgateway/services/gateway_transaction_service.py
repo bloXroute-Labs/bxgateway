@@ -183,7 +183,6 @@ class GatewayTransactionService(TransactionService):
             transaction_contents_length
         )
         if transaction_contents is not None:
-            self.node.log_txs_network_content(self.network_num, transaction_key.transaction_hash, transaction_contents)
             if call_set_contents:
                 self.node.block_recovery_service.check_missing_tx_hash(
                     transaction_key.transaction_hash, RecoveredTxsSource.TXS_RECEIVED_FROM_NODE
