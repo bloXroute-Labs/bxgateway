@@ -3,6 +3,7 @@ import asyncio
 import functools
 import gc
 from collections import defaultdict, deque
+from datetime import datetime
 
 from bxcommon.utils.stats.memory_statistics_service import memory_statistics
 from bxgateway.services.block_queuing_service_manager import BlockQueuingServiceManager
@@ -337,6 +338,11 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 alarm_name="check_memory_threshold"
             )
 
+        self.alarm_queue.register_alarm(
+            gateway_constants.ONE_DAY_INTERVAL_S,
+            self._get_account_record,
+            alarm_name="get_count_model"
+        )
     @abstractmethod
     def build_blockchain_connection(
         self, socket_connection: AbstractSocketConnectionProtocol
@@ -771,10 +777,12 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     def on_relay_connection_ready(self, conn_type: ConnectionType) -> None:
         # when gateway connects to a relay, check if the gateway doesn't have another syncing process and
         # that the connection is relay tx (to avoid double syncing when gateway connects to both block and tx)
-        if self.opts.sync_tx_service \
-            and self.network_num not in self.last_sync_message_received_by_network \
-                and ConnectionType.RELAY_TRANSACTION in conn_type \
-                and len(list(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_TRANSACTION,)))) == 1:
+        if (
+            self.opts.sync_tx_service
+            and self.network_num not in self.last_sync_message_received_by_network
+            and ConnectionType.RELAY_TRANSACTION in conn_type
+            and len(list(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_TRANSACTION,)))) == 1
+        ):
             # set sync to false and updating sdn
             self.opts.has_fully_updated_tx_service = False
             self.requester.send_threaded_request(sdn_http_service.submit_tx_not_synced_event, self.opts.node_id)
@@ -1511,3 +1519,37 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.should_force_exit = True
             self.should_restart_on_high_memory = True
         return gateway_constants.CHECK_MEMORY_THRESHOLD_INTERVAL_S
+
+    def _get_account_record(self) -> int:
+        if self.account_model:
+            self.requester.send_threaded_request(
+                sdn_http_service.fetch_account_model,
+                self.account_id,
+                done_callback=self._update_account_record
+            )
+        return constants.CANCEL_ALARMS
+
+    def _update_account_record(self, account_model_future: Future):
+        account_model = account_model_future.result()
+        if account_model:
+            if account_model.is_account_valid():
+                self.account_model = account_model
+                now = datetime.utcnow()
+                expire_date = datetime.fromisoformat(account_model.expire_date)
+                trigger_alarm = max(
+                    int((expire_date - now).total_seconds()) - gateway_constants.ONE_HOUR_INTERVAL_S,
+                    gateway_constants.ONE_HOUR_INTERVAL_S
+                )
+                node_cache.update_cache_file(
+                    self.opts,
+                    # pyre-fixme[16]: `Optional` has no attribute `account_id`
+                    accounts={self.account_model.account_id: self.account_model},
+                )
+            else:
+                trigger_alarm = gateway_constants.ONE_DAY_INTERVAL_S
+
+            self.alarm_queue.register_alarm(
+                trigger_alarm,
+                self._get_account_record,
+                alarm_name="get_count_model"
+            )
