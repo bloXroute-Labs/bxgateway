@@ -11,13 +11,13 @@ from bxcommon import constants as common_constants
 
 from bxgateway.abstract_message_converter import AbstractMessageConverter, BlockDecompressionResult
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
+from bxgateway.messages.eth.protocol.pooled_transactions_eth_protocol_message import \
+    PooledTransactionsEthProtocolMessage
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
 from bxgateway.utils.block_info import BlockInfo
 from bxgateway.utils.eth.eth_utils import parse_transaction_bytes
 
 from bxutils import logging
-
-import blxr_rlp as rlp
 
 logger = logging.get_logger(__name__)
 
@@ -71,9 +71,12 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
         :return: array of tuples (transaction message, transaction hash, transaction bytes)
         """
 
-        if not isinstance(tx_msg, TransactionsEthProtocolMessage):
+        if not isinstance(
+            tx_msg,
+            (TransactionsEthProtocolMessage, PooledTransactionsEthProtocolMessage)
+        ):
             raise TypeError(
-                f"TransactionsEthProtocolMessage is expected for arg tx_msg but was {type(tx_msg)}"
+                f"(TransactionsEthProtocolMessage, PooledTransactionsEthProtocolMessage) is expected for arg tx_msg but was {type(tx_msg)}"
             )
         bx_tx_msgs = []
 

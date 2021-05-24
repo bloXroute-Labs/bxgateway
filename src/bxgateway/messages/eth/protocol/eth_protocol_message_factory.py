@@ -15,13 +15,19 @@ from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtoco
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import GetNodeDataEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_pooled_transactions_eth_protocol_message import \
+    GetPooledTransactionsEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.hello_eth_protocol_message import HelloEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
+from bxgateway.messages.eth.protocol.new_pooled_transaction_hashes_eth_protocol_message import \
+    NewPooledTransactionHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.node_data_eth_protocol_message import NodeDataEthProtocolMessage
 from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
 from bxgateway.messages.eth.protocol.pong_eth_protocol_message import PongEthProtocolMessage
+from bxgateway.messages.eth.protocol.pooled_transactions_eth_protocol_message import \
+    PooledTransactionsEthProtocolMessage
 from bxgateway.messages.eth.protocol.raw_eth_protocol_message import RawEthProtocolMessage
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
@@ -49,6 +55,9 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
         EthProtocolMessageType.NODE_DATA: NodeDataEthProtocolMessage,
         EthProtocolMessageType.GET_RECEIPTS: GetReceiptsEthProtocolMessage,
         EthProtocolMessageType.RECEIPTS: ReceiptsEthProtocolMessage,
+        EthProtocolMessageType.NEW_POOLED_TRANSACTION_HASHES: NewPooledTransactionHashesEthProtocolMessage,
+        EthProtocolMessageType.GET_POOLED_TRANSACTIONS: GetPooledTransactionsEthProtocolMessage,
+        EthProtocolMessageType.POOLED_TRANSACTIONS: PooledTransactionsEthProtocolMessage,
     }
 
     if gateway_constants.ETH_PROTOCOL_VERSION_63 == eth_common_constants.ETH_PROTOCOL_VERSION:

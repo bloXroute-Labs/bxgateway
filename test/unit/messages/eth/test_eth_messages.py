@@ -31,6 +31,8 @@ from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message impo
 from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import (
     GetNodeDataEthProtocolMessage,
 )
+from bxgateway.messages.eth.protocol.get_pooled_transactions_eth_protocol_message import \
+    GetPooledTransactionsEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import (
     GetReceiptsEthProtocolMessage,
 )
@@ -41,10 +43,14 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import (
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import (
     NewBlockHashesEthProtocolMessage,
 )
+from bxgateway.messages.eth.protocol.new_pooled_transaction_hashes_eth_protocol_message import \
+    NewPooledTransactionHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.node_data_eth_protocol_message import (
     NodeDataEthProtocolMessage,
 )
 from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
+from bxgateway.messages.eth.protocol.pooled_transactions_eth_protocol_message import \
+    PooledTransactionsEthProtocolMessage
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import (
@@ -538,6 +544,43 @@ class EthMessagesTests(AbstractTestCase):
         self.assertEqual(new_block_msg.rawbytes(), new_block_msg_from_block_parts.rawbytes())
         self.assertEqual(
             new_block_msg_from_block_parts.get_chain_difficulty(), dummy_chain_difficulty
+        )
+
+    def test_new_pooled_transaction_hashes(self):
+        tx_hashes = [
+            bytes(helpers.generate_hash()),
+            bytes(helpers.generate_hash()),
+            bytes(helpers.generate_hash()),
+        ]
+
+        self._test_msg_serialization(
+            NewPooledTransactionHashesEthProtocolMessage,
+            False,
+            tx_hashes
+        )
+
+    def test_get_pooled_transactions(self):
+        tx_hashes = [
+            bytes(helpers.generate_hash()),
+            bytes(helpers.generate_hash()),
+            bytes(helpers.generate_hash()),
+        ]
+
+        self._test_msg_serialization(
+            GetPooledTransactionsEthProtocolMessage,
+            False,
+            tx_hashes
+        )
+
+    def test_pooled_transactions(self):
+        self._test_msg_serialization(
+            PooledTransactionsEthProtocolMessage,
+            False,
+            [
+                mock_eth_messages.get_dummy_transaction(1),
+                mock_eth_messages.get_dummy_transaction(2),
+                mock_eth_messages.get_dummy_transaction(3),
+            ],
         )
 
     def _test_msg_serialization(self, msg_cls, needs_private_key, *args, **kwargs):

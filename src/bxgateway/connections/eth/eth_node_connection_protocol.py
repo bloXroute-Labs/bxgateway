@@ -24,9 +24,13 @@ from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import B
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_pooled_transactions_eth_protocol_message import \
+    GetPooledTransactionsEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
+from bxgateway.messages.eth.protocol.new_pooled_transaction_hashes_eth_protocol_message import \
+    NewPooledTransactionHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
@@ -50,6 +54,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         connection.message_handlers.update({
             EthProtocolMessageType.STATUS: self.msg_status,
             EthProtocolMessageType.TRANSACTIONS: self.msg_tx,
+            EthProtocolMessageType.NEW_POOLED_TRANSACTION_HASHES: self.msg_new_pooled_tx_hashes,
+            EthProtocolMessageType.POOLED_TRANSACTIONS: self.msg_tx,
             EthProtocolMessageType.GET_BLOCK_HEADERS: self.msg_get_block_headers,
             EthProtocolMessageType.GET_BLOCK_BODIES: self.msg_get_block_bodies,
             EthProtocolMessageType.GET_NODE_DATA: self.msg_proxy_request,
@@ -107,6 +113,31 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         )
 
         self._connection_established_time = time.time()
+
+    def msg_new_pooled_tx_hashes(self, msg: NewPooledTransactionHashesEthProtocolMessage) -> None:
+        transaction_hashes = msg.transaction_hashes()
+
+        if not self.node.opts.has_fully_updated_tx_service:
+            self.connection.log_debug(
+                "Skipping {} announced transactions from Ethereum peer, not yet synced", len(transaction_hashes)
+            )
+            return
+
+        new_tx_hashes = []
+        for tx_hash in transaction_hashes:
+            if not self.tx_service.has_transaction_contents_by_key(
+                self.tx_service.get_transaction_key(tx_hash, None)
+            ):
+                new_tx_hashes.append(tx_hash.binary)
+
+        if new_tx_hashes:
+            self.connection.enqueue_msg(
+                GetPooledTransactionsEthProtocolMessage(
+                    None,
+                    new_tx_hashes
+                )
+            )
+            self.connection.log_debug("Fetching {} announced transactions from Ethereum peer", len(new_tx_hashes))
 
     def msg_tx(self, msg: TransactionsEthProtocolMessage) -> None:
         if len(msg.rawbytes()) >= eth_common_constants.ETH_SKIP_TRANSACTIONS_SIZE:
