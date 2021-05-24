@@ -109,6 +109,11 @@ class MockGatewayNode(AbstractGatewayNode):
     def set_known_total_difficulty(self, block_hash: Sha256Hash, total_difficulty: int) -> None:
         pass
 
+    def log_txs_network_content(
+        self, network_num: int, transaction_hash: Sha256Hash, transaction_contents: Union[bytearray, memoryview]
+    ) -> None:
+        pass
+
     def _get_cleanup_service(self) -> AbstractBtcBlockCleanupService:
         return _MockCleanupService(self)
 
