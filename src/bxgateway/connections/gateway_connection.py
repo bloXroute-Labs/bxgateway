@@ -212,7 +212,7 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 return
 
         self.node.feed_manager.publish_to_feed(
-            FeedKey(EthPendingTransactionFeed.NAME),
+            FeedKey(EthPendingTransactionFeed.NAME, self.network_num),
             EthRawTransaction(
                 tx_hash, tx_contents, FeedSource.BDN_SOCKET, local_region=True
             )

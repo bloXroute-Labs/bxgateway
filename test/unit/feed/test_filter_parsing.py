@@ -8,7 +8,7 @@ from bxcommon.rpc.rpc_errors import RpcInvalidParams, RpcAccountIdError
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.helpers import async_test
-from bxcommon.feed.feed import Feed
+from bxcommon.feed.feed import Feed, FeedKey
 from bxcommon.feed.feed_manager import FeedManager
 from bxcommon.feed import filter_parsing
 from bxutils.encoding.json_encoder import Case
@@ -53,6 +53,7 @@ class FilterParsingTest(AbstractTestCase):
     @async_test
     async def test_subscribe_to_feed_with_filters_all(self):
         feed = TestFeed("bar")
+        feed.feed_key = FeedKey("bar", self.gateway.network_num)
         feed.FILTERS = ["field1", "field2"]
 
         self.feed_manager.register_feed(feed)
@@ -67,6 +68,7 @@ class FilterParsingTest(AbstractTestCase):
     @async_test
     async def test_subscribe_to_feed_with_filters2(self):
         feed = TestFeed("bar")
+        feed.feed_key = FeedKey("bar", self.gateway.network_num)
         feed.FILTERS = ["to", "field2"]
 
         self.feed_manager.register_feed(feed)
@@ -137,6 +139,7 @@ class FilterParsingTest(AbstractTestCase):
         )
 
         feed = TestFeed("bar")
+        feed.feed_key = FeedKey("bar", network_num=self.gateway.network_num)
         feed.FILTERS = ["to", "field2"]
 
         self.feed_manager.register_feed(feed)

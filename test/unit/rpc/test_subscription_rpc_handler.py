@@ -36,6 +36,8 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
     @async_test
     async def test_subscribe_to_feed(self):
         feed = TestFeed("foo")
+        feed.network_num = self.gateway.network_num
+        feed.feed_key = FeedKey("foo", self.gateway.network_num)
         self.feed_manager.register_feed(feed)
         subscribe_request = BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo", {}])
 
@@ -47,7 +49,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         self.assertIsNone(result.error)
         subscriber_id = result.result
 
-        self.assertEqual(1, self.feed_manager.get_feed(FeedKey("foo")).subscriber_count())
+        self.assertEqual(1, self.feed_manager.get_feed(FeedKey("foo", self.gateway.network_num)).subscriber_count())
         self.assertEqual(1, len(self.rpc.subscriptions))
         self.assertIn(subscriber_id, self.rpc.subscriptions)
 
@@ -86,6 +88,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
     async def test_subscribe_to_feed_with_fields(self):
         feed = TestFeed("foo")
         feed.FIELDS = ["field1", "field2", "field3"]
+        feed.feed_key = FeedKey("foo", self.gateway.network_num)
         self.feed_manager.register_feed(feed)
         subscribe_request = BxJsonRpcRequest(
             "1", RpcRequestType.SUBSCRIBE, ["foo", {"include": ["field1", "field2"]}]
@@ -119,8 +122,11 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
     @async_test
     async def test_subscribe_to_multiple_feeds(self):
         feed1 = TestFeed("foo1")
+        feed1.feed_key = FeedKey("foo1", self.gateway.network_num)
         feed2 = TestFeed("foo2")
+        feed2.feed_key = FeedKey("foo2", self.gateway.network_num)
         feed3 = TestFeed("foo3")
+        feed3.feed_key = FeedKey("foo3", self.gateway.network_num)
         for feed in [feed1, feed2, feed3]:
             self.feed_manager.register_feed(feed)
 
@@ -171,6 +177,8 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
     @async_test
     async def test_unsubscribe(self):
         feed = TestFeed("foo")
+        feed.network_num = self.gateway.network_num
+        feed.feed_key = FeedKey("foo", self.gateway.network_num)
         self.feed_manager.register_feed(feed)
 
         subscribe_request = BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo", {}])
@@ -206,7 +214,7 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         self.assertFalse(next_message_task.done())  # no message
 
         self.assertEqual(0, len(self.rpc.subscriptions))
-        self.assertEqual(0, self.feed_manager.get_feed(FeedKey("foo")).subscriber_count())
+        self.assertEqual(0, self.feed_manager.get_feed(FeedKey("foo", self.gateway.network_num)).subscriber_count())
 
     @async_test
     async def test_close_bad_subscribers(self):
@@ -215,6 +223,8 @@ class SubscriptionRpcHandlerTest(AbstractTestCase):
         close_listener = asyncio.create_task(self.rpc.wait_for_close())
 
         feed1 = TestFeed("foo1")
+        feed1.network_num = self.gateway.network_num
+        feed1.feed_key = FeedKey("foo1", self.gateway.network_num)
         self.feed_manager.register_feed(feed1)
 
         rpc_request = BxJsonRpcRequest("1", RpcRequestType.SUBSCRIBE, ["foo1", {}])

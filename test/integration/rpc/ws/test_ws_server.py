@@ -23,7 +23,7 @@ from bxcommon.rpc.bx_json_rpc_request import BxJsonRpcRequest
 from bxcommon.rpc.json_rpc_response import JsonRpcResponse
 from bxcommon.rpc.rpc_request_type import RpcRequestType
 from bxcommon.test_utils.helpers import async_test
-from bxcommon.feed.feed import Feed
+from bxcommon.feed.feed import Feed, FeedKey
 from bxcommon.feed.feed_manager import FeedManager
 from bxgateway.rpc.ws.ws_server import WsServer
 from bxgateway.testing.abstract_gateway_rpc_integration_test import \
@@ -76,6 +76,8 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
             return_value=self.gateway_node.account_model.new_transaction_streaming
         )
         feed = TestFeed("foo")
+        feed.feed_key = FeedKey("foo", self.gateway_node.network_num)
+
         self.feed_manager.register_feed(feed)
 
         def publish():
@@ -130,6 +132,8 @@ class WsServerTest(AbstractGatewayRpcIntegrationTest):
         await self.server.start()
 
         feed = TestFeed("foo")
+        feed.feed_key = FeedKey("foo", self.gateway_node.network_num)
+
         self.feed_manager.register_feed(feed)
 
         @dataclass

@@ -443,7 +443,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
     ) -> None:
         transaction_feed_stats_service.log_new_transaction(tx_hash)
         self.node.feed_manager.publish_to_feed(
-            FeedKey(EthNewTransactionFeed.NAME),
+            FeedKey(EthNewTransactionFeed.NAME, self.node.network_num),
             EthRawTransaction(
                 tx_hash,
                 tx_contents,
@@ -453,7 +453,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         )
         transaction_feed_stats_service.log_pending_transaction_from_local(tx_hash)
         self.node.feed_manager.publish_to_feed(
-            FeedKey(EthPendingTransactionFeed.NAME),
+            FeedKey(EthPendingTransactionFeed.NAME, network_num=self.node.network_num),
             EthRawTransaction(
                 tx_hash,
                 tx_contents,

@@ -417,7 +417,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         self, tx_hash: Sha256Hash, tx_contents: memoryview, local_region: bool
     ) -> None:
         self.node.feed_manager.publish_to_feed(
-            FeedKey(NewTransactionFeed.NAME),
+            FeedKey(NewTransactionFeed.NAME, network_num=self.network_num),
             RawTransactionFeedEntry(tx_hash, tx_contents, local_region=local_region)
         )
 

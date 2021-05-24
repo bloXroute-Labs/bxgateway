@@ -467,13 +467,13 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.node.feed_manager.publish_to_feed.assert_has_calls(
             [
                 call(
-                    FeedKey(EthNewTransactionFeed.NAME),
+                    FeedKey(EthNewTransactionFeed.NAME, network_num=self.node.network_num),
                     EthRawTransaction(
                         transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET, local_region=True
                     )
                 ),
                 call(
-                    FeedKey(EthPendingTransactionFeed.NAME),
+                    FeedKey(EthPendingTransactionFeed.NAME, self.node.network_num),
                     EthRawTransaction(
                         transaction_hash, transaction_contents, FeedSource.BLOCKCHAIN_SOCKET, local_region=True
                     )

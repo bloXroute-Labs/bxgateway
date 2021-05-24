@@ -56,7 +56,7 @@ class EthRelayConnectionTest(AbstractTestCase):
             local_region=True,
         )
         self.node.feed_manager.publish_to_feed.assert_called_once_with(
-            FeedKey(NewTransactionFeed.NAME), expected_publication
+            FeedKey(NewTransactionFeed.NAME, self.node.network_num), expected_publication
         )
 
     def test_publish_new_tx_from_different_location(self):
@@ -72,7 +72,7 @@ class EthRelayConnectionTest(AbstractTestCase):
             local_region=False,
         )
         self.node.feed_manager.publish_to_feed.assert_called_once_with(
-            FeedKey(NewTransactionFeed.NAME), expected_publication
+            FeedKey(NewTransactionFeed.NAME, network_num=self.node.network_num), expected_publication
         )
 
     def test_publish_new_transaction_low_gas(self):

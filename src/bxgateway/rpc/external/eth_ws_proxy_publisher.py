@@ -144,7 +144,7 @@ class EthWsProxyPublisher(EthWsSubscriber):
         transaction_feed_stats_service.log_pending_transaction_from_local(transaction_key.transaction_hash)
 
         self.feed_manager.publish_to_feed(
-            FeedKey(EthPendingTransactionFeed.NAME),
+            FeedKey(EthPendingTransactionFeed.NAME, self.node.network_num),
             EthRawTransaction(
                 transaction_key.transaction_hash,
                 tx_contents,
@@ -181,7 +181,7 @@ class EthWsProxyPublisher(EthWsSubscriber):
             gas_price = int(parsed_tx["gasPrice"], 16)
             if gas_price >= self.node.get_network_min_transaction_fee():
                 self.feed_manager.publish_to_feed(
-                    FeedKey(EthPendingTransactionFeed.NAME),
+                    FeedKey(EthPendingTransactionFeed.NAME, network_num=self.node.network_num),
                     EthRawTransaction(
                         transaction_key.transaction_hash,
                         parsed_tx,

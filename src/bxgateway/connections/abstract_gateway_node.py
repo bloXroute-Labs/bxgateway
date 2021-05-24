@@ -415,8 +415,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             logger.warning(log_messages.TRANSACTION_FEED_NOT_ALLOWED)
 
     def init_live_feeds(self) -> None:
-        self.feed_manager.register_feed(NewTransactionFeed())
-        self.feed_manager.register_feed(NewBlockFeed())
+        self.feed_manager.register_feed(NewTransactionFeed(network_num=self.network_num))
+        self.feed_manager.register_feed(NewBlockFeed(network_num=self.network_num))
 
     def send_bdn_performance_stats(self) -> int:
         relay_connection = next(iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_BLOCK,))), None)
