@@ -213,19 +213,10 @@ class GatewayOpts(CommonOpts):
 
         blockchain_protocol = account_model.blockchain_protocol
         blockchain_network = account_model.blockchain_network
-        if blockchain_protocol is not None:
-            blockchain_protocol = blockchain_protocol.lower()
-            if self.blockchain_protocol:
-                if self.blockchain_protocol != blockchain_protocol:
-                    logger.fatal(log_messages.BLOCKCHAIN_PROTOCOL_AND_ACCOUNT_MISMATCH, exc_info=False)
-                    sys.exit(1)
-            else:
-                self.blockchain_protocol = blockchain_protocol
-        if blockchain_network is not None:
-            if self.blockchain_network:
-                assert self.blockchain_network == blockchain_network
-            else:
-                self.blockchain_network = blockchain_network
+        if self.blockchain_protocol is None and blockchain_protocol is not None:
+            self.blockchain_protocol = blockchain_protocol.lower()
+        if self.blockchain_network is None and blockchain_network is not None:
+            self.blockchain_network = blockchain_network
 
     def validate_network_opts(self) -> None:
         if self.blockchain_network is None:

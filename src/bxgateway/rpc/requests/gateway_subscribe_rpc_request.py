@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Optional
 
 from bxcommon.feed.feed import FeedKey
 from bxcommon.rpc import rpc_constants
@@ -20,7 +20,7 @@ class GatewaySubscribeRpcRequest(SubscribeRpcRequest):
         request: BxJsonRpcRequest,
         node: "AbstractGatewayNode",
         feed_manager: FeedManager,
-        subscribe_handler: Callable[[Subscriber, FeedKey], None],
+        subscribe_handler: Callable[[Subscriber, FeedKey, Optional[str]], None],
         feed_network: int = 0
     ) -> None:
         super().__init__(request, node, feed_manager, subscribe_handler, feed_network, node.account_model)

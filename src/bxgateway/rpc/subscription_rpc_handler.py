@@ -1,6 +1,6 @@
 import asyncio
 import json
-from typing import TYPE_CHECKING, Dict, Any, Optional, Union, cast, Type
+from typing import TYPE_CHECKING, Dict, Any, Optional, Union, cast, Type, Tuple
 
 from bxcommon.feed.feed import FeedKey
 from bxcommon.rpc.abstract_rpc_handler import AbstractRpcHandler
@@ -127,26 +127,30 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
     def close(self) -> None:
         subscription_ids = list(self.subscriptions.keys())
         for subscription_id in subscription_ids:
-            feed_key = self._on_unsubscribe(subscription_id)
+            feed_key, account_id = self._on_unsubscribe(subscription_id)
             assert feed_key is not None
-            self.feed_manager.unsubscribe_from_feed(feed_key, subscription_id)
+            self.feed_manager.unsubscribe_from_feed(
+                feed_key,
+                subscription_id,
+                account_id
+            )
         self.subscriptions = {}
 
         self.disconnect_event.set()
 
-    def _on_new_subscriber(self, subscriber: Subscriber, feed_key: FeedKey) -> None:
+    def _on_new_subscriber(self, subscriber: Subscriber, feed_key: FeedKey, account_id: Optional[str] = None) -> None:
         task = asyncio.ensure_future(self.handle_subscription(subscriber))
         self.subscriptions[subscriber.subscription_id] = Subscription(
-            subscriber, feed_key, task
+            subscriber, feed_key, task, account_id
         )
         self.node.on_new_subscriber_request()
 
-    def _on_unsubscribe(self, subscriber_id: str) -> Optional[FeedKey]:
+    def _on_unsubscribe(self, subscriber_id: str) -> Tuple[Optional[FeedKey], Optional[str]]:
         if subscriber_id in self.subscriptions:
-            (subscriber, feed_key, task) = self.subscriptions.pop(subscriber_id)
+            (subscriber, feed_key, task, account_id) = self.subscriptions.pop(subscriber_id)
             task.cancel()
-            return feed_key
-        return None
+            return feed_key, account_id
+        return None, None
 
     def _subscribe_request_factory(
         self, request: BxJsonRpcRequest
