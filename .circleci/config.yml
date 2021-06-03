@@ -65,7 +65,7 @@ jobs:
       - restore_cache: # restores saved dependency cache
           key: bxextensions-{{ checksum "~/ws/bxextensions_tmp_file" }}
       - restore_cache: # restores saved dependency cache
-          key: "bxgateway-\
+          key: "bxgatewayv2-\
             {{ checksum \"bxgateway/requirements.txt\" }}-\
             {{ checksum \"bxgateway/requirements-dev.txt\"}}-\
             {{ checksum \"bxcommon/requirements.txt\"}}-\
@@ -91,7 +91,7 @@ jobs:
           paths:
             - bxextensions
       - save_cache: # special step to save dependency cache
-          key: "bxgateway-\
+          key: "bxgatewayv2-\
             {{ checksum \"bxgateway/requirements.txt\" }}-\
             {{ checksum \"bxgateway/requirements-dev.txt\"}}-\
             {{ checksum \"bxcommon/requirements.txt\"}}-\
