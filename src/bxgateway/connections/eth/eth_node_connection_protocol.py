@@ -137,7 +137,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                     new_tx_hashes
                 )
             )
-            self.connection.log_debug("Fetching {} announced transactions from Ethereum peer", len(new_tx_hashes))
+            self.connection.log_trace("Fetching {} announced transactions from Ethereum peer", len(new_tx_hashes))
 
     def msg_tx(self, msg: TransactionsEthProtocolMessage) -> None:
         if len(msg.rawbytes()) >= eth_common_constants.ETH_SKIP_TRANSACTIONS_SIZE:
