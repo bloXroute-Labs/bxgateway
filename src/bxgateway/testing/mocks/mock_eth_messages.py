@@ -119,7 +119,7 @@ def get_dummy_block_header(
         timestamp,
         helpers.generate_bytes(100 * nonce),
         helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-        helpers.generate_bytes(nonce)
+        nonce.to_bytes(eth_common_constants.BLOCK_NONCE_LEN, byteorder="big")
     )
 
 
