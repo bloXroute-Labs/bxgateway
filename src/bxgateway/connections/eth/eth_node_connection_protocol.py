@@ -24,6 +24,7 @@ from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import B
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import GetNodeDataEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_pooled_transactions_eth_protocol_message import \
     GetPooledTransactionsEthProtocolMessage
 from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
@@ -50,7 +51,7 @@ logger = logging.get_logger(__name__)
 class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
     def __init__(self, connection, is_handshake_initiator, rlpx_cipher: RLPxCipher):
         super().__init__(connection, is_handshake_initiator, rlpx_cipher)
-
+        #  NOTE - cannot call `msg_proxy_request` directly
         connection.message_handlers.update({
             EthProtocolMessageType.STATUS: self.msg_status,
             EthProtocolMessageType.TRANSACTIONS: self.msg_tx,
@@ -58,7 +59,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             EthProtocolMessageType.POOLED_TRANSACTIONS: self.msg_tx,
             EthProtocolMessageType.GET_BLOCK_HEADERS: self.msg_get_block_headers,
             EthProtocolMessageType.GET_BLOCK_BODIES: self.msg_get_block_bodies,
-            EthProtocolMessageType.GET_NODE_DATA: self.msg_proxy_request,
+            EthProtocolMessageType.GET_NODE_DATA: self.msg_get_node_data,
             EthProtocolMessageType.GET_RECEIPTS: self.msg_get_receipts,
             EthProtocolMessageType.BLOCK_HEADERS: self.msg_block_headers,
             EthProtocolMessageType.NEW_BLOCK: self.msg_block,
@@ -343,6 +344,9 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
     def msg_get_receipts(self, msg: GetReceiptsEthProtocolMessage) -> None:
         self.node.log_requested_remote_blocks(msg.get_block_hashes())
+        self.msg_proxy_request(msg, self.connection)
+
+    def msg_get_node_data(self, msg: GetNodeDataEthProtocolMessage) -> None:
         self.msg_proxy_request(msg, self.connection)
 
     def _stop_waiting_checkpoint_headers_request(self):
