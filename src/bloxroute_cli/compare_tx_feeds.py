@@ -200,9 +200,7 @@ async def process_new_txs_gateway(
     min_gas: Optional[int], addresses: List[str], use_light_gateway: bool
 ) -> None:
     print(f"Initiating connection to: {gateway_url}")
-    headers = None
-    if use_light_gateway:
-        headers = {"Authorization": auth_header}
+    headers = {"Authorization": auth_header}
     async with WsProvider(gateway_url, headers=headers) as ws:
         print(f"websockets endpoint: {gateway_url} established")
         global ws_provider
