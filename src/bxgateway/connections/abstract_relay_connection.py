@@ -386,10 +386,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             peer_model = self.peer_model
             if peer_model is not None:
                 peer_model.assigning_short_ids = is_assigning
-            if self.node.opts.split_relays:
-                for peer_model in self.node.peer_transaction_relays:
-                    if peer_model.ip == self.peer_ip and peer_model.node_id == self.peer_id:
-                        peer_model.assigning_short_ids = is_assigning
 
         if msg.level() == LogLevel.WARNING or msg.level() == LogLevel.ERROR:
             self.log(msg.level(), log_messages.NOTIFICATION_FROM_RELAY, msg.formatted_message())
@@ -427,12 +423,6 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         if self.check_matching_relay_connection_alarm_id is not None:
             self.node.alarm_queue.unregister_alarm(self.check_matching_relay_connection_alarm_id)
             self.check_matching_relay_connection_alarm_id = None
-        if self.is_relay_connection() and self.node.opts.split_relays:
-            self.check_matching_relay_connection_alarm_id = \
-                self.node.alarm_queue.register_alarm(
-                    gateway_constants.CHECK_RELAY_CONNECTIONS_DELAY_S,
-                    self._check_matching_relay_connection
-                )
 
     def mark_for_close(self, should_retry: Optional[bool] = None):
         super(AbstractRelayConnection, self).mark_for_close(should_retry)
