@@ -87,7 +87,7 @@ class EthAbstractMessageConverter(AbstractMessageConverter):
 
         tx_start_index = 0
 
-        while True:
+        while tx_start_index < len(txs_bytes):
             bx_tx, _, tx_item_length, tx_item_start = eth_common_utils.raw_tx_to_bx_tx(
                 txs_bytes, tx_start_index, network_num, transaction_flag, account_id
             )
