@@ -110,8 +110,8 @@ class SubscriptionRpcHandler(AbstractRpcHandler["AbstractGatewayNode", Union[byt
             if self.subscribed_messages.full():
                 logger.info(
                     log_messages.GATEWAY_BAD_FEED_SUBSCRIBER,
-                    self.subscribed_messages.qsize(),
-                    list(self.subscriptions.keys())
+                    list(self.subscriptions.keys()),
+                    self.subscribed_messages.qsize()
                 )
                 asyncio.create_task(self.async_close())
                 return
