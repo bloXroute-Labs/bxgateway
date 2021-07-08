@@ -153,6 +153,7 @@ class RLPxCipher(object):
                 # Decrypt plain auth message
                 size = eth_common_constants.ENC_AUTH_MSG_LEN
                 message = self._ecc.decrypt(cipher_text[:size])
+                self._is_eip8_auth = False
             else:
                 # Decrypt EIP8 auth message
                 size = struct.unpack(">H", cipher_text[:eth_common_constants.EIP8_AUTH_PREFIX_LEN])[0] + \
@@ -165,7 +166,6 @@ class RLPxCipher(object):
 
                 message = self._ecc.decrypt(bytes(cipher_text[eth_common_constants.EIP8_AUTH_PREFIX_LEN:size]),
                                             shared_mac_data=bytes(cipher_text[:eth_common_constants.EIP8_AUTH_PREFIX_LEN]))
-                self._is_eip8_auth = True
         except RuntimeError as e:
             raise AuthenticationError(e)
 
