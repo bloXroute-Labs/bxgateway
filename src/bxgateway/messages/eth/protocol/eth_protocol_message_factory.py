@@ -95,9 +95,10 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
         """
         if self._expected_msg_type == EthProtocolMessageType.AUTH:
             return MessagePreview(True, EthProtocolMessageType.AUTH, input_buffer.length)
-        elif self._expected_msg_type == EthProtocolMessageType.AUTH_ACK and \
-                input_buffer.length >= eth_common_constants.ENC_AUTH_ACK_MSG_LEN:
-            return MessagePreview(True, EthProtocolMessageType.AUTH_ACK, eth_common_constants.ENC_AUTH_ACK_MSG_LEN)
+        elif self._expected_msg_type == EthProtocolMessageType.AUTH_ACK:
+            auth_ack_len = self._framed_input_buffer.peek_eip8_handshake_message_len(input_buffer)
+            if auth_ack_len:
+                return MessagePreview(True, EthProtocolMessageType.AUTH_ACK, auth_ack_len)
         elif self._expected_msg_type is None:
             decryption_start_time = time.time()
             is_full_msg, command = self._framed_input_buffer.peek_message(input_buffer)

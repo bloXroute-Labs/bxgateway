@@ -2,16 +2,18 @@ import os
 import random
 import struct
 import sys
+from typing import Tuple
+
 import pyelliptic
 from Crypto.Cipher import AES
 import blxr_rlp as rlp
-from blxr_rlp import sedes
 
 from bxutils import logging
 
 from bxcommon.exceptions import ParseError
 
 from bxgateway.eth_exceptions import InvalidKeyError, AuthenticationError, CipherNotInitializedError
+from bxgateway.messages.eth.serializers.eip8_handshake import Eip8Auth, Eip8AuthAck
 from bxcommon.utils.blockchain_utils.eth import crypto_utils, rlp_utils, eth_common_utils, eth_common_constants
 from bxgateway.utils.eth.eccx import ECCx
 from bxgateway.utils.eth.frame import Frame
@@ -34,7 +36,7 @@ class RLPxCipher(object):
         self._private_key = private_key
         self._remote_pubkey = remote_public_key
 
-        self._is_eip8_auth = False
+        self._is_eip8_auth = True
         self._remote_ephemeral_pubkey = None
         self._initiator_nonce = None
         self._responder_nonce = None
@@ -91,7 +93,6 @@ class RLPxCipher(object):
 
         ecdh_shared_secret = self._ecc.get_ecdh_key(self._remote_pubkey)
         token = ecdh_shared_secret
-        flag = 0x0
         self._initiator_nonce = eth_common_utils.keccak_hash(rlp_utils.int_to_big_endian(random.randint(0, sys.maxsize)))
         assert len(self._initiator_nonce) == eth_common_constants.SHA3_LEN_BYTES
 
@@ -107,9 +108,14 @@ class RLPxCipher(object):
         S = self._ephemeral_ecc.sign(token_xor_nonce)
         assert len(S) == eth_common_constants.SIGNATURE_LEN
 
-        # S || H(ephemeral-pubk) || pubk || nonce || 0x0
-        auth_message = S + eth_common_utils.keccak_hash(ephemeral_pubkey) + self._ecc.get_raw_public_key() + \
-                       self._initiator_nonce + rlp_utils.ascii_chr(flag)
+        version = eth_common_constants.AUTH_MSG_VERSION
+        data = rlp.encode(
+            (S, crypto_utils.private_to_public_key(self._private_key), self._initiator_nonce, version),
+            sedes=Eip8Auth.get_sedes()
+        )
+        pad = os.urandom(random.randint(eth_common_constants.EIP8_ACK_PAD_MIN, eth_common_constants.EIP8_ACK_PAD_MAX))
+        auth_message = data + pad
+
         return auth_message
 
     def encrypt_auth_message(self, auth_message):
@@ -122,7 +128,10 @@ class RLPxCipher(object):
 
         assert self._is_initiator
 
-        self._auth_init = self._ecc.encrypt(auth_message, self._remote_pubkey)
+        prefix = struct.pack(">H", len(auth_message) + eth_common_constants.ECIES_ENCRYPT_OVERHEAD_LENGTH)
+        enc_auth = self._ecc.encrypt(auth_message, self._remote_pubkey, shared_mac_data=prefix)
+        self._auth_init = prefix + enc_auth
+
         return self._auth_init
 
     def decrypt_auth_message(self, cipher_text):
@@ -202,16 +211,8 @@ class RLPxCipher(object):
         return signature, pubkey, nonce, eth_common_constants.P2P_PROTOCOL_VERSION
 
     def parse_eip8_auth_message(self, message):
-        eip8_auth_serializers = sedes.List(
-            [
-                sedes.Binary(min_length=eth_common_constants.SIGNATURE_LEN, max_length=eth_common_constants.SIGNATURE_LEN),  # sig
-                sedes.Binary(min_length=eth_common_constants.PUBLIC_KEY_LEN, max_length=eth_common_constants.PUBLIC_KEY_LEN),
-                # pubkey
-                sedes.Binary(min_length=eth_common_constants.AUTH_NONCE_LEN, max_length=eth_common_constants.AUTH_NONCE_LEN),  # nonce
-                sedes.BigEndianInt()  # version
-            ], strict=False)
 
-        values = rlp.decode(message, sedes=eip8_auth_serializers, strict=False)
+        values = rlp.decode(message, sedes=Eip8Auth.get_sedes(), strict=False)
         signature, pubkey, nonce, version = values
 
         return signature, pubkey, nonce, version
@@ -244,16 +245,9 @@ class RLPxCipher(object):
     def create_plain_auth_ack_message(self, ephemeral_pubkey, nonce, version):
         return ephemeral_pubkey + nonce + b"\x00"
 
-
     def create_eip8_auth_ack_message(self, ephemeral_pubkey, nonce, version):
-        eip8_ack_serializers = sedes.List(
-            [
-                sedes.Binary(min_length=eth_common_constants.PUBLIC_KEY_LEN, max_length=eth_common_constants.PUBLIC_KEY_LEN),  # ephemeral pubkey
-                sedes.Binary(min_length=eth_common_constants.AUTH_NONCE_LEN, max_length=eth_common_constants.AUTH_NONCE_LEN),  # nonce
-                sedes.BigEndianInt()  # version
-            ], strict=False)
 
-        data = rlp.encode((ephemeral_pubkey, nonce, version), sedes=eip8_ack_serializers)
+        data = rlp.encode((ephemeral_pubkey, nonce, version), sedes=Eip8AuthAck.get_sedes())
         pad = os.urandom(random.randint(eth_common_constants.EIP8_ACK_PAD_MIN, eth_common_constants.EIP8_ACK_PAD_MAX))
         return data + pad
 
@@ -280,20 +274,28 @@ class RLPxCipher(object):
 
         assert self._is_initiator
 
-        if len(cipher_text) != eth_common_constants.ENC_AUTH_ACK_MSG_LEN:
+        if not self._is_eip8_auth and len(cipher_text) != eth_common_constants.ENC_AUTH_ACK_MSG_LEN:
             raise ValueError("Expected length of auth ack message is {0} but was provided {1}"
                              .format(eth_common_constants.ENC_AUTH_ACK_MSG_LEN, len(cipher_text)))
 
-        (size, eph_pubkey, nonce) = self._decode_auth_ack_message(cipher_text)
-        self._auth_ack = cipher_text[:size]
-        self._remote_ephemeral_pubkey = eph_pubkey[:eth_common_constants.PUBLIC_KEY_LEN]
-        self._responder_nonce = nonce
-        self._remote_version = eth_common_constants.AUTH_MSG_VERSION
+        if self._is_eip8_auth:
+            (ephemeral_pubkey, nonce, version) = self._decode_eip8_auth_ack_message(cipher_text)
+            self._auth_ack = cipher_text
+            self._remote_ephemeral_pubkey = ephemeral_pubkey
+            self._responder_nonce = nonce
+            self._remote_version = version
+            return cipher_text
+        else:
+            (size, eph_pubkey, nonce) = self._decode_auth_ack_message(cipher_text)
+            self._auth_ack = cipher_text[:size]
+            self._remote_ephemeral_pubkey = eph_pubkey[:eth_common_constants.PUBLIC_KEY_LEN]
+            self._responder_nonce = nonce
+            self._remote_version = eth_common_constants.AUTH_MSG_VERSION
 
-        if not self._ecc.is_valid_key(self._remote_ephemeral_pubkey):
-            raise InvalidKeyError("Invalid remote ephemeral pubkey")
+            if not self._ecc.is_valid_key(self._remote_ephemeral_pubkey):
+                raise InvalidKeyError("Invalid remote ephemeral pubkey")
 
-        return cipher_text[size:]
+            return cipher_text[size:]
 
     def setup_cipher(self):
         """
@@ -492,3 +494,13 @@ class RLPxCipher(object):
         known = rlp_utils.safe_ord(message[-1])
         assert known == 0
         return (eth_common_constants.ENC_AUTH_ACK_MSG_LEN, eph_pubkey, nonce)
+
+    def _decode_eip8_auth_ack_message(self, cipher_text: bytes) -> Tuple[bytes, bytes, int]:
+        message = self._ecc.decrypt(bytes(cipher_text[eth_common_constants.EIP8_AUTH_PREFIX_LEN:]),
+                                    shared_mac_data=bytes(cipher_text[:eth_common_constants.EIP8_AUTH_PREFIX_LEN]))
+
+        values = rlp.decode(message, sedes=Eip8AuthAck.get_sedes(), strict=False)
+        (ephemeral_pubkey, nonce, version) = values
+        if not self._ecc.is_valid_key(ephemeral_pubkey):
+            raise InvalidKeyError("Invalid remote ephemeral pubkey")
+        return ephemeral_pubkey, nonce, version
