@@ -19,7 +19,7 @@ from bxcommon.rpc import rpc_constants
 from bxcommon.feed.feed_source import FeedSource
 from bxcommon.utils import convert
 from bxcommon.utils.expiring_dict import ExpiringDict
-from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants, eth_common_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
@@ -456,7 +456,7 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def on_transactions_in_block(self, transactions: List[Transaction]) -> None:
         for transaction in transactions:
-            self.average_block_gas_price.add_value(transaction.gas_price)
+            self.average_block_gas_price.add_value(transaction.adjusted_gas_price())
 
     def broadcast_transactions_to_nodes(
         self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
@@ -475,13 +475,13 @@ class EthGatewayNode(AbstractGatewayNode):
             assert len(msg.get_transactions()) == 1
             transaction = msg.get_transactions()[0]
 
-            gas_price = float(transaction.gas_price)
+            gas_price = float(transaction.adjusted_gas_price())
 
             if gas_price < gas_price_filter:
                 logger.trace(
                     "Skipping sending transaction {} with gas price: {}. Average was {}. Minimum from node was {}.",
                     transaction.hash(),
-                    float(transaction.gas_price),
+                    gas_price,
                     average_block_gas_filter,
                     min_gas_price_from_node
                 )
