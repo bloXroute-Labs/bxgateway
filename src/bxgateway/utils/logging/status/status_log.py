@@ -32,7 +32,7 @@ from bxgateway.utils.logging.status import summary as summary_status
 logger = logging.get_logger(__name__)
 
 STATUS_FILE_NAME = "gateway_status.log"
-CONN_TYPES = {ConnectionType.RELAY_BLOCK, ConnectionType.RELAY_TRANSACTION, ConnectionType.REMOTE_BLOCKCHAIN_NODE}
+CONN_TYPES = {ConnectionType.RELAY_ALL, ConnectionType.REMOTE_BLOCKCHAIN_NODE}
 
 gateway_status = Enum(
     "gateway_status",
@@ -57,7 +57,7 @@ def initialize(use_ext: bool, src_ver: str, ip_address: str, continent: str, cou
     # pyre-fixme[16]: `Optional` has no attribute `value`.
     gateway_status.state(summary.gateway_status.value)
     environment = Environment(_get_installation_type(), OS_VERSION, platform.python_version(), sys.executable)
-    network = Network([], [], [], [])
+    network = Network([], [], [])
     analysis = Analysis(current_time, _get_startup_param(), src_ver, _check_extensions_validity(use_ext, src_ver),
                         environment, network, _get_installed_python_modules())
     diagnostics = Diagnostics(summary, analysis)
