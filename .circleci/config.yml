@@ -127,6 +127,24 @@ jobs:
             # remove dev configuration
             rm .pyre_configuration
             pyre --local-configuration .pyre_configuration.circle check
+      - run:
+          name: Check for missing __init__.py
+          command: |
+            rc=0
+            files=($(find bxcommon/src/bxcommon -type d -not -name __pycache__))
+            files+=($(find bxcommon/src/bxutils -type d -not -name __pycache__))
+            files+=($(find bxgateway/src/bxgateway -type d -not -name __pycache__))
+            files+=($(find bxgateway/src/bloxroute_cli -type d -not -name __pycache__))
+
+            for f in ${files[@]};
+            do
+              if [[ ! -f $f/__init__.py ]];
+              then
+                rc=1
+                echo "missing __init__.py in $f"
+              fi
+            done
+            exit $rc
   test:
     executor: bloxroute-executor
     steps:
