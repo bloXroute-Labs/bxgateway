@@ -18,6 +18,7 @@ from bxgateway import gateway_constants
 from bxgateway import log_messages
 from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
 from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
+from bxgateway.messages.gateway.confirmed_block_message import ConfirmedBlockMessage
 from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
@@ -53,10 +54,12 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
             BloxrouteMessageType.BLOCK_HOLDING: self.msg_block_holding,
             BloxrouteMessageType.KEY: self.msg_key,
             GatewayMessageType.CONFIRMED_TX: self.msg_confirmed_tx,
+            GatewayMessageType.CONFIRMED_BLOCK: self.msg_confirmed_block,
             GatewayMessageType.REQUEST_TX_STREAM: self.msg_request_tx_stream,
         }
         self.version_manager = gateway_version_manager
         self.protocol_version = self.version_manager.CURRENT_PROTOCOL_VERSION
+        self.stream_confirmation_messages = False
 
         if self.from_me:
             self._initialize_ordered_handshake()
@@ -221,6 +224,9 @@ class GatewayConnection(InternalNodeConnection["AbstractGatewayNode"]):
         transaction_feed_stats_service.log_pending_transaction_from_internal(tx_hash)
 
     def msg_request_tx_stream(self, msg: RequestTxStreamMessage) -> None:
+        pass
+
+    def msg_confirmed_block(self, msg: ConfirmedBlockMessage) -> None:
         pass
 
     def _initialize_ordered_handshake(self):

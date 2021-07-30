@@ -508,6 +508,11 @@ class EthBlockQueuingService(
         self.connection.enqueue_msg(full_header_message)
         return True
 
+    def get_block_height(self, block_hash: Sha256Hash) -> Optional[int]:
+        if block_hash not in self._height_by_block_hash:
+            return None
+        return self._height_by_block_hash[block_hash]
+
     def get_block_hashes_starting_from_hash(
         self, block_hash: Sha256Hash, max_count: int, skip: int, reverse: bool
     ) -> Tuple[bool, List[Sha256Hash]]:

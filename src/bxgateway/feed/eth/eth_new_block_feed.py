@@ -10,6 +10,8 @@ from bxgateway import gateway_constants
 
 from bxgateway.feed.eth.eth_block_feed_entry import EthBlockFeedEntry
 from bxgateway.feed.eth.eth_raw_block import EthRawBlock
+from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
+from bxgateway.messages.gateway.confirmed_block_message import ConfirmedBlockMessage
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxutils import logging
 
@@ -79,11 +81,18 @@ class EthNewBlockFeed(Feed[EthBlockFeedEntry, EthRawBlock]):
         )
         if raw_message.source not in self.VALID_SOURCES:
             return
-        if self.subscriber_count() == 0:
-            return
 
         block_hash = raw_message.block_hash
         block_number = raw_message.block_number
+
+        if self.node.opts.stream_to_peer_gateway is not None:
+            eth_block_info = cast(InternalEthBlockInfo, raw_message.block)
+            self.node.eth_ws_proxy_publisher.broadcast_confirmation_message(
+                ConfirmedBlockMessage(block_hash, eth_block_info.rawbytes())
+            )
+
+        if self.subscriber_count() == 0:
+            return
 
         if block_number < self.last_block_number - gateway_constants.MAX_BLOCK_BACKLOG_TO_PUBLISH:
             # published block is too far behind ignore

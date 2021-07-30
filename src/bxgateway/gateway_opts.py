@@ -103,6 +103,7 @@ class GatewayOpts(CommonOpts):
     ws_port: int
     eth_ws_uri: Optional[str]
     request_remote_transaction_streaming: bool
+    stream_to_peer_gateway: Optional[OutboundPeerModel]
 
     # ENV
     is_docker: bool
@@ -160,6 +161,9 @@ class GatewayOpts(CommonOpts):
             )
 
         opts.min_peer_relays_count = 1
+
+        if opts.stream_to_peer_gateway is not None:
+            opts.peer_gateways.append(opts.stream_to_peer_gateway)
         return opts
 
     @classmethod

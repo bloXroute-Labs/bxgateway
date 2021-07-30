@@ -335,6 +335,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self._get_account_record,
             alarm_name="get_count_model"
         )
+
     @abstractmethod
     def build_blockchain_connection(
         self, socket_connection: AbstractSocketConnectionProtocol
@@ -660,6 +661,26 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     or OutboundPeerModel(ip, port) in self.opts.peer_gateways
                     or (connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE and
                         self.num_retries_by_ip[(ip, port)] < gateway_constants.REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES))
+
+    def on_connection_added(
+        self, socket_connection: AbstractSocketConnectionProtocol
+    ) -> Optional[AbstractConnection]:
+        conn = super().on_connection_added(socket_connection)
+        streaming_peer = self.opts.stream_to_peer_gateway
+        if (
+            conn is None
+            or streaming_peer is None
+            or conn.CONNECTION_TYPE not in ConnectionType.GATEWAY
+        ):
+            return conn
+
+        conn = cast(GatewayConnection, conn)
+        conn_endpoint = conn.socket_connection.endpoint
+        if (
+            conn_endpoint.ip_address == streaming_peer.ip
+            and conn_endpoint.port == streaming_peer.port
+        ):
+            conn.stream_confirmation_messages = True
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection) -> None:
         new_blockchain_peer = BlockchainPeerInfo(connection.peer_ip, connection.peer_port)

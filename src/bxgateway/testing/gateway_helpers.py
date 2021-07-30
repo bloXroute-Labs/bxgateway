@@ -163,6 +163,7 @@ def get_gateway_opts(
             "filter_txs_factor": filter_txs_factor,
             "min_peer_relays_count": None,
             "should_restart_on_high_memory": should_restart_on_high_memory,
+            "stream_to_peer_gateway": None,
         }
     )
 

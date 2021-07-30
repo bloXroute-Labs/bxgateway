@@ -58,6 +58,11 @@ def parse_peer_string(peer_string):
     return peers
 
 
+def parse_streaming_peer(peer_string: str) -> OutboundPeerModel:
+    ip, port_str = peer_string.split(":")
+    return OutboundPeerModel(ip, int(port_str), node_type=NodeType.EXTERNAL_GATEWAY)
+
+
 def get_default_eth_private_key():
     gateway_key_file_name = config.get_data_file(eth_common_constants.GATEWAY_PRIVATE_KEY_FILE_NAME)
 
@@ -328,6 +333,12 @@ def get_argument_parser() -> argparse.ArgumentParser:
              "higher gas price, etc.)",
         type=float,
         default=0
+    )
+    arg_parser.add_argument(
+        "--stream-to-peer-gateway",
+        help="Peer gateway to send confirmed transactions to from blockchain nodes. Requires --eth-ws-subscriber to be set.",
+        type=parse_streaming_peer,
+        default=None,
     )
 
     return arg_parser
