@@ -185,7 +185,10 @@ class EthWsProxyPublisher(EthWsSubscriber):
             logger.debug(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, transaction_key.transaction_hash)
             transaction_feed_stats_service.log_pending_transaction_missing_contents()
         else:
-            gas_price = int(parsed_tx["gasPrice"], 16)
+            if parsed_tx["type"] == "0x2":
+                gas_price = int(parsed_tx["maxFeePerGas"], 16)
+            else:
+                gas_price = int(parsed_tx["gasPrice"], 16)
             if gas_price >= self.node.get_network_min_transaction_fee():
                 self.feed_manager.publish_to_feed(
                     FeedKey(EthPendingTransactionFeed.NAME, network_num=self.node.network_num),
