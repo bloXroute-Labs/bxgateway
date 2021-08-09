@@ -340,6 +340,12 @@ def get_argument_parser() -> argparse.ArgumentParser:
         type=parse_streaming_peer,
         default=None,
     )
+    arg_parser.add_argument(
+        "--miner",
+        help="If true, gateway will send bdn txs to the node only if they're paid txs",
+        default=False,
+        type=convert.str_to_bool,
+    )
 
     return arg_parser
 

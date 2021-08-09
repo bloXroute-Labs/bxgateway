@@ -216,17 +216,23 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 blockchain_tx_message = self.node.message_converter.bx_tx_to_tx(msg)
                 transaction_feed_stats_service.log_new_transaction(tx_hash)
 
-                sent = self.node.broadcast_transactions_to_nodes(blockchain_tx_message, self)
-                if sent:
-                    tx_stats.add_tx_by_hash_event(
-                        tx_hash,
-                        TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
-                        network_num,
-                        short_id
+                if self.node.opts.miner and TransactionFlag.PAID_TX not in msg.transaction_flag():
+                    self.log_debug(
+                        "Miner gateway received non-paid transaction {} from BDN, skip broadcast txs to the node",
+                        tx_hash
                     )
-                    gateway_bdn_performance_stats_service.log_tx_sent_to_nodes()
                 else:
-                    gateway_transaction_stats_service.log_dropped_transaction_from_relay()
+                    sent = self.node.broadcast_transactions_to_nodes(blockchain_tx_message, self)
+                    if sent:
+                        tx_stats.add_tx_by_hash_event(
+                            tx_hash,
+                            TransactionStatEventType.TX_SENT_FROM_GATEWAY_TO_BLOCKCHAIN_NODE,
+                            network_num,
+                            short_id
+                        )
+                        gateway_bdn_performance_stats_service.log_tx_sent_to_nodes()
+                    else:
+                        gateway_transaction_stats_service.log_dropped_transaction_from_relay()
 
         if attempt_recovery:
             self.node.block_processing_service.retry_broadcast_recovered_blocks(self)
