@@ -217,7 +217,7 @@ class AbstractRelayConnection(InternalNodeConnection["AbstractGatewayNode"]):
                 transaction_feed_stats_service.log_new_transaction(tx_hash)
 
                 if self.node.opts.miner and TransactionFlag.PAID_TX not in msg.transaction_flag():
-                    self.log_debug(
+                    self.log_trace(
                         "Miner gateway received non-paid transaction {} from BDN, skip broadcast txs to the node",
                         tx_hash
                     )
