@@ -202,7 +202,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.blockchain_peer_to_block_queuing_service
         )
 
-        self.send_request_for_relay_peers_num_of_calls = 0
         self.check_relay_alarm_id: Optional[AlarmId] = None
         self.transaction_sync_start_alarm_id: Optional[AlarmId] = None
 
@@ -1132,16 +1131,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             if potential_relay_peers:
                 node_cache.update_cache_file(self.opts, potential_relay_peers=potential_relay_peers)
             else:
-                # if called too many times to sync_and_send_request_for_relay_peers,
-                # reset relay peers to empty list in cache file
-                if (
-                    self.send_request_for_relay_peers_num_of_calls
-                    > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS
-                ):
-                    node_cache.update_cache_file(self.opts, potential_relay_peers=[])
-                    self.send_request_for_relay_peers_num_of_calls = 0
-                self.send_request_for_relay_peers_num_of_calls += 1
-
                 cache_file_info = node_cache.read(self.opts)
                 if cache_file_info is not None:
                     potential_relay_peers = cache_file_info.relay_peers
@@ -1149,6 +1138,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 if not potential_relay_peers:
                     self._schedule_fetch_relays_from_sdn()
                     return
+                else:
+                    logger.info("Loaded potential relays from cache.")
 
             # check the network latency using the thread pool
             self.requester.send_threaded_request(
