@@ -159,6 +159,7 @@ def get_gateway_opts(
             "process_node_txs_in_extension": True,
             "enable_eth_extensions": True,   # TODO remove,
             "request_recovery": True,
+            "miner": False,
             "enable_block_compression": enable_block_compression,
             "filter_txs_factor": filter_txs_factor,
             "min_peer_relays_count": None,

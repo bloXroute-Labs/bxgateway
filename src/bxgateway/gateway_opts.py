@@ -86,6 +86,7 @@ class GatewayOpts(CommonOpts):
     filter_txs_factor: float
     min_peer_relays_count: int
     should_restart_on_high_memory: bool
+    miner: bool
 
     # IPC
     ipc: bool
