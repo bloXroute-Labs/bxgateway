@@ -29,7 +29,7 @@ class GetBlockBodiesEthProtocolMessage(EthProtocolMessage):
 
     def get_block_hashes(self) -> List[Sha256Hash]:
         if self._memory_view is None:
-            self.serialize()
+            self.serialize_message()
 
         return list(
             map(

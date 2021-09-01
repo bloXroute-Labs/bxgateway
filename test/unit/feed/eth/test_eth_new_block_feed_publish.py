@@ -57,7 +57,7 @@ class EthNewBlockFeedPublishTest(AbstractTestCase):
             ),
             10
         )
-        block_message.serialize()
+        block_message.serialize_message()
         internal_block_message = InternalEthBlockInfo.from_new_block_msg(block_message)
         return internal_block_message
 

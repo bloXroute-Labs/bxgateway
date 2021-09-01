@@ -1,21 +1,43 @@
 import time
 from abc import ABCMeta
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, cast, Optional, Union
+from typing import TYPE_CHECKING, cast, Optional, Union, List
 
 from bxcommon.connections.connection_type import ConnectionType
+from bxcommon.messages.eth.serializers.block_header import BlockHeader
 from bxcommon.utils import convert
+from bxcommon.utils.object_hash import Sha256Hash
 from bxgateway import gateway_constants
-from bxcommon.utils.blockchain_utils.eth import eth_common_constants
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants, eth_common_utils
 from bxgateway.connections.abstract_blockchain_connection_protocol import AbstractBlockchainConnectionProtocol
+from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import \
+    BlockBodiesEthProtocolMessage
+from bxgateway.messages.eth.protocol.block_bodies_v66_eth_protocol_message import \
+    BlockBodiesV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.block_headers_v66_eth_protocol_message import \
+    BlockHeadersV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import DisconnectEthProtocolMessage
+from bxgateway.messages.eth.protocol.eth_protocol_message_factory import EthProtocolMessageFactory
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
+from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import \
+    GetBlockBodiesEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_block_bodies_v66_eth_protocol_message import \
+    GetBlockBodiesV66EthProtocolMessage
+from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import \
+    GetBlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_block_headers_v66_eth_protocol_message import \
+    GetBlockHeadersV66EthProtocolMessage
+from bxgateway.messages.eth.protocol.get_pooled_transactions_eth_protocol_message import \
+    GetPooledTransactionsEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_pooled_transactions_v66_eth_protocol_message import \
+    GetPooledTransactionsV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.hello_eth_protocol_message import HelloEthProtocolMessage
 from bxgateway.messages.eth.protocol.pong_eth_protocol_message import PongEthProtocolMessage
 from bxgateway.messages.eth.protocol.raw_eth_protocol_message import RawEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
+from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
 from bxgateway.utils.eth import frame_utils
 from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 from bxgateway.utils.stats.eth.eth_gateway_stats_service import eth_gateway_stats_service
@@ -23,6 +45,7 @@ from bxutils import logging
 
 if TYPE_CHECKING:
     from bxgateway.connections.eth.eth_gateway_node import EthGatewayNode
+    from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
 
 logger = logging.get_logger(__name__)
 
@@ -43,6 +66,7 @@ class EthConnectionProtocolStatus:
 
 class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=ABCMeta):
     node: "EthGatewayNode"
+    connection: "EthBaseConnection"
 
     def __init__(self, connection, is_handshake_initiator, rlpx_cipher: RLPxCipher):
         super(EthBaseConnectionProtocol, self).__init__(
@@ -51,7 +75,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
         )
 
         self.node = cast("EthGatewayNode", connection.node)
-
+        self.connection = cast("EthBaseConnection", connection)
         self.rlpx_cipher = rlpx_cipher
         self.connection_status = EthConnectionProtocolStatus()
 
@@ -139,6 +163,11 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
         else:
             status_msg = msg
 
+        self.connection.log_info("Status message received. Version: {}", protocol_version)
+        message_factory = cast(EthProtocolMessageFactory, self.connection.message_factory)
+        message_factory.set_mappings_for_version(protocol_version)
+        self.connection.version = protocol_version
+
         self.connection_status.status_message_received = True
 
         for peer in self.node.blockchain_peers:
@@ -162,9 +191,70 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
 
     def msg_get_block_headers(self, msg):
         self.connection.log_trace("Replying with empty headers message to the get headers request")
-        block_headers_msg = BlockHeadersEthProtocolMessage(None, [])
-        self.connection.enqueue_msg(block_headers_msg)
+
+        request_id: Optional[int] = None
+        if isinstance(msg, GetBlockHeadersV66EthProtocolMessage):
+            request_id = msg.get_request_id()
+
+        self.send_block_headers([], request_id)
         self._waiting_checkpoint_headers_request = False
+
+    def request_block_headers(self, start_hash: Sha256Hash, amount: int, skip: int, reverse: int) -> None:
+        # difference between v65 and v66:
+        # https://github.com/ethereum/devp2p/blob/master/caps/eth.md#getblockheaders-0x03
+        request = GetBlockHeadersEthProtocolMessage(None, start_hash.binary, amount, skip, reverse)
+        if self.connection.is_version_66():
+            request = GetBlockHeadersV66EthProtocolMessage(
+                None, eth_common_utils.generate_message_request_id(), request
+            )
+
+        self.connection.enqueue_msg(request)
+
+    def request_block_bodies(self, block_hashes: List[Sha256Hash]) -> None:
+        if self.connection.is_version_66():
+            block_request_message = GetBlockBodiesV66EthProtocolMessage(
+                None, eth_common_utils.generate_message_request_id(), [block_hash.binary for block_hash in block_hashes]
+            )
+        else:
+            block_request_message = GetBlockBodiesEthProtocolMessage(
+                None, [block_hash.binary for block_hash in block_hashes]
+            )
+
+        self.connection.enqueue_msg(block_request_message)
+
+    def request_transactions(self, tx_hashes: List[Sha256Hash]) -> None:
+        if self.connection.is_version_66():
+            request = GetPooledTransactionsV66EthProtocolMessage(
+                None, eth_common_utils.generate_message_request_id(), [tx_hash.binary for tx_hash in tx_hashes]
+            )
+        else:
+            request = GetPooledTransactionsEthProtocolMessage(
+                None, [tx_hash.binary for tx_hash in tx_hashes]
+            )
+
+        self.connection.enqueue_msg(request)
+
+    def send_block_headers(self, headers: List[BlockHeader], request_id: Optional[int]) -> None:
+        if self.connection.is_version_66():
+            if request_id is None:
+                raise ValueError("cannot respond with block headers for protocol 66 message without request ID")
+            block_headers_msg = BlockHeadersV66EthProtocolMessage(None, request_id, headers)
+        else:
+            block_headers_msg = BlockHeadersEthProtocolMessage(None, headers)
+
+        self.connection.enqueue_msg(block_headers_msg)
+
+    def send_block_bodies(self, bodies: List[TransientBlockBody], request_id: Optional[int]) -> None:
+        # difference between v65 and v66:
+        # https://github.com/ethereum/devp2p/blob/master/caps/eth.md#getblockheaders-0x03
+        block_bodies_msg = BlockBodiesEthProtocolMessage(None, bodies)
+
+        if self.connection.is_version_66():
+            if request_id is None:
+                raise ValueError("cannot respond with block bodies for protocol 66 message without request ID")
+            block_bodies_msg = BlockBodiesV66EthProtocolMessage(None, request_id, block_bodies_msg)
+
+        self.connection.enqueue_msg(block_bodies_msg)
 
     def get_message_bytes(self, msg):
         if isinstance(msg, RawEthProtocolMessage):
@@ -227,7 +317,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
         chain_head_hash = convert.hex_to_bytes(self.node.opts.genesis_hash)
         genesis_hash = chain_head_hash
 
-        if protocol_version == gateway_constants.ETH_PROTOCOL_VERSION_63:
+        if protocol_version == 63:
             status_msg = StatusEthProtocolMessageV63(
                 None,
                 protocol_version,

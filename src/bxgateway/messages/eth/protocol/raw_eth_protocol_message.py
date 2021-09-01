@@ -8,9 +8,9 @@ class RawEthProtocolMessage(EthProtocolMessage):
 
         super(EthProtocolMessage, self).__init__(msg_bytes)
 
-    def serialize(self):
+    def serialize_message(self):
         raise NotImplementedError("Raw message can't be serialized")
 
-    def deserialize(self):
+    def deserialize_message(self):
         raise NotImplementedError("Raw message can't be deserialized")
 

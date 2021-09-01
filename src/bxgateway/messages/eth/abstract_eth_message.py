@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Sequence
 
 import blxr_rlp as rlp
 from blxr_rlp.sedes import List
@@ -6,7 +7,7 @@ from blxr_rlp.sedes import List
 from bxcommon.messages.abstract_message import AbstractMessage
 
 
-class AbstractEthMessage(AbstractMessage, ABC):
+class AbstractEthMessage(AbstractMessage, ABC, Sequence):
     msg_type = None
     fields = []
 
@@ -24,6 +25,16 @@ class AbstractEthMessage(AbstractMessage, ABC):
             self._set_raw_bytes(msg_bytes)
             self._is_deserialized = False
 
+    def __iter__(self):
+        for field, _ in self.fields:
+            yield self.get_field_value(field)
+
+    def __len__(self):
+        return len(self.fields)
+
+    def __getitem__(self, item):
+        return self.get_field_value(self.fields[item][0])
+
     @classmethod
     def initialize_class(cls, cls_type, buf, unpacked_args):
         """
@@ -32,18 +43,42 @@ class AbstractEthMessage(AbstractMessage, ABC):
 
         return cls_type(buf)
 
-    def serialize(self):
+    @classmethod
+    def serialize(cls, obj):
+        """
+        Special handling for direct RLP encoding this class as an attribute of another message class.
+
+        Undoes the 1 length field list serializer simplification (len(serializers) == 1).
+        """
+        serializer = cls.get_serializer()
+        if not isinstance(serializer, List):
+            serializer = List([serializer])
+        return serializer.serialize(obj)
+
+    @classmethod
+    def deserialize(cls, serial):
+        """
+        Special handling for direct RLP encoding this class as an attribute of another message class.
+
+        Undoes the 1 length field list serializer simplification (len(serializers) == 1).
+        """
+        serializer = cls.get_serializer()
+        if not isinstance(serializer, List):
+            serializer = List([serializer])
+        return serializer.deserialize(serial)
+
+    def serialize_message(self):
         encoded_payload = self._serialize_rlp_payload()
         self._set_raw_bytes(encoded_payload)
 
-    def deserialize(self):
+    def deserialize_message(self):
         assert self._msg_bytes is not None
         self._deserialize_rlp_payload(self._msg_bytes)
         self._is_deserialized = True
 
     def rawbytes(self) -> memoryview:
         if self._msg_bytes is None:
-            self.serialize()
+            self.serialize_message()
 
         assert self._msg_bytes is not None
 
@@ -51,7 +86,7 @@ class AbstractEthMessage(AbstractMessage, ABC):
 
     def get_field_value(self, field_name):
         if not self._is_deserialized:
-            self.deserialize()
+            self.deserialize_message()
 
         return getattr(self, field_name, None)
 
@@ -62,7 +97,7 @@ class AbstractEthMessage(AbstractMessage, ABC):
         if len(field_values) == 1:
             field_values = field_values[0]
 
-        payload = self._get_serializer().serialize(field_values)
+        payload = self.get_serializer().serialize(field_values)
         encoded_payload = rlp.encode(payload)
 
         return encoded_payload
@@ -72,7 +107,7 @@ class AbstractEthMessage(AbstractMessage, ABC):
             encoded_payload = encoded_payload.tobytes()
         payload = rlp.decode(encoded_payload, strict=False)
 
-        serializers = self._get_serializer()
+        serializers = self.get_serializer()
 
         if serializers:
             values = serializers.deserialize(payload)
@@ -85,7 +120,7 @@ class AbstractEthMessage(AbstractMessage, ABC):
                     setattr(self, field, value)
 
     @classmethod
-    def _get_serializer(cls):
+    def get_serializer(cls):
         if cls._serializer is not None:
             return cls._serializer
 

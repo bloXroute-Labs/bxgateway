@@ -115,7 +115,7 @@ class EthNewBlockFeedTest(AbstractTestCase):
             mock_eth_messages.get_dummy_block(1, mock_eth_messages.get_dummy_block_header(5, int(time.time()))),
             10
         )
-        block_message.serialize()
+        block_message.serialize_message()
         return block_message
 
     @async_test

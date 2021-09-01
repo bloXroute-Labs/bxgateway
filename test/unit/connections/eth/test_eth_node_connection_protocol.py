@@ -63,6 +63,7 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         self.connection = helpers.create_connection(
             EthNodeConnection, self.node, opts, port=opts.blockchain_port
         )
+        self.connection.connection_protocol._version = 65
 
         gateway_helpers.add_blockchain_peer(self.node, self.connection)
         self.block_queuing_service = self.node.block_queuing_service_manager.get_designated_block_queuing_service()
@@ -137,14 +138,14 @@ class EthNodeConnectionProtocolTest(AbstractTestCase):
         ]
 
         for block_bodies_message in block_bodies_messages:
-            block_bodies_message.serialize()
+            block_bodies_message.serialize_message()
 
         for block_hashes_set in block_hashes_sets:
             for block_hash in block_hashes_set:
                 self.node.block_cleanup_service._block_hash_marked_for_cleanup.add(
                     block_hash
                 )
-            self.sut.request_block_body(block_hashes_set)
+            self.sut.request_block_bodies(block_hashes_set)
 
         self.sut.msg_block_bodies(block_bodies_messages[0])
         call_args_list = (

@@ -74,28 +74,21 @@ class EthBlockProcessingServiceTest(AbstractTestCase):
         self.node_conn.enqueue_msg.reset_mock()
 
     def test_try_process_get_block_bodies_request(self):
-        success = self.block_processing_service.try_process_get_block_bodies_request(
+        bodies = self.block_processing_service.try_process_get_block_bodies_request(
             GetBlockBodiesEthProtocolMessage(
                 None,
                 [block_hash.binary for block_hash in self.block_hashes[:2]]
             ),
             self.block_queuing_service
         )
-        self.assertTrue(success)
-        self.node_conn.enqueue_msg.assert_called_once_with(
-            BlockBodiesEthProtocolMessage(
-                None,
-                self.block_bodies[:2],
-            )
-        )
+        self.assertEqual(bodies, self.block_bodies[:2])
 
     def test_try_process_get_block_bodies_request_not_found(self):
-        success = self.block_processing_service.try_process_get_block_bodies_request(
+        bodies = self.block_processing_service.try_process_get_block_bodies_request(
             GetBlockBodiesEthProtocolMessage(
                 None,
                 [self.block_hashes[0].binary, bytes(helpers.generate_hash())]
             ),
             self.block_queuing_service
         )
-        self.assertFalse(success)
-        self.node_conn.enqueue_msg.assert_not_called()
+        self.assertIsNone(bodies)

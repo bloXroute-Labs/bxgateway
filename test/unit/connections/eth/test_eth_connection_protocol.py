@@ -68,7 +68,7 @@ class EthConnectionProtocolTest(AbstractTestCase):
             ),
             10
         )
-        message.serialize()
+        message.serialize_message()
         self.sut.msg_block(message)
         self.node.block_processing_service.queue_block_for_processing.assert_called_once()
 
@@ -80,7 +80,7 @@ class EthConnectionProtocolTest(AbstractTestCase):
             ),
             10
         )
-        message.serialize()
+        message.serialize_message()
         self.sut.msg_block(message)
         self.node.block_processing_service.queue_block_for_processing.assert_not_called()
 

@@ -8,28 +8,48 @@ from bxcommon.utils.buffers.input_buffer import InputBuffer
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 from bxgateway import gateway_constants
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
+from bxgateway.messages.eth.protocol.block_bodies_v66_eth_protocol_message import \
+    BlockBodiesV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.block_headers_v66_eth_protocol_message import \
+    BlockHeadersV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import DisconnectEthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message import EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_block_bodies_v66_eth_protocol_message import \
+    GetBlockBodiesV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_block_headers_v66_eth_protocol_message import \
+    GetBlockHeadersV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import GetNodeDataEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_node_data_v66_eth_protocol_message import \
+    GetNodeDataV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.get_pooled_transactions_eth_protocol_message import \
     GetPooledTransactionsEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_pooled_transactions_v66_eth_protocol_message import \
+    GetPooledTransactionsV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_receipts_v66_eth_protocol_message import \
+    GetReceiptsV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.hello_eth_protocol_message import HelloEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_pooled_transaction_hashes_eth_protocol_message import \
     NewPooledTransactionHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.node_data_eth_protocol_message import NodeDataEthProtocolMessage
+from bxgateway.messages.eth.protocol.node_data_v66_eth_protocol_message import \
+    NodeDataV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
 from bxgateway.messages.eth.protocol.pong_eth_protocol_message import PongEthProtocolMessage
 from bxgateway.messages.eth.protocol.pooled_transactions_eth_protocol_message import \
     PooledTransactionsEthProtocolMessage
+from bxgateway.messages.eth.protocol.pooled_transactions_v66_eth_protocol_message import \
+    PooledTransactionsV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.raw_eth_protocol_message import RawEthProtocolMessage
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
+from bxgateway.messages.eth.protocol.receipts_v66_eth_protocol_message import \
+    ReceiptsV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import TransactionsEthProtocolMessage
@@ -60,16 +80,25 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
         EthProtocolMessageType.POOLED_TRANSACTIONS: PooledTransactionsEthProtocolMessage,
     }
 
-    if gateway_constants.ETH_PROTOCOL_VERSION_63 == eth_common_constants.ETH_PROTOCOL_VERSION:
+    _V66_TYPE_MAPPINGS = {
+        EthProtocolMessageType.GET_BLOCK_HEADERS: GetBlockHeadersV66EthProtocolMessage,
+        EthProtocolMessageType.BLOCK_HEADERS: BlockHeadersV66EthProtocolMessage,
+        EthProtocolMessageType.GET_BLOCK_BODIES: GetBlockBodiesV66EthProtocolMessage,
+        EthProtocolMessageType.BLOCK_BODIES: BlockBodiesV66EthProtocolMessage,
+        EthProtocolMessageType.GET_NODE_DATA: GetNodeDataV66EthProtocolMessage,
+        EthProtocolMessageType.NODE_DATA: NodeDataV66EthProtocolMessage,
+        EthProtocolMessageType.GET_RECEIPTS: GetReceiptsV66EthProtocolMessage,
+        EthProtocolMessageType.RECEIPTS: ReceiptsV66EthProtocolMessage,
+        EthProtocolMessageType.GET_POOLED_TRANSACTIONS: GetPooledTransactionsV66EthProtocolMessage,
+        EthProtocolMessageType.POOLED_TRANSACTIONS: PooledTransactionsV66EthProtocolMessage,
+    }
+
+    if eth_common_constants.ETH_PROTOCOL_VERSION == 63:
         _MESSAGE_TYPE_MAPPING.update({EthProtocolMessageType.STATUS: StatusEthProtocolMessageV63})
     else:
         _MESSAGE_TYPE_MAPPING.update({EthProtocolMessageType.STATUS: StatusEthProtocolMessage})
 
-    def __init__(self, rlpx_cipher):
-        if not isinstance(rlpx_cipher, RLPxCipher):
-            raise TypeError("Argument rlpx_cipher is expected to be of type RLPxCipher but was {}"
-                            .format(type(rlpx_cipher)))
-
+    def __init__(self, rlpx_cipher: RLPxCipher):
         super(EthProtocolMessageFactory, self).__init__()
 
         self.message_type_mapping = self._MESSAGE_TYPE_MAPPING
@@ -80,13 +109,17 @@ class EthProtocolMessageFactory(AbstractMessageFactory):
         return EthProtocolMessage
 
     def set_expected_msg_type(self, msg_type):
-        if not msg_type in [EthProtocolMessageType.AUTH, EthProtocolMessageType.AUTH_ACK]:
+        if msg_type not in [EthProtocolMessageType.AUTH, EthProtocolMessageType.AUTH_ACK]:
             raise ValueError("msg_type can be AUTH or AUTH_ACK")
 
         self._expected_msg_type = msg_type
 
     def reset_expected_msg_type(self):
         self._expected_msg_type = None
+
+    def set_mappings_for_version(self, version: int) -> None:
+        if version >= 66:
+            self.message_type_mapping.update(self._V66_TYPE_MAPPINGS)
 
     def get_message_header_preview_from_input_buffer(self, input_buffer: InputBuffer) -> MessagePreview:
         """
