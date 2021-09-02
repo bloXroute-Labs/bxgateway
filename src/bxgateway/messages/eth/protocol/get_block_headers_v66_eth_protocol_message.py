@@ -14,9 +14,7 @@ class GetBlockHeadersV66EthProtocolMessage(GetBlockHeadersEthProtocolMessage):
     ]
 
     def __repr__(self):
-        return (
-            f"<request_id: {self.get_request_id()}>"
-        )
+        return f"{repr(self.get_message())[:-1]}, request_id: {self.get_request_id()}>"
 
     def get_request_id(self) -> int:
         return self.get_field_value("request_id")
@@ -25,4 +23,4 @@ class GetBlockHeadersV66EthProtocolMessage(GetBlockHeadersEthProtocolMessage):
         block_headers = self.get_field_value("block_headers")
         if not block_headers:
             logger.error("Received invalid block headers")
-        return GetBlockHeadersEthProtocolMessage(None, block_headers)
+        return GetBlockHeadersEthProtocolMessage(None, *block_headers)

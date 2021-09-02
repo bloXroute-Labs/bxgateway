@@ -28,17 +28,10 @@ class GetBlockBodiesEthProtocolMessage(EthProtocolMessage):
         )
 
     def get_block_hashes(self) -> List[Sha256Hash]:
-        if self._memory_view is None:
-            self.serialize_message()
-
-        return list(
-            map(
-                Sha256Hash,
-                rlp_utils.get_first_list_field_items_bytes(
-                    self._memory_view, remove_items_length_prefix=True
-                )
-            )
-        )
+        block_hashes = list(self.get_field_value("block_hashes"))
+        if block_hashes and not isinstance(block_hashes[0], Sha256Hash):
+            block_hashes = list(map(Sha256Hash, block_hashes))
+        return block_hashes
 
     def log_level(self):
         return LogLevel.DEBUG

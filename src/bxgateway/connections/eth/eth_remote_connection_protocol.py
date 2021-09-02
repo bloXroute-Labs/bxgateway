@@ -1,4 +1,4 @@
-from typing import Union, List, Optional
+from typing import Union, List
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
@@ -67,8 +67,10 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
         self, msg: Union[GetBlockBodiesV66EthProtocolMessage, GetBlockBodiesEthProtocolMessage]
     ) -> None:
         if isinstance(msg, GetBlockBodiesV66EthProtocolMessage):
+            request_id = msg.get_request_id()
             request = msg.get_message()
         else:
+            request_id = None
             request = msg
 
         block_hashes = request.get_block_hashes()
@@ -80,10 +82,6 @@ class EthRemoteConnectionProtocol(EthBaseConnectionProtocol):
                 [convert.bytes_to_hex(block_hash.binary) for block_hash in block_hashes[:10]]
             )
         )
-
-        request_id: Optional[int] = None
-        if isinstance(msg, GetBlockBodiesV66EthProtocolMessage):
-            request_id = msg.get_request_id()
 
         self.send_block_bodies([], request_id)
 
