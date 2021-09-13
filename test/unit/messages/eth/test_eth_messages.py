@@ -201,6 +201,7 @@ class EthMessagesTests(AbstractTestCase):
         base_message = GetBlockHeadersEthProtocolMessage(
             None, helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 111, 222, 0
         )
+        GetBlockHeadersV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
             GetBlockHeadersV66EthProtocolMessage, False, 1234, base_message
         )
@@ -217,18 +218,16 @@ class EthMessagesTests(AbstractTestCase):
         )
 
     def test_block_header_v66_eth_message(self):
+        BlockHeadersV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
             BlockHeadersV66EthProtocolMessage,
             None,
             1234,
-            BlockHeadersEthProtocolMessage(
-                None,
-                [
-                    mock_eth_messages.get_dummy_block_header(1),
-                    mock_eth_messages.get_dummy_block_header(2),
-                    mock_eth_messages.get_dummy_block_header(3),
-                ],
-            ),
+            [
+                mock_eth_messages.get_dummy_block_header(1),
+                mock_eth_messages.get_dummy_block_header(2),
+                mock_eth_messages.get_dummy_block_header(3),
+            ],
         )
 
     def test_get_block_bodies_eth_message(self):
@@ -244,18 +243,16 @@ class EthMessagesTests(AbstractTestCase):
         )
 
     def test_get_block_bodies_v66_eth_message(self):
+        GetBlockBodiesV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
             GetBlockBodiesV66EthProtocolMessage,
             None,
             1234,
-            GetBlockBodiesEthProtocolMessage(
-                None,
-                [
-                    helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                    helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                    helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                ],
-            ),
+            [
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            ],
         )
 
     def test_block_bodies_eth_message(self):
@@ -271,18 +268,16 @@ class EthMessagesTests(AbstractTestCase):
         )
 
     def test_block_bodies_v66_eth_message(self):
+        BlockBodiesV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
             BlockBodiesV66EthProtocolMessage,
             None,
             1234,
-            BlockBodiesEthProtocolMessage(
-                None,
-                [
-                    mock_eth_messages.get_dummy_transient_block_body(1),
-                    mock_eth_messages.get_dummy_transient_block_body(2),
-                    mock_eth_messages.get_dummy_transient_block_body(3),
-                ],
-            ),
+            [
+                mock_eth_messages.get_dummy_transient_block_body(1),
+                mock_eth_messages.get_dummy_transient_block_body(2),
+                mock_eth_messages.get_dummy_transient_block_body(3),
+            ],
         )
 
     def test_transactions_eth_message(self):
@@ -314,18 +309,16 @@ class EthMessagesTests(AbstractTestCase):
         )
 
     def test_get_node_data_v66_eth_message(self):
+        GetNodeDataV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
             GetNodeDataV66EthProtocolMessage,
             False,
             1234,
-            GetNodeDataEthProtocolMessage(
-                None,
-                [
-                    helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                    helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                    helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                ],
-            ),
+            [
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            ],
         )
 
     def test_node_data_eth_message(self):
@@ -334,11 +327,12 @@ class EthMessagesTests(AbstractTestCase):
         )
 
     def test_node_data_v66_eth_message(self):
+        NodeDataV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
             NodeDataV66EthProtocolMessage,
             False,
             1234,
-            NodeDataEthProtocolMessage(None, helpers.generate_bytes(1000),),
+            helpers.generate_bytes(1000),
         )
 
     def test_get_receipts_eth_message(self):
@@ -354,18 +348,16 @@ class EthMessagesTests(AbstractTestCase):
         )
 
     def test_get_receipts_v66_eth_message(self):
+        GetReceiptsV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
             GetReceiptsV66EthProtocolMessage,
             False,
             1234,
-            GetReceiptsEthProtocolMessage(
-                None,
-                [
-                    helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                    helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                    helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
-                ],
-            ),
+            [
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            ],
         )
 
     def test_receipts_eth_message(self):
@@ -374,11 +366,12 @@ class EthMessagesTests(AbstractTestCase):
         )
 
     def test_receipts_v66_eth_message(self):
+        ReceiptsV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
             ReceiptsV66EthProtocolMessage,
             False,
             1234,
-            ReceiptsEthProtocolMessage(None, helpers.generate_bytes(1000)),
+            helpers.generate_bytes(1000),
         )
 
     def test_new_block_internal_eth_message_to_from_new_block_message(self):
@@ -700,14 +693,12 @@ class EthMessagesTests(AbstractTestCase):
             bytes(helpers.generate_hash()),
         ]
 
+        GetPooledTransactionsV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
             GetPooledTransactionsV66EthProtocolMessage,
             False,
             1234,
-            GetPooledTransactionsEthProtocolMessage(
-                None,
-                tx_hashes
-            )
+            tx_hashes
         )
 
     def test_pooled_transactions(self):
@@ -722,18 +713,16 @@ class EthMessagesTests(AbstractTestCase):
         )
 
     def test_pooled_transactions_v66(self):
+        PooledTransactionsV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
             PooledTransactionsV66EthProtocolMessage,
             False,
             1234,
-            PooledTransactionsEthProtocolMessage(
-                None,
-                [
-                    mock_eth_messages.get_dummy_transaction(1),
-                    mock_eth_messages.get_dummy_transaction(2),
-                    mock_eth_messages.get_dummy_transaction(3),
-                ],
-            )
+            [
+                mock_eth_messages.get_dummy_transaction(1),
+                mock_eth_messages.get_dummy_transaction(2),
+                mock_eth_messages.get_dummy_transaction(3),
+            ],
         )
 
     def _test_msg_serialization(self, msg_cls, needs_private_key, *args, **kwargs):

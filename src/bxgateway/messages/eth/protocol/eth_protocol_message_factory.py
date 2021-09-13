@@ -6,7 +6,6 @@ from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.abstract_message_factory import AbstractMessageFactory, MessagePreview
 from bxcommon.utils.buffers.input_buffer import InputBuffer
 from bxcommon.utils.blockchain_utils.eth import eth_common_constants
-from bxgateway import gateway_constants
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
 from bxgateway.messages.eth.protocol.block_bodies_v66_eth_protocol_message import \
     BlockBodiesV66EthProtocolMessage

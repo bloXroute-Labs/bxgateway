@@ -252,7 +252,7 @@ class EthBaseConnectionProtocol(AbstractBlockchainConnectionProtocol, metaclass=
         if self.connection.is_version_66():
             if request_id is None:
                 raise ValueError("cannot respond with block bodies for protocol 66 message without request ID")
-            block_bodies_msg = BlockBodiesV66EthProtocolMessage(None, request_id, block_bodies_msg)
+            block_bodies_msg = BlockBodiesV66EthProtocolMessage(None, request_id, bodies)
 
         self.connection.enqueue_msg(block_bodies_msg)
 

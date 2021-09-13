@@ -13,7 +13,7 @@ class GetPooledTransactionsV66EthProtocolMessage(GetPooledTransactionsEthProtoco
 
     def __repr__(self):
         return (
-            f"{repr(self.get_message())}<request_id: {self.get_request_id()}>"
+            f"<GetPooledTransactionsEthProtocolMessage request_id: {self.get_request_id()}>"
         )
 
     def get_request_id(self) -> int:

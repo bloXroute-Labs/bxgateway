@@ -26,6 +26,7 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
         self.local_blockchain_ip = "127.0.0.1"
         self.local_blockchain_port = 30303
         self.local_blockchain_port_2 = 30302
+        eth_common_constants.ETH_PROTOCOL_VERSION = 65
 
         eth_node_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
         self.gateway_node = spies.make_spy_node(

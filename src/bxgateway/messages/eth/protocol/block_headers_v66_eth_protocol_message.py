@@ -12,7 +12,7 @@ class BlockHeadersV66EthProtocolMessage(BlockHeadersEthProtocolMessage):
 
     def __repr__(self):
         return (
-            f"{repr(self.get_block_headers())}<request_id: {self.get_request_id()}>"
+            f"{repr(self.get_message())[:-1]}, request_id: {self.get_request_id()}>"
         )
 
     def get_request_id(self) -> int:

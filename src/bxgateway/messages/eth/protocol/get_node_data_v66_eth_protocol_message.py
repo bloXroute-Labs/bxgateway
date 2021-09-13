@@ -13,7 +13,7 @@ class GetNodeDataV66EthProtocolMessage(GetNodeDataEthProtocolMessage):
 
     def __repr__(self):
         return (
-            f"{repr(self.get_message())}<request_id: {self.get_request_id()}>"
+            f"<GetNodeDataEthProtocolMessage {len(self.get_hashes())} request_id: {self.get_request_id()}>"
         )
 
     def get_request_id(self) -> int:
