@@ -75,4 +75,4 @@ class CloudWssProvider(WsProvider):
         self.ssl_context = context
 
     async def connect_websocket(self) -> websockets.WebSocketClientProtocol:
-        return await websockets.connect(self.uri, ssl=self.ssl_context)
+        return await websockets.connect(self.uri, ssl=self.ssl_context, max_size=2**24)
