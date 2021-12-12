@@ -1,6 +1,6 @@
 import websockets
 
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 from bxcommon.utils import config
 
 

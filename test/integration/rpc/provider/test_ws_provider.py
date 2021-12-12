@@ -3,7 +3,7 @@ import blxr_rlp as rlp
 from mock import MagicMock
 from typing import Dict, Any, Iterator
 
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 from bxcommon import constants
 from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.tx_message import TxMessage
