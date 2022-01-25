@@ -7,8 +7,8 @@ from typing import Optional, Dict, Set, List, Any, cast
 
 from typing import IO
 
-from bloxroute_cli.provider.ws_provider import WsProvider
 from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
+from bxcommon.rpc.provider.ws_provider import WsProvider
 
 
 class HashEntry:
