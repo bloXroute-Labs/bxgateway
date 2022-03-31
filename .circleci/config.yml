@@ -64,7 +64,8 @@ jobs:
       - restore_cache: # restores saved dependency cache
           key: "bxgateway-\
             {{ checksum \"bxgateway/requirements.txt\" }}-\
-            {{ checksum \"bxcommon/requirements.txt\"}}"
+            {{ checksum \"bxcommon/requirements.txt\"}}-\
+            {{ checksum \"bxcommon/requirements-dev.txt\"}}"
 
       - run: # install and activate virtual environment with pip
           name: installing virtual env
@@ -73,8 +74,7 @@ jobs:
             pip install -r bxgateway/requirements.txt \
               -r bxgateway/requirements-dev.txt \
               -r bxcommon/requirements.txt \
-              -r bxcommon/requirements-dev.txt \
-              -r bxcommon/requirements-optional.txt
+              -r bxcommon/requirements-dev.txt
       - run:
           command: |
             . venv/bin/activate
@@ -87,7 +87,8 @@ jobs:
       - save_cache: # special step to save dependency cache
           key: "bxgateway-\
             {{ checksum \"bxgateway/requirements.txt\" }}-\
-            {{ checksum \"bxcommon/requirements.txt\"}}"
+            {{ checksum \"bxcommon/requirements.txt\"}}-\
+            {{ checksum \"bxcommon/requirements-dev.txt\"}}"
           paths:
             - venv
       - persist_to_workspace:
