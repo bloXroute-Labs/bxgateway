@@ -9,8 +9,7 @@ from bxgateway.utils.logging.status.gateway_status import GatewayStatus
 class Summary:
     gateway_status: Optional[GatewayStatus] = None
     account_info: Optional[str] = None
-    block_relay_connection_state: Optional[ConnectionState] = None
-    transaction_relay_connection_state: Optional[ConnectionState] = None
+    relay_connection_state: Optional[ConnectionState] = None
     blockchain_node_connection_states: Optional[Dict[str, ConnectionState]] = None
     remote_blockchain_node_connection_state: Optional[ConnectionState] = None
     ip_address: Optional[str] = None

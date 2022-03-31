@@ -75,6 +75,11 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
     ) -> List[ProcessTransactionMessageFromNodeResult]:
         opts = self.node.opts
         msg_bytes = msg.rawbytes()
+        result = []
+
+        # Node can return an empty list with the new version on geth (v1.10.3). in this case not need to call extensions
+        if msg_bytes == b'\xc0':
+            return result
 
         if (isinstance(self.node, OntGatewayNode) or isinstance(self.node, EthGatewayNode)) and \
                 opts.process_node_txs_in_extension:
@@ -87,8 +92,6 @@ class ExtensionGatewayTransactionService(ExtensionTransactionService, GatewayTra
             return GatewayTransactionService.process_transactions_message_from_node(
                 self, msg, min_tx_network_fee, enable_transaction_validation
             )
-
-        result = []
 
         offset = 0
 

@@ -85,5 +85,5 @@ class AbstractEthBlockCleanupService(AbstractBlockCleanupService):
             logger.debug("Request for block '{}' failed. No connection to node.", repr(block_hash))
             return
         connection_protocol = node_conn.connection_protocol
-        connection_protocol.request_block_body([block_hash])
+        connection_protocol.request_block_bodies([block_hash])
         logger.trace("Block cleanup request for {}", block_hash)

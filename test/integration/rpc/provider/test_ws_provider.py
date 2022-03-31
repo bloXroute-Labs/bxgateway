@@ -3,7 +3,7 @@ import blxr_rlp as rlp
 from mock import MagicMock
 from typing import Dict, Any, Iterator
 
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 from bxcommon import constants
 from bxcommon.feed.feed import FeedKey
 from bxcommon.messages.bloxroute.tx_message import TxMessage
@@ -131,7 +131,7 @@ class WsProviderTest(AbstractTestCase):
     @async_test
     async def test_eth_new_transactions_feed_default_subscribe(self):
         self.gateway_node.feed_manager.feeds.clear()
-        self.gateway_node.feed_manager.register_feed(EthNewTransactionFeed())
+        self.gateway_node.feed_manager.register_feed(EthNewTransactionFeed(network_num=self.gateway_node.network_num))
         to = "0x1111111111111111111111111111111111111111"
         eth_tx_message = generate_new_eth_with_to_transaction(to[2:])
         eth_transaction = EthRawTransaction(
@@ -147,7 +147,7 @@ class WsProviderTest(AbstractTestCase):
                 "newTxs", options={"filters": f"to = {to} or to = aaaa"}
             )
 
-            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction)
+            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs", self.gateway_node.network_num), eth_transaction)
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
@@ -167,7 +167,7 @@ class WsProviderTest(AbstractTestCase):
     @async_test
     async def test_eth_new_tx_feed_subscribe_include_from_blockchain(self):
         self.gateway_node.feed_manager.feeds.clear()
-        self.gateway_node.feed_manager.register_feed(EthNewTransactionFeed())
+        self.gateway_node.feed_manager.register_feed(EthNewTransactionFeed(network_num=self.gateway_node.network_num))
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
@@ -183,7 +183,7 @@ class WsProviderTest(AbstractTestCase):
                 "newTxs", {"include_from_blockchain": True}
             )
 
-            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction)
+            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs", self.gateway_node.network_num), eth_transaction)
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
@@ -202,7 +202,7 @@ class WsProviderTest(AbstractTestCase):
     @async_test
     async def test_eth_new_tx_feed_subscribe_not_include_from_blockchain(self):
         self.gateway_node.feed_manager.feeds.clear()
-        self.gateway_node.feed_manager.register_feed(EthNewTransactionFeed())
+        self.gateway_node.feed_manager.register_feed(EthNewTransactionFeed(network_num=self.gateway_node.network_num))
 
         eth_tx_message = generate_new_eth_transaction()
         eth_transaction = EthRawTransaction(
@@ -223,7 +223,7 @@ class WsProviderTest(AbstractTestCase):
                 "newTxs", {"include_from_blockchain": False}
             )
 
-            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction)
+            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs", self.gateway_node.network_num), eth_transaction)
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
             )
@@ -233,7 +233,7 @@ class WsProviderTest(AbstractTestCase):
             )
 
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("newTxs"), eth_transaction_blockchain
+                FeedKey("newTxs", self.gateway_node.network_num), eth_transaction_blockchain
             )
             with self.assertRaises(asyncio.TimeoutError):
                 await asyncio.wait_for(
@@ -242,7 +242,7 @@ class WsProviderTest(AbstractTestCase):
 
     async def test_eth_pending_transactions_feed_default_subscribe(self):
         self.gateway_node.feed_manager.register_feed(
-            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue, network_num=self.gateway_node.network_num)
         )
 
         eth_tx_message = generate_new_eth_transaction()
@@ -255,7 +255,7 @@ class WsProviderTest(AbstractTestCase):
             subscription_id = await ws.subscribe("pendingTxs")
 
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction
+                FeedKey("pendingTxs", self.gateway_node.network_num), eth_transaction
             )
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
@@ -269,7 +269,7 @@ class WsProviderTest(AbstractTestCase):
     @async_test
     async def test_eth_pending_tx_feed_subscribe_handles_no_duplicates(self):
         self.gateway_node.feed_manager.register_feed(
-            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue, network_num=self.gateway_node.network_num)
         )
 
         eth_tx_message = generate_new_eth_transaction()
@@ -282,7 +282,7 @@ class WsProviderTest(AbstractTestCase):
             subscription_id = await ws.subscribe("pendingTxs", {"duplicates": False})
 
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction
+                FeedKey("pendingTxs", self.gateway_node.network_num), eth_transaction
             )
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
@@ -295,7 +295,7 @@ class WsProviderTest(AbstractTestCase):
 
             # will not publish twice
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction
+                FeedKey("pendingTxs", self.gateway_node.network_num), eth_transaction
             )
             with self.assertRaises(asyncio.TimeoutError):
                 await asyncio.wait_for(
@@ -305,7 +305,7 @@ class WsProviderTest(AbstractTestCase):
     @async_test
     async def test_eth_pending_tx_feed_subscribe_with_duplicates(self):
         self.gateway_node.feed_manager.register_feed(
-            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue, network_num=self.gateway_node.network_num)
         )
 
         eth_tx_message = generate_new_eth_transaction()
@@ -318,7 +318,7 @@ class WsProviderTest(AbstractTestCase):
             subscription_id = await ws.subscribe("pendingTxs", {"duplicates": True})
 
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction
+                FeedKey("pendingTxs", self.gateway_node.network_num), eth_transaction
             )
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
@@ -331,7 +331,7 @@ class WsProviderTest(AbstractTestCase):
 
             # will publish twice
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction
+                FeedKey("pendingTxs", self.gateway_node.network_num), eth_transaction
             )
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
@@ -347,7 +347,7 @@ class WsProviderTest(AbstractTestCase):
         block_height = 100
         name = "abc123"
 
-        self.gateway_node.feed_manager.register_feed(EthOnBlockFeed(self.gateway_node))
+        self.gateway_node.feed_manager.register_feed(EthOnBlockFeed(self.gateway_node, network_num=self.gateway_node.network_num))
         self.gateway_node.eth_ws_proxy_publisher = MockEthWsProxyPublisher(
             "", None, None, self.gateway_node
         )
@@ -362,7 +362,7 @@ class WsProviderTest(AbstractTestCase):
             )
 
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey(rpc_constants.ETH_ON_BLOCK_FEED_NAME),
+                FeedKey(rpc_constants.ETH_ON_BLOCK_FEED_NAME, self.gateway_node.network_num),
                 EventNotification(block_height=block_height),
             )
 
@@ -381,7 +381,7 @@ class WsProviderTest(AbstractTestCase):
     async def test_eth_transaction_receipts_feed_default_subscribe(self):
         self.gateway_node.opts.eth_ws_uri = f"ws://{constants.LOCALHOST}:8005"
         self.gateway_node.feed_manager.register_feed(
-            EthTransactionReceiptsFeed(self.gateway_node, 0)
+            EthTransactionReceiptsFeed(self.gateway_node, network_num=self.gateway_node.network_num)
         )
         self.gateway_node.eth_ws_proxy_publisher = MockEthWsProxyPublisher(
             "", None, None, self.gateway_node
@@ -414,10 +414,12 @@ class WsProviderTest(AbstractTestCase):
             subscription_id = await ws.subscribe(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME)
 
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME), eth_raw_block_1
+                FeedKey(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME, network_num=self.gateway_node.network_num),
+                eth_raw_block_1
             )
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME), eth_raw_block_2
+                FeedKey(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME, network_num=self.gateway_node.network_num),
+                eth_raw_block_2
             )
 
             for i in range(len(block.transactions)):
@@ -431,7 +433,7 @@ class WsProviderTest(AbstractTestCase):
     async def test_eth_transaction_receipts_feed_specify_include(self):
         self.gateway_node.opts.eth_ws_uri = f"ws://{constants.LOCALHOST}:8005"
         self.gateway_node.feed_manager.register_feed(
-            EthTransactionReceiptsFeed(self.gateway_node, 0)
+            EthTransactionReceiptsFeed(self.gateway_node, network_num=self.gateway_node.network_num)
         )
         self.gateway_node.eth_ws_proxy_publisher = MockEthWsProxyPublisher(
             "", None, None, self.gateway_node
@@ -464,7 +466,8 @@ class WsProviderTest(AbstractTestCase):
             )
 
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME), eth_raw_block
+                FeedKey(rpc_constants.ETH_TRANSACTION_RECEIPTS_FEED_NAME, network_num=self.gateway_node.network_num),
+                eth_raw_block
             )
 
             for i in range(len(block.transactions)):
@@ -514,7 +517,7 @@ class WsProviderTest(AbstractTestCase):
                 raw_published_message.tx_hash, raw_published_message.tx_contents, raw_published_message.local_region
             )
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("newTxs"), raw_published_message
+                FeedKey("newTxs", network_num=self.gateway_node.network_num), raw_published_message
             )
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
@@ -592,7 +595,7 @@ class WsProviderTest(AbstractTestCase):
     @async_test
     async def test_eth_new_transactions_feed_subscribe_filters(self):
         self.gateway_node.feed_manager.feeds.clear()
-        self.gateway_node.feed_manager.register_feed(EthNewTransactionFeed())
+        self.gateway_node.feed_manager.register_feed(EthNewTransactionFeed(network_num=self.gateway_node.network_num))
         to = "0x1111111111111111111111111111111111111111"
         eth_tx_message = generate_new_eth_with_to_transaction(to[2:])
         eth_transaction = EthRawTransaction(
@@ -608,7 +611,9 @@ class WsProviderTest(AbstractTestCase):
                 "newTxs", options={"filters": f"to = {to} or to = aaaa"}
             )
 
-            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction)
+            self.gateway_node.feed_manager.publish_to_feed(
+                FeedKey("newTxs", network_num=self.gateway_node.network_num), eth_transaction
+            )
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
@@ -626,7 +631,7 @@ class WsProviderTest(AbstractTestCase):
     @async_test
     async def test_eth_new_transactions_feed_subscribe_filters2(self):
         self.gateway_node.feed_manager.feeds.clear()
-        self.gateway_node.feed_manager.register_feed(EthNewTransactionFeed())
+        self.gateway_node.feed_manager.register_feed(EthNewTransactionFeed(network_num=self.gateway_node.network_num))
         to = "0x1111111111111111111111111111111111111112"
         eth_tx_message = generate_new_eth_with_to_transaction(to[2:])
         eth_transaction = EthRawTransaction(
@@ -654,8 +659,12 @@ class WsProviderTest(AbstractTestCase):
                 },
             )
 
-            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction)
-            self.gateway_node.feed_manager.publish_to_feed(FeedKey("newTxs"), eth_transaction2)
+            self.gateway_node.feed_manager.publish_to_feed(
+                FeedKey("newTxs", network_num=self.gateway_node.network_num), eth_transaction
+            )
+            self.gateway_node.feed_manager.publish_to_feed(
+                FeedKey("newTxs", network_num=self.gateway_node.network_num), eth_transaction2
+            )
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
                 subscription_id
@@ -674,7 +683,7 @@ class WsProviderTest(AbstractTestCase):
     async def test_eth_pending_transactions_feed_subscribe_filters3(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
-            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue, network_num=self.gateway_node.network_num)
         )
         to = "0x1111111111111111111111111111111111111112"
         eth_tx_message = generate_new_eth_with_to_transaction(to[2:])
@@ -704,10 +713,10 @@ class WsProviderTest(AbstractTestCase):
             )
 
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction
+                FeedKey("pendingTxs", network_num=self.gateway_node.network_num), eth_transaction
             )
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction2
+                FeedKey("pendingTxs", network_num=self.gateway_node.network_num), eth_transaction2
             )
 
             subscription_message = await ws.get_next_subscription_notification_by_id(
@@ -727,7 +736,7 @@ class WsProviderTest(AbstractTestCase):
     async def test_eth_pending_transactions_feed_subscribe_filters4(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
-            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue, network_num=self.gateway_node.network_num)
         )
         to = "0x"
         eth_tx_message = generate_new_eth_with_to_transaction(to[2:])
@@ -758,10 +767,10 @@ class WsProviderTest(AbstractTestCase):
             )
 
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction
+                FeedKey("pendingTxs", network_num=self.gateway_node.network_num), eth_transaction
             )
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction2
+                FeedKey("pendingTxs", network_num=self.gateway_node.network_num), eth_transaction2
             )
 
             subscription_message = await ws.get_next_subscription_notification_by_id(

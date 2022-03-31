@@ -90,7 +90,7 @@ class GatewayNode(AbstractGatewayNode):
         return BtcRemoteConnection(socket_connection, self)
 
 
-def initialize_split_relay_node():
+def initialize_relay_node():
     relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
     network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[0]])
     opts = gateway_helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
@@ -105,11 +105,9 @@ def initialize_split_relay_node():
         )
     )
     node.enqueue_connection.assert_has_calls([
-        call(LOCALHOST, 8001, ConnectionType.RELAY_BLOCK),
-        call(LOCALHOST, 8002, ConnectionType.RELAY_TRANSACTION),
+        call(LOCALHOST, 8001, ConnectionType.RELAY_ALL),
     ], any_order=True)
     node.on_connection_added(MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001))
-    node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
 
     node.alarm_queue = AlarmQueue()
     node.enqueue_connection.reset_mock()
@@ -269,10 +267,10 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             OutboundPeerModel(LOCALHOST, 8003, "12345", node_type=NodeType.EXTERNAL_GATEWAY), node.outbound_peers
         )
 
-    def test_split_relay_connection(self):
-        relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY_BLOCK)]
+    def test_relay_connection(self):
+        relay_connections = [OutboundPeerModel(LOCALHOST, 8001, node_type=NodeType.RELAY)]
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[0]])
-        opts = gateway_helpers.get_gateway_opts(8000, split_relays=True, include_default_btc_args=True)
+        opts = gateway_helpers.get_gateway_opts(8000, include_default_btc_args=True)
         if opts.use_extensions:
             helpers.set_extensions_parallelism()
         node = GatewayNode(opts)
@@ -284,22 +282,16 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             )
         )
         self.assertEqual(1, len(node.peer_relays))
-        self.assertEqual(1, len(node.peer_transaction_relays))
-        self.assertEqual(8002, next(iter(node.peer_transaction_relays)).port)
 
         node.enqueue_connection.assert_has_calls([
-            call(LOCALHOST, 8001, ConnectionType.RELAY_BLOCK),
-            call(LOCALHOST, 8002, ConnectionType.RELAY_TRANSACTION),
+            call(LOCALHOST, 8001, ConnectionType.RELAY_ALL),
         ], any_order=True)
 
         node.on_connection_added(MockSocketConnection(1, node, ip_address=LOCALHOST, port=8001))
-        self._check_connection_pool(node, 1, 1, 0, 1)
+        self._check_connection_pool(node, 1, 1, 1, 1)
 
-        node.on_connection_added(MockSocketConnection(2, node, ip_address=LOCALHOST, port=8002))
-        self._check_connection_pool(node, 2, 1, 1, 2)
-
-    def test_split_relay_reconnect_disconnect_block(self):
-        node = initialize_split_relay_node()
+    def test_relay_reconnect_disconnect_block(self):
+        node = initialize_relay_node()
 
         relay_block_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
         relay_block_conn.mark_for_close()
@@ -312,61 +304,18 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         node.alarm_queue.fire_alarms()
         node.enqueue_connection.assert_called_once_with(LOCALHOST, 8001, relay_block_conn.CONNECTION_TYPE)
 
-    def test_split_relay_reconnect_disconnect_transaction(self):
-        node = initialize_split_relay_node()
-
-        relay_tx_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
-        relay_tx_conn.mark_for_close()
-
-        self.assertEqual(1, len(node.alarm_queue.alarms))
-        self.assertEqual(node._retry_init_client_socket, node.alarm_queue.alarms[0].alarm.fn)
-        self.assertEqual(True, node.continue_retrying_connection(LOCALHOST, 8002, relay_tx_conn.CONNECTION_TYPE))
-
-        time.time = MagicMock(return_value=time.time() + 1)
-        node.alarm_queue.fire_alarms()
-        node.enqueue_connection.assert_called_once_with(LOCALHOST, 8002, relay_tx_conn.CONNECTION_TYPE)
-
-    def test_split_relay_no_reconnect_disconnect_block(self):
+    def test_relay_no_reconnect_disconnect_block(self):
         sdn_http_service.submit_peer_connection_error_event = MagicMock()
-        node = initialize_split_relay_node()
+        node = initialize_relay_node()
         node.num_retries_by_ip[(LOCALHOST, 8001)] = constants.MAX_CONNECT_RETRIES
 
         relay_block_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
-        relay_transaction_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
         self.assertEqual(False, node.continue_retrying_connection(LOCALHOST, 8001, relay_block_conn.CONNECTION_TYPE))
-        self.assertEqual(True,
-                         node.continue_retrying_connection(LOCALHOST, 8002, relay_transaction_conn.CONNECTION_TYPE))
 
         relay_block_conn.mark_for_close()
 
         sdn_http_service.submit_peer_connection_error_event.called_once_with(node.opts.node_id, LOCALHOST, 8001)
         self.assertEqual(0, len(node.peer_relays))
-        self.assertEqual(0, len(node.peer_transaction_relays))
-        self.assertFalse(relay_transaction_conn.socket_connection is not None and relay_transaction_conn.socket_connection.alive)
-        self.assertTrue(relay_transaction_conn.socket_connection is None or SocketConnectionStates.DO_NOT_RETRY in relay_transaction_conn.socket_connection.state)
-
-    @async_test
-    async def test_split_relay_no_reconnect_disconnect_transaction(self):
-        sdn_http_service.submit_peer_connection_error_event = MagicMock()
-        node = initialize_split_relay_node()
-        node.num_retries_by_ip[(LOCALHOST, 8002)] = constants.MAX_CONNECT_RETRIES
-
-        relay_block_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8001)
-        relay_transaction_conn = node.connection_pool.get_by_ipport(LOCALHOST, 8002)
-        self.assertEqual(True, node.continue_retrying_connection(LOCALHOST, 8001, relay_block_conn.CONNECTION_TYPE))
-        self.assertEqual(False,
-                         node.continue_retrying_connection(LOCALHOST, 8002, relay_transaction_conn.CONNECTION_TYPE))
-
-        relay_transaction_conn.mark_for_close()
-
-        if node.opts.has_fully_updated_tx_service:
-            sdn_http_service.submit_peer_connection_error_event.assert_called_with(node.opts.node_id, LOCALHOST, 8001)
-        self.assertEqual(0, len(node.peer_relays))
-        self.assertEqual(0, len(node.peer_transaction_relays))
-
-        self.assertFalse(relay_block_conn.socket_connection is not None and relay_block_conn.socket_connection.alive)
-        self.assertTrue(relay_block_conn.socket_connection is None or SocketConnectionStates.DO_NOT_RETRY in relay_block_conn.socket_connection.state)
-
 
     @async_test
     async def test_queuing_messages_no_remote_blockchain_connection(self):
@@ -486,20 +435,14 @@ class AbstractGatewayNodeTest(AbstractTestCase):
             )
         )
         self.assertEqual(1, len(node.peer_relays))
-        self.assertEqual(1, len(node.peer_transaction_relays))
-        self.assertEqual(8002, next(iter(node.peer_transaction_relays)).port)
 
         node.enqueue_connection.assert_has_calls([
-            call(LOCALHOST, 8001, ConnectionType.RELAY_BLOCK),
-            call(LOCALHOST, 8002, ConnectionType.RELAY_TRANSACTION),
+            call(LOCALHOST, 8001, ConnectionType.RELAY_ALL),
         ], any_order=True)
 
         node.on_connection_added(
             MockSocketConnection(1, node=node, ip_address=LOCALHOST, port=8001))
-        self._check_connection_pool(node, 1, 1, 0, 1)
-        node.on_connection_added(
-            MockSocketConnection(2, node=node, ip_address=LOCALHOST, port=8002))
-        self._check_connection_pool(node, 2, 1, 1, 2)
+        self._check_connection_pool(node, 1, 1, 1, 1)
 
         network_latency.get_best_relays_by_ping_latency_one_per_country = MagicMock(return_value=[relay_connections[1]])
 
@@ -511,24 +454,18 @@ class AbstractGatewayNodeTest(AbstractTestCase):
         )
         node.requester.send_threaded_request.assert_called()
         self.assertEqual(1, len(node.peer_relays))
-        self.assertEqual(1, len(node.peer_transaction_relays))
         self.assertEqual(9001, next(iter(node.peer_relays)).port)
-        self.assertEqual(9002, next(iter(node.peer_transaction_relays)).port)
 
         node.enqueue_connection.assert_has_calls([
-            call(LOCALHOST, 9001, ConnectionType.RELAY_BLOCK),
-            call(LOCALHOST, 9002, ConnectionType.RELAY_TRANSACTION),
+            call(LOCALHOST, 9001, ConnectionType.RELAY_ALL),
         ], any_order=True)
         node.on_connection_added(MockSocketConnection(3, node, ip_address=LOCALHOST, port=9001))
-        node.on_connection_added(MockSocketConnection(4, node, ip_address=LOCALHOST, port=9002))
         for conn in node.connection_pool.get_by_connection_types([ConnectionType.RELAY_BLOCK]):
             self.assertEqual(9001, conn.peer_port)
-        for conn in node.connection_pool.get_by_connection_types([ConnectionType.RELAY_TRANSACTION]):
-            self.assertEqual(9002, conn.peer_port)
 
     @skip("Test is irrelevant because China gateway is connecting to 1 relay")
     def test_register_potential_relay_peers(self):
-        node = initialize_split_relay_node()
+        node = initialize_relay_node()
         node.opts.country = constants.NODE_COUNTRY_CHINA
 
         relay1 = OutboundPeerModel(ip="10.10.10.01", port=1, node_id="1", node_type=NodeType.RELAY)

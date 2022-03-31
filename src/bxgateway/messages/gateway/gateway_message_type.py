@@ -9,3 +9,4 @@ class GatewayMessageType:
 
     REQUEST_TX_STREAM = b"rqtx"
     CONFIRMED_TX = b"cnfrmtx"
+    CONFIRMED_BLOCK = b"cnfrmbk"

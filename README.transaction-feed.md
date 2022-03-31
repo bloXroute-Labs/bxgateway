@@ -110,7 +110,7 @@ bloXroute Gateway includes a small Python SDK for connecting to this service.
 Recommended usage (with context manager):
 
 ```python
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 
 ws_uri = "ws://127.0.0.1:28333"
 async with WsProvider(ws_uri) as ws:
@@ -124,7 +124,7 @@ async with WsProvider(ws_uri) as ws:
 Without context manager:
 
 ```python
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 
 ws_uri = "ws://127.0.0.1:28333"
 ws = await WsProvider(ws_uri)
@@ -142,15 +142,17 @@ except:
 Callback interface:
 
 ```python
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 import asyncio
 
 ws_uri = "ws://127.0.0.1:28333"
 ws = WsProvider(ws_uri)
 await ws.initialize()
 
+
 def process(subscription_message):
     print(subscription_message)
+
 
 ws.subscribe_with_callback(process, "newTxs", {"include": ["tx_hash"]})
 
@@ -161,7 +163,7 @@ while True:
 Unsubscribing:
 
 ```python
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 
 ws_uri = "ws://127.0.0.1:28333"
 
@@ -174,7 +176,7 @@ If you want to make this stream handle disconnection events, run the provider in
 a loop –– any `ws` operation will throw an exception if the websocket gets closed.
 
 ```python
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 
 ws_uri = "ws://127.0.0.1:28333"
 while True:
@@ -200,7 +202,7 @@ run on your gateway. To connect, you'll need to connect to the websocket server 
 The Python SDK includes a provider for this purpose that's used similar as the above section:
 
 ```python
-from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
+from bxcommon.rpc.provider.cloud_wss_provider import CloudWssProvider
 
 async with CloudWssProvider() as ws:
     subscription_id = await ws.subscribe("newTxs", {"include": ["tx_hash"]})
@@ -214,7 +216,7 @@ your gateway would store its SSL certificates. You should customize this behavio
 artifacts you download when from registering your account.
 
 ```python
-from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
+from bxcommon.rpc.provider.cloud_wss_provider import CloudWssProvider
 
 async with CloudWssProvider(
     # assuming you unzipped bx_artifacts.zip to /Users/bloxroute/bx_artifacts

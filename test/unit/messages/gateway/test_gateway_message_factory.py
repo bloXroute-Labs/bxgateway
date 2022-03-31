@@ -15,6 +15,7 @@ from bxgateway.messages.gateway.blockchain_sync_request_message import Blockchai
 from bxgateway.messages.gateway.blockchain_sync_response_message import (
     BlockchainSyncResponseMessage,
 )
+from bxgateway.messages.gateway.confirmed_block_message import ConfirmedBlockMessage
 from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.messages.gateway.gateway_hello_message import GatewayHelloMessage
 from bxgateway.messages.gateway.gateway_message_factory import gateway_message_factory
@@ -25,6 +26,7 @@ from bxgateway.messages.gateway.request_tx_stream_message import RequestTxStream
 class GatewayMessageFactoryTest(MessageFactoryTestCase):
     HASH = Sha256Hash(crypto.double_sha256(b"123"))
     TX_VAL = helpers.generate_bytearray(250)
+    BLOCK_VAL = helpers.generate_bytearray(1000)
     BLOCK = helpers.generate_bytearray(29) + b"\x01"
 
     def get_message_factory(self):
@@ -55,6 +57,11 @@ class GatewayMessageFactoryTest(MessageFactoryTestCase):
             ConfirmedTxMessage(self.HASH, self.TX_VAL),
             GatewayMessageType.CONFIRMED_TX,
             ConfirmedTxMessage.PAYLOAD_LENGTH + len(self.TX_VAL),
+        )
+        self.get_message_preview_successfully(
+            ConfirmedBlockMessage(self.HASH, self.BLOCK_VAL),
+            GatewayMessageType.CONFIRMED_BLOCK,
+            ConfirmedBlockMessage.PAYLOAD_LENGTH + len(self.BLOCK_VAL),
         )
         self.get_message_preview_successfully(
             RequestTxStreamMessage(),
@@ -134,6 +141,12 @@ class GatewayMessageFactoryTest(MessageFactoryTestCase):
         )
         self.assertEqual(self.HASH, confirmed_tx_no_content.tx_hash())
         self.assertEqual(TxMessage.EMPTY_TX_VAL, confirmed_tx_no_content.tx_val())
+
+        confirmed_block: ConfirmedBlockMessage = self.create_message_successfully(
+            ConfirmedBlockMessage(self.HASH, self.BLOCK_VAL), ConfirmedBlockMessage
+        )
+        self.assertEqual(self.HASH, confirmed_block.block_hash())
+        self.assertEqual(self.BLOCK_VAL, confirmed_block.block_content())
 
         self.create_message_successfully(
             RequestTxStreamMessage(), RequestTxStreamMessage

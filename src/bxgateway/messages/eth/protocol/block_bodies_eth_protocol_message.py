@@ -30,7 +30,7 @@ class BlockBodiesEthProtocolMessage(EthProtocolMessage):
             return self._block_body_bytes
 
         if self._memory_view is None:
-            self.serialize()
+            self.serialize_message()
 
         self._block_body_bytes = rlp_utils.get_first_list_field_items_bytes(self._memory_view)
 

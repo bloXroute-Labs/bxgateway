@@ -13,7 +13,7 @@ from bxcommon.rpc import rpc_constants
 from bxcommon.feed.feed import Feed
 from bxcommon.feed.subscriber import Subscriber
 
-from bxgateway import log_messages
+from bxcommon import log_messages
 
 from bxgateway.utils.stats.eth_on_block_feed_stats_service import (
     eth_on_block_feed_stats_service,
@@ -288,8 +288,8 @@ class EthOnBlockFeed(Feed[OnBlockFeedEntry, EventNotification]):
         try:
             subscriber.queue(serialized_message)
         except QueueFull:
-            logger.error(
-                log_messages.GATEWAY_BAD_FEED_SUBSCRIBER, subscriber.subscription_id, self.name
+            logger.info(
+                log_messages.BAD_FEED_SUBSCRIBER, subscriber.subscription_id, self.name
             )
             self.bad_subscribers.add(subscriber.subscription_id)
 

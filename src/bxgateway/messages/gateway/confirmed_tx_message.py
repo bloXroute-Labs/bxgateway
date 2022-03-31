@@ -11,7 +11,7 @@ from bxgateway.messages.gateway.gateway_message_type import GatewayMessageType
 class ConfirmedTxMessage(AbstractBloxrouteMessage):
     """
     Confirmation message that a transaction has been accepted into the
-    blockchain node's mempool. Only sent from streaming gateways.
+    blockchain node's mempool. Only sent to/from streaming gateways.
     """
 
     MESSAGE_TYPE = GatewayMessageType.CONFIRMED_TX

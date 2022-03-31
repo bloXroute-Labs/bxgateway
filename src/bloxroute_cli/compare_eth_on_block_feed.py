@@ -1,5 +1,4 @@
 import asyncio
-import distutils
 import json
 import logging
 import time
@@ -10,14 +9,13 @@ import sys
 from abc import abstractmethod
 from collections import defaultdict, Counter
 from distutils.util import strtobool
-from enum import Enum
 from typing import Union, Optional, Dict
 from datetime import datetime
 
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 from bxcommon.rpc.provider.abstract_ws_provider import AbstractWsProvider
 from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
-from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
+from bxcommon.rpc.provider.cloud_wss_provider import CloudWssProvider
 from bxcommon.rpc.rpc_errors import RpcError
 
 logger_summary = logging.getLogger("summary")

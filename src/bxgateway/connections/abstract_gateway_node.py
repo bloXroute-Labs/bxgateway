@@ -5,6 +5,8 @@ import gc
 from collections import defaultdict, deque
 from datetime import datetime
 
+from bxcommon.models.authenticated_peer_info import AuthenticatedPeerInfo
+
 from bxcommon.utils.stats.memory_statistics_service import memory_statistics
 from bxgateway.services.block_queuing_service_manager import BlockQueuingServiceManager
 from bxcommon.models.transaction_flag import TransactionFlag
@@ -111,7 +113,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
     peer_gateways: Set[OutboundPeerModel]
     # if opts.split_relays is set, then this set contains only block relays
     peer_relays: Set[OutboundPeerModel]
-    peer_transaction_relays: Set[OutboundPeerModel]
     blockchain_peers: Set[BlockchainPeerInfo]
     num_active_blockchain_peers: int
     blocks_seen: ExpiringSet
@@ -145,14 +146,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             opts, node_ssl_service
         )
         self.opts: GatewayOpts = opts
-        if opts.split_relays:
-            opts.peer_transaction_relays = {
-                OutboundPeerModel(peer_relay.ip, peer_relay.port + 1, node_type=NodeType.RELAY_TRANSACTION)
-                for peer_relay in opts.peer_relays
-            }
-            opts.outbound_peers.update(opts.peer_transaction_relays)
-        else:
-            opts.peer_transaction_relays = set()
 
         if opts.account_model:
             self.account_model = opts.account_model
@@ -180,7 +173,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         self.transaction_streamer_peer = None
         self.peer_gateways = set(opts.peer_gateways)
         self.peer_relays = set(opts.peer_relays)
-        self.peer_transaction_relays = set(opts.peer_transaction_relays)
         self.peer_relays_min_count = 1
 
         self.remote_node_msg_queue = BlockchainMessageQueue(opts.remote_blockchain_message_ttl)
@@ -210,7 +202,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self.blockchain_peer_to_block_queuing_service
         )
 
-        self.send_request_for_relay_peers_num_of_calls = 0
         self.check_relay_alarm_id: Optional[AlarmId] = None
         self.transaction_sync_start_alarm_id: Optional[AlarmId] = None
 
@@ -343,6 +334,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             self._get_account_record,
             alarm_name="get_count_model"
         )
+
     @abstractmethod
     def build_blockchain_connection(
         self, socket_connection: AbstractSocketConnectionProtocol
@@ -415,8 +407,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             logger.warning(log_messages.TRANSACTION_FEED_NOT_ALLOWED)
 
     def init_live_feeds(self) -> None:
-        self.feed_manager.register_feed(NewTransactionFeed())
-        self.feed_manager.register_feed(NewBlockFeed())
+        self.feed_manager.register_feed(NewTransactionFeed(network_num=self.network_num))
+        self.feed_manager.register_feed(NewBlockFeed(network_num=self.network_num))
 
     def send_bdn_performance_stats(self) -> int:
         relay_connection = next(iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_BLOCK,))), None)
@@ -619,15 +611,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             return self.build_gateway_connection(socket_connection)
         elif any(ip == peer_relay.ip and port == peer_relay.port for peer_relay in self.peer_relays):
             relay_connection = self.build_relay_connection(socket_connection)
-            if self.opts.split_relays:
-                relay_connection.CONNECTION_TYPE = ConnectionType.RELAY_BLOCK
-                relay_connection.format_connection()
-                relay_connection.disable_buffering()
-            return relay_connection
-        elif any(ip == peer_relay.ip and port == peer_relay.port for peer_relay in self.peer_transaction_relays):
-            assert self.opts.split_relays
-            relay_connection = self.build_relay_connection(socket_connection)
-            relay_connection.CONNECTION_TYPE = ConnectionType.RELAY_TRANSACTION
             relay_connection.format_connection()
             return relay_connection
         else:
@@ -677,6 +660,26 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     or OutboundPeerModel(ip, port) in self.opts.peer_gateways
                     or (connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE and
                         self.num_retries_by_ip[(ip, port)] < gateway_constants.REMOTE_BLOCKCHAIN_MAX_CONNECT_RETRIES))
+
+    def on_connection_added(
+        self, socket_connection: AbstractSocketConnectionProtocol
+    ) -> Optional[AbstractConnection]:
+        conn = super().on_connection_added(socket_connection)
+        streaming_peer = self.opts.stream_to_peer_gateway
+        if (
+            conn is None
+            or streaming_peer is None
+            or conn.CONNECTION_TYPE not in ConnectionType.GATEWAY
+        ):
+            return conn
+
+        conn = cast(GatewayConnection, conn)
+        conn_endpoint = conn.socket_connection.endpoint
+        if (
+            conn_endpoint.ip_address == streaming_peer.ip
+            and conn_endpoint.port == streaming_peer.port
+        ):
+            conn.stream_confirmation_messages = True
 
     def on_blockchain_connection_ready(self, connection: AbstractGatewayBlockchainConnection) -> None:
         new_blockchain_peer = BlockchainPeerInfo(connection.peer_ip, connection.peer_port)
@@ -748,7 +751,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                                                  peer_info.endpoint.ip_address,
                                                  peer_info.endpoint.port,
                                                  "Connection refused")
-        elif peer_info.connection_type == ConnectionType.EXTERNAL_GATEWAY:
+        elif peer_info.connection_type == ConnectionType.EXTERNAL_GATEWAY or \
+            peer_info.connection_type == ConnectionType.REMOTE_BLOCKCHAIN_NODE:
             logger.debug("Failed to connect to: {}, {}.", peer_info, error)
         else:
             super(AbstractGatewayNode, self).log_refused_connection(peer_info, error)
@@ -824,15 +828,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                     port
                 )
             self.remove_relay_peer(ip, port)
-        elif self.opts.split_relays and ConnectionType.RELAY_TRANSACTION in connection_type:
-            if ConnectionState.ESTABLISHED in connection_state:
-                self.requester.send_threaded_request(
-                    sdn_http_service.submit_peer_connection_error_event,
-                    self.opts.node_id,
-                    ip,
-                    port
-                )
-            self.remove_relay_transaction_peer(ip, port)
 
         # Reset number of retries in case if SDN instructs to connect to the same node again
         self.num_retries_by_ip[(ip, port)] = 0
@@ -1079,50 +1074,22 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         if self.opts.sync_tx_service:
             retry = True
             if self.has_active_blockchain_peer():
-                if self.opts.split_relays:
-                    relay_tx_connection: Optional[AbstractRelayConnection] = next(
-                        iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_TRANSACTION,))), None
+                relay_connection: Optional[AbstractRelayConnection] = next(
+                    iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_ALL,))), None
+                )
+                if relay_connection and relay_connection.is_active():
+                    if self.transaction_sync_timeout_alarm_id:
+                        alarm_id = self.transaction_sync_timeout_alarm_id
+                        assert alarm_id is not None
+                        self.alarm_queue.unregister_alarm(alarm_id)
+                        self.transaction_sync_timeout_alarm_id = None
+
+                    self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
+                        constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
                     )
-                    relay_block_connection: Optional[AbstractRelayConnection] = next(
-                        iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_BLOCK,))), None
-                    )
-
-                    if (
-                        relay_tx_connection and relay_block_connection and
-                        relay_tx_connection.is_active() and relay_block_connection.is_active()
-                    ):
-                        if self.transaction_sync_timeout_alarm_id:
-                            alarm_id = self.transaction_sync_timeout_alarm_id
-                            assert alarm_id is not None
-                            self.alarm_queue.unregister_alarm(alarm_id)
-                            self.transaction_sync_timeout_alarm_id = None
-                        self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
-                            constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
-                        )
-
-                        # the sync with relay_tx must be the last one. since each call erase the previous call alarm
-                        relay_block_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
-                        relay_tx_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
-                        self._clear_transaction_service()
-                        retry = False
-                else:
-                    relay_connection: Optional[AbstractRelayConnection] = next(
-                        iter(self.connection_pool.get_by_connection_types((ConnectionType.RELAY_ALL,))), None
-                    )
-                    if relay_connection and relay_connection.is_active():
-                        if self.transaction_sync_timeout_alarm_id:
-                            alarm_id = self.transaction_sync_timeout_alarm_id
-                            assert alarm_id is not None
-                            self.alarm_queue.unregister_alarm(alarm_id)
-                            self.transaction_sync_timeout_alarm_id = None
-
-                        self.transaction_sync_timeout_alarm_id = self.alarm_queue.register_alarm(
-                            constants.TX_SERVICE_CHECK_NETWORKS_SYNCED_S, self._transaction_sync_timeout
-                        )
-                        relay_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
-                        self._clear_transaction_service()
-                        retry = False
-
+                    relay_connection.tx_sync_service.send_tx_service_sync_req(self.network_num)
+                    self._clear_transaction_service()
+                    retry = False
             if retry:
                 logger.info("Relay connection is not ready to sync transaction state with BDN. Scheduling retry.")
                 return constants.TX_SERVICE_SYNC_PROGRESS_S
@@ -1165,16 +1132,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
             if potential_relay_peers:
                 node_cache.update_cache_file(self.opts, potential_relay_peers=potential_relay_peers)
             else:
-                # if called too many times to sync_and_send_request_for_relay_peers,
-                # reset relay peers to empty list in cache file
-                if (
-                    self.send_request_for_relay_peers_num_of_calls
-                    > gateway_constants.SEND_REQUEST_RELAY_PEERS_MAX_NUM_OF_CALLS
-                ):
-                    node_cache.update_cache_file(self.opts, potential_relay_peers=[])
-                    self.send_request_for_relay_peers_num_of_calls = 0
-                self.send_request_for_relay_peers_num_of_calls += 1
-
                 cache_file_info = node_cache.read(self.opts)
                 if cache_file_info is not None:
                     potential_relay_peers = cache_file_info.relay_peers
@@ -1182,6 +1139,8 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
                 if not potential_relay_peers:
                     self._schedule_fetch_relays_from_sdn()
                     return
+                else:
+                    logger.info("Loaded potential relays from cache.")
 
             # check the network latency using the thread pool
             self.requester.send_threaded_request(
@@ -1274,7 +1233,7 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         return constants.CANCEL_ALARMS
 
     def _get_all_peers(self) -> Set[OutboundPeerModel]:
-        peers = self.peer_gateways.union(self.peer_relays).union(self.peer_transaction_relays)
+        peers = self.peer_gateways.union(self.peer_relays)
         transaction_streamer_peer = self.transaction_streamer_peer
         if transaction_streamer_peer is not None and not self.has_feed_subscribers:
             peers.discard(transaction_streamer_peer)
@@ -1313,19 +1272,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         """
         self.peer_relays = {peer_relay for peer_relay in self.peer_relays
                             if not (peer_relay.ip == ip and peer_relay.port == port)}
-        if self.opts.split_relays:
-            if self.connection_pool.has_connection(ip, port + 1):
-                transaction_connection = self.connection_pool.get_by_ipport(ip, port + 1)
-                logger.debug("Removing relay transaction connection matching block relay host: {}",
-                             transaction_connection)
-                transaction_connection.mark_for_close(False)
-            self.remove_relay_transaction_peer(ip, port + 1, False)
-
         self.outbound_peers = self._get_all_peers()
 
         if (
             len(self.peer_relays) < self.peer_relays_min_count
-            or len(self.peer_transaction_relays) < self.peer_relays_min_count
         ):
             logger.debug(
                 "Removed relay peer with ip {} and port {}. Current number of relay "
@@ -1347,8 +1297,6 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         :param port: transaction relay peer port
         :param remove_block_relay: if to remove the corresponding block relay (to avoid infinite recursing)
         """
-        self.peer_transaction_relays = {peer_relay for peer_relay in self.peer_transaction_relays
-                                        if not (peer_relay.ip == ip and peer_relay.port == port)}
         if remove_block_relay and self.connection_pool.has_connection(ip, port - 1):
             block_connection = self.connection_pool.get_by_ipport(ip, port - 1)
             logger.debug("Removing relay block connection matching transaction relay host: {}",
@@ -1417,6 +1365,9 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
 
     def _register_potential_relay_peers(self, best_relay_peers: List[OutboundPeerModel]) -> None:
         best_relay_set = set(best_relay_peers)
+        for relay in best_relay_set:
+            if relay.node_type == NodeType.RELAY_TRANSACTION or relay.node_type == NodeType.RELAY_BLOCK:
+                relay.node_type = NodeType.RELAY
 
         to_disconnect = self.peer_relays - best_relay_set
         to_connect = best_relay_set - self.peer_relays
@@ -1431,28 +1382,10 @@ class AbstractGatewayNode(AbstractNode, metaclass=ABCMeta):
         for peer_to_remove in to_disconnect:
             logger.info("Disconnecting from current relay {}", peer_to_remove)
             self.peer_relays.remove(peer_to_remove)
-            if self.opts.split_relays:
-                self.peer_transaction_relays = {
-                    peer for peer in self.peer_transaction_relays
-                    if not (
-                        peer.ip == peer_to_remove.ip and peer.port == peer_to_remove.port + 1
-                    )
-                }
 
         for peer_to_connect in to_connect:
             logger.info("Connecting to better relay {}", peer_to_connect)
             self.peer_relays.add(peer_to_connect)
-            if self.opts.split_relays:
-                self.peer_transaction_relays.add(
-                    OutboundPeerModel(
-                        peer_to_connect.ip,
-                        peer_to_connect.port + 1,
-                        f"{peer_to_connect.node_id}-tx",
-                        False,
-                        peer_to_connect.attributes,
-                        NodeType.RELAY_TRANSACTION
-                    )
-                )
 
         self.on_updated_peers(self._get_all_peers())
         self._schedule_fetch_relays_from_sdn(

@@ -7,7 +7,7 @@ from typing import Optional, Dict, Set, List, Any, cast
 
 from typing import IO
 
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
 
 
@@ -93,12 +93,14 @@ async def main() -> None:
     else:
         asyncio.create_task(process_new_txs_gateway(
             args.gateway,
+            args.auth_header,
             args.feed_name,
             args.exclude_tx_contents,
             args.exclude_duplicates,
             args.exclude_from_blockchain,
             min_gas,
-            addresses
+            addresses,
+            args.use_light_gateway
         ))
     asyncio.create_task(process_new_txs_eth(
         args.eth,
@@ -131,14 +133,19 @@ async def main() -> None:
 
 async def process_new_txs_bdn(
     feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, exclude_from_blockchain: bool,
-    min_gas: Optional[int], addresses: List[str]
+    min_gas: Optional[int], addresses: List[str], use_light_gateway: bool = False
 ) -> None:
-    options: Dict[str, Any] = {
-        "duplicates": not exclude_duplicates,
-        "include_from_blockchain": not exclude_from_blockchain
-    }
+    options: Dict[str, Any] = {}
+    if not use_light_gateway:
+        options = {
+            "duplicates": not exclude_duplicates,
+            "include_from_blockchain": not exclude_from_blockchain
+        }
+
     if exclude_tx_contents:
         options["include"] = ["tx_hash"]
+    else:
+        options["include"] = ["tx_hash", "tx_contents"]
     subscription_id = await ws_provider.subscribe(feed_name, options)
 
     while True:
@@ -152,7 +159,11 @@ async def process_new_txs_bdn(
 
         if not exclude_tx_contents:
             tx_contents = next_notification.notification["txContents"]
-            if addresses and tx_contents["from"] not in addresses and tx_contents["to"] not in addresses:
+            if (
+                addresses
+                and "to" in next_notification.notification["txContents"]
+                and tx_contents["to"] not in addresses
+            ):
                 continue
             if min_gas and int(tx_contents["gasPrice"], 16) < min_gas:
                 low_fee_hashes.add(transaction_hash)
@@ -185,16 +196,17 @@ async def process_new_txs_cloud_api(
 
 
 async def process_new_txs_gateway(
-    gateway_url: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, exclude_from_blockchain: bool,
-    min_gas: Optional[int], addresses: List[str]
+    gateway_url: str, auth_header: str, feed_name: str, exclude_tx_contents: bool, exclude_duplicates: bool, exclude_from_blockchain: bool,
+    min_gas: Optional[int], addresses: List[str], use_light_gateway: bool
 ) -> None:
     print(f"Initiating connection to: {gateway_url}")
-    async with WsProvider(gateway_url) as ws:
+    headers = {"Authorization": auth_header}
+    async with WsProvider(gateway_url, headers=headers) as ws:
         print(f"websockets endpoint: {gateway_url} established")
         global ws_provider
         ws_provider = cast(WsProvider, ws)
 
-        await process_new_txs_bdn(feed_name, exclude_tx_contents, exclude_duplicates, exclude_from_blockchain, min_gas, addresses)
+        await process_new_txs_bdn(feed_name, exclude_tx_contents, exclude_duplicates, exclude_from_blockchain, min_gas, addresses, use_light_gateway)
 
 
 async def process_new_txs_eth(
@@ -240,7 +252,7 @@ async def fetch_transaction_contents(tx_hash: str, min_gas: Optional[int], addre
         if tx_contents is None:
             return
 
-        if addresses and tx_contents["from"] not in addresses and tx_contents["to"] not in addresses:
+        if addresses and tx_contents["to"] not in addresses:
             return
         if min_gas and int(tx_contents["gasPrice"], 16) < min_gas:
             low_fee_hashes.add(tx_hash)
@@ -382,6 +394,7 @@ def get_argument_parser() -> argparse.ArgumentParser:
     parser.add_argument("--exclude-from-blockchain", action="store_true")
     parser.add_argument("--cloud-api-ws-uri", type=str, default="wss://api.blxrbdn.com/ws")
     parser.add_argument("--auth-header", type=str, help="Authorization header created with account id and password")
+    parser.add_argument("--use-light-gateway", action="store_true")
     return parser
 
 

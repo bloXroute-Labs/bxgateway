@@ -65,7 +65,7 @@ class EthWsProxyPublisherTest(AbstractTestCase):
         self.gateway_node = MockGatewayNode(gateway_opts)
         self.gateway_node.transaction_streamer_peer = OutboundPeerModel("127.0.0.1", 8006, node_type=NodeType.INTERNAL_GATEWAY)
         self.gateway_node.feed_manager.register_feed(
-            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue, network_num=self.gateway_node.network_num)
         )
 
         self.eth_ws_proxy_publisher = EthWsProxyPublisher(
@@ -74,7 +74,7 @@ class EthWsProxyPublisherTest(AbstractTestCase):
         self.subscriber: Subscriber[
             RawTransactionFeedEntry
         ] = self.gateway_node.feed_manager.subscribe_to_feed(
-            FeedKey(EthPendingTransactionFeed.NAME), {})
+            FeedKey(EthPendingTransactionFeed.NAME, network_num=self.gateway_node.network_num), {})
         self.assertIsNotNone(self.subscriber)
 
         await self.eth_ws_proxy_publisher.start()

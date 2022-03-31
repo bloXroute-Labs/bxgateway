@@ -367,8 +367,8 @@ ETH_WS_SUBSCRIBER_NOT_STARTED = LogMessage(
 GATEWAY_BAD_FEED_SUBSCRIBER = LogMessage(
     "G-000068",
     GENERAL_CATEGORY,
-    "Subscriber {} was not receiving messages and emptying its queue from "
-    "{}. Disconnecting.",
+    "Subscriber {} was not receiving messages and emptying its queue in size of {}. "
+    "Disconnecting.",
 )
 _BAD_RPC_SUBSCRIBER = LogMessage(
     "G-000069",

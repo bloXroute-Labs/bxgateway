@@ -54,7 +54,7 @@ class EthDiscoveryMessageFactoryTests(AbstractTestCase):
     def test_parse__full_message(self):
         msg_bytes, _ = self._create_full_msg_bytes()
         msg = self.parser.create_message_from_buffer(msg_bytes)
-        msg.deserialize()
+        msg.deserialize_message()
         self.assertTrue(msg)
         self.assertIsInstance(msg, PingEthDiscoveryMessage)
         self.assertEqual(msg.get_protocol_version(), self.test_ping_msg.get_protocol_version())
@@ -69,12 +69,12 @@ class EthDiscoveryMessageFactoryTests(AbstractTestCase):
     def test_parse__incomplete_message(self):
         msg_bytes, _ = self._create_half_payload_msg_bytes()
         msg = self.parser.create_message_from_buffer(msg_bytes)
-        self.assertRaises(WrongMACError, msg.deserialize)
+        self.assertRaises(WrongMACError, msg.deserialize_message)
 
     def test_parse__longer_message(self):
         msg_bytes, _ = self._create_longer_msg_bytes()
         msg = self.parser.create_message_from_buffer(msg_bytes)
-        self.assertRaises(WrongMACError, msg.deserialize)
+        self.assertRaises(WrongMACError, msg.deserialize_message)
 
     def _create_full_msg_bytes(self):
         msg_bytes = bytearray(self.test_ping_msg.rawbytes())

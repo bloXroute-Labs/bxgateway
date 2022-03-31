@@ -26,15 +26,16 @@ class AbstractRLPxCipherTest(AbstractTestCase):
         self.assertFalse(cipher2.is_ready())
 
         auth_msg = cipher1.create_auth_message()
-        self.assertEqual(len(auth_msg), eth_common_constants.AUTH_MSG_LEN)
         self.assertTrue(auth_msg)
 
         enc_auth_msg = cipher1.encrypt_auth_message(auth_msg)
-        self.assertEqual(len(enc_auth_msg), eth_common_constants.ENC_AUTH_MSG_LEN)
 
         decrypted_auth_msg, size = cipher2.decrypt_auth_message(enc_auth_msg)
-        self.assertEqual(len(decrypted_auth_msg), eth_common_constants.AUTH_MSG_LEN)
-        self.assertEqual(size, eth_common_constants.ENC_AUTH_MSG_LEN)
+        self.assertEqual(
+            size,
+            len(decrypted_auth_msg) +
+            eth_common_constants.EIP8_AUTH_PREFIX_LEN + eth_common_constants.ECIES_ENCRYPT_OVERHEAD_LENGTH
+        )
 
         cipher2.parse_auth_message(decrypted_auth_msg)
 

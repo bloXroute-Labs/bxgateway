@@ -17,11 +17,11 @@ class EthDiscoveryMessage(AbstractEthMessage):
 
     def get_public_key(self):
         if not self._is_deserialized:
-            self.deserialize()
+            self.deserialize_message()
 
         return self._public_key
 
-    def serialize(self):
+    def serialize_message(self):
         cmd_id = rlp_utils.str_to_bytes(chr(self.msg_type))
         encoded_payload = self._serialize_rlp_payload()
         signed_data = eth_common_utils.keccak_hash(cmd_id + encoded_payload)
@@ -35,7 +35,7 @@ class EthDiscoveryMessage(AbstractEthMessage):
 
         self._set_raw_bytes(msg_bytes)
 
-    def deserialize(self):
+    def deserialize_message(self):
         if self._msg_bytes is None or len(self._msg_bytes) < eth_common_constants.MDC_LEN + eth_common_constants.SIGNATURE_LEN:
             raise ValueError("Message bytes empty or too short.")
 
