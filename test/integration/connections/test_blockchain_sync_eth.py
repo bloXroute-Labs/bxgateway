@@ -26,6 +26,7 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
         self.local_blockchain_ip = "127.0.0.1"
         self.local_blockchain_port = 30303
         self.local_blockchain_port_2 = 30302
+        eth_common_constants.ETH_PROTOCOL_VERSION = 65
 
         eth_node_private_key = crypto_utils.make_private_key(helpers.generate_bytearray(111))
         self.gateway_node = spies.make_spy_node(
@@ -41,13 +42,20 @@ class BlockchainSyncEthTest(AbstractRLPxCipherTest):
         self.gateway_node._node_public_key = eth_node_public_key
         self.gateway_node._remote_public_key = eth_node_public_key
 
-        self.eth_node_connection = spies.make_spy_connection(EthNodeConnection, self.local_node_fileno,
-                                                             self.local_blockchain_port, self.gateway_node)
+        self.eth_node_connection = spies.make_spy_connection(
+            EthNodeConnection, self.local_node_fileno, self.local_blockchain_port, self.gateway_node
+        )
+        self.eth_node_connection.connection_protocol._version = 65
 
-        self.eth_node_connection_2 = spies.make_spy_connection(EthNodeConnection, self.local_node_fileno_2,
-                                                               self.local_blockchain_port_2, self.gateway_node)
-        self.eth_remote_node_connection = spies.make_spy_connection(EthRemoteConnection, self.remote_node_fileno, 8003,
-                                                                    self.gateway_node)
+        self.eth_node_connection_2 = spies.make_spy_connection(
+            EthNodeConnection, self.local_node_fileno_2, self.local_blockchain_port_2, self.gateway_node
+        )
+        self.eth_node_connection_2.connection_protocol._version = 65
+
+        self.eth_remote_node_connection = spies.make_spy_connection(
+            EthRemoteConnection, self.remote_node_fileno, 8003, self.gateway_node
+        )
+        self.eth_remote_node_connection.connection_protocol._version = 65
 
         self.eth_node_connection._rlpx_cipher = gateway_cipher
         self.eth_node_connection_2._rlpx_cipher = gateway_cipher

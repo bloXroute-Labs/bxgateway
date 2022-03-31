@@ -1,7 +1,8 @@
-from typing import Union, cast, Optional
+from typing import Union, cast, Optional, List
 
 from bxcommon.messages.abstract_block_message import AbstractBlockMessage
 from bxcommon.messages.bloxroute import compact_block_short_ids_serializer
+from bxcommon.messages.eth.serializers.block_header import BlockHeader
 from bxcommon.messages.eth.validation.eth_block_validator import EthBlockValidator
 from bxcommon.utils.blockchain_utils.eth import rlp_utils
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
@@ -11,6 +12,7 @@ from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message impor
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import (
     GetBlockHeadersEthProtocolMessage,
 )
+from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
 from bxgateway.services.block_processing_service import BlockProcessingService
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
 from bxutils import logging
@@ -27,10 +29,12 @@ class EthBlockProcessingService(BlockProcessingService):
         self._block_validator = EthBlockValidator()
 
     def try_process_get_block_headers_request(
-        self, msg: GetBlockHeadersEthProtocolMessage, block_queuing_service: Optional[EthBlockQueuingService]
-    ) -> bool:
+        self,
+        msg: GetBlockHeadersEthProtocolMessage,
+        block_queuing_service: Optional[EthBlockQueuingService]
+    ) -> Optional[List[BlockHeader]]:
         if block_queuing_service is None:
-            return False
+            return None
 
         block_hash = msg.get_block_hash()
 
@@ -68,10 +72,10 @@ class EthBlockProcessingService(BlockProcessingService):
                     "Unexpectedly, request for headers did not contain "
                     "block hash or block number. Skipping."
                 )
-                return False
+                return None
 
         if success:
-            return block_queuing_service.try_send_headers_to_node(
+            return block_queuing_service.get_block_headers(
                 requested_block_hashes
             )
         else:
@@ -79,18 +83,20 @@ class EthBlockProcessingService(BlockProcessingService):
                 "Could not find requested block hashes. "
                 "Forwarding to remote blockchain connection."
             )
-            return False
+            return None
 
     def try_process_get_block_bodies_request(
-        self, msg: GetBlockBodiesEthProtocolMessage, block_queuing_service: Optional[EthBlockQueuingService]
-    ) -> bool:
+        self,
+        msg: GetBlockBodiesEthProtocolMessage,
+        block_queuing_service: Optional[EthBlockQueuingService]
+    ) -> Optional[List[TransientBlockBody]]:
         if block_queuing_service is None:
-            return False
+            return None
 
         block_hashes = msg.get_block_hashes()
         logger.trace("Checking for bodies in local block cache...")
 
-        return block_queuing_service.try_send_bodies_to_node(
+        return block_queuing_service.get_block_bodies(
             block_hashes
         )
 

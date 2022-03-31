@@ -56,7 +56,7 @@ class EthRelayConnectionTest(AbstractTestCase):
             local_region=True,
         )
         self.node.feed_manager.publish_to_feed.assert_called_once_with(
-            FeedKey(NewTransactionFeed.NAME), expected_publication
+            FeedKey(NewTransactionFeed.NAME, self.node.network_num), expected_publication
         )
 
     def test_publish_new_tx_from_different_location(self):
@@ -72,7 +72,7 @@ class EthRelayConnectionTest(AbstractTestCase):
             local_region=False,
         )
         self.node.feed_manager.publish_to_feed.assert_called_once_with(
-            FeedKey(NewTransactionFeed.NAME), expected_publication
+            FeedKey(NewTransactionFeed.NAME, network_num=self.node.network_num), expected_publication
         )
 
     def test_publish_new_transaction_low_gas(self):
@@ -102,6 +102,25 @@ class EthRelayConnectionTest(AbstractTestCase):
         expensive_tx = self._convert_to_bx_message(
             TransactionsEthProtocolMessage(None, [mock_eth_messages.get_dummy_transaction(1, 15)])
         )
+        self.relay_connection_1.msg_tx(expensive_tx)
+        self._assert_tx_sent()
+
+    def test_msg_tx_paid_tx(self):
+        self.node.opts.filter_txs_factor = 1
+        self.node.opts.miner = True
+        self._set_bc_connection()
+
+        transactions = [mock_eth_messages.get_dummy_transaction(i, 10) for i in range(100)]
+        self.node.on_transactions_in_block(transactions)
+
+        bx_tx_message = self._convert_to_bx_message(eth_fixtures.EIP_155_TXS_MESSAGE)
+        self.relay_connection_1.msg_tx(bx_tx_message)
+        self.node.broadcast.assert_not_called()
+
+        expensive_tx = self._convert_to_bx_message(
+            TransactionsEthProtocolMessage(None, [mock_eth_messages.get_dummy_transaction(1, 15)])
+        )
+        expensive_tx.set_transaction_flag(TransactionFlag.PAID_TX)
         self.relay_connection_1.msg_tx(expensive_tx)
         self._assert_tx_sent()
 

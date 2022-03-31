@@ -19,7 +19,7 @@ from bxcommon.rpc import rpc_constants
 from bxcommon.feed.feed_source import FeedSource
 from bxcommon.utils import convert
 from bxcommon.utils.expiring_dict import ExpiringDict
-from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants, eth_common_utils
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
@@ -426,7 +426,7 @@ class EthGatewayNode(AbstractGatewayNode):
             else:
                 super(EthGatewayNode, self).log_closed_connection(connection)
 
-        elif isinstance(connection, GatewayConnection):
+        elif isinstance(connection, (GatewayConnection, EthRemoteConnection)):
             if connection.established:
                 logger.debug("Failed to connect to: {}.", connection)
             else:
@@ -444,11 +444,11 @@ class EthGatewayNode(AbstractGatewayNode):
                                         eth_on_block_feed_stats_service.flush_info)
 
     def init_live_feeds(self) -> None:
-        self.feed_manager.register_feed(EthNewTransactionFeed())
-        self.feed_manager.register_feed(EthPendingTransactionFeed(self.alarm_queue))
-        self.feed_manager.register_feed(EthOnBlockFeed(self))
-        self.feed_manager.register_feed(EthNewBlockFeed(self))
-        self.feed_manager.register_feed(EthTransactionReceiptsFeed(self))
+        self.feed_manager.register_feed(EthNewTransactionFeed(network_num=self.network_num))
+        self.feed_manager.register_feed(EthPendingTransactionFeed(self.alarm_queue, network_num=self.network_num))
+        self.feed_manager.register_feed(EthOnBlockFeed(self, network_num=self.network_num))
+        self.feed_manager.register_feed(EthNewBlockFeed(self, network_num=self.network_num))
+        self.feed_manager.register_feed(EthTransactionReceiptsFeed(self, network_num=self.network_num))
 
     def on_new_subscriber_request(self) -> None:
         if self.opts.eth_ws_uri and not self.eth_ws_proxy_publisher.running:
@@ -456,7 +456,7 @@ class EthGatewayNode(AbstractGatewayNode):
 
     def on_transactions_in_block(self, transactions: List[Transaction]) -> None:
         for transaction in transactions:
-            self.average_block_gas_price.add_value(transaction.gas_price)
+            self.average_block_gas_price.add_value(transaction.adjusted_gas_price())
 
     def broadcast_transactions_to_nodes(
         self, msg: AbstractMessage, broadcasting_conn: Optional[AbstractConnection]
@@ -475,13 +475,13 @@ class EthGatewayNode(AbstractGatewayNode):
             assert len(msg.get_transactions()) == 1
             transaction = msg.get_transactions()[0]
 
-            gas_price = float(transaction.gas_price)
+            gas_price = float(transaction.adjusted_gas_price())
 
             if gas_price < gas_price_filter:
                 logger.trace(
                     "Skipping sending transaction {} with gas price: {}. Average was {}. Minimum from node was {}.",
                     transaction.hash(),
-                    float(transaction.gas_price),
+                    gas_price,
                     average_block_gas_filter,
                     min_gas_price_from_node
                 )
@@ -596,7 +596,10 @@ class EthGatewayNode(AbstractGatewayNode):
         self,
         raw_block: EthRawBlock,
     ) -> None:
-        self.feed_manager.publish_to_feed(FeedKey(EthNewBlockFeed.NAME), raw_block)
+        self.feed_manager.publish_to_feed(
+            FeedKey(EthNewBlockFeed.NAME, network_num=self.network_num),
+            raw_block
+        )
 
     def _publish_block_to_on_block_feed(
         self,
@@ -604,7 +607,8 @@ class EthGatewayNode(AbstractGatewayNode):
     ) -> None:
         if raw_block.source in EthOnBlockFeed.VALID_SOURCES:
             self.feed_manager.publish_to_feed(
-                FeedKey(EthOnBlockFeed.NAME), EventNotification(raw_block.block_number)
+                FeedKey(EthOnBlockFeed.NAME, network_num=self.network_num),
+                EventNotification(raw_block.block_number)
             )
 
     def _publish_block_to_transaction_receipts_feed(
@@ -612,11 +616,12 @@ class EthGatewayNode(AbstractGatewayNode):
         raw_block: EthRawBlock
     ):
         self.feed_manager.publish_to_feed(
-            FeedKey(EthTransactionReceiptsFeed.NAME), raw_block
+            FeedKey(EthTransactionReceiptsFeed.NAME, network_num=self.network_num),
+            raw_block
         )
 
     def is_gas_price_above_min_network_fee(self, transaction_contents: Union[memoryview, bytearray]) -> bool:
-        gas_price = eth_common_utils.raw_tx_gas_price(memoryview(transaction_contents), 0)
-        if gas_price >= self.get_blockchain_network().min_tx_network_fee:
-            return True
-        return False
+        # gas_price = eth_common_utils.raw_tx_gas_price(memoryview(transaction_contents), 0)
+        # if gas_price >= self.get_blockchain_network().min_tx_network_fee:
+        return True
+        # return False

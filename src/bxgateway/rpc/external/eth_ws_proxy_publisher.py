@@ -2,8 +2,10 @@ import asyncio
 from asyncio import Future
 from typing import Optional, cast, List, Dict, Any, TYPE_CHECKING
 
+from bxcommon.connections.connection_type import ConnectionType
 from bxcommon.exceptions import FeedSubscriptionTimeoutError
 from bxcommon.feed.feed import FeedKey
+from bxcommon.messages.bloxroute.abstract_bloxroute_message import AbstractBloxrouteMessage
 from bxcommon.models.transaction_key import TransactionKey
 from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
 from bxcommon.rpc.provider.abstract_ws_provider import WsException
@@ -15,6 +17,8 @@ from bxcommon.feed.feed_source import FeedSource
 from bxgateway import log_messages
 from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxgateway.connections.gateway_connection import GatewayConnection
+from bxgateway.messages.gateway.confirmed_tx_message import ConfirmedTxMessage
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 from bxutils import logging
 
@@ -45,6 +49,7 @@ class EthWsProxyPublisher(EthWsSubscriber):
         # ok, lifecycle patterns are a bit different
         super().__init__(ws_uri)
         self.receiving_tasks: List[Future] = []
+        self.stream_confirmation_messages = node.opts.stream_to_peer_gateway is not None
 
     async def revive(self) -> None:
         """
@@ -144,7 +149,7 @@ class EthWsProxyPublisher(EthWsSubscriber):
         transaction_feed_stats_service.log_pending_transaction_from_local(transaction_key.transaction_hash)
 
         self.feed_manager.publish_to_feed(
-            FeedKey(EthPendingTransactionFeed.NAME),
+            FeedKey(EthPendingTransactionFeed.NAME, self.node.network_num),
             EthRawTransaction(
                 transaction_key.transaction_hash,
                 tx_contents,
@@ -152,6 +157,8 @@ class EthWsProxyPublisher(EthWsSubscriber):
                 local_region=True
             )
         )
+        if self.stream_confirmation_messages:
+            self.broadcast_confirmation_message(ConfirmedTxMessage(transaction_key.transaction_hash))
 
     async def fetch_missing_transaction(self, transaction_key: TransactionKey) -> None:
         try:
@@ -178,10 +185,13 @@ class EthWsProxyPublisher(EthWsSubscriber):
             logger.debug(log_messages.TRANSACTION_NOT_FOUND_IN_MEMPOOL, transaction_key.transaction_hash)
             transaction_feed_stats_service.log_pending_transaction_missing_contents()
         else:
-            gas_price = int(parsed_tx["gasPrice"], 16)
+            if parsed_tx.get("type", "0x0") == "0x2":
+                gas_price = int(parsed_tx["maxFeePerGas"], 16)
+            else:
+                gas_price = int(parsed_tx["gasPrice"], 16)
             if gas_price >= self.node.get_network_min_transaction_fee():
                 self.feed_manager.publish_to_feed(
-                    FeedKey(EthPendingTransactionFeed.NAME),
+                    FeedKey(EthPendingTransactionFeed.NAME, network_num=self.node.network_num),
                     EthRawTransaction(
                         transaction_key.transaction_hash,
                         parsed_tx,
@@ -189,6 +199,18 @@ class EthWsProxyPublisher(EthWsSubscriber):
                         local_region=True,
                     )
                 )
+
+            if self.stream_confirmation_messages:
+                self.broadcast_confirmation_message(ConfirmedTxMessage(transaction_key.transaction_hash))
+
+    def broadcast_confirmation_message(self, message: AbstractBloxrouteMessage) -> None:
+        gateway_connections = cast(
+            List[GatewayConnection],
+            self.node.connection_pool.get_by_connection_types((ConnectionType.EXTERNAL_GATEWAY,))
+        )
+        for connection in gateway_connections:
+            if connection.stream_confirmation_messages:
+                connection.enqueue_msg(message)
 
     async def stop(self) -> None:
         await self.close()

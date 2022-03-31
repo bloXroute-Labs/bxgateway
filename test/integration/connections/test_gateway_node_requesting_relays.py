@@ -144,12 +144,7 @@ class GatewayNodeRequestingRelaysTest(AbstractTestCase):
                 call(
                     self.outbound_peer_models[index].ip,
                     self.outbound_peer_models[index].port,
-                    ConnectionType.RELAY_BLOCK
-                ),
-                call(
-                    self.outbound_peer_models[index].ip,
-                    self.outbound_peer_models[index].port + 1,
-                    ConnectionType.RELAY_TRANSACTION
+                    ConnectionType.RELAY_ALL
                 ),
             ],
             any_order=True

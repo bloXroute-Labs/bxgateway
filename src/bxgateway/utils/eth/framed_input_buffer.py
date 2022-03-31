@@ -1,3 +1,5 @@
+import struct
+
 from bxcommon.exceptions import ParseError
 from bxcommon.utils.buffers.input_buffer import InputBuffer
 from bxgateway.utils.eth import frame_utils
@@ -121,3 +123,11 @@ class FramedInputBuffer(object):
         self._current_frame_sequence_id = None
 
         return message, msg_type
+
+    def peek_eip8_handshake_message_len(self, input_buffer: InputBuffer) -> int:
+        handshake_message_len = 0
+        if input_buffer.length > eth_common_constants.EIP8_AUTH_PREFIX_LEN:
+            cipher_text = input_buffer.peek_message(eth_common_constants.EIP8_AUTH_PREFIX_LEN)
+            handshake_message_len = struct.unpack(">H", cipher_text[:eth_common_constants.EIP8_AUTH_PREFIX_LEN])[0] + \
+                                    eth_common_constants.EIP8_AUTH_PREFIX_LEN
+        return handshake_message_len

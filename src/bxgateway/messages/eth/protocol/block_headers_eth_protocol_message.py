@@ -27,7 +27,7 @@ class BlockHeadersEthProtocolMessage(EthProtocolMessage):
 
     def get_block_headers_bytes(self):
         if self._memory_view is None:
-            self.serialize()
+            self.serialize_message()
 
         return rlp_utils.get_first_list_field_items_bytes(self._memory_view)
 

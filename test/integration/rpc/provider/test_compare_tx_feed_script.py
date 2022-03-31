@@ -116,7 +116,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
                 local_region=True
             )
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("newTxs"), eth_transaction
+                FeedKey("newTxs", self.gateway_node.network_num), eth_transaction
             )
             await asyncio.sleep(0.03)
 
@@ -128,7 +128,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
                 eth_tx_message.tx_hash(), eth_tx_message.tx_val(), FeedSource.BDN_SOCKET, local_region=True
             )
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction
+                FeedKey("pendingTxs", network_num=self.gateway_node.network_num), eth_transaction
             )
             await asyncio.sleep(0.03)
 
@@ -140,7 +140,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
         await asyncio.sleep(1)
         for _ in range(20):
             self.gateway_node.feed_manager.publish_to_feed(
-                FeedKey("pendingTxs"), eth_transaction
+                FeedKey("pendingTxs", network_num=self.gateway_node.network_num), eth_transaction
             )
             await asyncio.sleep(0.03)
 
@@ -149,7 +149,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
     async def test_compare_tx_feeds_script_new_txs(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
-            EthNewTransactionFeed()
+            EthNewTransactionFeed(network_num=self.gateway_node.network_num)
         )
 
         sys.argv = [
@@ -177,7 +177,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
     async def test_compare_tx_feeds_script_pending_txs(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
-            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue, network_num=self.gateway_node.network_num)
         )
 
         sys.argv = [
@@ -202,7 +202,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
     async def test_compare_tx_feeds_script_pending_txs_exclude_duplicates(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
-            EthPendingTransactionFeed(self.gateway_node.alarm_queue)
+            EthPendingTransactionFeed(self.gateway_node.alarm_queue, network_num=self.gateway_node.network_num)
         )
 
         sys.argv = [
@@ -228,7 +228,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
     async def test_compare_tx_feeds_script_new_txs_exclude_tx_contents(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
-            EthNewTransactionFeed()
+            EthNewTransactionFeed(network_num=self.gateway_node.network_num)
         )
 
         sys.argv = [
@@ -251,7 +251,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
     async def test_compare_tx_feeds_script_new_txs_include_from_blockchain_default(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
-            EthNewTransactionFeed()
+            EthNewTransactionFeed(network_num=self.gateway_node.network_num)
         )
 
         sys.argv = [
@@ -274,7 +274,7 @@ class CompareTxFeedScriptTest(AbstractTestCase):
     async def test_compare_tx_feeds_script_new_txs_exclude_from_blockchain(self):
         self.gateway_node.feed_manager.feeds.clear()
         self.gateway_node.feed_manager.register_feed(
-            EthNewTransactionFeed()
+            EthNewTransactionFeed(network_num=self.gateway_node.network_num)
         )
 
         sys.argv = [

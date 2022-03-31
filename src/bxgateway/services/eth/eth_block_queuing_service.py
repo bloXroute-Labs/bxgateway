@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING, Dict, Set, List, Optional, Iterator, cast, Tup
     Deque, Callable
 
 from bxcommon import constants
-from bxcommon.utils.blockchain_utils.eth import eth_common_constants
+from bxcommon.messages.eth.serializers.block_header import BlockHeader
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants, eth_common_utils
 from bxcommon.utils import memory_utils, crypto
 from bxcommon.utils.alarm_queue import AlarmId
 from bxcommon.utils.expiring_dict import ExpiringDict
@@ -16,6 +17,7 @@ from bxcommon.utils.stats.block_statistics_service import block_stats
 from bxcommon.feed.feed_source import FeedSource
 from bxgateway import gateway_constants
 from bxgateway.connections.abstract_gateway_blockchain_connection import AbstractGatewayBlockchainConnection
+from bxgateway.connections.eth.eth_base_connection import EthBaseConnection
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import (
@@ -27,12 +29,15 @@ from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import (
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import (
     GetBlockHeadersEthProtocolMessage,
 )
+from bxgateway.messages.eth.protocol.get_block_headers_v66_eth_protocol_message import \
+    GetBlockHeadersV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import (
     NewBlockEthProtocolMessage,
 )
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import (
     NewBlockHashesEthProtocolMessage,
 )
+from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
 from bxgateway.services.abstract_block_queuing_service import AbstractBlockQueuingService, \
     BlockQueueEntry
 from bxutils import logging
@@ -418,7 +423,7 @@ class EthBlockQueuingService(
 
         return self._partial_chainstate
 
-    def try_send_bodies_to_node(self, block_hashes: List[Sha256Hash]) -> bool:
+    def get_block_bodies(self, block_hashes: List[Sha256Hash]) -> Optional[List[TransientBlockBody]]:
         """
         Creates and sends block bodies to blockchain connection.
         """
@@ -428,14 +433,14 @@ class EthBlockQueuingService(
                 self.connection.log_debug(
                     "{} was not found in queuing service. Aborting attempt to send bodies.", block_hash
                 )
-                return False
+                return None
 
             if not self.node.block_queuing_service_manager.is_in_common_block_storage(block_hash):
                 self.connection.log_debug(
                     "{} was not in the block storage. Aborting attempt to send bodies.",
                     block_hash
                 )
-                return False
+                return None
             block_message = cast(InternalEthBlockInfo, self.node.block_storage[block_hash])
 
             if block_hash in self.node.block_parts_storage:
@@ -459,12 +464,9 @@ class EthBlockQueuingService(
                 height
             )
 
-        full_message = BlockBodiesEthProtocolMessage(None, bodies)
+        return bodies
 
-        self.connection.enqueue_msg(full_message)
-        return True
-
-    def try_send_headers_to_node(self, block_hashes: List[Sha256Hash]) -> bool:
+    def get_block_headers(self, block_hashes: List[Sha256Hash]) -> Optional[List[BlockHeader]]:
         """
         Creates and sends a block headers message to blockchain connection.
 
@@ -479,14 +481,14 @@ class EthBlockQueuingService(
                     "{} was not found in queuing service. Aborting attempt to send headers.",
                     block_hash
                 )
-                return False
+                return None
 
             if not self.node.block_queuing_service_manager.is_in_common_block_storage(block_hash):
                 self.connection.log_debug(
                     "{} was not in block storage. Aborting attempt to send headers",
                     block_hash
                 )
-                return False
+                return None
             block_message = cast(InternalEthBlockInfo, self.node.block_storage[block_hash])
 
             partial_headers_message = self.build_block_header_message(
@@ -503,10 +505,12 @@ class EthBlockQueuingService(
                 height
             )
 
-        full_header_message = BlockHeadersEthProtocolMessage(None, headers)
+        return headers
 
-        self.connection.enqueue_msg(full_header_message)
-        return True
+    def get_block_height(self, block_hash: Sha256Hash) -> Optional[int]:
+        if block_hash not in self._height_by_block_hash:
+            return None
+        return self._height_by_block_hash[block_hash]
 
     def get_block_hashes_starting_from_hash(
         self, block_hash: Sha256Hash, max_count: int, skip: int, reverse: bool
@@ -757,6 +761,11 @@ class EthBlockQueuingService(
         get_confirmation_message = GetBlockHeadersEthProtocolMessage(
             None, block_hash.binary, 1, 0, 0
         )
+        connection = cast(EthBaseConnection, self.connection)
+        if connection.is_version_66():
+            get_confirmation_message = GetBlockHeadersV66EthProtocolMessage(
+                None, eth_common_utils.generate_message_request_id(), get_confirmation_message
+            )
         self.connection.enqueue_msg(get_confirmation_message)
 
         if self.block_check_repeat_count[block_hash] < eth_common_constants.CHECK_BLOCK_RECEIPT_MAX_COUNT:

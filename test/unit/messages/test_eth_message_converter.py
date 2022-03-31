@@ -162,7 +162,7 @@ class EthMessageConverterTests(AbstractTestCase):
         short_ids = []
         used_short_ids = []
 
-        tx_count = 150
+        tx_count = 10
 
         for i in range(1, tx_count):
             tx = mock_eth_messages.get_dummy_transaction(1)
@@ -197,7 +197,7 @@ class EthMessageConverterTests(AbstractTestCase):
         bx_block_msg, block_info = self.eth_message_converter.block_to_bx_block(
             internal_new_block_msg, self.tx_service, True, 0
         )
-
+        msg = BroadcastMessage(block_info.block_hash, 5, blob=bx_block_msg)
         self.assertEqual(len(txs), block_info.txn_count)
 
         self.assertEqual(convert.bytes_to_hex(block.header.prev_hash), block_info.prev_block_hash)

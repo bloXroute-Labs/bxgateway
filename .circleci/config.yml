@@ -31,7 +31,7 @@ executors:
     # TODO: Use AWS repository or create bloXroute account on Docker Hub
     - image: circleci/python:3.8
     environment:
-      PYTHONPATH: /home/circleci/ws/bxcommon/src:/home/circleci/ws/bxgateway/src:/home/circleci/ws/bxextensions:/home/circleci/ws/bxcommon-internal/src/
+      PYTHONPATH: /home/circleci/ws/bxcommon/src:/home/circleci/ws/bxgateway/src:/home/circleci/ws/bxextensions
       GIT_SSH_COMMAND: "ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"
     working_directory: ~/ws
 
@@ -49,7 +49,7 @@ jobs:
             cd ~/ws
             python -m virtualenv venv
       - clone:
-          repo: bxextensions-private
+          repo: bxextensions
           folder: bxextensions
       - run:
           name: install dependencies
@@ -57,20 +57,15 @@ jobs:
             sudo apt update &&
             sudo apt install build-essential automake autogen autoconf libtool libtool-bin libssl-dev cmake linux-headers-amd64
       - clone:
-          repo: bxcommon-private
+          repo: bxcommon
           folder: bxcommon
-      - clone:
-          repo: bxcommon-internal
-          folder: bxcommon-internal
       - restore_cache: # restores saved dependency cache
           key: bxextensions-{{ checksum "~/ws/bxextensions_tmp_file" }}
       - restore_cache: # restores saved dependency cache
           key: "bxgateway-\
             {{ checksum \"bxgateway/requirements.txt\" }}-\
-            {{ checksum \"bxgateway/requirements-dev.txt\"}}-\
             {{ checksum \"bxcommon/requirements.txt\"}}-\
-            {{ checksum \"bxcommon/requirements-dev.txt\"}}-\
-            {{ checksum \"bxcommon/requirements-optional.txt\"}}"
+            {{ checksum \"bxcommon/requirements-dev.txt\"}}"
 
       - run: # install and activate virtual environment with pip
           name: installing virtual env
@@ -79,8 +74,7 @@ jobs:
             pip install -r bxgateway/requirements.txt \
               -r bxgateway/requirements-dev.txt \
               -r bxcommon/requirements.txt \
-              -r bxcommon/requirements-dev.txt \
-              -r bxcommon/requirements-optional.txt
+              -r bxcommon/requirements-dev.txt
       - run:
           command: |
             . venv/bin/activate
@@ -93,10 +87,8 @@ jobs:
       - save_cache: # special step to save dependency cache
           key: "bxgateway-\
             {{ checksum \"bxgateway/requirements.txt\" }}-\
-            {{ checksum \"bxgateway/requirements-dev.txt\"}}-\
             {{ checksum \"bxcommon/requirements.txt\"}}-\
-            {{ checksum \"bxcommon/requirements-dev.txt\"}}-\
-            {{ checksum \"bxcommon/requirements-optional.txt\"}}"
+            {{ checksum \"bxcommon/requirements-dev.txt\"}}"
           paths:
             - venv
       - persist_to_workspace:
@@ -104,7 +96,6 @@ jobs:
           paths:
             - venv
             - bxcommon
-            - bxcommon-internal
             - bxgateway
             - bxextensions
   check:
@@ -153,31 +144,6 @@ jobs:
     - store_artifacts:
         path: test-reports/
         destination: tr1
-  e2e:
-    executor: bloxroute-executor
-    steps:
-      - attach_workspace:
-          at: ~/ws
-      - clone:
-          repo: bxe2e
-          folder: bxe2e
-      - clone:
-          repo: bxrelay
-          folder: bxrelay
-      - run:
-          name: Initialize virtualenv
-          command: |
-            . venv/bin/activate
-            pip install -r bxrelay/requirements.txt \
-              -r bxrelay/requirements-dev.txt \
-              -r bxcommon/requirements-optional.txt
-      - run:
-          name: Integration Test
-          command: |
-            . venv/bin/activate
-            cd bxe2e/test/integration
-            PYTHONPATH=$PYTHONPATH:/home/circleci/ws/bxe2e/src:/home/circleci/ws/bxrelay/src \
-            python -m unittest discover --verbose
   build:
     docker:
       - image: docker:19.03.8
@@ -238,8 +204,5 @@ workflows:
           requires:
             - initialize
       - test:
-          requires:
-            - initialize
-      - e2e:
           requires:
             - initialize

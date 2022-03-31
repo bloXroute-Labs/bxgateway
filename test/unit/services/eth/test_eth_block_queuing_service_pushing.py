@@ -4,6 +4,7 @@ from collections import deque
 from typing import List, Optional
 from unittest.mock import MagicMock
 
+from bxcommon.messages.eth.serializers.block_header import BlockHeader
 from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.test_utils.mocks.mock_connection import MockConnection
 from bxcommon.test_utils.mocks.mock_socket_connection import MockSocketConnection
@@ -154,84 +155,88 @@ class EthBlockQueuingServicePushingTest(AbstractTestCase):
         self._assert_block_sent(block_hash_3b)
 
         # sync triggered, requesting 2a by hash
-        self.block_processing_service.try_process_get_block_headers_request(
+        headers = self.block_processing_service.try_process_get_block_headers_request(
             GetBlockHeadersEthProtocolMessage(
                 None, block_hash_2a.binary, 1, 0, 0
             ),
             self.block_queuing_service
         )
-        self.block_processing_service.try_process_get_block_headers_request(
+        self._assert_headers_equal([], headers)
+        headers = self.block_processing_service.try_process_get_block_headers_request(
             GetBlockHeadersEthProtocolMessage(
                 None, block_hash_2a.binary, 1, 0, 0
             ),
             self.block_queuing_service_2
         )
-        # response is empty
-        self._assert_headers_sent([])
+        self._assert_headers_equal([], headers)
 
         # request block 1 to establish common ancestor
         block_number_bytes = struct.pack(">I", 1)
-        self.block_processing_service.try_process_get_block_headers_request(
+        headers = self.block_processing_service.try_process_get_block_headers_request(
             GetBlockHeadersEthProtocolMessage(
                 None, block_number_bytes, 1, 0, 0
             ),
             self.block_queuing_service
         )
-        self.block_processing_service.try_process_get_block_headers_request(
+        self._assert_headers_equal([block_hash_1], headers)
+        headers = self.block_processing_service.try_process_get_block_headers_request(
             GetBlockHeadersEthProtocolMessage(
                 None, block_number_bytes, 1, 0, 0
             ),
             self.block_queuing_service_2
         )
-        self._assert_headers_sent([block_hash_1])
+        self._assert_headers_equal([block_hash_1], headers)
 
         # request block 193, 193 + 191, etc to determine chain state
         block_number_bytes = struct.pack(">I", 193)
-        self.block_processing_service.try_process_get_block_headers_request(
+        headers = self.block_processing_service.try_process_get_block_headers_request(
             GetBlockHeadersEthProtocolMessage(
                 None, block_number_bytes, 128, 191, 0
             ),
             self.block_queuing_service
         )
-        self.block_processing_service.try_process_get_block_headers_request(
+        self._assert_headers_equal([], headers)
+        headers = self.block_processing_service.try_process_get_block_headers_request(
             GetBlockHeadersEthProtocolMessage(
                 None, block_number_bytes, 128, 191, 0
             ),
             self.block_queuing_service_2
         )
-        self._assert_headers_sent([])
+        self._assert_headers_equal([], headers)
 
         # request block 2, 3, 4, ... to compare state
         block_number_bytes = struct.pack(">I", 2)
-        self.block_processing_service.try_process_get_block_headers_request(
+        headers = self.block_processing_service.try_process_get_block_headers_request(
             GetBlockHeadersEthProtocolMessage(
                 None, block_number_bytes, 192, 0, 0
             ),
             self.block_queuing_service
         )
-        self.block_processing_service.try_process_get_block_headers_request(
+        self._assert_headers_equal([block_hash_2b, block_hash_3b], headers)
+        headers = self.block_processing_service.try_process_get_block_headers_request(
             GetBlockHeadersEthProtocolMessage(
                 None, block_number_bytes, 192, 0, 0
             ),
             self.block_queuing_service_2
         )
-        self._assert_headers_sent([block_hash_2b, block_hash_3b])
+        self._assert_headers_equal([block_hash_2b, block_hash_3b], headers)
 
         # request block 4, 5, 6, ... to compare state
         block_number_bytes = struct.pack(">I", 4)
-        self.block_processing_service.try_process_get_block_headers_request(
+        headers = self.block_processing_service.try_process_get_block_headers_request(
             GetBlockHeadersEthProtocolMessage(
                 None, block_number_bytes, 192, 0, 0
             ),
             self.block_queuing_service
         )
-        self.block_processing_service.try_process_get_block_headers_request(
+        self._assert_headers_equal([], headers)
+        headers = self.block_processing_service.try_process_get_block_headers_request(
             GetBlockHeadersEthProtocolMessage(
                 None, block_number_bytes, 192, 0, 0
             ),
             self.block_queuing_service_2
         )
-        self._assert_headers_sent([])
+        self._assert_headers_equal([], headers)
 
         # 4b is sent after timeout (presumably Ethereum node didn't send back acceptance
         # because it's resolving chainstate)
@@ -828,22 +833,10 @@ class EthBlockQueuingServicePushingTest(AbstractTestCase):
                 if isinstance(block_message, NewBlockEthProtocolMessage):
                     self.fail(f"Unexpected block sent: {block_message.block_hash()}")
 
-    def _assert_headers_sent(self, hashes: List[Sha256Hash], connections: Optional[List[MockConnection]] = None):
-        if connections is None:
-            connections = self.blockchain_connections
-
-        for connection in connections:
-            connection.enqueue_msg.assert_called_once()
-            ((headers_message, ), _) = connection.enqueue_msg.call_args
-            assert isinstance(headers_message, BlockHeadersEthProtocolMessage)
-
-            headers = headers_message.get_block_headers()
-            self.assertEqual(len(hashes), len(headers))
-
-            for expected_hash, header in zip(hashes, headers):
-                self.assertEqual(expected_hash, header.hash_object())
-
-            connection.enqueue_msg.reset_mock()
+    def _assert_headers_equal(self, expected: List[Sha256Hash], actual: List[BlockHeader]):
+        self.assertEqual(len(expected), len(actual))
+        for expected_hash, header in zip(expected, actual):
+            self.assertEqual(expected_hash, header.hash_object())
 
     def _progress_time(self):
         time.time = MagicMock(return_value=time.time() + BLOCK_INTERVAL)

@@ -5,8 +5,8 @@ import time
 from datetime import datetime
 from typing import Optional, Dict, TextIO, Set, cast
 
-from bloxroute_cli.provider.cloud_wss_provider import CloudWssProvider
-from bloxroute_cli.provider.ws_provider import WsProvider
+from bxcommon.rpc.provider.cloud_wss_provider import CloudWssProvider
+from bxcommon.rpc.provider.ws_provider import WsProvider
 from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
 
 
