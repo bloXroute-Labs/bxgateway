@@ -3,12 +3,14 @@ import time
 
 import blxr_rlp as rlp
 
+from bxcommon.messages.eth.serializers.block import Block
 from bxcommon.messages.eth.serializers.block_header import BlockHeader
-from bxcommon.test_utils.abstract_test_case import AbstractTestCase
+from bxcommon.messages.eth.serializers.transaction import Transaction, LegacyTransaction
 from bxcommon.test_utils import helpers
+from bxcommon.test_utils.abstract_test_case import AbstractTestCase
 from bxcommon.utils import convert
+from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 from bxcommon.utils.object_hash import Sha256Hash
-
 from bxgateway.messages.eth.discovery.ping_eth_discovery_message import PingEthDiscoveryMessage
 from bxgateway.messages.eth.discovery.pong_eth_discovery_message import PongEthDiscoveryMessage
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
@@ -16,8 +18,14 @@ from bxgateway.messages.eth.new_block_parts import NewBlockParts
 from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import (
     BlockBodiesEthProtocolMessage,
 )
+from bxgateway.messages.eth.protocol.block_bodies_v66_eth_protocol_message import (
+    BlockBodiesV66EthProtocolMessage,
+)
 from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import (
     BlockHeadersEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.block_headers_v66_eth_protocol_message import (
+    BlockHeadersV66EthProtocolMessage,
 )
 from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import (
     DisconnectEthProtocolMessage,
@@ -25,16 +33,31 @@ from bxgateway.messages.eth.protocol.disconnect_eth_protocol_message import (
 from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import (
     GetBlockBodiesEthProtocolMessage,
 )
+from bxgateway.messages.eth.protocol.get_block_bodies_v66_eth_protocol_message import (
+    GetBlockBodiesV66EthProtocolMessage,
+)
 from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import (
     GetBlockHeadersEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.get_block_headers_v66_eth_protocol_message import (
+    GetBlockHeadersV66EthProtocolMessage,
 )
 from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import (
     GetNodeDataEthProtocolMessage,
 )
-from bxgateway.messages.eth.protocol.get_pooled_transactions_eth_protocol_message import \
-    GetPooledTransactionsEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_node_data_v66_eth_protocol_message import (
+    GetNodeDataV66EthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.get_pooled_transactions_eth_protocol_message import (
+    GetPooledTransactionsEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.get_pooled_transactions_v66_eth_protocol_message import \
+    GetPooledTransactionsV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import (
     GetReceiptsEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.get_receipts_v66_eth_protocol_message import (
+    GetReceiptsV66EthProtocolMessage,
 )
 from bxgateway.messages.eth.protocol.hello_eth_protocol_message import HelloEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import (
@@ -43,15 +66,25 @@ from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import (
 from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import (
     NewBlockHashesEthProtocolMessage,
 )
-from bxgateway.messages.eth.protocol.new_pooled_transaction_hashes_eth_protocol_message import \
-    NewPooledTransactionHashesEthProtocolMessage
+from bxgateway.messages.eth.protocol.new_pooled_transaction_hashes_eth_protocol_message import (
+    NewPooledTransactionHashesEthProtocolMessage,
+)
 from bxgateway.messages.eth.protocol.node_data_eth_protocol_message import (
     NodeDataEthProtocolMessage,
 )
+from bxgateway.messages.eth.protocol.node_data_v66_eth_protocol_message import (
+    NodeDataV66EthProtocolMessage,
+)
 from bxgateway.messages.eth.protocol.ping_eth_protocol_message import PingEthProtocolMessage
-from bxgateway.messages.eth.protocol.pooled_transactions_eth_protocol_message import \
-    PooledTransactionsEthProtocolMessage
+from bxgateway.messages.eth.protocol.pooled_transactions_eth_protocol_message import (
+    PooledTransactionsEthProtocolMessage,
+)
+from bxgateway.messages.eth.protocol.pooled_transactions_v66_eth_protocol_message import \
+    PooledTransactionsV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.receipts_eth_protocol_message import ReceiptsEthProtocolMessage
+from bxgateway.messages.eth.protocol.receipts_v66_eth_protocol_message import (
+    ReceiptsV66EthProtocolMessage,
+)
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import (
     StatusEthProtocolMessageV63,
@@ -59,12 +92,9 @@ from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import (
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import (
     TransactionsEthProtocolMessage,
 )
-from bxcommon.messages.eth.serializers.block import Block
 from bxgateway.messages.eth.serializers.block_hash import BlockHash
-from bxcommon.messages.eth.serializers.transaction import Transaction, LegacyTransaction
 from bxgateway.messages.eth.serializers.transient_block_body import TransientBlockBody
 from bxgateway.testing.mocks import mock_eth_messages
-from bxcommon.utils.blockchain_utils.eth import crypto_utils, eth_common_constants
 
 
 class EthMessagesTests(AbstractTestCase):
@@ -167,10 +197,32 @@ class EthMessagesTests(AbstractTestCase):
             0,
         )
 
+    def test_get_block_headers_v66_eth_message(self):
+        base_message = GetBlockHeadersEthProtocolMessage(
+            None, helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN), 111, 222, 0
+        )
+        GetBlockHeadersV66EthProtocolMessage._serializer = None
+        self._test_msg_serialization(
+            GetBlockHeadersV66EthProtocolMessage, False, 1234, base_message
+        )
+
     def test_block_header_eth_message(self):
         self._test_msg_serialization(
             BlockHeadersEthProtocolMessage,
             False,
+            [
+                mock_eth_messages.get_dummy_block_header(1),
+                mock_eth_messages.get_dummy_block_header(2),
+                mock_eth_messages.get_dummy_block_header(3),
+            ],
+        )
+
+    def test_block_header_v66_eth_message(self):
+        BlockHeadersV66EthProtocolMessage._serializer = None
+        self._test_msg_serialization(
+            BlockHeadersV66EthProtocolMessage,
+            None,
+            1234,
             [
                 mock_eth_messages.get_dummy_block_header(1),
                 mock_eth_messages.get_dummy_block_header(2),
@@ -190,11 +242,37 @@ class EthMessagesTests(AbstractTestCase):
             ],
         )
 
+    def test_get_block_bodies_v66_eth_message(self):
+        GetBlockBodiesV66EthProtocolMessage._serializer = None
+        self._test_msg_serialization(
+            GetBlockBodiesV66EthProtocolMessage,
+            None,
+            1234,
+            [
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            ],
+        )
+
     def test_block_bodies_eth_message(self):
         self._test_msg_serialization(
             BlockBodiesEthProtocolMessage,
             False,
             # passing randomly generated hashes
+            [
+                mock_eth_messages.get_dummy_transient_block_body(1),
+                mock_eth_messages.get_dummy_transient_block_body(2),
+                mock_eth_messages.get_dummy_transient_block_body(3),
+            ],
+        )
+
+    def test_block_bodies_v66_eth_message(self):
+        BlockBodiesV66EthProtocolMessage._serializer = None
+        self._test_msg_serialization(
+            BlockBodiesV66EthProtocolMessage,
+            None,
+            1234,
             [
                 mock_eth_messages.get_dummy_transient_block_body(1),
                 mock_eth_messages.get_dummy_transient_block_body(2),
@@ -230,9 +308,31 @@ class EthMessagesTests(AbstractTestCase):
             ],
         )
 
+    def test_get_node_data_v66_eth_message(self):
+        GetNodeDataV66EthProtocolMessage._serializer = None
+        self._test_msg_serialization(
+            GetNodeDataV66EthProtocolMessage,
+            False,
+            1234,
+            [
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            ],
+        )
+
     def test_node_data_eth_message(self):
         self._test_msg_serialization(
             NodeDataEthProtocolMessage, False, helpers.generate_bytes(1000)
+        )
+
+    def test_node_data_v66_eth_message(self):
+        NodeDataV66EthProtocolMessage._serializer = None
+        self._test_msg_serialization(
+            NodeDataV66EthProtocolMessage,
+            False,
+            1234,
+            helpers.generate_bytes(1000),
         )
 
     def test_get_receipts_eth_message(self):
@@ -247,9 +347,31 @@ class EthMessagesTests(AbstractTestCase):
             ],
         )
 
+    def test_get_receipts_v66_eth_message(self):
+        GetReceiptsV66EthProtocolMessage._serializer = None
+        self._test_msg_serialization(
+            GetReceiptsV66EthProtocolMessage,
+            False,
+            1234,
+            [
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+                helpers.generate_bytes(eth_common_constants.BLOCK_HASH_LEN),
+            ],
+        )
+
     def test_receipts_eth_message(self):
         self._test_msg_serialization(
             ReceiptsEthProtocolMessage, False, helpers.generate_bytes(1000)
+        )
+
+    def test_receipts_v66_eth_message(self):
+        ReceiptsV66EthProtocolMessage._serializer = None
+        self._test_msg_serialization(
+            ReceiptsV66EthProtocolMessage,
+            False,
+            1234,
+            helpers.generate_bytes(1000),
         )
 
     def test_new_block_internal_eth_message_to_from_new_block_message(self):
@@ -483,7 +605,7 @@ class EthMessagesTests(AbstractTestCase):
         new_block_hashes_msg_from_hash = NewBlockHashesEthProtocolMessage.from_block_hash_number_pair(
             block_hash, block_number
         )
-        new_block_hashes_msg_from_hash.deserialize()
+        new_block_hashes_msg_from_hash.deserialize_message()
 
         self.assertEqual(1, len(new_block_hashes_msg_from_hash.get_block_hash_number_pairs()))
         (
@@ -553,11 +675,7 @@ class EthMessagesTests(AbstractTestCase):
             bytes(helpers.generate_hash()),
         ]
 
-        self._test_msg_serialization(
-            NewPooledTransactionHashesEthProtocolMessage,
-            False,
-            tx_hashes
-        )
+        self._test_msg_serialization(NewPooledTransactionHashesEthProtocolMessage, False, tx_hashes)
 
     def test_get_pooled_transactions(self):
         tx_hashes = [
@@ -566,9 +684,20 @@ class EthMessagesTests(AbstractTestCase):
             bytes(helpers.generate_hash()),
         ]
 
+        self._test_msg_serialization(GetPooledTransactionsEthProtocolMessage, False, tx_hashes)
+
+    def test_get_pooled_transactions_v66(self):
+        tx_hashes = [
+            bytes(helpers.generate_hash()),
+            bytes(helpers.generate_hash()),
+            bytes(helpers.generate_hash()),
+        ]
+
+        GetPooledTransactionsV66EthProtocolMessage._serializer = None
         self._test_msg_serialization(
-            GetPooledTransactionsEthProtocolMessage,
+            GetPooledTransactionsV66EthProtocolMessage,
             False,
+            1234,
             tx_hashes
         )
 
@@ -576,6 +705,19 @@ class EthMessagesTests(AbstractTestCase):
         self._test_msg_serialization(
             PooledTransactionsEthProtocolMessage,
             False,
+            [
+                mock_eth_messages.get_dummy_transaction(1),
+                mock_eth_messages.get_dummy_transaction(2),
+                mock_eth_messages.get_dummy_transaction(3),
+            ],
+        )
+
+    def test_pooled_transactions_v66(self):
+        PooledTransactionsV66EthProtocolMessage._serializer = None
+        self._test_msg_serialization(
+            PooledTransactionsV66EthProtocolMessage,
+            False,
+            1234,
             [
                 mock_eth_messages.get_dummy_transaction(1),
                 mock_eth_messages.get_dummy_transaction(2),
@@ -601,7 +743,7 @@ class EthMessagesTests(AbstractTestCase):
 
         # deserialize message from bytes
         msg_deserialized = msg_cls(msg_bytes)
-        msg_deserialized.deserialize()
+        msg_deserialized.deserialize_message()
 
         # verify that field values are correct after deserialization
         self._verify_field_values(msg_cls, msg_deserialized, *args)

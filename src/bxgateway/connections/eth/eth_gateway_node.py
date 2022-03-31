@@ -426,7 +426,7 @@ class EthGatewayNode(AbstractGatewayNode):
             else:
                 super(EthGatewayNode, self).log_closed_connection(connection)
 
-        elif isinstance(connection, GatewayConnection):
+        elif isinstance(connection, (GatewayConnection, EthRemoteConnection)):
             if connection.established:
                 logger.debug("Failed to connect to: {}.", connection)
             else:

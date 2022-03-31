@@ -35,7 +35,7 @@ class GatewayHttpRpcServer(AbstractHttpRpcServer["AbstractGatewayNode"]):
             ]
         )
 
-    def authenticate_request(self, request: Request) -> None:
+    async def authenticate_request(self, request: Request) -> None:
         is_authenticated = True
         if self._encoded_auth is not None:
             # pyre-fixme[16]: Callable `headers` has no attribute `__getitem__`.

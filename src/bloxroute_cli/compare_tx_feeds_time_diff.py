@@ -7,8 +7,8 @@ from typing import Optional, Dict, Set, List, Any, cast
 
 from typing import IO
 
-from bxcommon.rpc.provider.ws_provider import WsProvider
 from bxcommon.rpc.external.eth_ws_subscriber import EthWsSubscriber
+from bxcommon.rpc.provider.ws_provider import WsProvider
 
 
 class HashEntry:
@@ -69,7 +69,7 @@ async def main() -> None:
         all_hashes_file = open("all_hashes.csv", "w")
         f = all_hashes_file
         assert f is not None
-        f.write("tx-hash,blxr Time,eth Time\n")
+        f.write("tx-hash,blxr Time,eth Time, Time diff\n")
 
     global missing_hashes_file
     if "MISSING" in args.dump:
@@ -293,7 +293,7 @@ def stats(seen_hashes: Dict[str, HashEntry], ignore_delta: int, verbose: bool) -
             if all_hashes_file:
                 f = all_hashes_file
                 assert f is not None
-                f.write(f"{tx_hash}, 0, {datetime.fromtimestamp(eth_node_time_received)}\n")
+                f.write(f"{tx_hash}, 0, {datetime.fromtimestamp(eth_node_time_received)}, 0\n")
             new_tx_from_eth_node_feed_first += 1
             total_tx_from_eth_node += 1
             continue
@@ -304,7 +304,7 @@ def stats(seen_hashes: Dict[str, HashEntry], ignore_delta: int, verbose: bool) -
             if all_hashes_file:
                 f = all_hashes_file
                 assert f is not None
-                f.write(f"{tx_hash}, {datetime.fromtimestamp(gateway_time_received)}, 0\n")
+                f.write(f"{tx_hash}, {datetime.fromtimestamp(gateway_time_received)}, 0, 0\n")
             new_tx_from_gateway_feed_first += 1
             total_tx_from_gateway += 1
             continue
@@ -327,7 +327,8 @@ def stats(seen_hashes: Dict[str, HashEntry], ignore_delta: int, verbose: bool) -
             f.write(
                 f"{tx_hash}, "
                 f"{datetime.fromtimestamp(gateway_time_received)}, "
-                f"{datetime.fromtimestamp(eth_node_time_received)}\n"
+                f"{datetime.fromtimestamp(eth_node_time_received)},"
+                f"{(gateway_time_received - eth_node_time_received)*1000}\n"
             )
 
         if gateway_time_received < eth_node_time_received:

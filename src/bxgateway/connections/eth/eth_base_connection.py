@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
+
+from bxcommon.utils.blockchain_utils.eth import eth_common_constants
 
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.messages.abstract_message_factory import AbstractMessageFactory
@@ -30,7 +32,7 @@ class EthBaseConnection(AbstractGatewayBlockchainConnection["EthGatewayNode"], A
         self.rlpx_cipher = RLPxCipher(
             self.is_handshake_initiator, private_key, public_key
         )
-
+        self.version = eth_common_constants.ETH_PROTOCOL_VERSION
         super().__init__(sock, node)
 
     @abstractmethod
@@ -61,3 +63,6 @@ class EthBaseConnection(AbstractGatewayBlockchainConnection["EthGatewayNode"], A
             full_message_bytes.extend(message_bytes)
 
         self.enqueue_msg_bytes(full_message_bytes, prepend)
+
+    def is_version_66(self) -> bool:
+        return self.version >= 66

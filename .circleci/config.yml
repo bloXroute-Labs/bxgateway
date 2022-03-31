@@ -171,31 +171,6 @@ jobs:
     - store_artifacts:
         path: test-reports/
         destination: tr1
-  e2e:
-    executor: bloxroute-executor
-    steps:
-      - attach_workspace:
-          at: ~/ws
-      - clone:
-          repo: bxe2e
-          folder: bxe2e
-      - clone:
-          repo: bxrelay
-          folder: bxrelay
-      - run:
-          name: Initialize virtualenv
-          command: |
-            . venv/bin/activate
-            pip install -r bxrelay/requirements.txt \
-              -r bxrelay/requirements-dev.txt \
-              -r bxcommon/requirements-optional.txt
-      - run:
-          name: Integration Test
-          command: |
-            . venv/bin/activate
-            cd bxe2e/test/integration
-            PYTHONPATH=$PYTHONPATH:/home/circleci/ws/bxe2e/src:/home/circleci/ws/bxrelay/src \
-            python -m unittest discover --verbose
   build:
     docker:
       - image: docker:19.03.8
@@ -245,8 +220,5 @@ workflows:
           requires:
             - initialize
       - test:
-          requires:
-            - initialize
-      - e2e:
           requires:
             - initialize

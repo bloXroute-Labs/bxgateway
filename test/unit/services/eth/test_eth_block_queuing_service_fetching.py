@@ -210,45 +210,29 @@ class EthBlockQueuingServiceFetchingTest(AbstractTestCase):
         self.node._tracked_block_cleanup()
         self.node.block_cleanup_service.block_cleanup_request.assert_called_once()
 
-    def test_try_send_headers_to_node_success(self):
+    def test_get_headers_to_node_success(self):
         self.node_conn.enqueue_msg.reset_mock()
-        result = self.block_queuing_service.try_send_headers_to_node(self.block_hashes[:4])
+        result = self.block_queuing_service.get_block_headers(self.block_hashes[:4])
+        self.assertEqual(result, self.block_headers[:4])
 
-        self.assertTrue(result)
-        self.node_conn.enqueue_msg.assert_called_once_with(
-            BlockHeadersEthProtocolMessage(
-                None,
-                self.block_headers[:4]
-            )
-        )
-
-    def test_try_send_headers_to_node_unknown_block(self):
+    def test_get_headers_to_node_unknown_block(self):
         self.node.broadcast = MagicMock()
-        result = self.block_queuing_service.try_send_headers_to_node(
+        result = self.block_queuing_service.get_block_headers(
+            [self.block_hashes[0], helpers.generate_object_hash()]
+        )
+        self.assertIsNone(result)
+
+    def test_get_block_bodies_success(self):
+        self.node_conn.enqueue_msg.reset_mock()
+        result = self.block_queuing_service.get_block_bodies(self.block_hashes[:4])
+
+        self.assertEqual(result, self.block_bodies[:4])
+
+    def test_get_block_bodies_unknown_block(self):
+        self.node_conn.enqueue_msg.reset_mock()
+        result = self.block_queuing_service.get_block_bodies(
             [self.block_hashes[0], helpers.generate_object_hash()]
         )
 
-        self.assertFalse(result)
-        self.node.broadcast.assert_not_called()
-
-    def test_try_send_bodies_to_node_success(self):
-        self.node_conn.enqueue_msg.reset_mock()
-        result = self.block_queuing_service.try_send_bodies_to_node(self.block_hashes[:4])
-
-        self.assertTrue(result)
-        self.node_conn.enqueue_msg.assert_called_once_with(
-            BlockBodiesEthProtocolMessage(
-                None,
-                self.block_bodies[:4]
-            )
-        )
-
-    def test_try_send_bodies_to_node_unknown_block(self):
-        self.node_conn.enqueue_msg.reset_mock()
-        result = self.block_queuing_service.try_send_bodies_to_node(
-            [self.block_hashes[0], helpers.generate_object_hash()]
-        )
-
-        self.assertFalse(result)
-        self.node_conn.enqueue_msg.assert_not_called()
+        self.assertIsNone(result)
 

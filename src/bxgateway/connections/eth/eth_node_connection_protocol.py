@@ -2,38 +2,60 @@ import time
 from collections import deque
 from typing import List, Deque, cast, Union
 
+from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
+from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
+from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxcommon.feed.feed import FeedKey
+from bxcommon.feed.feed_source import FeedSource
 from bxcommon.messages.abstract_message import AbstractMessage
 from bxcommon.utils import convert
 from bxcommon.utils.blockchain_utils.eth import eth_common_utils, eth_common_constants
 from bxcommon.utils.expiring_dict import ExpiringDict
-from bxcommon.utils.object_hash import Sha256Hash, NULL_SHA256_HASH
+from bxcommon.utils.object_hash import Sha256Hash
 from bxcommon.utils.stats.block_stat_event_type import BlockStatEventType
 from bxcommon.utils.stats.block_statistics_service import block_stats
-from bxcommon.feed.feed_source import FeedSource
 from bxgateway import log_messages
 from bxgateway.connections.eth.eth_base_connection_protocol import EthBaseConnectionProtocol
-from bxgateway.eth_exceptions import CipherNotInitializedError
-from bxcommon.feed.eth.eth_new_transaction_feed import EthNewTransactionFeed
-from bxcommon.feed.eth.eth_pending_transaction_feed import EthPendingTransactionFeed
-from bxcommon.feed.eth.eth_raw_transaction import EthRawTransaction
 from bxgateway.messages.eth.internal_eth_block_info import InternalEthBlockInfo
 from bxgateway.messages.eth.new_block_parts import NewBlockParts
-from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import BlockBodiesEthProtocolMessage
-from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import BlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.block_bodies_eth_protocol_message import \
+    BlockBodiesEthProtocolMessage
+from bxgateway.messages.eth.protocol.block_bodies_v66_eth_protocol_message import \
+    BlockBodiesV66EthProtocolMessage
+from bxgateway.messages.eth.protocol.block_headers_eth_protocol_message import \
+    BlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.block_headers_v66_eth_protocol_message import \
+    BlockHeadersV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.eth_protocol_message_type import EthProtocolMessageType
-from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import GetBlockBodiesEthProtocolMessage
-from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import GetBlockHeadersEthProtocolMessage
-from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import GetNodeDataEthProtocolMessage
-from bxgateway.messages.eth.protocol.get_pooled_transactions_eth_protocol_message import \
-    GetPooledTransactionsEthProtocolMessage
-from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import GetReceiptsEthProtocolMessage
-from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import NewBlockEthProtocolMessage
-from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import NewBlockHashesEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_block_bodies_eth_protocol_message import \
+    GetBlockBodiesEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_block_bodies_v66_eth_protocol_message import \
+    GetBlockBodiesV66EthProtocolMessage
+from bxgateway.messages.eth.protocol.get_block_headers_eth_protocol_message import \
+    GetBlockHeadersEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_block_headers_v66_eth_protocol_message import \
+    GetBlockHeadersV66EthProtocolMessage
+from bxgateway.messages.eth.protocol.get_node_data_eth_protocol_message import \
+    GetNodeDataEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_node_data_v66_eth_protocol_message import \
+    GetNodeDataV66EthProtocolMessage
+from bxgateway.messages.eth.protocol.get_receipts_eth_protocol_message import \
+    GetReceiptsEthProtocolMessage
+from bxgateway.messages.eth.protocol.get_receipts_v66_eth_protocol_message import \
+    GetReceiptsV66EthProtocolMessage
+from bxgateway.messages.eth.protocol.new_block_eth_protocol_message import \
+    NewBlockEthProtocolMessage
+from bxgateway.messages.eth.protocol.new_block_hashes_eth_protocol_message import \
+    NewBlockHashesEthProtocolMessage
 from bxgateway.messages.eth.protocol.new_pooled_transaction_hashes_eth_protocol_message import \
     NewPooledTransactionHashesEthProtocolMessage
+from bxgateway.messages.eth.protocol.pooled_transactions_eth_protocol_message import \
+    PooledTransactionsEthProtocolMessage
+from bxgateway.messages.eth.protocol.pooled_transactions_v66_eth_protocol_message import \
+    PooledTransactionsV66EthProtocolMessage
 from bxgateway.messages.eth.protocol.status_eth_protocol_message import StatusEthProtocolMessage
-from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import StatusEthProtocolMessageV63
+from bxgateway.messages.eth.protocol.status_eth_protocol_message_v63 import \
+    StatusEthProtocolMessageV63
 from bxgateway.messages.eth.protocol.transactions_eth_protocol_message import \
     TransactionsEthProtocolMessage
 from bxgateway.services.eth.eth_block_queuing_service import EthBlockQueuingService
@@ -41,7 +63,8 @@ from bxgateway.services.gateway_transaction_service import ProcessTransactionMes
 from bxgateway.utils.eth.rlpx_cipher import RLPxCipher
 from bxgateway.utils.stats.gateway_bdn_performance_stats_service import \
     gateway_bdn_performance_stats_service
-from bxgateway.utils.stats.gateway_transaction_stats_service import gateway_transaction_stats_service
+from bxgateway.utils.stats.gateway_transaction_stats_service import \
+    gateway_transaction_stats_service
 from bxgateway.utils.stats.transaction_feed_stats_service import transaction_feed_stats_service
 from bxutils import logging
 
@@ -56,7 +79,7 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             EthProtocolMessageType.STATUS: self.msg_status,
             EthProtocolMessageType.TRANSACTIONS: self.msg_tx,
             EthProtocolMessageType.NEW_POOLED_TRANSACTION_HASHES: self.msg_new_pooled_tx_hashes,
-            EthProtocolMessageType.POOLED_TRANSACTIONS: self.msg_tx,
+            EthProtocolMessageType.POOLED_TRANSACTIONS: self.msg_pooled_txs,
             EthProtocolMessageType.GET_BLOCK_HEADERS: self.msg_get_block_headers,
             EthProtocolMessageType.GET_BLOCK_BODIES: self.msg_get_block_bodies,
             EthProtocolMessageType.GET_NODE_DATA: self.msg_get_node_data,
@@ -120,7 +143,8 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
         if not self.node.opts.has_fully_updated_tx_service:
             self.connection.log_debug(
-                "Skipping {} announced transactions from Ethereum peer, not yet synced", len(transaction_hashes)
+                "Skipping {} announced transactions from Ethereum peer, not yet synced",
+                len(transaction_hashes)
             )
             return
 
@@ -129,16 +153,26 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             if not self.tx_service.has_transaction_contents_by_key(
                 self.tx_service.get_transaction_key(tx_hash, None)
             ):
-                new_tx_hashes.append(tx_hash.binary)
+                new_tx_hashes.append(tx_hash)
 
         if new_tx_hashes:
-            self.connection.enqueue_msg(
-                GetPooledTransactionsEthProtocolMessage(
-                    None,
-                    new_tx_hashes
-                )
-            )
-            self.connection.log_trace("Fetching {} announced transactions from Ethereum peer", len(new_tx_hashes))
+            self.request_transactions(new_tx_hashes)
+            self.connection.log_trace("Fetching {} announced transactions from Ethereum peer",
+                                      len(new_tx_hashes))
+
+    def msg_pooled_txs(
+        self,
+        msg: Union[PooledTransactionsV66EthProtocolMessage, PooledTransactionsEthProtocolMessage]
+    ) -> None:
+
+        if isinstance(msg, PooledTransactionsV66EthProtocolMessage):
+            response = msg.get_message()
+        else:
+            response = msg
+
+        # noinspection PyTypeChecker
+        # pyre-ignore
+        self.msg_tx(response)
 
     def msg_tx(self, msg: TransactionsEthProtocolMessage) -> None:
         if len(msg.rawbytes()) >= eth_common_constants.ETH_SKIP_TRANSACTIONS_SIZE:
@@ -148,7 +182,9 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         else:
             super().msg_tx(msg)
 
-    def msg_tx_after_tx_service_process_complete(self, process_result: List[ProcessTransactionMessageFromNodeResult]):
+    def msg_tx_after_tx_service_process_complete(
+        self, process_result: List[ProcessTransactionMessageFromNodeResult]
+    ):
         # calculate minimal tx gas price only if transaction validation is enabled
         if not self.node.opts.transaction_validation:
             return
@@ -223,47 +259,67 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
         for block_hash, block_number in block_hash_number_pairs:
             # pyre-fixme[6]: Expected `memoryview` for 1st param but got `None`.
             self.pending_new_block_parts.add(block_hash, NewBlockParts(None, None, block_number))
-            self.connection.enqueue_msg(GetBlockHeadersEthProtocolMessage(None, block_hash.binary, 1, 0, 0))
+            self.request_block_headers(block_hash, 1, 0, 0)
 
-        self.request_block_body([block_hash for block_hash, _ in block_hash_number_pairs])
+        self.request_block_bodies([block_hash for block_hash, _ in block_hash_number_pairs])
 
-    def request_block_body(self, block_hashes: List[Sha256Hash]):
-        block_request_message = GetBlockBodiesEthProtocolMessage(
-            None,
-            block_hashes=[bytes(blk.binary) for blk in block_hashes]
-        )
-        self.connection.enqueue_msg(block_request_message)
+    def request_block_bodies(self, block_hashes: List[Sha256Hash]) -> None:
+        super().request_block_bodies(block_hashes)
         self._block_bodies_requests.append(block_hashes)
 
-    def msg_get_block_headers(self, msg: GetBlockHeadersEthProtocolMessage):
+    def msg_get_block_headers(self, msg: Union[GetBlockHeadersEthProtocolMessage, GetBlockHeadersV66EthProtocolMessage]):
         if self._waiting_checkpoint_headers_request:
             super(EthNodeConnectionProtocol, self).msg_get_block_headers(msg)
         else:
+
+            if isinstance(msg, GetBlockHeadersV66EthProtocolMessage):
+                request_id = msg.get_request_id()
+                headers_request = msg.get_message()
+            else:
+                request_id = None
+                headers_request = msg
+
             block_queuing_service = cast(
                 EthBlockQueuingService,
                 self.node.block_queuing_service_manager.get_block_queuing_service(self.connection)
             )
-            processed = self.node.block_processing_service.try_process_get_block_headers_request(
-                msg,
+            block_headers = self.node.block_processing_service.try_process_get_block_headers_request(
+                headers_request,
                 block_queuing_service
             )
-            if not processed:
+            if block_headers is None:
                 self.msg_proxy_request(msg, self.connection)
+            else:
+                self.send_block_headers(block_headers, request_id)
 
-    def msg_get_block_bodies(self, msg: GetBlockBodiesEthProtocolMessage):
+    def msg_get_block_bodies(self, msg: Union[GetBlockBodiesEthProtocolMessage, GetBlockBodiesV66EthProtocolMessage]):
+        if isinstance(msg, GetBlockBodiesV66EthProtocolMessage):
+            request_id = msg.get_request_id()
+            bodies_request = msg.get_message()
+        else:
+            request_id = None
+            bodies_request = msg
+
         block_queuing_service = cast(
             EthBlockQueuingService,
             self.node.block_queuing_service_manager.get_block_queuing_service(self.connection)
         )
-        processed = self.node.block_processing_service.try_process_get_block_bodies_request(msg, block_queuing_service)
+        block_bodies = self.node.block_processing_service.try_process_get_block_bodies_request(
+            bodies_request, block_queuing_service
+        )
 
-        if not processed:
-            self.node.log_requested_remote_blocks(msg.get_block_hashes())
-            self.msg_proxy_request(msg, self.connection)
+        if block_bodies is None:
+            self.node.log_requested_remote_blocks(bodies_request.get_block_hashes())
+            self.msg_proxy_request(bodies_request, self.connection)
+        else:
+            self.send_block_bodies(block_bodies, request_id)
 
-    def msg_block_headers(self, msg: BlockHeadersEthProtocolMessage):
+    def msg_block_headers(self, msg: Union[BlockHeadersV66EthProtocolMessage, BlockHeadersEthProtocolMessage]):
         if not self.node.should_process_block_hash():
             return
+
+        if isinstance(msg, BlockHeadersV66EthProtocolMessage):
+            msg = msg.get_message()
 
         block_headers = msg.get_block_headers()
 
@@ -302,9 +358,12 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
             latest_block_number, latest_block_difficulty
         )
 
-    def msg_block_bodies(self, msg: BlockBodiesEthProtocolMessage):
+    def msg_block_bodies(self, msg: Union[BlockBodiesV66EthProtocolMessage, BlockBodiesEthProtocolMessage]):
         if not self.node.should_process_block_hash():
             return
+
+        if isinstance(msg, BlockBodiesV66EthProtocolMessage):
+            msg = msg.get_message()
 
         if self._block_bodies_requests:
             requested_hashes = self._block_bodies_requests.popleft()
@@ -342,11 +401,20 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
 
             self._process_ready_new_blocks()
 
-    def msg_get_receipts(self, msg: GetReceiptsEthProtocolMessage) -> None:
-        self.node.log_requested_remote_blocks(msg.get_block_hashes())
+    def msg_get_receipts(
+        self, msg: Union[GetReceiptsV66EthProtocolMessage, GetReceiptsEthProtocolMessage]
+    ) -> None:
+        if isinstance(msg, GetReceiptsV66EthProtocolMessage):
+            request = msg.get_message()
+        else:
+            request = msg
+
+        self.node.log_requested_remote_blocks(request.get_block_hashes())
         self.msg_proxy_request(msg, self.connection)
 
-    def msg_get_node_data(self, msg: GetNodeDataEthProtocolMessage) -> None:
+    def msg_get_node_data(
+        self, msg: Union[GetNodeDataV66EthProtocolMessage, GetNodeDataEthProtocolMessage]
+    ) -> None:
         self.msg_proxy_request(msg, self.connection)
 
     def _stop_waiting_checkpoint_headers_request(self):
@@ -412,35 +480,10 @@ class EthNodeConnectionProtocol(EthBaseConnectionProtocol):
                 )
 
     def _request_blocks_confirmation(self):
-        # TODO: remove unused method
-        try:
-            super(EthNodeConnectionProtocol, self)._request_blocks_confirmation()
-        except CipherNotInitializedError:
-            logger.info(
-                "Failed to request block confirmation due to bad cipher state, "
-                "probably because the handshake was not completed yet."
-            )
-        return self.block_cleanup_poll_interval_s
+        raise NotImplementedError()
 
     def _build_get_blocks_message_for_block_confirmation(self, hashes: List[Sha256Hash]) -> AbstractMessage:
-        # TODO: remove unused method
-        block_hash = NULL_SHA256_HASH
-        for block_hash in hashes:
-            last_attempt = self.requested_blocks_for_confirmation.contents.get(block_hash, 0)
-            if time() - last_attempt > \
-                self.block_cleanup_poll_interval_s * eth_common_constants.BLOCK_CONFIRMATION_REQUEST_INTERVALS:
-                break
-        else:
-            block_hash = hashes[0]
-
-        self.requested_blocks_for_confirmation.add(block_hash, time.time())
-        return GetBlockHeadersEthProtocolMessage(
-            None,
-            block_hash=bytes(block_hash.binary),
-            amount=100,
-            skip=0,
-            reverse=0
-        )
+        raise NotImplementedError()
 
     def publish_transaction(
         self, tx_hash: Sha256Hash, tx_contents: memoryview, local_region: bool = True

@@ -295,7 +295,7 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
             ),
             10
         )
-        block_msg.serialize()
+        block_msg.serialize_message()
         self.block_blockchain_connection_protocol.msg_block(block_msg)
 
         self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
@@ -317,7 +317,7 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
             ),
             10
         )
-        block_msg.serialize()
+        block_msg.serialize_message()
         self.block_blockchain_connection_protocol.msg_block(block_msg)
         self.block_blockchain_connection_protocol.msg_block(block_msg)
 
@@ -382,7 +382,7 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
         broadcast_msg = BroadcastMessage(message_hash=msg_hash, network_num=1, is_encrypted=False, blob=msg_bytes)
         self.relay_connection.msg_broadcast(broadcast_msg)
 
-        block_msg.serialize()
+        block_msg.serialize_message()
         self.block_blockchain_connection_protocol.msg_block(block_msg)
 
         self.assertEqual(3, len(gateway_bdn_performance_stats_service.interval_data.blockchain_node_to_bdn_stats))
@@ -399,7 +399,7 @@ class GatewayBdnPerformanceStatsTest(AbstractTestCase):
             10
         )
 
-        block_msg.serialize()
+        block_msg.serialize_message()
         self.block_blockchain_connection_protocol.msg_block(block_msg)
 
         internal_new_block_msg = InternalEthBlockInfo.from_new_block_msg(block_msg)
