@@ -1,5 +1,5 @@
 pympler==0.8
-requests==2.22.0
+requests==2.31.0
 
 # Ethereum dependencies
 ipaddress==1.0.22
