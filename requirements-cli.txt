@@ -1,4 +1,4 @@
-aiohttp==3.7.3
+aiohttp==3.8.5
 websockets==8.1
 pyhumps==1.6.1
 web3>=5.11.1, <=5.13.1
