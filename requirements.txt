@@ -5,7 +5,7 @@ requests==2.22.0
 ipaddress==1.0.22
 cffi==1.12.2
 csiphash==0.0.5
-aiohttp==3.7.3
+aiohttp==3.8.5
 web3>=5.11.1
 
 # TODO: plan future work to remove this package
